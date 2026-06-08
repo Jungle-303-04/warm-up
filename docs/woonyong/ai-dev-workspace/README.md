@@ -1,120 +1,61 @@
 # AI Dev Workspace
 
-현재 구현 기획명은 `RepoPilot MVP`다.
+현재 제품 기획명은 `RepoPilot`이다.
 
-이 문서 묶음은 GitHub 저장소, Markdown 문서, 일정/일감/회의록/위키, 실시간 자동저장, RAG, AI 에이전트를 하나로 묶는 개발팀 협업툴 기획서다.
+RepoPilot은 개발팀이 문서, 일감, 일정, GitHub 이슈, 실제 코드의 관계를 한 프로젝트 안에서 관리하고, 그 결과를 정적 프로젝트 아카이브로 퍼블리싱할 수 있게 하는 협업툴이다.
 
-핵심 방향은 Notion 전체를 복제하는 것이 아니라, 2주 안에 5주 팀 프로젝트에서 바로 쓸 수 있는 GitHub 중심 협업 MVP를 만드는 것이다. 장기적으로는 고급 실시간 협업, Knowledge Map, MCP server까지 확장할 수 있지만, 첫 버전은 Home dashboard, GitHub Issues, workspace repo 문서, draft DB 자동저장, 자동 publish, 로컬 검색/RAG, 승인형 AI 액션에 집중한다.
+## 핵심 방향
 
-## 제품 한 줄 정의
+Notion 전체를 복제하지 않는다. 대신 다음 한 가지를 선명하게 검증한다.
 
-`RepoPilot MVP`는 code repo와 workspace repo를 연결해 팀의 코드, 이슈, 일정, 회의록, 위키, API 문서를 한 화면에서 운영하고, draft DB 자동저장과 AI/RAG로 5주 팀 프로젝트를 보조하는 2주 개발 가능 협업툴이다.
+> 프로젝트 문서와 코드가 얼마나 연결되어 있고, 어디가 최신 코드와 어긋났는지 보여준다.
 
 ## 문서 목록
 
-- [01. Reference Research](./01-reference-research.md)
-- [02. Product Requirements](./02-product-requirements.md)
-- [03. Information Architecture](./03-information-architecture.md)
-- [04. Git, RAG, MCP Architecture](./04-git-rag-mcp-architecture.md)
-- [05. Realtime UI and Collaboration](./05-realtime-ui-and-collaboration.md)
-- [06. GitHub Projects and Agent Workflows](./06-github-projects-agents.md)
-- [07. Roadmap and Development Items](./07-roadmap-and-development-items.md)
-- [08. Two Week MVP Cutline](./08-two-week-mvp-cutline.md)
-- [09. Home and Content UX Model](./09-home-and-content-ux-model.md)
-- [10. Storage, Publish, Permissions, and Security](./10-storage-publish-permissions-security.md)
-- [11. Onboarding and Setup Automation](./11-onboarding-and-setup-automation.md)
-- [12. Web, PWA, and Desktop Distribution](./12-web-pwa-desktop-distribution.md)
-- [13. AI Agent, RAG, MCP, and LangChain Plan](./13-ai-agent-rag-mcp-langchain-plan.md)
+- [00. 제품 기획서](./00-product-plan.md)
+- [01. 참고 리서치](./01-reference-research.md)
+- [02. 제품 요구사항](./02-product-requirements.md)
+- [03. 정보 구조](./03-information-architecture.md)
+- [04. 시스템 아키텍처](./04-system-architecture.md)
+- [05. 실시간 UI와 협업](./05-realtime-ui-and-collaboration.md)
+- [06. GitHub 프로젝트와 에이전트 워크플로우](./06-github-projects-and-agent-workflows.md)
+- [07. 로드맵과 개발 항목](./07-roadmap-and-development-items.md)
+- [08. 저장소, 퍼블리싱, 권한, 보안](./08-storage-publish-permissions-security.md)
+- [09. 온보딩과 초기 설정 자동화](./09-onboarding-and-setup-automation.md)
+- [10. Web, PWA, Desktop 배포 전략](./10-web-pwa-desktop-distribution.md)
+- [11. AI Agent와 RAG 계획](./11-ai-agent-rag-plan.md)
+- [12. Python 백엔드 아키텍처](./12-python-backend-architecture.md)
 
-## 핵심 설계 원칙
+## 정리 원칙
 
-1. code repo와 workspace repo는 분리한다.
-2. code repo는 코드 형상관리 원본이며, 앱은 기본적으로 읽고 분석한다.
-3. workspace repo는 회의록, 위키, API 문서, 개발 히스토리, AI action log의 Git 원본이다.
-4. Draft DB는 실시간 편집과 자동저장의 원본이다.
-5. Git commit은 사용자의 매 입력이 아니라 자동 publish job이 안정적인 시점에 만든다.
-6. 일정, 일감, 회의록, 위키, 개발 히스토리는 하나의 `Workspace Item` 모델 위에서 여러 뷰로 보여준다.
-7. AI는 채팅만 하지 않고, GitHub Issue, 문서, 코드, 일정에 대해 근거 기반 action proposal을 만든다.
-8. code repo 변경은 직접 push가 아니라 PR proposal로만 보낸다.
-9. 권한은 사용자 OAuth와 GitHub App installation 권한을 분리한다.
-10. 에이전트 액션은 근거, 변경 전후, 되돌리기 경로, audit log를 항상 남긴다.
+이 문서 묶음은 다음 기준으로 병합했다.
 
-## 제품 범위 요약
+- 제품 방향과 MVP 컷라인은 `00-product-plan.md`에 모은다.
+- 사용자 요구사항은 `02-product-requirements.md`에 둔다.
+- 페이지/일감/일정/회의록/위키의 공통 속성 모델은 `03-information-architecture.md`에 둔다.
+- GitHub, RAG, worker, publish 흐름은 `04-system-architecture.md`에 둔다.
+- 실시간 협업과 정적 뷰어의 차이는 `05-realtime-ui-and-collaboration.md`에 둔다.
+- 초대/권한/RAG 보안은 `08-storage-publish-permissions-security.md`에 통합한다.
+- AI agent catalog와 retrieval 전략은 `11-ai-agent-rag-plan.md`에 통합한다.
+- FastAPI worker, Python OOP 용어, UML deep dive는 `12-python-backend-architecture.md`에 필요한 만큼만 남긴다.
 
-```text
-RepoPilot MVP
-├── Home Dashboard
-│   ├── today schedule
-│   ├── my work
-│   ├── blocked/overdue
-│   ├── recent docs/meetings/decisions
-│   ├── AI alerts
-│   └── approvals
-├── Code Repo Integration
-│   ├── code read/index
-│   ├── issues
-│   ├── pull requests
-│   ├── labels/milestones
-│   └── PR-only promotion
-├── Workspace Repo
-│   ├── meetings
-│   ├── wiki
-│   ├── API/spec docs
-│   ├── decisions
-│   ├── dev history
-│   └── action logs
-├── Draft Collaboration Layer
-│   ├── autosave
-│   ├── snapshots
-│   ├── type properties
-│   ├── auto publish queue
-│   └── conflict handling
-├── Views
-│   ├── board
-│   ├── calendar
-│   ├── docs
-│   ├── meetings
-│   └── wiki
-├── AI
-│   ├── repo-aware chat
-│   ├── RAG retrieval
-│   ├── issue split proposal
-│   ├── close issue proposal
-│   ├── API doc drift proposal
-│   ├── meeting action extraction
-│   ├── internal tool registry
-│   └── optional MCP/LangGraph expansion
-└── Security
-    ├── GitHub App
-    ├── app roles
-    ├── token isolation
-    ├── secret filtering
-    └── audit log
-└── Distribution
-    ├── web app
-    ├── installable PWA
-    ├── optional Tauri desktop shell
-    └── macOS/Windows packages
-```
+## MVP 범위
 
-## MVP 판단 기준
+MVP는 다음을 증명한다.
 
-2주 MVP는 기능 수가 아니라 다음 데모가 가능한지로 판단한다.
+1. 프로젝트에 여러 GitHub repo를 연결할 수 있다.
+2. 문서와 일감을 하나의 타입 기반 모델로 관리할 수 있다.
+3. 일감은 table, kanban, calendar로 볼 수 있다.
+4. 문서는 관련 코드 칩을 보여줄 수 있다.
+5. 코드 변경 이후 문서 링크 상태가 verified/stale/broken/suggested로 표시된다.
+6. 정적 viewer는 읽기 전용 페이지, 검색, 필터, 코드 링크 상태를 제공한다.
+7. AI는 근거와 승인 흐름을 가진 proposal만 만든다.
 
-1. GitHub App 설치 후 code repo를 선택하면 앱이 repo, issues, PR, labels를 읽어 Home dashboard를 구성한다.
-2. 앱이 workspace repo를 자동 생성하거나 기존 workspace repo를 연결한다.
-3. Home에서 일정, 일감, 회의록, 문서, 위키, API 문서를 생성하고 타입을 바꿀 수 있다.
-4. 작성 중인 문서는 Draft DB에 자동저장되고, 안정적인 시점에 workspace repo로 자동 publish된다.
-5. GitHub Issues를 보드, 캘린더, 담당자 필터로 볼 수 있고, 홈에서 바로 등록할 수 있다.
-6. AI에게 "이 기능을 만들려면 일감을 어떻게 나눌까?"라고 물으면 기존 문서/코드/이슈를 근거로 GitHub Issue 초안을 만든다.
-7. AI에게 "현재 구현과 일정이 맞는지 확인하고 완료된 일감을 마감해줘"라고 요청하면 근거를 제시하고 승인 후 issue comment/status를 바꾼다.
-8. API 문서와 실제 구현이 다르면 AI가 차이를 요약하고, workspace repo 문서 patch 또는 code repo PR 초안을 만든다.
-9. 웹앱은 PWA로 설치 가능해야 하며, macOS/Windows 앱 패키지는 같은 frontend를 Tauri shell로 감싸는 확장 경로를 둔다.
+## 명시적으로 제외
 
-명시적으로 2주 MVP에서 제외하는 항목:
-
-- 팀원 마우스 포인터와 화면 동기화
-- 완전한 GitHub Projects v2 양방향 동기화
-- 여러 레포의 완전한 dependency graph
-- code repo 직접 자동 커밋/자동 머지
-- 사용자의 GitHub 권한을 우회하는 write action
+- 완전한 Notion 클론
+- 완전한 GitHub Projects 클론
+- 승인 없는 GitHub write action
+- MVP 단계의 완전한 VS Code extension
+- public viewer의 편집 기능
+- code repo 직접 자동 commit/merge

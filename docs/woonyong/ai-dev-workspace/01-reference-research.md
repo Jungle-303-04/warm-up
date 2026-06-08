@@ -1,4 +1,4 @@
-# Reference Research
+# 참고 리서치
 
 Generated: 2026-06-06 KST
 
