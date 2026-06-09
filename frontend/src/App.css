@@ -299,3 +299,224 @@
     padding: 8px;
   }
 }
+
+.calendar-page-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+
+.fullcalendar-card {
+  padding: 20px;
+}
+
+.calendar-card-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.calendar-card-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.calendar-card-header p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.fc {
+  font-family: inherit;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.fc .fc-button {
+  border: 1px solid #e5e7eb !important;
+  background: #ffffff !important;
+  color: #374151 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.fc .fc-button:hover {
+  background: #f9fafb !important;
+}
+
+.fc .fc-daygrid-day {
+  background: #ffffff;
+}
+
+.fc .fc-daygrid-day.fc-day-today {
+  background: #eef2ff;
+}
+
+.fc .fc-daygrid-day-number {
+  padding: 8px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.fc .fc-event {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.fc .teamlog-event-content {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.fc .teamlog-event-meeting .teamlog-event-content {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.fc .teamlog-event-retro .teamlog-event-content {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.day-detail-panel {
+  min-height: 680px;
+  padding: 22px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+}
+
+.day-detail-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.day-detail-header p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.day-summary {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+  margin-bottom: 22px;
+}
+
+.summary-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.summary-chip.meeting {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.summary-chip.retrospective {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.detail-section {
+  margin-top: 20px;
+}
+
+.detail-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.detail-section-title span:last-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.detail-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  text-align: left;
+}
+
+.detail-item + .detail-item {
+  margin-top: 8px;
+}
+
+.detail-item:hover {
+  background: #f9fafb;
+}
+
+.detail-item strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.detail-item p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.detail-item span {
+  color: #9ca3af;
+  font-size: 22px;
+}
+
+.empty-detail-text {
+  padding: 14px;
+  border: 1px dashed #e5e7eb;
+  border-radius: 14px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+@media (max-width: 1100px) {
+  .calendar-page-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .day-detail-panel {
+    min-height: auto;
+  }
+}
