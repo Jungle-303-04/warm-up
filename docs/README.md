@@ -2,44 +2,50 @@
 
 이 폴더는 학습, 기술 정리, 프로젝트 기획 문서를 모아두는 루트다.
 
-공용 학습 문서는 그대로 유지하고, 개인 제품 기획 문서는 `woonyong/` 아래에 둔다.
+Woonyong 개인 학습 문서와 제품 기획 문서는 `woonyong/` 아래에 둔다.
 
-## 공용 문서 묶음
+## Woonyong 문서 묶음
 
-- [풀스택 기술 로드맵](./full-stack-tech-loadmap/README.md)
-- [AI 구현 로드맵](./ai-implementation/README.md)
-
-## Woonyong 개인 문서
-
+- [운영 컨벤션](./config/conventions.md)
+- [스킬 지도](./skills/README.md)
+- [풀스택 기술 로드맵](./woonyong/full-stack-tech-loadmap/README.md)
+- [AI 구현 로드맵](./woonyong/ai-implementation/README.md)
 - [AI 개발 워크스페이스 / RepoPilot](./woonyong/ai-dev-workspace/README.md)
 
 ## 폴더 구조
 
 ```text
 docs
-├── full-stack-tech-loadmap
-├── ai-implementation
+├── config
+├── skills
 └── woonyong
+    ├── full-stack-tech-loadmap
+    ├── ai-implementation
     └── ai-dev-workspace
 ```
 
+## 운영 문서
+
+- [운영 컨벤션](./config/conventions.md)
+- [스킬 지도](./skills/README.md)
+
 ## 풀스택 기술 로드맵
 
-- [언어 기초](./full-stack-tech-loadmap/01-language-basics.md)
-- [프론트엔드](./full-stack-tech-loadmap/02-frontend.md)
-- [백엔드](./full-stack-tech-loadmap/03-backend.md)
-- [데이터 계층](./full-stack-tech-loadmap/04-data-layer.md)
-- [아키텍처](./full-stack-tech-loadmap/05-architecture.md)
-- [선택 가이드](./full-stack-tech-loadmap/06-selection-guide.md)
+- [언어 기초](./woonyong/full-stack-tech-loadmap/01-language-basics.md)
+- [프론트엔드](./woonyong/full-stack-tech-loadmap/02-frontend.md)
+- [백엔드](./woonyong/full-stack-tech-loadmap/03-backend.md)
+- [데이터 계층](./woonyong/full-stack-tech-loadmap/04-data-layer.md)
+- [아키텍처](./woonyong/full-stack-tech-loadmap/05-architecture.md)
+- [선택 가이드](./woonyong/full-stack-tech-loadmap/06-selection-guide.md)
 
 ## AI 구현 로드맵
 
-- [LLM 실행 환경](./ai-implementation/01-llm-runtime.md)
-- [RAG](./ai-implementation/02-rag.md)
-- [MCP](./ai-implementation/03-mcp.md)
-- [에이전트 오케스트레이션](./ai-implementation/04-agent-orchestration.md)
-- [메모리, 평가, 관측성](./ai-implementation/05-memory-evaluation-observability.md)
-- [Python 아키텍처](./ai-implementation/06-python-architecture.md)
+- [LLM 실행 환경](./woonyong/ai-implementation/01-llm-runtime.md)
+- [RAG](./woonyong/ai-implementation/02-rag.md)
+- [MCP](./woonyong/ai-implementation/03-mcp.md)
+- [에이전트 오케스트레이션](./woonyong/ai-implementation/04-agent-orchestration.md)
+- [메모리, 평가, 관측성](./woonyong/ai-implementation/05-memory-evaluation-observability.md)
+- [Python 아키텍처](./woonyong/ai-implementation/06-python-architecture.md)
 
 ## AI 개발 워크스페이스 / RepoPilot
 
@@ -57,3 +63,4 @@ docs
 - [Web, PWA, Desktop 배포 전략](./woonyong/ai-dev-workspace/10-web-pwa-desktop-distribution.md)
 - [AI Agent와 RAG 계획](./woonyong/ai-dev-workspace/11-ai-agent-rag-plan.md)
 - [Python 백엔드 아키텍처](./woonyong/ai-dev-workspace/12-python-backend-architecture.md)
+- [최소 파이프라인 구현 계획](./woonyong/ai-dev-workspace/13-minimal-pipeline-plan.md)

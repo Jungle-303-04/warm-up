@@ -25,6 +25,7 @@ Notion 전체를 복제하지 않는다. 대신 다음 한 가지를 선명하�
 - [10. Web, PWA, Desktop 배포 전략](./10-web-pwa-desktop-distribution.md)
 - [11. AI Agent와 RAG 계획](./11-ai-agent-rag-plan.md)
 - [12. Python 백엔드 아키텍처](./12-python-backend-architecture.md)
+- [13. 최소 파이프라인 구현 계획](./13-minimal-pipeline-plan.md)
 
 ## 정리 원칙
 
@@ -38,6 +39,7 @@ Notion 전체를 복제하지 않는다. 대신 다음 한 가지를 선명하�
 - 초대/권한/RAG 보안은 `08-storage-publish-permissions-security.md`에 통합한다.
 - AI agent catalog와 retrieval 전략은 `11-ai-agent-rag-plan.md`에 통합한다.
 - FastAPI worker, Python OOP 용어, UML deep dive는 `12-python-backend-architecture.md`에 필요한 만큼만 남긴다.
+- Docker Compose, mise, worker 실행 순서는 `13-minimal-pipeline-plan.md`에 둔다.
 
 ## MVP 범위
 
