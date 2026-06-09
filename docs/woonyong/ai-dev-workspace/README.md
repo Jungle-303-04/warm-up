@@ -26,6 +26,7 @@ Notion 전체를 복제하지 않는다. 대신 다음 한 가지를 선명하�
 - [11. AI Agent와 RAG 계획](./11-ai-agent-rag-plan.md)
 - [12. Python 백엔드 아키텍처](./12-python-backend-architecture.md)
 - [13. 최소 파이프라인 구현 계획](./13-minimal-pipeline-plan.md)
+- [14. 최소 구현 라인별 해설](./14-minimal-implementation-line-by-line.md)
 
 ## 정리 원칙
 
