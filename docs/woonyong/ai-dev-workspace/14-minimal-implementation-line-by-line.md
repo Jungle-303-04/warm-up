@@ -25,9 +25,11 @@ FastAPI route
 객체지향 관점에서는 다음처럼 보면 된다.
 
 - `schemas/pipeline.py`: DTO, 즉 요청/응답 데이터 모양.
+- `api/router.py`: API route 파일들을 모으는 root router.
+- `api/routes/*.py`: Java식 Controller에 가장 가깝다.
 - `services/*.py`: 실제 일을 하는 객체.
 - `services/pipeline.py`: port Protocol, 중간 산출물, application service를 함께 둔다.
-- `main.py`: FastAPI route, Java식 Controller에 가장 가깝다.
+- `main.py`: FastAPI app 생성과 router 연결만 담당한다.
 
 ## `.mise.toml`
 
@@ -122,14 +124,19 @@ FastAPI route
 - 16: ASGI server인 uvicorn이다.
 - 17: runtime dependency 목록을 닫는다.
 - 19: dependency group 섹션을 시작한다.
-- 20-24: dev dependency로 pytest, pytest-asyncio, ruff를 둔다.
-- 26: pytest 설정 섹션이다.
-- 27: 테스트 폴더를 `tests`로 지정한다.
-- 28: import 기준 경로를 backend root로 둔다.
-- 29: pytest import mode를 `importlib`로 둔다. 같은 이름의 테스트 파일을 미러링 폴더에 둘 수 있게 한다.
-- 31: ruff 설정 섹션이다.
-- 32: line length를 100으로 둔다.
-- 33: Python 3.12 기준으로 lint rule을 적용한다.
+- 20: dev dependency 목록을 시작한다.
+- 21: FastAPI/Starlette `TestClient`가 경고 없이 테스트에서 사용할 `httpx2`다.
+- 22: pytest 테스트 프레임워크다.
+- 23: async 테스트를 위한 pytest plugin이다.
+- 24: Python lint/format 도구인 ruff다.
+- 25: dev dependency 목록을 닫는다.
+- 27: pytest 설정 섹션이다.
+- 28: 테스트 폴더를 `tests`로 지정한다.
+- 29: import 기준 경로를 backend root로 둔다.
+- 30: pytest import mode를 `importlib`로 둔다. 같은 이름의 테스트 파일을 미러링 폴더에 둘 수 있게 한다.
+- 32: ruff 설정 섹션이다.
+- 33: line length를 100으로 둔다.
+- 34: Python 3.12 기준으로 lint rule을 적용한다.
 
 ## `backend/Dockerfile`
 
@@ -149,24 +156,48 @@ FastAPI route
 ## `backend/app/main.py`
 
 - 1: FastAPI 앱 클래스를 가져온다.
+- 3: 전체 API router를 가져온다.
+- 5: `main.py`의 책임을 설명하는 주석이다. 이제 개별 API 로직은 route 파일에 있다.
+- 6: FastAPI 앱 객체를 만든다. 이 객체가 ASGI 서버에서 실행된다.
+- 7: OpenAPI 문서에 표시될 API 이름이다.
+- 8: API 버전이다.
+- 9: API 요약 설명이다.
+- 10: FastAPI 생성자 호출을 끝낸다.
+- 12: `api_router`를 앱에 연결한다. 이 한 줄 때문에 `/health`, `/pipeline` route가 앱에 등록된다.
+
+## `backend/app/api/router.py`
+
+- 1: FastAPI의 `APIRouter`를 가져온다.
+- 3: health route module의 `router`를 `health_router`라는 이름으로 가져온다.
+- 4: pipeline route module의 `router`를 `pipeline_router`라는 이름으로 가져온다.
+- 6: 이 파일의 책임을 설명하는 주석이다.
+- 7: 여러 route를 묶을 root API router를 만든다.
+- 8: `/health` route를 root API router에 붙인다.
+- 9: pipeline route를 `/pipeline` prefix 아래에 붙인다. 그래서 route 파일 안의 `""`는 실제로 `/pipeline`이 된다.
+
+## `backend/app/api/routes/health.py`
+
+- 1: FastAPI의 `APIRouter`를 가져온다.
+- 3: health endpoint를 담을 router 객체를 만든다.
+- 6: `GET /health` route를 등록한다.
+- 7: health handler 함수다. 반환 타입은 문자열 dict다.
+- 8: 서버가 살아 있으면 `{status: ok}`를 반환한다. 별도 status code를 지정하지 않아서 FastAPI가 기본 200으로 응답한다.
+
+## `backend/app/api/routes/pipeline.py`
+
+- 1: FastAPI의 `APIRouter`를 가져온다.
 - 3: stage 목록을 API 응답용 dict로 바꿔주는 helper를 가져온다.
 - 4: 요청/응답 DTO인 `PipelineRequest`, `PipelineResponse`를 가져온다.
 - 5: 파이프라인 전체를 실행하는 application service를 가져온다.
-- 7: FastAPI 앱 객체를 만든다. 이 객체가 ASGI 서버에서 실행된다.
-- 8: OpenAPI 문서에 표시될 API 이름이다.
-- 9: API 버전이다.
-- 10: API 요약 설명이다.
-- 11: FastAPI 생성자 호출을 끝낸다.
-- 13: `PipelineService` 객체를 한 번 만든다. route는 이 객체에게 일을 맡긴다.
-- 16: `GET /health` route를 등록한다.
-- 17: health handler 함수다. 반환 타입은 문자열 dict다.
-- 18: 서버가 살아 있으면 `{status: ok}`를 반환한다.
-- 21: `GET /pipeline` route를 등록한다.
-- 22: stage 목록을 반환하는 handler다.
-- 23: 공통 stage 정의를 API 응답 형태로 변환해 반환한다.
-- 26: `POST /pipeline/run` route를 등록한다.
-- 27: 요청 body를 `PipelineRequest`로 검증하고 받는다.
-- 28: 실제 파이프라인 실행은 `PipelineService.run()`에 위임한다.
+- 7: pipeline endpoint를 담을 router 객체를 만든다.
+- 9: route module에서 service를 한 번만 만들어도 되는 이유를 설명하는 주석이다.
+- 10: `PipelineService` 객체를 만든다. route는 이 객체에게 일을 맡긴다.
+- 13: `GET /pipeline` route를 등록한다. `api/router.py`에서 prefix가 붙기 때문에 여기서는 빈 문자열을 쓴다.
+- 14: stage 목록을 반환하는 handler다.
+- 15: 공통 stage 정의를 API 응답 형태로 변환해 반환한다.
+- 18: `POST /pipeline/run` route를 등록한다.
+- 19: 요청 body를 `PipelineRequest`로 검증하고 받는다.
+- 20: 실제 파이프라인 실행은 `PipelineService.run()`에 위임한다.
 
 ## `backend/app/schemas/pipeline.py`
 
@@ -393,32 +424,43 @@ FastAPI route
 - 39: async worker를 실행한다.
 - 42-43: 파일이 직접 실행될 때만 `main()`을 호출한다.
 
-## `backend/tests/test_pipeline.py`
+## `backend/tests/test_main.py`
 
 - 1: FastAPI 테스트 클라이언트를 가져온다.
 - 3: 실제 FastAPI app 객체를 가져온다.
 - 4: stage id 원본을 가져온다.
 - 7: 테스트 클라이언트를 만든다.
-- 10: health check 테스트다.
-- 11: `/health`를 호출한다.
-- 13: HTTP 200인지 확인한다.
-- 14: 응답 body가 정확한지 확인한다.
-- 17: `/pipeline` stage 목록 테스트다.
-- 18: `/pipeline`을 호출한다.
-- 20: HTTP 200인지 확인한다.
-- 21: 응답에서 stage id만 뽑는다.
-- 22: stage 순서가 원본과 같은지 확인한다.
-- 23: stage id 중복이 없는지 확인한다.
-- 26: `/pipeline/run` 전체 흐름 테스트다.
-- 27: 빈 JSON으로 실행한다. 기본값 때문에 sample repo가 사용된다.
-- 29: HTTP 200인지 확인한다.
-- 30: JSON body를 변수로 둔다.
-- 31: 기본 repository 이름을 확인한다.
-- 32: code references가 비어 있지 않은지 확인한다.
-- 33: retrieval chunks가 비어 있지 않은지 확인한다.
-- 34: 첫 proposal이 approved인지 확인한다.
-- 35: publish snapshot이 published인지 확인한다.
-- 36: 실행 결과 stage 순서가 원본과 같은지 확인한다.
+- 10-14: 최종 앱에 `/health` route가 연결됐고 정상 응답하는지 확인한다.
+- 17-22: 최종 앱에 `/pipeline` route가 연결됐고 stage 순서가 유지되는지 확인한다.
+- 25-36: 최종 앱에서 `/pipeline/run` 전체 흐름이 끝까지 실행되는지 확인한다.
+
+## `backend/tests/api/test_router.py`
+
+- 1-2: FastAPI 테스트 앱과 테스트 클라이언트를 가져온다.
+- 4: root API router를 가져온다.
+- 6-8: 테스트용 FastAPI 앱에 `api_router`를 붙이고 client를 만든다.
+- 11: API router가 여러 route를 모으는지 확인하는 테스트다.
+- 12: `/health`가 root API router에 포함됐는지 확인한다.
+- 13: `/pipeline`이 root API router에 포함됐는지 확인한다.
+
+## `backend/tests/api/routes/test_health.py`
+
+- 1-2: FastAPI 테스트 앱과 테스트 클라이언트를 가져온다.
+- 4: health route file의 router를 가져온다.
+- 6-8: 테스트용 FastAPI 앱에 health router만 붙이고 client를 만든다.
+- 11: health route 단위 테스트다.
+- 12: `/health`를 호출한다.
+- 14: HTTP 200인지 확인한다.
+- 15: 응답 body가 정확한지 확인한다.
+
+## `backend/tests/api/routes/test_pipeline.py`
+
+- 1-2: FastAPI 테스트 앱과 테스트 클라이언트를 가져온다.
+- 4: pipeline route file의 router를 가져온다.
+- 5: stage id 원본을 가져온다.
+- 7-9: 테스트용 FastAPI 앱에 pipeline router만 `/pipeline` prefix로 붙이고 client를 만든다.
+- 12-17: `/pipeline` route가 stage metadata를 올바른 순서로 반환하는지 확인한다.
+- 20-29: `/pipeline/run` route가 PipelineService를 호출해 완성된 응답을 반환하는지 확인한다.
 
 ## `apps/web/src/app/page.tsx`
 

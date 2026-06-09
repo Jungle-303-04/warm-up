@@ -29,6 +29,10 @@ queue/cache/presence support
 backend/
 ├── app/
 │   ├── api/
+│   │   ├── router.py
+│   │   └── routes/
+│   │       ├── health.py
+│   │       └── pipeline.py
 │   ├── core/
 │   ├── services/
 │   │   ├── workspace.py
@@ -60,6 +64,14 @@ Infrastructure adapters
 ```
 
 FastAPI route는 GitHub/indexing/publishing logic을 직접 수행하지 않고 use case를 호출한다.
+
+현재 최소 구현에서는 API 계층을 다음처럼 읽으면 된다.
+
+- `main.py`: FastAPI 앱 생성, 전체 router 연결.
+- `api/router.py`: route module들을 한 곳에 모으는 API root router.
+- `api/routes/health.py`: `/health` endpoint.
+- `api/routes/pipeline.py`: `/pipeline`, `/pipeline/run` endpoint.
+- `services/pipeline.py`: 실제 pipeline use case 조립.
 
 ## Core Modules
 
@@ -116,6 +128,9 @@ Worker job으로 처리할 것:
 
 ```text
 app/main.py                 -> tests/test_main.py
+app/api/router.py           -> tests/api/test_router.py
+app/api/routes/health.py    -> tests/api/routes/test_health.py
+app/api/routes/pipeline.py  -> tests/api/routes/test_pipeline.py
 app/pipeline.py             -> tests/test_pipeline.py
 app/schemas/pipeline.py     -> tests/schemas/test_pipeline.py
 app/services/repo_sync.py   -> tests/services/test_repo_sync.py
