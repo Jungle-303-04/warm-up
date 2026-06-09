@@ -1,4 +1,4 @@
-from app.schemas import CodeReference, RepoSnapshot
+from app.schemas.pipeline import CodeReference, RepoSnapshot
 
 
 class CodeIndexService:
@@ -50,4 +50,3 @@ class CodeIndexService:
                 symbols.append((stripped.removeprefix("export function ").split("(")[0], index))
 
         return symbols
-

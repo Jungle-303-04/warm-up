@@ -1,4 +1,4 @@
-from app.schemas import CodeReference, RepoSnapshot, RetrievalChunk
+from app.schemas.pipeline import CodeReference, RepoSnapshot, RetrievalChunk
 
 
 class RagIndexService:
@@ -28,4 +28,3 @@ class RagIndexService:
             )
 
         return chunks
-

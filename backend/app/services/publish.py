@@ -1,4 +1,4 @@
-from app.schemas import AgentProposal, PublishSnapshot, RepoSnapshot, RetrievalChunk
+from app.schemas.pipeline import AgentProposal, PublishSnapshot, RepoSnapshot, RetrievalChunk
 
 
 class PublishService:
@@ -17,4 +17,3 @@ class PublishService:
             item_count=len(chunks),
             proposal_count=len(proposals),
         )
-

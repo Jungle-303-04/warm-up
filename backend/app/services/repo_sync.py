@@ -1,6 +1,6 @@
 from hashlib import sha1
 
-from app.schemas import PipelineRequest, RepoSnapshot
+from app.schemas.pipeline import PipelineRequest, RepoSnapshot
 
 
 class RepoSyncService:
@@ -19,4 +19,3 @@ class RepoSyncService:
             commit_sha=digest.hexdigest()[:12],
             files=request.files,
         )
-

@@ -30,15 +30,15 @@ backend/
 ├── app/
 │   ├── api/
 │   ├── core/
-│   ├── modules/
-│   │   ├── workspace/
-│   │   ├── project/
-│   │   ├── item/
-│   │   ├── github/
-│   │   ├── code_index/
-│   │   ├── publish/
-│   │   ├── rag/
-│   │   └── agent/
+│   ├── services/
+│   │   ├── workspace.py
+│   │   ├── project.py
+│   │   ├── item.py
+│   │   ├── github.py
+│   │   ├── code_index.py
+│   │   ├── publish.py
+│   │   ├── rag_index.py
+│   │   └── agent.py
 │   ├── db/
 │   ├── workers/
 │   └── main.py
@@ -67,10 +67,10 @@ FastAPI route는 GitHub/indexing/publishing logic을 직접 수행하지 않고 
 - `project`: project와 repo attachment
 - `item`: WorkspaceItem, properties, views
 - `github`: GitHub App, issues, PRs, permissions
-- `code_index`: files, symbols, code references
-- `publish`: static export jobs
-- `rag`: retrieval chunks와 context packs
-- `agent`: proposals와 approvals
+- `code_index.py`: files, symbols, code references
+- `publish.py`: static export jobs
+- `rag_index.py`: retrieval chunks와 context packs
+- `agent.py`: proposals와 approvals
 
 ## Background Work
 

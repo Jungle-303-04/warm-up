@@ -2,7 +2,7 @@
 
 기준: 2026-06-10 현재 최소 파이프라인 구현.
 
-이 문서는 자동 생성 파일, lock 파일, 빈 `__init__.py`를 제외하고 사람이 읽어야 하는 최소 구현 파일을 라인별로 설명한다.
+이 문서는 자동 생성 파일과 lock 파일을 제외하고 사람이 읽어야 하는 최소 구현 파일을 라인별로 설명한다.
 
 ## 먼저 이해할 구조
 
@@ -25,9 +25,8 @@ FastAPI route
 객체지향 관점에서는 다음처럼 보면 된다.
 
 - `schemas/pipeline.py`: DTO, 즉 요청/응답 데이터 모양.
-- `modules/*/service.py`: 실제 일을 하는 객체.
-- `modules/pipeline/ports.py`: 각 service가 지켜야 하는 인터페이스 역할.
-- `modules/pipeline/service.py`: 여러 service 객체를 조합하는 application service.
+- `services/*.py`: 실제 일을 하는 객체.
+- `services/pipeline.py`: port Protocol, 중간 산출물, application service를 함께 둔다.
 - `main.py`: FastAPI route, Java식 Controller에 가장 가깝다.
 
 ## `.mise.toml`
@@ -149,9 +148,9 @@ FastAPI route
 ## `backend/app/main.py`
 
 - 1: FastAPI 앱 클래스를 가져온다.
-- 3: 파이프라인 전체를 실행하는 application service를 가져온다.
-- 4: stage 목록을 API 응답용 dict로 바꿔주는 helper를 가져온다.
-- 5: 요청/응답 DTO인 `PipelineRequest`, `PipelineResponse`를 가져온다.
+- 3: stage 목록을 API 응답용 dict로 바꿔주는 helper를 가져온다.
+- 4: 요청/응답 DTO인 `PipelineRequest`, `PipelineResponse`를 가져온다.
+- 5: 파이프라인 전체를 실행하는 application service를 가져온다.
 - 7: FastAPI 앱 객체를 만든다. 이 객체가 ASGI 서버에서 실행된다.
 - 8: OpenAPI 문서에 표시될 API 이름이다.
 - 9: API 버전이다.
@@ -245,52 +244,46 @@ FastAPI route
 - 57: 모든 stage를 `done` 상태로 만드는 helper다.
 - 58-61: `PIPELINE_STAGE_IDS` 순서대로 `StageResult`를 만든다.
 
-## `backend/app/modules/pipeline/ports.py`
-
-- 1: Python의 구조적 인터페이스인 `Protocol`을 가져온다.
-- 3-10: 각 port 메서드에서 쓰는 DTO 타입을 가져온다.
-- 13: repo sync service가 지켜야 할 인터페이스다.
-- 14: `sync(request) -> RepoSnapshot` 메서드가 있어야 함을 선언한다.
-- 17: code index service 인터페이스다.
-- 18: `index(snapshot) -> list[CodeReference]` 메서드가 있어야 한다.
-- 21: RAG index service 인터페이스다.
-- 22-26: repo snapshot과 code references를 받아 retrieval chunks를 반환해야 한다.
-- 29: agent proposal service 인터페이스다.
-- 30-34: code references와 chunks를 받아 proposals를 반환해야 한다.
-- 37: approval service 인터페이스다.
-- 38: proposals를 받아 승인 처리된 proposals를 반환해야 한다.
-- 41: publish service 인터페이스다.
-- 42-47: snapshot, chunks, proposals를 받아 publish snapshot을 반환해야 한다.
-
-## `backend/app/modules/pipeline/service.py`
+## `backend/app/services/pipeline.py`
 
 - 1: `dataclass`, `field`를 가져온다. 생성자 주입과 값 객체에 쓴다.
-- 3-5: 실제 구현 service 클래스들을 가져온다.
-- 6-13: service가 따라야 할 port 타입들을 가져온다.
-- 14-16: publish, RAG, repo sync 실제 구현 service를 가져온다.
-- 17: stage 결과 helper를 가져온다.
-- 18-26: 파이프라인에서 오가는 DTO 타입을 가져온다.
-- 29: `PipelineArtifacts`를 불변 dataclass로 만든다.
-- 30: 파이프라인 중간 산출물을 담는 값 객체다.
-- 31-36: 각 단계 산출물을 필드로 가진다.
-- 39: `PipelineService`를 dataclass로 만든다. `slots=True`는 불필요한 동적 속성 생성을 막는다.
-- 40: 전체 파이프라인 application service다.
-- 41-46: 각 dependency를 port 타입으로 선언하고 기본 구현은 `default_factory`로 만든다.
-- 48: route에서 호출하는 공개 메서드다.
-- 49: 내부 stage들을 실행해 산출물을 모은다.
-- 51-58: 산출물을 `PipelineResponse` DTO로 변환해 반환한다.
-- 60: 실제 stage 실행 순서를 담은 private 메서드다.
-- 61: repo sync를 실행한다.
-- 62: code index를 실행한다.
-- 63: RAG index를 실행한다.
-- 64: agent proposal을 만든다.
-- 65: proposal 승인 처리를 한다.
-- 66: publish snapshot을 만든다.
-- 68-75: 중간 산출물을 `PipelineArtifacts`로 묶어 반환한다.
-- 77: stage 결과 detail을 만드는 private 메서드다.
-- 78-85: 각 stage id별 상세값을 dict로 만든다.
+- 2: Python의 구조적 인터페이스인 `Protocol`을 가져온다.
+- 4: stage 결과 helper를 가져온다.
+- 5-13: 파이프라인에서 오가는 DTO 타입을 가져온다.
+- 14-19: 실제 구현 service 클래스들을 가져온다.
+- 22: repo sync service가 지켜야 할 인터페이스다.
+- 23: `sync(request) -> RepoSnapshot` 메서드가 있어야 함을 선언한다.
+- 26: code index service 인터페이스다.
+- 27: `index(snapshot) -> list[CodeReference]` 메서드가 있어야 한다.
+- 30: RAG index service 인터페이스다.
+- 31-35: repo snapshot과 code references를 받아 retrieval chunks를 반환해야 한다.
+- 38: agent proposal service 인터페이스다.
+- 39-43: code references와 chunks를 받아 proposals를 반환해야 한다.
+- 46: approval service 인터페이스다.
+- 47: proposals를 받아 승인 처리된 proposals를 반환해야 한다.
+- 50: publish service 인터페이스다.
+- 51-56: snapshot, chunks, proposals를 받아 publish snapshot을 반환해야 한다.
+- 59: `PipelineArtifacts`를 불변 dataclass로 만든다.
+- 60: 파이프라인 중간 산출물을 담는 값 객체다.
+- 61-66: 각 단계 산출물을 필드로 가진다.
+- 69: `PipelineService`를 dataclass로 만든다. `slots=True`는 불필요한 동적 속성 생성을 막는다.
+- 70: 전체 파이프라인 application service다.
+- 71-76: 각 dependency를 port 타입으로 선언하고 기본 구현은 `default_factory`로 만든다.
+- 78: route에서 호출하는 공개 메서드다.
+- 79: 내부 stage들을 실행해 산출물을 모은다.
+- 81-88: 산출물을 `PipelineResponse` DTO로 변환해 반환한다.
+- 90: 실제 stage 실행 순서를 담은 private 메서드다.
+- 91: repo sync를 실행한다.
+- 92: code index를 실행한다.
+- 93: RAG index를 실행한다.
+- 94: agent proposal을 만든다.
+- 95: proposal 승인 처리를 한다.
+- 96: publish snapshot을 만든다.
+- 98-105: 중간 산출물을 `PipelineArtifacts`로 묶어 반환한다.
+- 107: stage 결과 detail을 만드는 private 메서드다.
+- 108-115: 각 stage id별 상세값을 dict로 만든다.
 
-## `backend/app/modules/repo_sync/service.py`
+## `backend/app/services/repo_sync.py`
 
 - 1: sha1 해시 함수를 가져온다.
 - 3: 요청 DTO와 repo snapshot DTO를 가져온다.
@@ -304,7 +297,7 @@ FastAPI route
 - 14: 파일 내용을 digest에 넣는다.
 - 16-21: repository, branch, 짧은 commit sha, files를 가진 `RepoSnapshot`을 반환한다.
 
-## `backend/app/modules/code_index/service.py`
+## `backend/app/services/code_index.py`
 
 - 1: code reference와 repo snapshot DTO를 가져온다.
 - 4: 코드 색인 service 객체다.
@@ -328,7 +321,7 @@ FastAPI route
 - 49-50: `export function` 함수명을 추출한다.
 - 52: symbol 목록을 반환한다.
 
-## `backend/app/modules/rag_index/service.py`
+## `backend/app/services/rag_index.py`
 
 - 1: RAG chunk 생성에 필요한 DTO 타입을 가져온다.
 - 4: RAG index 역할의 service 객체다.
@@ -342,7 +335,7 @@ FastAPI route
 - 21-28: chunk id, source path, 최대 800자 text, citation을 가진 `RetrievalChunk`를 추가한다.
 - 30: chunk 목록을 반환한다.
 
-## `backend/app/modules/agent/service.py`
+## `backend/app/services/agent.py`
 
 - 1: proposal, code reference, retrieval chunk DTO를 가져온다.
 - 4: AI proposal 생성 역할의 service 객체다.
@@ -359,14 +352,14 @@ FastAPI route
 - 23: evidence가 있으면 0.7, 없으면 0.4로 confidence를 둔다.
 - 24: 사용자에게 보여줄 제안 문장이다.
 
-## `backend/app/modules/approval/service.py`
+## `backend/app/services/approval.py`
 
 - 1: proposal DTO를 가져온다.
 - 4: 승인 처리 service 객체다.
 - 5: proposal 목록을 받아 proposal 목록을 반환한다.
 - 6: Pydantic `model_copy`로 원본을 직접 바꾸지 않고 status만 `approved`인 새 객체를 만든다.
 
-## `backend/app/modules/publish/service.py`
+## `backend/app/services/publish.py`
 
 - 1: publish에 필요한 DTO 타입들을 가져온다.
 - 4: publish 역할의 service 객체다.

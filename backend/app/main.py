@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 
-from app.modules.pipeline import PipelineService
 from app.pipeline import pipeline_stage_payloads
-from app.schemas import PipelineRequest, PipelineResponse
+from app.schemas.pipeline import PipelineRequest, PipelineResponse
+from app.services.pipeline import PipelineService
 
 app = FastAPI(
     title="RepoPilot API",

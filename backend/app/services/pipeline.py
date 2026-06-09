@@ -1,21 +1,8 @@
 from dataclasses import dataclass, field
+from typing import Protocol
 
-from app.modules.agent import AgentProposalService
-from app.modules.approval import ApprovalService
-from app.modules.code_index import CodeIndexService
-from app.modules.pipeline.ports import (
-    AgentProposalPort,
-    ApprovalPort,
-    CodeIndexPort,
-    PublishPort,
-    RagIndexPort,
-    RepoSyncPort,
-)
-from app.modules.publish import PublishService
-from app.modules.rag_index import RagIndexService
-from app.modules.repo_sync import RepoSyncService
 from app.pipeline import build_done_stage_results
-from app.schemas import (
+from app.schemas.pipeline import (
     AgentProposal,
     CodeReference,
     PipelineRequest,
@@ -24,6 +11,49 @@ from app.schemas import (
     RepoSnapshot,
     RetrievalChunk,
 )
+from app.services.agent import AgentProposalService
+from app.services.approval import ApprovalService
+from app.services.code_index import CodeIndexService
+from app.services.publish import PublishService
+from app.services.rag_index import RagIndexService
+from app.services.repo_sync import RepoSyncService
+
+
+class RepoSyncPort(Protocol):
+    def sync(self, request: PipelineRequest) -> RepoSnapshot: ...
+
+
+class CodeIndexPort(Protocol):
+    def index(self, snapshot: RepoSnapshot) -> list[CodeReference]: ...
+
+
+class RagIndexPort(Protocol):
+    def index(
+        self,
+        snapshot: RepoSnapshot,
+        references: list[CodeReference],
+    ) -> list[RetrievalChunk]: ...
+
+
+class AgentProposalPort(Protocol):
+    def propose(
+        self,
+        references: list[CodeReference],
+        chunks: list[RetrievalChunk],
+    ) -> list[AgentProposal]: ...
+
+
+class ApprovalPort(Protocol):
+    def approve(self, proposals: list[AgentProposal]) -> list[AgentProposal]: ...
+
+
+class PublishPort(Protocol):
+    def publish(
+        self,
+        snapshot: RepoSnapshot,
+        chunks: list[RetrievalChunk],
+        proposals: list[AgentProposal],
+    ) -> PublishSnapshot: ...
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,4 @@
-from app.schemas import AgentProposal, CodeReference, RetrievalChunk
+from app.schemas.pipeline import AgentProposal, CodeReference, RetrievalChunk
 
 
 class AgentProposalService:
@@ -24,4 +24,3 @@ class AgentProposalService:
                 proposed_change=f"Link document context to {reference.path}:{reference.symbol}",
             )
         ]
-
