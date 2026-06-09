@@ -10,13 +10,13 @@
 | Full-stack | 언어 기초, 프론트엔드, 백엔드, 데이터 계층, 아키텍처 | `docs/woonyong/full-stack-tech-loadmap/` | 팀원이 기술 키워드의 의미와 사용 장면을 맞출 때 |
 | AI Implementation | LLM Runtime, RAG, MCP, Agent, Memory, Evaluation, Python Architecture | `docs/woonyong/ai-implementation/` | AI 기능을 실제 구현 단위로 설계할 때 |
 | Product | RepoPilot 제품 기획, 요구사항, 정보 구조, 로드맵 | `docs/woonyong/ai-dev-workspace/` | 제품 방향, MVP 범위, 기능 우선순위를 정할 때 |
-| Operations | Notion 운영 항목, 회의, 일정, 작업 관리 | `docs/skills/notion-project-ops/` 및 Notion 팀 협업 허브 | 팀 일감과 회의 흐름을 관리할 때 |
-| Git Workflow | 커밋, 브랜치, PR, 리뷰 기준 | `docs/skills/commit-convention/` | 협업 변경사항을 기록하고 병합할 때 |
+| Operations | Notion 프로젝트, 회의, 작업 관리 | `docs/skills/notion-project-ops/SKILL.md` 및 Notion 팀 협업 허브 | 팀 일감과 회의 흐름을 관리할 때 |
+| Git Workflow | 커밋, 브랜치, PR, 리뷰 기준 | `docs/skills/commit-convention/SKILL.md` | 협업 변경사항을 기록하고 병합할 때 |
 
 ## 개별 스킬 문서
 
-- [커밋 컨벤션 스킬](./commit-convention/README.md)
-- [Notion 프로젝트 운영 스킬](./notion-project-ops/README.md)
+- [커밋 컨벤션 스킬](./commit-convention/SKILL.md)
+- [Notion 프로젝트 운영 스킬](./notion-project-ops/SKILL.md)
 
 ## Full-stack Skills
 
@@ -62,15 +62,24 @@ RepoPilot 관련 문서는 Notion, GitHub, 코드, 정적 뷰어를 연결하는
 
 ## Operation Skill
 
-팀 운영은 Notion의 단일 운영 DB를 기준으로 한다.
+팀 운영은 Notion의 `프로젝트`, `회의`, `작업` DB를 기준으로 한다.
 
+- 프로젝트: 큰 목표 단위
 - 회의: 논의, 결정, 실행 항목의 출처
-- 일정: 기간과 마감의 기준
 - 작업: 담당자가 실행할 단위
-- 담당자: 실제 수행 책임자
-- 작성자: 항목을 만든 사람
-- 참조자: 확인이 필요한 사람
-- 상태: 대기, 진행, 종료, 보류
+- 기간: 프로젝트 기간, 회의 날짜, 작업 기간으로 나눠 관리
+- 상태: 현재 Notion DB의 기존 옵션 사용
+
+세부 규칙은 `docs/skills/notion-project-ops/SKILL.md`를 따른다.
+
+## Git Workflow Skill
+
+커밋과 PR은 `docs/skills/commit-convention/SKILL.md`를 따른다.
+
+- 커밋 메시지는 `<type>: <한국어 제목>` 형식으로 쓴다.
+- 기본 브랜치 전략은 GitHub Flow다.
+- 이미 공유된 브랜치는 rebase하지 않는다.
+- PR은 변경 내용, 이유, 확인 방법, 남은 이슈를 짧게 남긴다.
 
 ## Skill Update Rule
 
