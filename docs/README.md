@@ -32,6 +32,9 @@ docs
 - [스킬 인덱스](./skills/README.md)
 - [커밋 컨벤션 스킬](./skills/commit-convention/README.md)
 - [Notion 프로젝트 운영 스킬](./skills/notion-project-ops/README.md)
+- [문서 관리 스킬](./skills/docs-maintainer/README.md)
+- [레포 구현 검토 스킬](./skills/repo-context-review/README.md)
+- [GitHub 이슈 흐름 스킬](./skills/github-issue-flow/README.md)
 
 ## 설정/운영 문서
 

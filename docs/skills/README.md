@@ -12,11 +12,17 @@
 | Product | RepoPilot 제품 기획, 요구사항, 정보 구조, 로드맵 | `docs/woonyong/ai-dev-workspace/` | 제품 방향, MVP 범위, 기능 우선순위를 정할 때 |
 | Operations | Notion 프로젝트, 회의, 작업 관리 | `docs/skills/notion-project-ops/SKILL.md` 및 Notion 팀 협업 허브 | 팀 일감과 회의 흐름을 관리할 때 |
 | Git Workflow | 커밋, 브랜치, PR, 리뷰 기준 | `docs/skills/commit-convention/SKILL.md` | 협업 변경사항을 기록하고 병합할 때 |
+| Documentation Ops | 문서 추가, 이동, 링크, 인덱스 관리 | `docs/skills/docs-maintainer/SKILL.md` | 문서 구조를 바꾸거나 새 문서를 추가할 때 |
+| Repo Review | 문서/회의/작업과 실제 레포 구현 비교 | `docs/skills/repo-context-review/SKILL.md` | 문서가 현재 코드와 맞는지 검토할 때 |
+| GitHub Issue Flow | Notion 작업과 회의 후속 조치를 GitHub issue로 연결 | `docs/skills/github-issue-flow/SKILL.md` | issue 초안, 브랜치, PR 흐름을 만들 때 |
 
 ## 개별 스킬 문서
 
 - [커밋 컨벤션 스킬](./commit-convention/SKILL.md)
 - [Notion 프로젝트 운영 스킬](./notion-project-ops/SKILL.md)
+- [문서 관리 스킬](./docs-maintainer/SKILL.md)
+- [레포 구현 검토 스킬](./repo-context-review/SKILL.md)
+- [GitHub 이슈 흐름 스킬](./github-issue-flow/SKILL.md)
 
 ## Full-stack Skills
 
@@ -60,6 +66,8 @@ RepoPilot 관련 문서는 Notion, GitHub, 코드, 정적 뷰어를 연결하는
 4. 구현 근거가 있으면 파일 경로 또는 공식 문서 링크를 남긴다.
 5. 오래될 수 있는 내용은 마지막 갱신일 또는 검토 필요 상태를 남긴다.
 
+문서 추가, 이동, 삭제, 링크 정리는 `docs/skills/docs-maintainer/SKILL.md`를 따른다.
+
 ## Operation Skill
 
 팀 운영은 Notion의 `프로젝트`, `회의`, `작업` DB를 기준으로 한다.
@@ -80,6 +88,23 @@ RepoPilot 관련 문서는 Notion, GitHub, 코드, 정적 뷰어를 연결하는
 - 기본 브랜치 전략은 GitHub Flow다.
 - 이미 공유된 브랜치는 rebase하지 않는다.
 - PR은 변경 내용, 이유, 확인 방법, 남은 이슈를 짧게 남긴다.
+
+## Repo Context Review Skill
+
+문서, 회의록, 작업, 스펙이 실제 코드와 맞는지 볼 때는 `docs/skills/repo-context-review/SKILL.md`를 따른다.
+
+- 코드를 보지 않고 맞다고 확정하지 않는다.
+- `검증됨`, `낡음`, `구현 없음`, `판단 보류`로 나눠 말한다.
+- 근거 파일 경로를 남긴다.
+
+## GitHub Issue Flow Skill
+
+Notion 작업이나 회의 후속 조치를 GitHub issue로 연결할 때는 `docs/skills/github-issue-flow/SKILL.md`를 따른다.
+
+- 먼저 중복 issue를 찾는다.
+- issue draft를 만들고 근거 문서와 코드를 붙인다.
+- 승인 없이 GitHub에 쓰지 않는다.
+- 작성 후 Notion 작업이나 문서에 issue 링크를 남긴다.
 
 ## Skill Update Rule
 
