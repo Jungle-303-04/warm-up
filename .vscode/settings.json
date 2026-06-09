@@ -1,0 +1,22 @@
+{
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.mypy_cache": true,
+    "**/.next": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/.venv": true,
+    "**/*.tsbuildinfo": true,
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "**/__pycache__": true,
+    "**/.mypy_cache": true,
+    "**/.next": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/.venv": true,
+    "**/*.tsbuildinfo": true,
+    "**/node_modules": true
+  }
+}
