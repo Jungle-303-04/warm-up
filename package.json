@@ -1,0 +1,14 @@
+{
+  "name": "repopilot-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.17.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @repopilot/web dev",
+    "build": "pnpm --filter @repopilot/web build",
+    "typecheck": "pnpm --filter @repopilot/web typecheck"
+  }
+}
+

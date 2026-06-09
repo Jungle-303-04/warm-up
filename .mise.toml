@@ -1,0 +1,42 @@
+[tools]
+node = "24.16.0"
+pnpm = "10.17.0"
+python = "3.12"
+uv = "0.9.17"
+
+[tasks.setup]
+description = "Install JavaScript and Python dependencies"
+run = [
+  "corepack enable",
+  "pnpm install",
+  "uv sync --project backend"
+]
+
+[tasks."compose:config"]
+description = "Validate Docker Compose configuration"
+run = "docker compose config --quiet"
+
+[tasks."compose:up"]
+description = "Start the local RepoPilot pipeline"
+run = "docker compose up --build"
+
+[tasks."compose:down"]
+description = "Stop the local RepoPilot pipeline"
+run = "docker compose down"
+
+[tasks."compose:logs"]
+description = "Follow pipeline logs"
+run = "docker compose logs -f"
+
+[tasks."api:test"]
+description = "Run backend tests"
+dir = "backend"
+run = "uv run pytest"
+
+[tasks."web:typecheck"]
+description = "Type-check the web app"
+run = "pnpm --filter @repopilot/web typecheck"
+
+[tasks.check]
+description = "Run lightweight local checks"
+depends = ["compose:config", "api:test", "web:typecheck"]
