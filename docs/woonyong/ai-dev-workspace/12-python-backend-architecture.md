@@ -110,6 +110,26 @@ Worker job으로 처리할 것:
 - 성급한 service 분리
 - global mutable state
 
+## Test Layout
+
+현재 테스트는 소스 경로를 미러링한다.
+
+```text
+app/main.py                 -> tests/test_main.py
+app/pipeline.py             -> tests/test_pipeline.py
+app/schemas/pipeline.py     -> tests/schemas/test_pipeline.py
+app/services/repo_sync.py   -> tests/services/test_repo_sync.py
+app/services/code_index.py  -> tests/services/test_code_index.py
+app/services/rag_index.py   -> tests/services/test_rag_index.py
+app/services/agent.py       -> tests/services/test_agent.py
+app/services/approval.py    -> tests/services/test_approval.py
+app/services/publish.py     -> tests/services/test_publish.py
+app/services/pipeline.py    -> tests/services/test_pipeline.py
+app/workers/runner.py       -> tests/workers/test_runner.py
+```
+
+`__init__.py` 없이 같은 basename의 테스트 파일을 여러 폴더에 둘 수 있도록 pytest는 `--import-mode=importlib`로 실행한다.
+
 ## Key Tables
 
 ```text

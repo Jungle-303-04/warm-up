@@ -126,9 +126,10 @@ FastAPI route
 - 26: pytest 설정 섹션이다.
 - 27: 테스트 폴더를 `tests`로 지정한다.
 - 28: import 기준 경로를 backend root로 둔다.
-- 30: ruff 설정 섹션이다.
-- 31: line length를 100으로 둔다.
-- 32: Python 3.12 기준으로 lint rule을 적용한다.
+- 29: pytest import mode를 `importlib`로 둔다. 같은 이름의 테스트 파일을 미러링 폴더에 둘 수 있게 한다.
+- 31: ruff 설정 섹션이다.
+- 32: line length를 100으로 둔다.
+- 33: Python 3.12 기준으로 lint rule을 적용한다.
 
 ## `backend/Dockerfile`
 

@@ -1,36 +1,28 @@
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.pipeline import PIPELINE_STAGE_IDS
-
-
-client = TestClient(app)
-
-
-def test_health() -> None:
-    response = client.get("/health")
-
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+from app.pipeline import (
+    PIPELINE_STAGE_IDS,
+    WORKER_STAGE_IDS,
+    build_done_stage_results,
+    pipeline_stage_payloads,
+)
 
 
-def test_pipeline_has_minimum_stages() -> None:
-    response = client.get("/pipeline")
+def test_pipeline_stage_payloads_preserve_stage_order() -> None:
+    payloads = pipeline_stage_payloads()
 
-    assert response.status_code == 200
-    stage_ids = [stage["id"] for stage in response.json()["stages"]]
-    assert stage_ids == list(PIPELINE_STAGE_IDS)
-    assert len(stage_ids) == len(set(stage_ids))
+    assert [stage["id"] for stage in payloads] == list(PIPELINE_STAGE_IDS)
+    assert len(payloads) == len(set(stage["id"] for stage in payloads))
 
 
-def test_pipeline_run_returns_approved_publish_snapshot() -> None:
-    response = client.post("/pipeline/run", json={})
+def test_worker_stage_ids_exclude_human_approval() -> None:
+    assert "approval" not in WORKER_STAGE_IDS
+    assert set(WORKER_STAGE_IDS) == set(PIPELINE_STAGE_IDS) - {"approval"}
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["repository"]["repository"] == "sample-repo"
-    assert body["code_references"]
-    assert body["retrieval_chunks"]
-    assert body["proposals"][0]["status"] == "approved"
-    assert body["publish_snapshot"]["status"] == "published"
-    assert [stage["id"] for stage in body["stages"]] == list(PIPELINE_STAGE_IDS)
+
+def test_build_done_stage_results_uses_pipeline_order() -> None:
+    details = {stage_id: f"detail:{stage_id}" for stage_id in PIPELINE_STAGE_IDS}
+
+    results = build_done_stage_results(details)
+
+    assert [result.id for result in results] == list(PIPELINE_STAGE_IDS)
+    assert [result.status for result in results] == ["done"] * len(PIPELINE_STAGE_IDS)
+    assert results[0].detail == "detail:repo-sync"
