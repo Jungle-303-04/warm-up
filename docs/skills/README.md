@@ -10,8 +10,13 @@
 | Full-stack | 언어 기초, 프론트엔드, 백엔드, 데이터 계층, 아키텍처 | `docs/woonyong/full-stack-tech-loadmap/` | 팀원이 기술 키워드의 의미와 사용 장면을 맞출 때 |
 | AI Implementation | LLM Runtime, RAG, MCP, Agent, Memory, Evaluation, Python Architecture | `docs/woonyong/ai-implementation/` | AI 기능을 실제 구현 단위로 설계할 때 |
 | Product | RepoPilot 제품 기획, 요구사항, 정보 구조, 로드맵 | `docs/woonyong/ai-dev-workspace/` | 제품 방향, MVP 범위, 기능 우선순위를 정할 때 |
-| Operations | Notion 운영 항목, 회의, 일정, 작업 관리 | `docs/config/conventions.md` 및 Notion 팀 협업 허브 | 팀 일감과 회의 흐름을 관리할 때 |
-| Git Workflow | 커밋, 브랜치, PR, 리뷰 기준 | `docs/config/conventions.md` | 협업 변경사항을 기록하고 병합할 때 |
+| Operations | Notion 운영 항목, 회의, 일정, 작업 관리 | `docs/skills/notion-project-ops/` 및 Notion 팀 협업 허브 | 팀 일감과 회의 흐름을 관리할 때 |
+| Git Workflow | 커밋, 브랜치, PR, 리뷰 기준 | `docs/skills/commit-convention/` | 협업 변경사항을 기록하고 병합할 때 |
+
+## 개별 스킬 문서
+
+- [커밋 컨벤션 스킬](./commit-convention/README.md)
+- [Notion 프로젝트 운영 스킬](./notion-project-ops/README.md)
 
 ## Full-stack Skills
 

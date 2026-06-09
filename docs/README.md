@@ -30,6 +30,8 @@ docs
 ## 스킬 문서
 
 - [스킬 인덱스](./skills/README.md)
+- [커밋 컨벤션 스킬](./skills/commit-convention/README.md)
+- [Notion 프로젝트 운영 스킬](./skills/notion-project-ops/README.md)
 
 ## 설정/운영 문서
 
