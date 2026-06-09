@@ -2,11 +2,11 @@
 
 문서 기반으로 기술 로드맵, AI 구현 구조, RepoPilot 제품 기획을 정리하는 워크스페이스다.
 
-## Root Documents
+## Documentation
 
-- [docs/README.md](./docs/README.md): 세부 문서 인덱스
-- [운영 컨벤션](./docs/config/conventions.md): 팀 운영, 문서, Git, Notion 사용 규칙
-- [스킬 지도](./docs/skills/README.md): 프로젝트에서 다루는 기술 스킬과 학습/정리 기준
+- [문서 인덱스](./docs/README.md): 전체 문서 구조
+- [스킬 문서](./docs/skills/README.md): 프로젝트에서 다루는 기술 스킬과 학습/정리 기준
+- [설정/운영 문서](./docs/config/README.md): 팀 운영, 문서 작성, Git 규칙
 
 ## Document Groups
 

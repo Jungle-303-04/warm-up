@@ -1,13 +1,16 @@
 # 문서
 
-이 폴더는 학습, 기술 정리, 프로젝트 기획 문서를 모아두는 루트다.
+이 폴더는 학습, 기술 정리, 프로젝트 기획, 스킬, 설정/운영 문서를 모아두는 루트다.
 
-Woonyong 개인 학습 문서와 제품 기획 문서는 `woonyong/` 아래에 둔다.
+프로젝트 루트에는 실행에 필요한 코드와 설정만 두고, 문서 성격의 자료는 `docs/` 안에서 역할별로 관리한다.
+
+## 공통 문서 묶음
+
+- [스킬 문서](./skills/README.md)
+- [설정/운영 문서](./config/README.md)
 
 ## Woonyong 문서 묶음
 
-- [운영 컨벤션](./config/conventions.md)
-- [스킬 지도](./skills/README.md)
 - [풀스택 기술 로드맵](./woonyong/full-stack-tech-loadmap/README.md)
 - [AI 구현 로드맵](./woonyong/ai-implementation/README.md)
 - [AI 개발 워크스페이스 / RepoPilot](./woonyong/ai-dev-workspace/README.md)
@@ -16,18 +19,22 @@ Woonyong 개인 학습 문서와 제품 기획 문서는 `woonyong/` 아래에 �
 
 ```text
 docs
-├── config
 ├── skills
+├── config
 └── woonyong
     ├── full-stack-tech-loadmap
     ├── ai-implementation
     └── ai-dev-workspace
 ```
 
-## 운영 문서
+## 스킬 문서
 
+- [스킬 인덱스](./skills/README.md)
+
+## 설정/운영 문서
+
+- [설정/운영 인덱스](./config/README.md)
 - [운영 컨벤션](./config/conventions.md)
-- [스킬 지도](./skills/README.md)
 
 ## 풀스택 기술 로드맵
 
