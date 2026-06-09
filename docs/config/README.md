@@ -5,6 +5,7 @@
 ## 문서 목록
 
 - [운영 컨벤션](./conventions.md)
+- [개발 도구 사용법](../woonyong/dev-tools/README.md)
 
 ## 루트에 남기는 것과 docs로 옮기는 것
 
@@ -30,4 +31,4 @@ docs/config/
 docs/woonyong/
 ```
 
-`compose.yaml`, `.env.example`, `.mise.toml`은 설정 파일이지만 실제 실행과 자동화에서 루트 위치를 기대할 수 있으므로 이동하지 않는다. 대신 사용법과 규칙만 이 폴더에서 문서화한다.
+`compose.yaml`, `.env.example`, `.mise.toml`은 설정 파일이지만 실제 실행과 자동화에서 루트 위치를 기대할 수 있으므로 이동하지 않는다. 개발 도구 사용법은 [woonyong 개발 도구 문서](../woonyong/dev-tools/README.md)에 둔다.
