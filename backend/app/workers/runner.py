@@ -2,14 +2,14 @@ import argparse
 import asyncio
 import signal
 
-from app.pipeline import PIPELINE_STAGES
+from app.pipeline import PIPELINE_STAGES, WORKER_STAGE_IDS
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a RepoPilot worker.")
     parser.add_argument(
         "kind",
-        choices=[stage["id"] for stage in PIPELINE_STAGES],
+        choices=WORKER_STAGE_IDS,
         help="Worker kind to run.",
     )
     return parser.parse_args()
@@ -22,8 +22,8 @@ async def run(kind: str) -> None:
     for signame in ("SIGINT", "SIGTERM"):
         loop.add_signal_handler(getattr(signal, signame), stop_event.set)
 
-    stage = next(stage for stage in PIPELINE_STAGES if stage["id"] == kind)
-    print(f"RepoPilot worker started: {stage['id']} - {stage['purpose']}", flush=True)
+    stage = next(stage for stage in PIPELINE_STAGES if stage.id == kind)
+    print(f"RepoPilot worker started: {stage.id} - {stage.purpose}", flush=True)
 
     while not stop_event.is_set():
         try:
@@ -41,4 +41,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

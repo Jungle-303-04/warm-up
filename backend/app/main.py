@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.modules.pipeline import PipelineService
-from app.pipeline import PIPELINE_STAGES
+from app.pipeline import pipeline_stage_payloads
 from app.schemas import PipelineRequest, PipelineResponse
 
 app = FastAPI(
@@ -20,7 +20,7 @@ def health() -> dict[str, str]:
 
 @app.get("/pipeline")
 def pipeline() -> dict[str, list[dict[str, str]]]:
-    return {"stages": PIPELINE_STAGES}
+    return {"stages": pipeline_stage_payloads()}
 
 
 @app.post("/pipeline/run")

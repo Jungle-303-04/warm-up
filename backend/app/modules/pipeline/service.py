@@ -4,7 +4,8 @@ from app.modules.code_index import CodeIndexService
 from app.modules.publish import PublishService
 from app.modules.rag_index import RagIndexService
 from app.modules.repo_sync import RepoSyncService
-from app.schemas import PipelineRequest, PipelineResponse, StageResult
+from app.pipeline import build_done_stage_results
+from app.schemas import PipelineRequest, PipelineResponse
 
 
 class PipelineService:
@@ -30,13 +31,14 @@ class PipelineService:
             retrieval_chunks=retrieval_chunks,
             proposals=proposals,
             publish_snapshot=publish_snapshot,
-            stages=[
-                StageResult(id="repo-sync", status="done", detail=repository.commit_sha),
-                StageResult(id="code-index", status="done", detail=str(len(code_references))),
-                StageResult(id="rag-index", status="done", detail=str(len(retrieval_chunks))),
-                StageResult(id="agent-proposal", status="done", detail=str(len(pending_proposals))),
-                StageResult(id="approval", status="done", detail=str(len(proposals))),
-                StageResult(id="static-publish", status="done", detail=publish_snapshot.path),
-            ],
+            stages=build_done_stage_results(
+                {
+                    "repo-sync": repository.commit_sha,
+                    "code-index": str(len(code_references)),
+                    "rag-index": str(len(retrieval_chunks)),
+                    "agent-proposal": str(len(pending_proposals)),
+                    "approval": str(len(proposals)),
+                    "static-publish": publish_snapshot.path,
+                }
+            ),
         )
-

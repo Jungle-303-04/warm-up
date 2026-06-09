@@ -1,33 +1,35 @@
 const stages = [
   {
+    id: "repo-sync",
     name: "Repo Sync",
     detail: "repo, issue, PR, label, milestone metadata"
   },
   {
+    id: "code-index",
     name: "Code Index",
     detail: "file, symbol, commit, code reference"
   },
   {
+    id: "rag-index",
     name: "RAG Index",
     detail: "docs, issues, PRs, code chunks with permission metadata"
   },
   {
+    id: "agent-proposal",
     name: "Agent Proposal",
     detail: "related code, stale links, issue drafts, doc updates"
   },
   {
+    id: "approval",
     name: "Approval",
     detail: "human review before GitHub or document writes"
   },
   {
-    name: "Approval",
-    detail: "human review before GitHub or document writes"
-  },
-  {
-    name: "Publish",
+    id: "static-publish",
+    name: "Static Publish",
     detail: "read-only static archive with search and filters"
   }
-];
+] as const;
 
 export default function Home() {
   return (
@@ -42,7 +44,7 @@ export default function Home() {
         </p>
         <ul className="pipeline">
           {stages.map((stage) => (
-            <li key={stage.name}>
+            <li key={stage.id}>
               <strong>{stage.name}</strong>
               <span>{stage.detail}</span>
             </li>
