@@ -13,6 +13,7 @@ class Post(SQLModel, table=True):
     content: str = Field(sa_column=Column(Text, nullable=False))
 
     font_id: int = Field(foreign_key="fonts.id")
+    user_id: int = Field(foreign_key="users.id")
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
