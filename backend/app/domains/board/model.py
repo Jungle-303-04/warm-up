@@ -31,7 +31,7 @@ class Board(Base, IdMixin, TimestampMixin):
 class ScheduleBoardDetail(Base): # 1
     __tablename__ = "schedule_board_detail"
 
-    # check the input values
+    # Apply constraints to the values ​​stored in the DB table
     __table_args__ = (
         CheckConstraint(
             "importance >= 1 AND importance <= 10",
@@ -63,6 +63,28 @@ class ScheduleBoardDetail(Base): # 1
         nullable = False,
     )
 
+class ScheduleBoardTask(Base, IdMixin):
+    __tablename__ = "schedule_board_task"
+
+    __table_args__ = (
+        CheckConstraint(
+            "task_status >= 1 AND task_status <= 4",
+            name="check_schedule_task_status_range",
+        ),
+    )
+
+    # Foreignkey
+    board_id: Mapped[int] = mapped_column(
+        Integer, 
+        ForeignKey("board.id"),
+        primary_key = False,
+        nullable = False,
+    )
+
+    task_name: Mapped[str] = mapped_column(String, nullable = False,)
+    
+    # 1: Todo, 2: In_progress, 3: Done, 4: Blocked 
+    task_status: Mapped[int] = mapped_column(Integer, nullable = False,)
 
 
 class ProceedingsBoardDetail(Base): #2
