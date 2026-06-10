@@ -29,11 +29,3 @@ class IdMixin:
         primary_key = True, # 중복 불가 + NULL 불가 + 식별자 + 인덱스
         autoincrement = True,
     )
-
-# class UserInfo:
-#     user_id : Mapped[int] = mapped_column(
-#         Integer,
-#         primary_key = True,
-#         autoincrement = True,
-
-#     )
