@@ -2,6 +2,8 @@
 // └─ 캘린더
 
 import { CalendarDays } from "lucide-react";
+
+// 앱 왼쪽에 고정되는 사이드바입니다. 현재는 캘린더 메뉴만 있습니다.
 export function Sidebar() {
     return (
         <aside className="sidebar">
