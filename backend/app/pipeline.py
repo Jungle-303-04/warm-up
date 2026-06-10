@@ -4,7 +4,6 @@ from typing import Mapping
 from app.schemas.pipeline import StageResult
 
 
-# stage metadata는 API, worker, test가 같은 순서를 공유하도록 한 곳에 둔다.
 @dataclass(frozen=True)
 class PipelineStage:
     id: str
@@ -46,7 +45,6 @@ PIPELINE_STAGES: tuple[PipelineStage, ...] = (
 )
 
 PIPELINE_STAGE_IDS: tuple[str, ...] = tuple(stage.id for stage in PIPELINE_STAGES)
-# approval은 사람이 판단하는 gate라 현재 worker process로 실행하지 않는다.
 WORKER_STAGE_IDS: tuple[str, ...] = tuple(
     stage.id for stage in PIPELINE_STAGES if stage.id != "approval"
 )

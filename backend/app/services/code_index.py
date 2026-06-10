@@ -3,7 +3,6 @@ from app.schemas.pipeline import CodeReference, RepoSnapshot
 
 class CodeIndexService:
     def index(self, snapshot: RepoSnapshot) -> list[CodeReference]:
-        # tree-sitter 같은 parser를 붙이기 전까지는 간단한 함수 선언만 symbol로 본다.
         references: list[CodeReference] = []
 
         for file in snapshot.files:
@@ -37,7 +36,6 @@ class CodeIndexService:
         return references
 
     def _extract_symbols(self, content: str) -> list[tuple[str, int]]:
-        # 최소 구현용 naive parser다. 이후 언어별 parser로 교체할 자리다.
         symbols: list[tuple[str, int]] = []
 
         for index, line in enumerate(content.splitlines(), start=1):

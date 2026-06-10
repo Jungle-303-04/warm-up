@@ -1,14 +1,12 @@
 from pydantic import BaseModel, Field
 
 
-# Pydantic schema는 API 입출력 DTO 역할을 한다.
 class RepoFile(BaseModel):
     path: str
     content: str
 
 
 def default_files() -> list[RepoFile]:
-    # 빈 요청으로도 파이프라인을 끝까지 검증할 수 있게 sample repo 파일을 제공한다.
     return [
         RepoFile(
             path="backend/app/api/auth.py",

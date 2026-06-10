@@ -6,7 +6,6 @@ from app.services.pipeline import PipelineService
 
 router = APIRouter()
 
-# 현재는 메모리 상태가 없는 service라 route module에서 한 번만 만들어도 충분하다.
 pipeline_service = PipelineService()
 
 

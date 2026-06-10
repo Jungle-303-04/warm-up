@@ -16,7 +16,6 @@ def parse_args() -> argparse.Namespace:
 
 
 async def run(kind: str) -> None:
-    # 현재 worker는 queue 처리 전 placeholder라 종료 신호를 기다리며 heartbeat만 남긴다.
     stop_event = asyncio.Event()
     loop = asyncio.get_running_loop()
 

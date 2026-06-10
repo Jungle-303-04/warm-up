@@ -7,7 +7,6 @@ class RagIndexService:
         snapshot: RepoSnapshot,
         references: list[CodeReference],
     ) -> list[RetrievalChunk]:
-        # 실제 embedding 저장 전 단계라 code reference가 있는 파일만 검색 chunk로 만든다.
         reference_paths = {reference.path for reference in references}
         chunks: list[RetrievalChunk] = []
 

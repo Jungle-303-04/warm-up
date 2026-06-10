@@ -7,7 +7,6 @@ class AgentProposalService:
         references: list[CodeReference],
         chunks: list[RetrievalChunk],
     ) -> list[AgentProposal]:
-        # 실제 LLM 호출 전 단계라 현재는 첫 code reference를 기반으로 proposal 하나만 만든다.
         if not references:
             return []
 
