@@ -4,6 +4,8 @@ from sqlmodel import Session, select
 
 from database import engine
 from models.post import Post
+from models.font import Font
+from models.user import User
 
 from datetime import datetime, timezone
 
@@ -31,8 +33,25 @@ def get_posts():
     with Session(engine) as session:
         # posts 테이블의 모든 row가져오기
         posts = session.exec(select(Post)).all()
-        print(posts)
-        return posts
+        result = []
+        for post in posts:
+
+            font = session.get(Font, post.font_id)
+
+            result.append(
+                {
+                    "id": post.id,
+                    "title": post.title,
+                    "content": post.content,
+                    "created_at": post.created_at,
+                    "font": {
+                        "name": font.name,
+                        "tags": font.tags
+                    } 
+                }
+            )
+        
+        return result
 
 @app.post("/posts")
 def create_post(post_data : Post):
@@ -62,7 +81,6 @@ def get_post(post_id : int):
 
 @app.put("/posts/{post_id}")
 def update_post(post_id : int, post_data: Post):
-    
     with Session (engine) as session:
         post = session.get(Post, post_id)
 
