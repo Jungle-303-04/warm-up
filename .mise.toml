@@ -45,6 +45,13 @@ run = "uv run pytest"
 description = "Run Pyright with the VS Code import configuration"
 run = "pnpm api:typecheck"
 
+[tasks."api:smoke"]
+description = "Smoke-test the local FastAPI API"
+run = [
+  "curl -fsS http://localhost:8000/health",
+  "curl -fsS http://localhost:8000/pipeline"
+]
+
 [tasks."web:typecheck"]
 description = "Type-check the web app"
 run = "pnpm --filter @repopilot/web typecheck"

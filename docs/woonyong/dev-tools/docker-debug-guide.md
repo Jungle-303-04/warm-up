@@ -39,6 +39,9 @@ mise run compose:debug:api
 
 VS Code는 `localhost:5678`로 붙고, 컨테이너의 `/app` 경로를 로컬 `backend` 폴더에 매핑한다.
 
+API 요청은 Swagger UI, REST Client, curl 중 편한 것을 쓴다.
+구체적인 요청 예시는 [API 테스트 방법](./api-testing-guide.md)을 따른다.
+
 ## Next.js breakpoint
 
 1. `mise run compose:debug`를 실행한다.

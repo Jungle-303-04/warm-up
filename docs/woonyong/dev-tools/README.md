@@ -14,6 +14,7 @@
 
 - [Docker Compose 사용법](./docker-compose-guide.md)
 - [Docker 컨테이너 디버그](./docker-debug-guide.md)
+- [API 테스트 방법](./api-testing-guide.md)
 - [Python import root 기준](./python-import-root-guide.md)
 - [mise 사용법](./mise-guide.md)
 - [pnpm 사용법](./pnpm-guide.md)
@@ -24,4 +25,5 @@
 2. [pnpm 사용법](./pnpm-guide.md): web app package와 workspace 구조를 이해한다.
 3. [Docker Compose 사용법](./docker-compose-guide.md): web, api, worker, DB, Redis가 어떻게 같이 뜨는지 이해한다.
 4. [Docker 컨테이너 디버그](./docker-debug-guide.md): VS Code에서 컨테이너 안의 FastAPI와 Next.js 프로세스에 attach하는 방법을 확인한다.
-5. [Python import root 기준](./python-import-root-guide.md): VS Code, Pyright, pytest, Docker의 Python import 기준을 하나로 맞춘다.
+5. [API 테스트 방법](./api-testing-guide.md): Swagger UI, REST Client, curl로 API를 직접 호출한다.
+6. [Python import root 기준](./python-import-root-guide.md): VS Code, Pyright, pytest, Docker의 Python import 기준을 하나로 맞춘다.

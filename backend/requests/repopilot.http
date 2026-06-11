@@ -1,0 +1,71 @@
+@host = http://localhost:8000
+
+### Health
+GET {{host}}/health
+
+### Pipeline stage metadata
+GET {{host}}/pipeline
+
+### Run the sample pipeline with default files
+POST {{host}}/pipeline/run
+Content-Type: application/json
+
+{}
+
+### Run the pipeline with inline files
+POST {{host}}/pipeline/run
+Content-Type: application/json
+
+{
+  "repository": "demo/inline",
+  "branch": "main",
+  "files": [
+    {
+      "path": "backend/app/api/auth.py",
+      "content": "def login(user_id: str) -> str:\n    return f'token:{user_id}'\n"
+    },
+    {
+      "path": "docs/auth.md",
+      "content": "# Auth\n\nLogin issues a token for the current user.\n"
+    }
+  ]
+}
+
+### Run the pipeline against a public GitHub repository
+POST {{host}}/pipeline/run
+Content-Type: application/json
+
+{
+  "repository_url": "https://github.com/Jungle-303-04/warm-up.git",
+  "branch": "main"
+}
+
+### Run Repo RAG sync with inline files
+POST {{host}}/pipeline/sync
+Content-Type: application/json
+
+{
+  "repository": "demo/repo-rag",
+  "branch": "main",
+  "trigger_type": "manual",
+  "files": [
+    {
+      "path": "README.md",
+      "content": "# Demo\n\nThis file becomes a retrieval chunk.\n"
+    },
+    {
+      "path": "app.py",
+      "content": "def run():\n    return True\n"
+    }
+  ]
+}
+
+### Run Repo RAG sync against a public GitHub repository
+POST {{host}}/pipeline/sync
+Content-Type: application/json
+
+{
+  "repository_url": "https://github.com/Jungle-303-04/warm-up.git",
+  "branch": "main",
+  "trigger_type": "manual"
+}
