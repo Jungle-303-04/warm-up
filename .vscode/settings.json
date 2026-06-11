@@ -18,5 +18,13 @@
     "**/.venv": true,
     "**/*.tsbuildinfo": true,
     "**/node_modules": true
-  }
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+  "python.analysis.extraPaths": ["${workspaceFolder}/backend"],
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.diagnosticMode": "workspace",
+  "python.testing.pytestEnabled": true,
+  "python.testing.cwd": "${workspaceFolder}/backend",
+  "python.testing.pytestArgs": ["tests"]
 }

@@ -1,0 +1,14 @@
+{
+  "include": ["backend/app", "backend/tests"],
+  "exclude": ["backend/.venv", "**/__pycache__"],
+  "venvPath": "backend",
+  "venv": ".venv",
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic",
+  "executionEnvironments": [
+    {
+      "root": "backend",
+      "extraPaths": ["backend"]
+    }
+  ]
+}

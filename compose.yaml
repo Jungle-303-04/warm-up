@@ -2,6 +2,7 @@ name: repopilot
 
 x-backend-env: &backend-env
   REPOPILOT_ENV: ${REPOPILOT_ENV:-local}
+  PYTHONPATH: /app
   DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://repopilot:repopilot@postgres:5432/repopilot}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}

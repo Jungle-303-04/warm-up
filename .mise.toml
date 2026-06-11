@@ -20,6 +20,14 @@ run = "docker compose config --quiet"
 description = "Start the local RepoPilot pipeline"
 run = "docker compose up --build"
 
+[tasks."compose:debug"]
+description = "Start the local RepoPilot pipeline with VS Code debug ports"
+run = "docker compose -f compose.yaml -f compose.debug.yaml up --build"
+
+[tasks."compose:debug:api"]
+description = "Start the FastAPI debug target with backing services"
+run = "docker compose -f compose.yaml -f compose.debug.yaml up --build api postgres redis"
+
 [tasks."compose:down"]
 description = "Stop the local RepoPilot pipeline"
 run = "docker compose down"
@@ -33,10 +41,14 @@ description = "Run backend tests"
 dir = "backend"
 run = "uv run pytest"
 
+[tasks."api:typecheck"]
+description = "Run Pyright with the VS Code import configuration"
+run = "pnpm api:typecheck"
+
 [tasks."web:typecheck"]
 description = "Type-check the web app"
 run = "pnpm --filter @repopilot/web typecheck"
 
 [tasks.check]
 description = "Run lightweight local checks"
-depends = ["compose:config", "api:test", "web:typecheck"]
+depends = ["compose:config", "api:typecheck", "api:test", "web:typecheck"]

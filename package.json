@@ -6,9 +6,12 @@
     "node": ">=22.12"
   },
   "scripts": {
+    "api:typecheck": "pyright --project pyrightconfig.json",
     "dev": "pnpm --filter @repopilot/web dev",
     "build": "pnpm --filter @repopilot/web build",
     "typecheck": "pnpm --filter @repopilot/web typecheck"
+  },
+  "devDependencies": {
+    "pyright": "1.1.410"
   }
 }
-
