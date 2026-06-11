@@ -56,6 +56,12 @@ def get_posts():
 @app.post("/posts")
 def create_post(post_data : Post):
 
+    if not post_data.title.strip():
+        raise HTTPException(status_code=400, detail="title is required")
+
+    if not post_data.content.strip():
+        raise HTTPException(status_code=400, detail="content is required")
+
     # postgreSQL 연결 시작 수행 후 종료
     with Session(engine) as session:
         # 객체 등록 (저장 대기열)
@@ -81,6 +87,13 @@ def get_post(post_id : int):
 
 @app.put("/posts/{post_id}")
 def update_post(post_id : int, post_data: Post):
+
+    if not post_data.title.strip():
+        raise HTTPException(status_code=400, detail="title is required")
+
+    if not post_data.content.strip():
+        raise HTTPException(status_code=400, detail="content is required")
+    
     with Session (engine) as session:
         post = session.get(Post, post_id)
 
