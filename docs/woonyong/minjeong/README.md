@@ -11,8 +11,8 @@
 - 저장소: `Jungle-303-04/warm-up`
 - 브랜치: `minjeong`
 - 작성자: `minmings111 <minmings111@gmail.com>`
-- 최신 확인 커밋: `09b3578 chore: update backend requirements`
-- 확인 시각: `2026-06-11 11:01:46 +09:00`
+- 최신 확인 커밋: `23297e5 chore: enable backend hot reload in Docker`
+- 확인 시각: `2026-06-11 20:34:46 +09:00`
 
 ## 아카이브
 
@@ -44,8 +44,9 @@
 - `schema.py`: Pydantic 요청/응답 DTO를 정의할 계층
 - `model.py`: Board, 일정 상세, 회의록 상세, 일정 task, Board-User 역할 연결 테이블을 정의하는 계층
 
-현재 브랜치가 end-to-end로 동작하려면 실행 가능한 router, DB session 구성,
-schema/service/repository 구현, 실제 `User` 모델이 추가로 필요하다.
+현재 브랜치는 `POST /board/` create endpoint와 `CreateBoard` DTO까지
+진행됐다. 다만 service는 아직 `return 1` stub이고 repository/DB session이
+연결되지 않았으므로, 실제 Board 생성은 아직 구현 전이다.
 
 ## RAG/Agent/MCP 관점
 

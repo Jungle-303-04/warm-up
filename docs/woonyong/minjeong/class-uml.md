@@ -100,7 +100,7 @@ classDiagram
         <<table: schedule_board_task>>
         +table = "schedule_board_task"
         +args = Check("task_status >= 1 AND task_status <= 4")
-        +board_id: Map[int] = col(FK("board.id"))
+        +board_id: Map[int] = col(FK("schedule_board_detail.board_id"))
         +task_name: Map[str] = col(Str)
         +task_status: Map[int] = col(Int)
     }
@@ -151,7 +151,7 @@ classDiagram
     IdMixin <|.. ScheduleBoardTask
 
     Board "1" <-- "0..1" ScheduleBoardDetail : board_id
-    Board "1" <-- "0..*" ScheduleBoardTask : board_id
+    ScheduleBoardDetail "1" <-- "0..*" ScheduleBoardTask : board_id
     Board "1" <-- "0..1" ProceedingsBoardDetail : board_id
     Board "1" <-- "0..*" BoardCarbonCopy : board_id
     Board "1" <-- "0..*" BoardAssignee : board_id
@@ -172,6 +172,9 @@ classDiagram
 - `ScheduleBoardDetail`과 `ProceedingsBoardDetail`은 `board_id`를 기본키이자
   외래키로 사용한다. 따라서 한 Board는 각 상세 테이블에 최대 1개의 상세
   row만 가질 수 있다.
+- 최신 구현에서 `ScheduleBoardTask.board_id`는 `board.id`가 아니라
+  `schedule_board_detail.board_id`를 참조한다. 즉 task는 일반 Board가 아니라
+  일정 상세 row에 종속되는 구조로 바뀌었다.
 - `BoardCarbonCopy`, `BoardAssignee`, `BoardParticipant`는 `(board_id,
   user_id)` 복합 기본키를 가진 Board-User 역할 연결 테이블이다.
 - 모델은 `ForeignKey("user.id")`를 참조하지만, `origin/minjeong`에는 아직

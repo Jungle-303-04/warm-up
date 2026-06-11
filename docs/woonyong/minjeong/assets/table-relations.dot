@@ -38,7 +38,7 @@ digraph TableRelations {
   <HR/>
   <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="13"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#c678dd">table</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#98c379">&quot;schedule_board_task&quot;</FONT></FONT></TD></TR>
   <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="13"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#c678dd">args</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#61afef">Check</FONT><FONT COLOR="#56b6c2">(</FONT><FONT COLOR="#98c379">&quot;task_status &gt;= 1 AND task_status &lt;= 4&quot;</FONT><FONT COLOR="#56b6c2">)</FONT></FONT></TD></TR>
-  <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="13"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">board_id</FONT><FONT COLOR="#56b6c2">:</FONT>&#160;<FONT COLOR="#e5c07b">Map</FONT><FONT COLOR="#56b6c2">[</FONT><FONT COLOR="#e5c07b">int</FONT><FONT COLOR="#56b6c2">]</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#61afef">col</FONT><FONT COLOR="#56b6c2">(</FONT><FONT COLOR="#61afef">FK</FONT><FONT COLOR="#56b6c2">(</FONT><FONT COLOR="#98c379">&quot;board.id&quot;</FONT><FONT COLOR="#56b6c2">)</FONT><FONT COLOR="#56b6c2">)</FONT></FONT></TD></TR>
+  <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="13"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">board_id</FONT><FONT COLOR="#56b6c2">:</FONT>&#160;<FONT COLOR="#e5c07b">Map</FONT><FONT COLOR="#56b6c2">[</FONT><FONT COLOR="#e5c07b">int</FONT><FONT COLOR="#56b6c2">]</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#61afef">col</FONT><FONT COLOR="#56b6c2">(</FONT><FONT COLOR="#61afef">FK</FONT><FONT COLOR="#56b6c2">(</FONT><FONT COLOR="#98c379">&quot;schedule_board_detail.board_id&quot;</FONT><FONT COLOR="#56b6c2">)</FONT><FONT COLOR="#56b6c2">)</FONT></FONT></TD></TR>
 </TABLE>
 >];
 
@@ -91,7 +91,7 @@ digraph TableRelations {
 
   User -> Board [arrowhead=normal, xlabel="1 -> 0..*", fontcolor="#d19a66", color="#7f848e", labeldistance=1.5, labelangle=0];
   Board -> ScheduleBoardDetail [arrowhead=normal, xlabel="1 -> 0..1", fontcolor="#d19a66", color="#7f848e", labeldistance=1.5, labelangle=0];
-  Board -> ScheduleBoardTask [arrowhead=normal, xlabel="1 -> 0..*", fontcolor="#d19a66", color="#7f848e", labeldistance=1.5, labelangle=0];
+  ScheduleBoardDetail -> ScheduleBoardTask [arrowhead=normal, xlabel="1 -> 0..*", fontcolor="#d19a66", color="#7f848e", labeldistance=1.5, labelangle=0];
   Board -> ProceedingsBoardDetail [arrowhead=normal, xlabel="1 -> 0..1", fontcolor="#d19a66", color="#7f848e", labeldistance=1.5, labelangle=0];
   Board -> BoardCarbonCopy [arrowhead=normal, xlabel="1 -> 0..*", fontcolor="#d19a66", color="#7f848e", labeldistance=1.5, labelangle=0];
   Board -> BoardAssignee [arrowhead=normal, xlabel="1 -> 0..*", fontcolor="#d19a66", color="#7f848e", labeldistance=1.5, labelangle=0];
