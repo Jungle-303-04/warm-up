@@ -32,6 +32,8 @@ from services.pipeline import PipelineService
 | VS Code/Pylance (backend 폴더만 열 때) | `backend/.vscode/settings.json`의 `python.analysis.extraPaths`가 `${workspaceFolder}`를 본다 |
 | Pyright (repo root) | `pyrightconfig.json`이 `backend`를 extra path로 둔다 |
 | Pyright (backend root) | `backend/pyrightconfig.json`이 현재 폴더를 extra path로 둔다 |
+| Pylint류 분석기 | `.pylintrc`의 `init-hook`이 현재 위치에서 위로 올라가며 `backend` import root를 찾는다 |
+| Python venv | `backend/pyproject.toml`이 `app` package를 editable install 대상으로 선언한다 |
 | pytest | `backend/pyproject.toml`의 `pythonpath = ["."]`와 `cwd = backend` 기준이다 |
 | Docker | `backend/Dockerfile`의 `WORKDIR /app`, Compose의 `PYTHONPATH=/app` 기준이다 |
 | Debug attach | `.vscode/launch.json`이 로컬 `backend`를 컨테이너 `/app`에 매핑한다 |
@@ -63,6 +65,13 @@ repo root에서 Pylance/Pyright import 인식만 빠르게 확인:
 
 ```bash
 pnpm api:typecheck
+```
+
+repo root에서 선택된 backend venv가 `app` package를 직접 import하는지 확인:
+
+```bash
+uv sync --project backend
+backend/.venv/bin/python -c "import app.pipeline; print('ok')"
 ```
 
 `backend` 폴더만 열었거나 그 기준으로 확인하고 싶으면 아래 명령을 쓴다.

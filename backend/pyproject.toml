@@ -16,6 +16,10 @@ dependencies = [
   "uvicorn[standard]>=0.34.0,<1.0.0"
 ]
 
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
 [dependency-groups]
 dev = [
   "debugpy>=1.8.0,<2.0.0",
@@ -33,3 +37,7 @@ addopts = ["--import-mode=importlib"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]

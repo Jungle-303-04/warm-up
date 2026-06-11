@@ -8,6 +8,7 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+*.egg-info/
 
 .venv/
 __pycache__/

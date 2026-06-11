@@ -1,0 +1,2 @@
+[MASTER]
+init-hook=import pathlib, sys; p = pathlib.Path.cwd().resolve(); roots = (p, *p.parents); backend = next((r / "backend" for r in roots if (r / "backend" / "app" / "__init__.py").exists()), None); package_root = next((r for r in roots if (r / "app" / "__init__.py").exists()), None); sys.path.insert(0, str(backend or package_root or p))
