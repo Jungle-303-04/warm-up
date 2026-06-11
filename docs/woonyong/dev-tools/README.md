@@ -16,6 +16,7 @@
 - [Docker 컨테이너 디버그](./docker-debug-guide.md)
 - [API 테스트 방법](./api-testing-guide.md)
 - [Python import root 기준](./python-import-root-guide.md)
+- [UML 렌더링 기준](./uml-rendering-guide.md)
 - [mise 사용법](./mise-guide.md)
 - [pnpm 사용법](./pnpm-guide.md)
 
@@ -27,3 +28,4 @@
 4. [Docker 컨테이너 디버그](./docker-debug-guide.md): VS Code에서 컨테이너 안의 FastAPI와 Next.js 프로세스에 attach하는 방법을 확인한다.
 5. [API 테스트 방법](./api-testing-guide.md): Swagger UI, REST Client, curl로 API를 직접 호출한다.
 6. [Python import root 기준](./python-import-root-guide.md): VS Code, Pyright, pytest, Docker의 Python import 기준을 하나로 맞춘다.
+7. [UML 렌더링 기준](./uml-rendering-guide.md): 클래스 UML을 One Dark Pro 기준 SVG로 안정적으로 보여주는 방법을 확인한다.

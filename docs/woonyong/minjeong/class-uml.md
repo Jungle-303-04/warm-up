@@ -2,12 +2,46 @@
 
 이 UML은 `origin/minjeong`의 현재 구현을 기준으로 한다. 주요 근거 파일은
 `backend/app/db/base.py`와 `backend/app/domains/board/model.py`다.
+멤버 표기는 실제 SQLAlchemy 문법을 닮은 코드형 축약을 사용한다.
+반복적인 `nullable=False`는 타입 힌트가 이미 의도를 보여주는 경우 생략하고,
+외래키, 기본키, nullable 예외처럼 구조 이해에 중요한 정보는 남겼다.
+반복 토큰은 한 줄 가독성을 위해 UML용 별칭으로 축약했다.
+
+| UML 별칭 | 실제 코드 |
+|---|---|
+| `Map[T]` | `Mapped[T]` |
+| `col(...)` | `mapped_column(...)` |
+| `FK("...")` | `ForeignKey("...")` |
+| `PK=True` | `primary_key=True` |
+| `AI=True` | `autoincrement=True` |
+| `NULL=True` | `nullable=True` |
+| `D=...` | `default=...` |
+| `ON=...` | `onupdate=...` |
+| `Check(...)` | `CheckConstraint(...)` |
+| `table = "..."` | `__tablename__ = "..."` |
+| `args = ...` | `__table_args__ = ...` |
+| `Int`, `Str`, `DT`, `dt` | `Integer`, `String`, `DateTime`, `datetime` |
+| `utcnow` | `datetime.utcnow` |
+| `A|B` | `A | B` union type |
 
 ## 클래스 UML
 
 ![민정 Board 클래스 UML](./assets/class-uml.svg)
 
-## Mermaid 원본
+SVG는 Graphviz DOT 원본에서 생성한다. DOT는 코드형 라벨의 행간, 박스 폭,
+관계선 라우팅을 렌더러가 계산하므로 Mermaid SVG 좌표를 직접 고치는 방식보다
+안정적이다.
+
+```bash
+dot -Tsvg docs/woonyong/minjeong/assets/class-uml.dot \
+  -o docs/woonyong/minjeong/assets/class-uml.svg
+```
+
+## DOT 원본
+
+- [class-uml.dot](./assets/class-uml.dot)
+
+## 논리 원본
 
 ```mermaid
 classDiagram
@@ -15,76 +49,80 @@ classDiagram
 
     class Base {
         <<SQLAlchemy DeclarativeBase>>
+        +pass
     }
 
     class IdMixin {
         <<mixin>>
-        +int id PK autoincrement
+        +id: Map[int] = col(Int, PK=True, AI=True)
     }
 
     class TimestampMixin {
         <<mixin>>
-        +datetime created_at not null default utcnow
-        +datetime updated_at not null default utcnow onupdate utcnow
+        +created_at: Map[dt] = col(DT, D=utcnow)
+        +updated_at: Map[dt] = col(DT, D=utcnow, ON=utcnow)
     }
 
     class Board {
         <<table: board>>
-        +int id PK autoincrement
-        +datetime created_at not null default utcnow
-        +datetime updated_at not null default utcnow onupdate utcnow
-        +int board_type not null
-        +str title not null
-        +text content not null
-        +str? tag nullable
-        +int user_id FK user.id not null
+        +table = "board"
+        +board_type: Map[int] = col(Int)
+        +title: Map[str] = col(Str)
+        +content: Map[str] = col(Text)
+        +tag: Map[str|None] = col(Str, NULL=True)
+        +user_id: Map[int] = col(FK("user.id"))
     }
 
     class ScheduleBoardDetail {
         <<table: schedule_board_detail>>
-        +int board_id PK FK board.id not null
-        +datetime start_at not null default utcnow
-        +datetime end_at not null default utcnow
-        +int importance not null
-        +constraint importance between 1 and 10
+        +table = "schedule_board_detail"
+        +args = Check("importance >= 1 AND importance <= 10")
+        +board_id: Map[int] = col(FK("board.id"), PK=True)
+        +start_at: Map[dt] = col(DT, D=utcnow)
+        +end_at: Map[dt] = col(DT, D=utcnow)
+        +importance: Map[int] = col(Int)
     }
 
     class ScheduleBoardTask {
         <<table: schedule_board_task>>
-        +int id PK autoincrement
-        +int board_id FK board.id not null
-        +str task_name not null
-        +int task_status not null
-        +constraint task_status between 1 and 4
+        +table = "schedule_board_task"
+        +args = Check("task_status >= 1 AND task_status <= 4")
+        +board_id: Map[int] = col(FK("board.id"))
+        +task_name: Map[str] = col(Str)
+        +task_status: Map[int] = col(Int)
     }
 
     class ProceedingsBoardDetail {
         <<table: proceedings_board_detail>>
-        +int board_id PK FK board.id not null
-        +datetime meeting_date not null default utcnow
+        +table = "proceedings_board_detail"
+        +board_id: Map[int] = col(FK("board.id"), PK=True)
+        +meeting_date: Map[dt] = col(DT, D=utcnow)
     }
 
     class BoardCarbonCopy {
         <<table: board_carbon_copy>>
-        +int board_id PK FK board.id not null
-        +int user_id PK FK user.id not null
+        +table = "board_carbon_copy"
+        +board_id: Map[int] = col(FK("board.id"), PK=True)
+        +user_id: Map[int] = col(FK("user.id"), PK=True)
     }
 
     class BoardAssignee {
         <<table: board_assignee>>
-        +int board_id PK FK board.id not null
-        +int user_id PK FK user.id not null
+        +table = "board_assignee"
+        +board_id: Map[int] = col(FK("board.id"), PK=True)
+        +user_id: Map[int] = col(FK("user.id"), PK=True)
     }
 
     class BoardParticipant {
         <<table: board_participant>>
-        +int board_id PK FK board.id not null
-        +int user_id PK FK user.id not null
+        +table = "board_participant"
+        +board_id: Map[int] = col(FK("board.id"), PK=True)
+        +user_id: Map[int] = col(FK("user.id"), PK=True)
     }
 
     class User {
         <<external unresolved table: user>>
-        +int id referenced by FK
+        +id: Map[int]
     }
 
     Base <|-- Board
