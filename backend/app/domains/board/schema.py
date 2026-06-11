@@ -6,7 +6,8 @@ from pydantic import BaseModel, Field
 
 from datetime import datetime
 
-## detail boards
+## create DTO
+# detail boards
 class CreateScheduleBoardDetail(BaseModel):
     start_at: datetime
     end_at: datetime
@@ -43,3 +44,43 @@ class CreateBoard(BaseModel):
     schedule_board_tasks: list[CreateScheduleBoardTaskDetail] = Field(default_factory=list)
     
     proceedings_board_detail: CreateProceedingsBoardDetail | None = None # 2
+
+
+
+
+## response DTO
+
+# detail boards
+class ResponseScheduleBoardDetail(BaseModel):
+    board_id: int
+    start_at: datetime
+    end_at: datetime
+    importance: int
+class ResponseScheduleBoardTaskDetail(BaseModel):
+    id: int
+    task_name: str
+    task_status: int
+
+class ResponseProceedingsBoardDetail(BaseModel):
+    board_id: int
+    meeting_date: datetime
+
+class BoardResponse(BaseModel):
+    id: int
+    board_type: int
+    title: str
+    content: str
+    tag: str | None = None
+    user_id: int  # JWT 구현 후 반드시 삭제
+
+    created_at: datetime
+    updated_at: datetime
+
+    assignee_user_ids: list[int] = Field(default_factory=list)
+    participant_user_ids: list[int] = Field(default_factory=list)
+    carbon_copy_user_ids: list[int] = Field(default_factory=list)
+
+    schedule_board_detail: ResponseScheduleBoardDetail | None = None
+    schedule_board_tasks: list[ResponseScheduleBoardTaskDetail] = Field(default_factory=list)
+
+    proceedings_board_detail: ResponseProceedingsBoardDetail | None = None

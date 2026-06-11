@@ -3,23 +3,23 @@
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.domains.board.schema import CreateBoard
+from app.domains.board.schema import CreateBoard, BoardResponse
 from app.domains.board import service
 
 board = APIRouter(prefix = "/board")
 
 # create
-@board.post("/", tags=["board"], status_code=status.HTTP_201_CREATED)
+@board.post("/", tags=["board"], status_code=status.HTTP_201_CREATED, response_model=BoardResponse)
 def create_board(request: CreateBoard):
-    insert_count = service.create_board(request)
+    create_board = service.create_board(request)
 
-    if insert_count < 1:
+    if create_board is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create board",
         )
 
-    return {"msg": f"success of {insert_count}"}
+    return create_board
         
 
 # # read
