@@ -45,6 +45,8 @@ dot -Tsvg docs/woonyong/minjeong/assets/class-uml.dot \
   -o docs/woonyong/minjeong/assets/class-uml.svg
 dot -Tsvg docs/woonyong/minjeong/assets/table-relations.dot \
   -o docs/woonyong/minjeong/assets/table-relations.svg
+python3 docs/woonyong/dev-tools/raise-svg-cardinality-labels.py \
+  docs/woonyong/minjeong/assets/table-relations.svg
 ```
 
 ## DOT 원본

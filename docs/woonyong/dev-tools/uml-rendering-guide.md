@@ -153,6 +153,7 @@ save(user: User): Result<Unit>
 - 관계선은 `#7f848e` 회색을 사용한다.
 - 관계 라벨인 `board_id`, `user_id`는 필드명이므로 `#e06c75`를 사용한다.
 - cardinality인 `1`, `0..1`, `0..*`는 숫자/상수이므로 `#d19a66`를 사용한다.
+- cardinality가 화살표 머리나 박스 경계와 겹치면 `headlabel`/`taillabel` 대신 선 중간의 `xlabel`로 `1 -> 0..*`처럼 표시한다.
 - 모든 marker는 같은 채워진 삼각형으로 통일한다.
 - 빈 삼각형, 빈 다이아몬드, 작은 갈고리형 화살표가 섞이지 않게 SVG marker 정의를 후처리한다.
 
@@ -174,9 +175,9 @@ save(user: User): Result<Unit>
 
 - 실제 문법을 최대한 보존해서 다이어그램이 넓어지면 폰트를 줄이지 말고 SVG 자연 폭 또는 가로 스크롤을 허용한다.
 - 그래도 읽기 어렵다면 먼저 코드형 축약을 적용하고, 이후에도 복잡하면 다이어그램을 도메인/계층/관계별 SVG로 분리한다.
-- 멤버 텍스트는 최소 14px, 권장 15px 전후로 유지한다.
-- 클래스명은 최소 15px, 권장 16px 전후로 유지한다.
-- stereotype은 최소 12px, 권장 13px 전후로 유지한다.
+- 멤버 텍스트는 최소 13px, 권장 13-14px 전후로 유지한다.
+- 클래스명은 최소 15px, 권장 15-16px 전후로 유지한다.
+- stereotype은 최소 10px, 권장 10-12px 전후로 유지한다.
 - `foreignObject`, 내부 `div`, `span`, `p`는 `overflow: visible`로 둔다.
 - 멤버/메서드 `foreignObject`는 `white-space: nowrap`을 우선한다. 코드형 라인이 자동 줄바꿈되면 토큰 색상이 맞아도 코드처럼 보이지 않는다.
 - SVG 루트가 `width="100%"`로 강제 축소되면 글자가 작아질 수 있다. 읽기용 SVG는 `viewBox`에 맞춘 자연 `width`, `height`를 명시한다.
@@ -184,8 +185,8 @@ save(user: User): Result<Unit>
   - 기준 글자 크기 `font`를 정한다.
   - 행 높이 `rowHeight`는 `font * 1.15` 전후로 둔다.
   - 행 사이 간격 `rowGap`은 `font * 0.1` 전후로 둔다.
-  - 좌우 패딩은 `font * 0.8` 전후로 둔다.
-  - 상단 패딩은 `font * 0.9` 전후로 둔다.
+  - 좌우 패딩은 `font * 0.6`에서 `font * 0.8` 사이로 둔다.
+  - 상하 패딩은 답답해 보이지 않게 `font * 0.6` 이상으로 둔다.
   - 박스 폭은 `가장 긴 코드 라인의 예상 폭 + 좌우 패딩`으로 잡고, 아주 조금의 여유만 둔다.
   - 박스 높이는 `헤더 높이 + 섹션 패딩 + rowHeight * 행 수 + rowGap * (행 수 - 1)`로 잡는다.
 - 단, Mermaid CLI가 생성한 SVG에서는 박스 좌표, 노드 높이, edge 접점을 직접 재계산하지 않는다. Mermaid가 계산한 레이아웃을 덮어쓰면 관계선과 텍스트 위치가 쉽게 깨진다.
@@ -207,8 +208,11 @@ Graphviz DOT를 사용할 때는 다음 규칙을 따른다.
 - SVG는 `dot -Tsvg input.dot -o output.svg`로 재생성한다.
 - 노드는 `shape=plain`과 HTML `TABLE` label을 사용해 박스 폭과 행간을 렌더러가 계산하게 한다.
 - 코드 라인은 한 줄을 유지하고, 공백 정렬보다 실제 코드 구조와 토큰 색상을 우선한다.
+- 멤버 라인은 한 셀 안에서 `<BR/>`로 이어 붙이지 말고, 가능하면 멤버별 `<TR><TD>...</TD></TR>` 행으로 나눈다. 그래야 위아래 여백이 실제 행 높이에 반영된다.
 - 관계선은 `arrowhead=normal` 또는 `arrowtail=normal`의 채워진 삼각형을 사용한다.
 - 상속/믹스인 관계와 FK/cardinality 관계는 기본적으로 별도 SVG로 나눈다. 두 종류를 한 장에 모두 넣어 선이 교차하면 정보가 맞아도 문서 품질은 실패로 본다.
+- `headlabel`/`taillabel`이 화살표 머리와 겹치면 endpoint label을 고집하지 않는다. 관계도에서는 `xlabel="1 -> 0..*"`처럼 중앙 라벨을 우선 사용한다.
+- 여러 edge가 cardinality 라벨 위를 지나가면 `raise-svg-cardinality-labels.py`로 라벨 텍스트를 SVG 마지막 레이어로 올린다.
 - DOT 원본을 손으로 수정했다면 SVG를 다시 생성하고 Markdown 미리보기에서 잘림과 겹침을 확인한다.
 - SVG 생성 후 Markdown 미리보기에서 아래를 확인한다.
   - 긴 필드 라인이 박스 오른쪽에서 잘리지 않는가?
@@ -231,6 +235,8 @@ SVG는 Graphviz DOT 원본에서 생성한다.
 
 ```bash
 dot -Tsvg docs/.../assets/class-uml.dot -o docs/.../assets/class-uml.svg
+dot -Tsvg docs/.../assets/table-relations.dot -o docs/.../assets/table-relations.svg
+python3 docs/woonyong/dev-tools/raise-svg-cardinality-labels.py docs/.../assets/table-relations.svg
 ```
 
 ## DOT 원본
