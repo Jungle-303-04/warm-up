@@ -1,0 +1,33 @@
+meta {
+  name: Run default pipeline
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/pipeline/run
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("returns 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns default sample repository result", function () {
+    expect(res.body.repository.repository).to.equal("sample-repo");
+    expect(res.body.code_references).to.be.an("array").that.is.not.empty;
+    expect(res.body.retrieval_chunks).to.be.an("array").that.is.not.empty;
+    expect(res.body.proposals[0].status).to.equal("approved");
+    expect(res.body.publish_snapshot.status).to.equal("published");
+  });
+}

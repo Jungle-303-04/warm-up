@@ -1,0 +1,22 @@
+meta {
+  name: List pipeline stages
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/pipeline
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns stage metadata", function () {
+    expect(res.body.stages).to.be.an("array").that.is.not.empty;
+    expect(res.body.stages[0]).to.have.property("id");
+  });
+}

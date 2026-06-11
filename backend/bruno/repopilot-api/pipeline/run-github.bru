@@ -1,0 +1,32 @@
+meta {
+  name: Run pipeline with GitHub repository
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/pipeline/run
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "repository_url": "{{githubRepositoryUrl}}",
+    "branch": "main"
+  }
+}
+
+tests {
+  test("returns 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns synced repository files", function () {
+    expect(res.body.repository.files).to.be.an("array").that.is.not.empty;
+  });
+}

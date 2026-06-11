@@ -1,0 +1,44 @@
+meta {
+  name: Run pipeline with inline files
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/pipeline/run
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "repository": "demo/inline",
+    "branch": "main",
+    "files": [
+      {
+        "path": "backend/app/api/auth.py",
+        "content": "def login(user_id: str) -> str:\n    return f'token:{user_id}'\n"
+      },
+      {
+        "path": "docs/auth.md",
+        "content": "# Auth\n\nLogin issues a token for the current user.\n"
+      }
+    ]
+  }
+}
+
+tests {
+  test("returns 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("uses inline repository metadata", function () {
+    expect(res.body.repository.repository).to.equal("demo/inline");
+    expect(res.body.repository.branch).to.equal("main");
+    expect(res.body.repository.files).to.have.length(2);
+  });
+}

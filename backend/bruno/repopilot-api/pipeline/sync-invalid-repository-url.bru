@@ -1,0 +1,32 @@
+meta {
+  name: Sync Repo RAG with invalid repository URL
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/pipeline/sync
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "repository_url": "https://example.com/team/project.git",
+    "trigger_type": "manual"
+  }
+}
+
+tests {
+  test("returns 400", function () {
+    expect(res.status).to.equal(400);
+  });
+
+  test("explains GitHub URL requirement", function () {
+    expect(res.body.detail).to.include("repository_url must be an https://github.com/");
+  });
+}

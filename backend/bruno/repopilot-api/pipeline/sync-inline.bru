@@ -1,0 +1,46 @@
+meta {
+  name: Sync Repo RAG with inline files
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/pipeline/sync
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "repository": "demo/repo-rag",
+    "branch": "main",
+    "trigger_type": "manual",
+    "files": [
+      {
+        "path": "README.md",
+        "content": "# Demo\n\nThis file becomes a retrieval chunk.\n"
+      },
+      {
+        "path": "app.py",
+        "content": "def run():\n    return True\n"
+      }
+    ]
+  }
+}
+
+tests {
+  test("returns 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns a succeeded manual job", function () {
+    expect(res.body.job.status).to.equal("succeeded");
+    expect(res.body.job.trigger_type).to.equal("manual");
+    expect(res.body.repository.repository).to.equal("demo/repo-rag");
+    expect(res.body.active_chunks).to.be.an("array").that.is.not.empty;
+  });
+}

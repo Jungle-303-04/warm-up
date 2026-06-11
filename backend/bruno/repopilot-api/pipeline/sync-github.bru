@@ -1,0 +1,35 @@
+meta {
+  name: Sync Repo RAG with GitHub repository
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/pipeline/sync
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "repository_url": "{{githubRepositoryUrl}}",
+    "branch": "main",
+    "trigger_type": "manual"
+  }
+}
+
+tests {
+  test("returns 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns Repo RAG sync results", function () {
+    expect(res.body.job.status).to.equal("succeeded");
+    expect(res.body.changes).to.be.an("array");
+    expect(res.body.events).to.be.an("array").that.is.not.empty;
+  });
+}

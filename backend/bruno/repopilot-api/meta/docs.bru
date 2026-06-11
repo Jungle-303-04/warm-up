@@ -1,0 +1,17 @@
+meta {
+  name: Swagger UI
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/docs
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns Swagger UI", function () {
+    expect(res.status).to.equal(200);
+  });
+}

@@ -1,0 +1,17 @@
+meta {
+  name: Root redirects to docs
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns a successful response or redirect", function () {
+    expect([200, 307, 308]).to.include(res.status);
+  });
+}
