@@ -7,6 +7,13 @@ from app.pipeline import PIPELINE_STAGE_IDS
 client = TestClient(app)
 
 
+def test_root_redirects_to_docs() -> None:
+    response = client.get("/", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "/docs"
+
+
 def test_health_returns_ok() -> None:
     response = client.get("/health")
 
