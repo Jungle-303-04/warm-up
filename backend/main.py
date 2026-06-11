@@ -82,8 +82,20 @@ def get_post(post_id : int):
 
         if post is None:
             return {"message": "게시글 없음"}
+        
+        font = session.get(Font, post.font_id)
 
-        return post
+        return  {
+                    "id": post.id,
+                    "title": post.title,
+                    "content": post.content,
+                    "created_at": post.created_at,
+                    "updated_at": post.updated_at,
+                    "font": {
+                        "name": font.name,
+                        "tags": font.tags
+                    } 
+                }
 
 @app.put("/posts/{post_id}")
 def update_post(post_id : int, post_data: Post):
