@@ -15,6 +15,8 @@ def test_pipeline_request_uses_default_sample_repo() -> None:
 
     assert request.repository == "sample-repo"
     assert request.branch == "main"
+    assert request.repository_path is None
+    assert request.repository_url is None
     assert request.files == default_files()
 
 

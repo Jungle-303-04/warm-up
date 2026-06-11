@@ -1,6 +1,10 @@
 from pydantic import BaseModel, Field
 
 
+DEFAULT_REPOSITORY = "sample-repo"
+DEFAULT_BRANCH = "main"
+
+
 class RepoFile(BaseModel):
     path: str
     content: str
@@ -20,8 +24,10 @@ def default_files() -> list[RepoFile]:
 
 
 class PipelineRequest(BaseModel):
-    repository: str = "sample-repo"
-    branch: str = "main"
+    repository: str = DEFAULT_REPOSITORY
+    branch: str = DEFAULT_BRANCH
+    repository_path: str | None = None
+    repository_url: str | None = None
     files: list[RepoFile] = Field(default_factory=default_files)
 
 
