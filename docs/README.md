@@ -8,6 +8,7 @@
 
 - [스킬 문서](./skills/README.md)
 - [설정/운영 문서](./config/README.md)
+- [인물별 작업 분석](./people/README.md)
 
 ## Woonyong 문서 묶음
 
@@ -22,6 +23,7 @@
 docs
 ├── skills
 ├── config
+├── people
 └── woonyong
     ├── full-stack-tech-loadmap
     ├── ai-implementation
@@ -34,6 +36,7 @@ docs
 - [스킬 인덱스](./skills/README.md)
 - [커밋 컨벤션 스킬](./skills/commit-convention/README.md)
 - [Notion 프로젝트 운영 스킬](./skills/notion-project-ops/README.md)
+- [Notion 개인 계획 동기화 스킬](./skills/notion-personal-plan-sync/README.md)
 - [문서 관리 스킬](./skills/docs-maintainer/README.md)
 - [레포 구현 검토 스킬](./skills/repo-context-review/README.md)
 - [GitHub 이슈 흐름 스킬](./skills/github-issue-flow/README.md)
@@ -43,6 +46,11 @@ docs
 - [설정/운영 인덱스](./config/README.md)
 - [운영 컨벤션](./config/conventions.md)
 - [개발 도구 사용법](./woonyong/dev-tools/README.md)
+
+## 인물별 작업 분석
+
+- [인물별 작업 분석 인덱스](./people/README.md)
+- [찬빈 작업 분석](./people/chanbin/README.md)
 
 ## 개발 도구 사용법
 

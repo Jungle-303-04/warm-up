@@ -11,6 +11,7 @@
 | AI Implementation | LLM Runtime, RAG, MCP, Agent, Memory, Evaluation, Python Architecture | `docs/woonyong/ai-implementation/` | AI 기능을 실제 구현 단위로 설계할 때 |
 | Product | RepoPilot 제품 기획, 요구사항, 정보 구조, 로드맵 | `docs/woonyong/ai-dev-workspace/` | 제품 방향, MVP 범위, 기능 우선순위를 정할 때 |
 | Operations | Notion 프로젝트, 회의, 작업 관리 | `docs/skills/notion-project-ops/SKILL.md` 및 Notion 팀 협업 허브 | 팀 일감과 회의 흐름을 관리할 때 |
+| Operations | Notion 개인 계획과 코드 동기화 | `docs/skills/notion-personal-plan-sync/SKILL.md` | 내 작업노트, 현재 브랜치, 실제 구현 상태를 맞출 때 |
 | Git Workflow | 커밋, 브랜치, PR, 리뷰 기준 | `docs/skills/commit-convention/SKILL.md` | 협업 변경사항을 기록하고 병합할 때 |
 | Documentation Ops | 문서 추가, 이동, 링크, 인덱스 관리 | `docs/skills/docs-maintainer/SKILL.md` | 문서 구조를 바꾸거나 새 문서를 추가할 때 |
 | Repo Review | 문서/회의/작업과 실제 레포 구현 비교 | `docs/skills/repo-context-review/SKILL.md` | 문서가 현재 코드와 맞는지 검토할 때 |
@@ -20,6 +21,7 @@
 
 - [커밋 컨벤션 스킬](./commit-convention/SKILL.md)
 - [Notion 프로젝트 운영 스킬](./notion-project-ops/SKILL.md)
+- [Notion 개인 계획 동기화 스킬](./notion-personal-plan-sync/SKILL.md)
 - [문서 관리 스킬](./docs-maintainer/SKILL.md)
 - [레포 구현 검토 스킬](./repo-context-review/SKILL.md)
 - [GitHub 이슈 흐름 스킬](./github-issue-flow/SKILL.md)
@@ -79,6 +81,12 @@ RepoPilot 관련 문서는 Notion, GitHub, 코드, 정적 뷰어를 연결하는
 - 상태: 현재 Notion DB의 기존 옵션 사용
 
 세부 규칙은 `docs/skills/notion-project-ops/SKILL.md`를 따른다.
+
+개인 작업 계획을 현재 브랜치와 실제 코드 상태에 맞출 때는 `docs/skills/notion-personal-plan-sync/SKILL.md`를 따른다.
+
+- Notion 현재 사용자, 담당자, 작성자, git author, 브랜치명을 함께 보고 본인을 식별한다.
+- 작업 상태와 실제 코드가 다르면 `계획대로 구현됨`, `코드가 앞서감`, `계획이 앞서감`, `계획과 코드가 다름`, `판단 보류`로 나눠 말한다.
+- Notion 상태나 본문은 승인 후 수정한다.
 
 ## Git Workflow Skill
 
