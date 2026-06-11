@@ -29,15 +29,17 @@ from services.pipeline import PipelineService
 | 도구 | 기준 |
 |---|---|
 | VS Code/Pylance | `.vscode/settings.json`의 `python.analysis.extraPaths`가 `${workspaceFolder}/backend`를 본다 |
-| Pyright | `pyrightconfig.json`의 execution root가 `backend`다 |
+| VS Code/Pylance (backend 폴더만 열 때) | `backend/.vscode/settings.json`의 `python.analysis.extraPaths`가 `${workspaceFolder}`를 본다 |
+| Pyright (repo root) | `pyrightconfig.json`이 `backend`를 extra path로 둔다 |
+| Pyright (backend root) | `backend/pyrightconfig.json`이 현재 폴더를 extra path로 둔다 |
 | pytest | `backend/pyproject.toml`의 `pythonpath = ["."]`와 `cwd = backend` 기준이다 |
 | Docker | `backend/Dockerfile`의 `WORKDIR /app`, Compose의 `PYTHONPATH=/app` 기준이다 |
 | Debug attach | `.vscode/launch.json`이 로컬 `backend`를 컨테이너 `/app`에 매핑한다 |
 
 ## 새 폴더를 추가할 때
 
-`backend/app` 아래 새 폴더는 기본적으로 namespace package로 둔다.
-`__init__.py`는 공개 export, package 초기화, plugin discovery처럼 파일 자체에 역할이 있을 때만 만든다.
+`backend/app` 아래 새 패키지는 `__init__.py`를 둔다.
+이 파일은 런타임 동작보다 에디터, Pyright, pytest, Docker가 같은 package 경계를 보도록 만드는 표식이다.
 
 ```text
 backend/app/features/service.py
@@ -57,10 +59,17 @@ from app.features.service import FeatureService
 mise run check
 ```
 
-Pylance/Pyright import 인식만 빠르게 확인:
+repo root에서 Pylance/Pyright import 인식만 빠르게 확인:
 
 ```bash
 pnpm api:typecheck
+```
+
+`backend` 폴더만 열었거나 그 기준으로 확인하고 싶으면 아래 명령을 쓴다.
+
+```bash
+cd backend
+../node_modules/.bin/pyright --project pyrightconfig.json
 ```
 
 Docker debug import 확인:

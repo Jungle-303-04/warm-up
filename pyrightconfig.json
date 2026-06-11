@@ -7,7 +7,7 @@
   "typeCheckingMode": "basic",
   "executionEnvironments": [
     {
-      "root": "backend",
+      "root": ".",
       "extraPaths": ["backend"]
     }
   ]
