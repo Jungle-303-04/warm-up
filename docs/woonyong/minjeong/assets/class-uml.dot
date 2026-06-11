@@ -1,16 +1,8 @@
-// Generated from docs/woonyong/minjeong/class-uml.md Mermaid source. Do not hand-edit SVG.
+// Generated from docs/woonyong/minjeong/class-uml.md logical source. Do not hand-edit SVG.
 digraph ClassUML {
-  graph [rankdir=LR, bgcolor="#282c34", splines=true, overlap=false, outputorder=edgesfirst, nodesep=0.55, ranksep=1.0, pad=0.25];
+  graph [rankdir=LR, bgcolor="#282c34", splines=polyline, overlap=false, outputorder=edgesfirst, nodesep=0.45, ranksep=0.85, pad=0.25];
   node [shape=plain, fontname="Menlo", margin=0, color="#3e4452"];
-  edge [fontname="Menlo", fontsize=12, color="#7f848e", fontcolor="#d19a66", arrowsize=0.8, penwidth=1.2, labelfontname="Menlo", labelfontsize=12];
-
-  IdMixin [label=<
-<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" COLOR="#3e4452" BGCOLOR="#21252b">
-  <TR><TD ALIGN="CENTER" BALIGN="CENTER"><FONT FACE="Menlo" POINT-SIZE="11" COLOR="#7f848e">«mixin»</FONT><BR/><FONT FACE="Arial" POINT-SIZE="16" COLOR="#e5c07b"><B>IdMixin</B></FONT></TD></TR>
-  <HR/>
-  <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="14"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">id</FONT><FONT COLOR="#56b6c2">:</FONT>&#160;<FONT COLOR="#e5c07b">Map</FONT><FONT COLOR="#56b6c2">[</FONT><FONT COLOR="#e5c07b">int</FONT><FONT COLOR="#56b6c2">]</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#61afef">col</FONT><FONT COLOR="#56b6c2">(</FONT><FONT COLOR="#e5c07b">Int</FONT><FONT COLOR="#56b6c2">,</FONT>&#160;<FONT COLOR="#c678dd">PK</FONT><FONT COLOR="#56b6c2">=</FONT><FONT COLOR="#d19a66">True</FONT><FONT COLOR="#56b6c2">,</FONT>&#160;<FONT COLOR="#c678dd">AI</FONT><FONT COLOR="#56b6c2">=</FONT><FONT COLOR="#d19a66">True</FONT><FONT COLOR="#56b6c2">)</FONT></FONT></TD></TR>
-</TABLE>
->];
+  edge [fontname="Menlo", fontsize=12, color="#7f848e", arrowsize=0.85, penwidth=1.15];
 
   Base [label=<
 <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" COLOR="#3e4452" BGCOLOR="#21252b">
@@ -20,19 +12,19 @@ digraph ClassUML {
 </TABLE>
 >];
 
+  IdMixin [label=<
+<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" COLOR="#3e4452" BGCOLOR="#21252b">
+  <TR><TD ALIGN="CENTER" BALIGN="CENTER"><FONT FACE="Menlo" POINT-SIZE="11" COLOR="#7f848e">«mixin»</FONT><BR/><FONT FACE="Arial" POINT-SIZE="16" COLOR="#e5c07b"><B>IdMixin</B></FONT></TD></TR>
+  <HR/>
+  <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="14"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">id</FONT><FONT COLOR="#56b6c2">:</FONT>&#160;<FONT COLOR="#e5c07b">Map</FONT><FONT COLOR="#56b6c2">[</FONT><FONT COLOR="#e5c07b">int</FONT><FONT COLOR="#56b6c2">]</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#61afef">col</FONT><FONT COLOR="#56b6c2">(</FONT><FONT COLOR="#e5c07b">Int</FONT><FONT COLOR="#56b6c2">,</FONT>&#160;<FONT COLOR="#c678dd">PK</FONT><FONT COLOR="#56b6c2">=</FONT><FONT COLOR="#d19a66">True</FONT><FONT COLOR="#56b6c2">,</FONT>&#160;<FONT COLOR="#c678dd">AI</FONT><FONT COLOR="#56b6c2">=</FONT><FONT COLOR="#d19a66">True</FONT><FONT COLOR="#56b6c2">)</FONT></FONT></TD></TR>
+</TABLE>
+>];
+
   TimestampMixin [label=<
 <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" COLOR="#3e4452" BGCOLOR="#21252b">
   <TR><TD ALIGN="CENTER" BALIGN="CENTER"><FONT FACE="Menlo" POINT-SIZE="11" COLOR="#7f848e">«mixin»</FONT><BR/><FONT FACE="Arial" POINT-SIZE="16" COLOR="#e5c07b"><B>TimestampMixin</B></FONT></TD></TR>
   <HR/>
   <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="14"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">created_at</FONT><FONT COLOR="#56b6c2">:</FONT>&#160;<FONT COLOR="#e5c07b">Map</FONT><FONT COLOR="#56b6c2">[</FONT><FONT COLOR="#e5c07b">dt</FONT><FONT COLOR="#56b6c2">]</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#61afef">col</FONT><FONT COLOR="#56b6c2">(</FONT><FONT COLOR="#e5c07b">DT</FONT><FONT COLOR="#56b6c2">,</FONT>&#160;<FONT COLOR="#c678dd">D</FONT><FONT COLOR="#56b6c2">=</FONT><FONT COLOR="#61afef">utcnow</FONT><FONT COLOR="#56b6c2">)</FONT></FONT><BR ALIGN="LEFT"/><FONT FACE="Menlo" POINT-SIZE="14"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">updated_at</FONT><FONT COLOR="#56b6c2">:</FONT>&#160;<FONT COLOR="#e5c07b">Map</FONT><FONT COLOR="#56b6c2">[</FONT><FONT COLOR="#e5c07b">dt</FONT><FONT COLOR="#56b6c2">]</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#61afef">col</FONT><FONT COLOR="#56b6c2">(</FONT><FONT COLOR="#e5c07b">DT</FONT><FONT COLOR="#56b6c2">,</FONT>&#160;<FONT COLOR="#c678dd">D</FONT><FONT COLOR="#56b6c2">=</FONT><FONT COLOR="#61afef">utcnow</FONT><FONT COLOR="#56b6c2">,</FONT>&#160;<FONT COLOR="#c678dd">ON</FONT><FONT COLOR="#56b6c2">=</FONT><FONT COLOR="#61afef">utcnow</FONT><FONT COLOR="#56b6c2">)</FONT></FONT></TD></TR>
-</TABLE>
->];
-
-  User [label=<
-<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" COLOR="#3e4452" BGCOLOR="#21252b">
-  <TR><TD ALIGN="CENTER" BALIGN="CENTER"><FONT FACE="Menlo" POINT-SIZE="11" COLOR="#7f848e">«external unresolved table: user»</FONT><BR/><FONT FACE="Arial" POINT-SIZE="16" COLOR="#e5c07b"><B>User</B></FONT></TD></TR>
-  <HR/>
-  <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="14"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">id</FONT><FONT COLOR="#56b6c2">:</FONT>&#160;<FONT COLOR="#e5c07b">Map</FONT><FONT COLOR="#56b6c2">[</FONT><FONT COLOR="#e5c07b">int</FONT><FONT COLOR="#56b6c2">]</FONT></FONT></TD></TR>
 </TABLE>
 >];
 
@@ -92,38 +84,22 @@ digraph ClassUML {
 </TABLE>
 >];
 
-  { rank=same; IdMixin; Base; TimestampMixin; User; }
-  { rank=same; Board; }
-  { rank=same; ScheduleBoardDetail; ScheduleBoardTask; ProceedingsBoardDetail; BoardCarbonCopy; BoardAssignee; BoardParticipant; }
-
-  IdMixin -> Base [style=invis, weight=20];
-  Base -> TimestampMixin [style=invis, weight=20];
-  TimestampMixin -> User [style=invis, weight=20];
-  Board -> ScheduleBoardDetail [style=invis, weight=50];
+  { rank=same; Base; IdMixin; TimestampMixin; }
+  { rank=same; Board; ScheduleBoardDetail; ScheduleBoardTask; ProceedingsBoardDetail; BoardCarbonCopy; BoardAssignee; BoardParticipant; }
   ScheduleBoardDetail -> ScheduleBoardTask [style=invis, weight=20];
   ScheduleBoardTask -> ProceedingsBoardDetail [style=invis, weight=20];
   ProceedingsBoardDetail -> BoardCarbonCopy [style=invis, weight=20];
   BoardCarbonCopy -> BoardAssignee [style=invis, weight=20];
   BoardAssignee -> BoardParticipant [style=invis, weight=20];
 
-  Base -> Board [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", constraint=true, weight=8];
-  Base -> ScheduleBoardDetail [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", constraint=true, weight=8];
-  Base -> ScheduleBoardTask [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", constraint=true, weight=8];
-  Base -> ProceedingsBoardDetail [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", constraint=true, weight=8];
-  Base -> BoardCarbonCopy [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", constraint=true, weight=8];
-  Base -> BoardAssignee [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", constraint=true, weight=8];
-  Base -> BoardParticipant [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", constraint=true, weight=8];
-  IdMixin -> Board [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", style=dashed, constraint=true, weight=6];
-  TimestampMixin -> Board [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", style=dashed, constraint=true, weight=6];
-  IdMixin -> ScheduleBoardTask [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", style=dashed, constraint=true, weight=6];
-  Board -> ScheduleBoardDetail [dir=back, arrowtail=normal, arrowhead=none, label=<<FONT COLOR="#e06c75">board_id</FONT>>, taillabel="1", headlabel="0..1", fontcolor="#d19a66", labelfontcolor="#e06c75", color="#7f848e", constraint=false, labeldistance=1.3, labelangle=0];
-  Board -> ScheduleBoardTask [dir=back, arrowtail=normal, arrowhead=none, label=<<FONT COLOR="#e06c75">board_id</FONT>>, taillabel="1", headlabel="0..*", fontcolor="#d19a66", labelfontcolor="#e06c75", color="#7f848e", constraint=false, labeldistance=1.3, labelangle=0];
-  Board -> ProceedingsBoardDetail [dir=back, arrowtail=normal, arrowhead=none, label=<<FONT COLOR="#e06c75">board_id</FONT>>, taillabel="1", headlabel="0..1", fontcolor="#d19a66", labelfontcolor="#e06c75", color="#7f848e", constraint=false, labeldistance=1.3, labelangle=0];
-  Board -> BoardCarbonCopy [dir=back, arrowtail=normal, arrowhead=none, label=<<FONT COLOR="#e06c75">board_id</FONT>>, taillabel="1", headlabel="0..*", fontcolor="#d19a66", labelfontcolor="#e06c75", color="#7f848e", constraint=false, labeldistance=1.3, labelangle=0];
-  Board -> BoardAssignee [dir=back, arrowtail=normal, arrowhead=none, label=<<FONT COLOR="#e06c75">board_id</FONT>>, taillabel="1", headlabel="0..*", fontcolor="#d19a66", labelfontcolor="#e06c75", color="#7f848e", constraint=false, labeldistance=1.3, labelangle=0];
-  Board -> BoardParticipant [dir=back, arrowtail=normal, arrowhead=none, label=<<FONT COLOR="#e06c75">board_id</FONT>>, taillabel="1", headlabel="0..*", fontcolor="#d19a66", labelfontcolor="#e06c75", color="#7f848e", constraint=false, labeldistance=1.3, labelangle=0];
-  User -> Board [dir=back, arrowtail=normal, arrowhead=none, label=<<FONT COLOR="#e06c75">user_id</FONT>>, taillabel="1", headlabel="0..*", fontcolor="#d19a66", labelfontcolor="#e06c75", color="#7f848e", constraint=false, labeldistance=1.3, labelangle=0];
-  User -> BoardCarbonCopy [dir=back, arrowtail=normal, arrowhead=none, label=<<FONT COLOR="#e06c75">user_id</FONT>>, taillabel="1", headlabel="0..*", fontcolor="#d19a66", labelfontcolor="#e06c75", color="#7f848e", constraint=false, labeldistance=1.3, labelangle=0];
-  User -> BoardAssignee [dir=back, arrowtail=normal, arrowhead=none, label=<<FONT COLOR="#e06c75">user_id</FONT>>, taillabel="1", headlabel="0..*", fontcolor="#d19a66", labelfontcolor="#e06c75", color="#7f848e", constraint=false, labeldistance=1.3, labelangle=0];
-  User -> BoardParticipant [dir=back, arrowtail=normal, arrowhead=none, label=<<FONT COLOR="#e06c75">user_id</FONT>>, taillabel="1", headlabel="0..*", fontcolor="#d19a66", labelfontcolor="#e06c75", color="#7f848e", constraint=false, labeldistance=1.3, labelangle=0];
+  Base -> Board [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
+  Base -> ScheduleBoardDetail [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
+  Base -> ScheduleBoardTask [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
+  Base -> ProceedingsBoardDetail [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
+  Base -> BoardCarbonCopy [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
+  Base -> BoardAssignee [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
+  Base -> BoardParticipant [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
+  IdMixin -> Board [dir=back, arrowtail=normal, arrowhead=none, style=dashed, color="#7f848e", weight=2];
+  TimestampMixin -> Board [dir=back, arrowtail=normal, arrowhead=none, style=dashed, color="#7f848e", weight=2];
+  IdMixin -> ScheduleBoardTask [dir=back, arrowtail=normal, arrowhead=none, style=dashed, color="#7f848e", weight=2];
 }

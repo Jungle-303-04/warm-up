@@ -24,22 +24,33 @@
 | `utcnow` | `datetime.utcnow` |
 | `A|B` | `A | B` union type |
 
-## 클래스 UML
+## 클래스/상속 UML
 
 ![민정 Board 클래스 UML](./assets/class-uml.svg)
 
-SVG는 Graphviz DOT 원본에서 생성한다. DOT는 코드형 라벨의 행간, 박스 폭,
+이 그림은 `Base`, mixin, ORM 클래스의 상속/적용 관계만 보여준다.
+외래키 관계까지 한 SVG에 넣으면 선이 과하게 교차하므로 테이블 관계는 아래
+그림으로 분리했다.
+
+## 테이블 관계 UML
+
+![민정 Board 테이블 관계 UML](./assets/table-relations.svg)
+
+두 SVG는 Graphviz DOT 원본에서 생성한다. DOT는 코드형 라벨의 행간, 박스 폭,
 관계선 라우팅을 렌더러가 계산하므로 Mermaid SVG 좌표를 직접 고치는 방식보다
 안정적이다.
 
 ```bash
 dot -Tsvg docs/woonyong/minjeong/assets/class-uml.dot \
   -o docs/woonyong/minjeong/assets/class-uml.svg
+dot -Tsvg docs/woonyong/minjeong/assets/table-relations.dot \
+  -o docs/woonyong/minjeong/assets/table-relations.svg
 ```
 
 ## DOT 원본
 
 - [class-uml.dot](./assets/class-uml.dot)
+- [table-relations.dot](./assets/table-relations.dot)
 
 ## 논리 원본
 
