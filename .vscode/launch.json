@@ -2,8 +2,27 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach FastAPI in Docker",
-      "type": "debugpy",
+      "name": "Debug FastAPI in Docker (local window)",
+      "type": "python",
+      "request": "attach",
+      "preLaunchTask": "Docker Compose: FastAPI Debug Up",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/backend",
+          "remoteRoot": "/app"
+        }
+      ],
+      "justMyCode": true,
+      "subProcess": true,
+      "redirectOutput": true
+    },
+    {
+      "name": "Attach FastAPI in Docker (local window)",
+      "type": "python",
       "request": "attach",
       "connect": {
         "host": "localhost",
@@ -15,12 +34,28 @@
           "remoteRoot": "/app"
         }
       ],
+      "justMyCode": true,
+      "subProcess": true,
+      "redirectOutput": true
+    },
+    {
+      "name": "Debug FastAPI Local",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+      "cwd": "${workspaceFolder}/backend",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      },
       "justMyCode": true
     },
     {
-      "name": "Attach Next.js in Docker",
+      "name": "Debug Next.js in Docker (local window)",
       "type": "node",
       "request": "attach",
+      "preLaunchTask": "Docker Compose: Web Debug Up",
       "address": "localhost",
       "port": 9229,
       "localRoot": "${workspaceFolder}/apps/web",

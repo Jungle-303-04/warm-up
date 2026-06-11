@@ -5,7 +5,8 @@ services:
       context: ./backend
       target: dev
     command:
-      - python
+      - /app/.venv/bin/python
+      - -Xfrozen_modules=off
       - -m
       - debugpy
       - --listen
@@ -17,7 +18,6 @@ services:
       - 0.0.0.0
       - --port
       - "8000"
-      - --reload
     ports:
       - "8000:8000"
       - "5678:5678"

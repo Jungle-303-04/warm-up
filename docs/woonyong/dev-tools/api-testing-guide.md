@@ -11,13 +11,21 @@
 | OpenAPI JSON | `http://localhost:8000/openapi.json` |
 | Health check | `http://localhost:8000/health` |
 
+`http://localhost:8000`은 Swagger UI인 `/docs`로 redirect된다.
+
 ## Docker debug API 실행
 
-FastAPI만 Docker debug 모드로 띄우려면 아래 명령을 쓴다.
+VS Code에서 breakpoint를 잡아가며 보려면 Run and Debug의 `Debug FastAPI in Docker (local window)`를 먼저 실행한다.
+이 구성은 Docker debug 컨테이너를 띄우고 `localhost:5678`에 attach한다.
+
+터미널에서 FastAPI만 Docker debug 모드로 띄우려면 아래 명령을 쓴다.
 
 ```bash
 mise run compose:debug:api
 ```
+
+FastAPI Docker debug 서버는 바로 올라온다.
+breakpoint를 잡고 싶으면 먼저 VS Code 디버거를 attach한 뒤 API 요청을 보낸다.
 
 전체 web/api/worker까지 같이 보고 싶으면 아래 명령을 쓴다.
 
@@ -133,10 +141,9 @@ curl -fsS http://localhost:8000/pipeline/sync \
 
 FastAPI breakpoint를 걸고 요청을 보내려면 아래 순서로 한다.
 
-1. `mise run compose:debug:api` 실행
-2. VS Code에서 `Attach FastAPI in Docker` 선택
+1. VS Code에서 `Debug FastAPI in Docker (local window)` 선택
+2. 디버거 attach 완료 확인
 3. `backend/app/api/routes/pipeline.py` 또는 `backend/app/services/repo_rag_sync.py`에 breakpoint 설정
 4. Swagger UI, REST Client, curl 중 하나로 요청 실행
 
 요청이 breakpoint에서 멈추면 Docker 컨테이너 안의 FastAPI 코드에 정상 연결된 것이다.
-

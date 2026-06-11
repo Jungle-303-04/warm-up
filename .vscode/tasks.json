@@ -1,0 +1,23 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Docker Compose: FastAPI Debug Up",
+      "type": "shell",
+      "command": "docker compose -f compose.yaml -f compose.debug.yaml up -d --build api postgres redis",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker Compose: Web Debug Up",
+      "type": "shell",
+      "command": "docker compose -f compose.yaml up -d --build api postgres redis && docker compose -f compose.yaml -f compose.debug.yaml up -d --build --no-deps web",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
