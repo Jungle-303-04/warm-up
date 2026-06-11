@@ -1,13 +1,13 @@
 from fastapi import FastAPI
-from app.domains.board.router import router as board_router
+from app.domains.board.router import board as board_router
 
 
 app = FastAPI() # make instance
 
 
-app.include_router(board_router, prefix="/boards", tags=["boards"])
+app.include_router(board_router, tags=["board"])
 
-# get method # for test!
+# get method
 @app.get("/")
-def root():
+async def root():
     return{"hello":"world"}

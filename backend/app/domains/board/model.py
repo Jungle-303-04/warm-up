@@ -76,7 +76,7 @@ class ScheduleBoardTask(Base, IdMixin):
     # Foreignkey
     board_id: Mapped[int] = mapped_column(
         Integer, 
-        ForeignKey("board.id"),
+        ForeignKey("schedule_board_detail.board_id"),
         primary_key = False,
         nullable = False,
     )
