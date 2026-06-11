@@ -94,3 +94,4 @@ docs
 - [Python 백엔드 아키텍처](./woonyong/ai-dev-workspace/12-python-backend-architecture.md)
 - [최소 파이프라인 구현 계획](./woonyong/ai-dev-workspace/13-minimal-pipeline-plan.md)
 - [최소 구현 라인별 해설](./woonyong/ai-dev-workspace/14-minimal-implementation-line-by-line.md)
+- [현재 구현 클래스 UML](./woonyong/ai-dev-workspace/15-current-class-uml.md)
