@@ -36,6 +36,7 @@ def insert_board(db: Session, request: CreateBoard) -> BoardResponse:
         # Default values for type-specific response DTO fields.
         schedule_detail_response = None
         schedule_task_responses = []
+        schedule_tasks = []
         proceedings_detail_response = None
 
         ## type-specific detail data
