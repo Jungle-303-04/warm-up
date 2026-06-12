@@ -21,11 +21,10 @@ class CreateProceedingsBoardDetail(BaseModel):
 
 ## board
 class CreateBoard(BaseModel):
-    # 1: ScheduleBoardDetail
-    # 2: ProceedingsBoardDetail
-    # 3:
-    # 4:
-    board_type: int
+    # BASIC_BOARD_TYPE = 1
+    # SCHEDULE_BOARD_TYPE = 2
+    # PROCEEDINGS_BOARD_TYPE = 3
+    board_type: int = Field(1)
     title: str
     content: str
     tag: str | None = None
@@ -40,10 +39,10 @@ class CreateBoard(BaseModel):
     # 요청 JSON 안에 타입별 상세 데이터를 중첩해서 받기 위한 DTO 구조
 
     # board_detail이라는 필드가 있을수도(있다면 형태 지정) 없을수도 있음.
-    schedule_board_detail: CreateScheduleBoardDetail | None = None # 1
+    schedule_board_detail: CreateScheduleBoardDetail | None = None # 2
     schedule_board_tasks: list[CreateScheduleBoardTaskDetail] = Field(default_factory=list)
     
-    proceedings_board_detail: CreateProceedingsBoardDetail | None = None # 2
+    proceedings_board_detail: CreateProceedingsBoardDetail | None = None # 3
 
 
 

@@ -5,12 +5,14 @@ from app.domains.board import repository
 
 from fastapi import HTTPException, status
 
-SCHEDULE_BOARD_TYPE = 1
-PROCEEDINGS_BOARD_TYPE = 2
+BASIC_BOARD_TYPE = 1
+SCHEDULE_BOARD_TYPE = 2
+PROCEEDINGS_BOARD_TYPE = 3
 
 def create_board(request: CreateBoard) -> BoardResponse:
     # Validate supported board type.
     if request.board_type not in {
+        BASIC_BOARD_TYPE,
         SCHEDULE_BOARD_TYPE,
         PROCEEDINGS_BOARD_TYPE,
     }:
@@ -18,6 +20,18 @@ def create_board(request: CreateBoard) -> BoardResponse:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="invalid board_type",
         )
+    
+    # Validate basic boards do not include details of other type
+    if request.board_type == BASIC_BOARD_TYPE:
+        if (
+            request.schedule_board_detail is not None
+            or request.schedule_board_tasks
+            or request.proceedings_board_detail is not None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="detail fields are not allowed for basic board",
+            )
 
     if request.board_type == SCHEDULE_BOARD_TYPE:
         if request.schedule_board_detail is None:
@@ -55,4 +69,3 @@ def create_board(request: CreateBoard) -> BoardResponse:
             )
 
     return repository.insert_board(request)
-    

@@ -7,13 +7,15 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, IdMixin, TimestampMixin
 
+BASIC_BOARD_TYPE = 1
+SCHEDULE_BOARD_TYPE = 2
+PROCEEDINGS_BOARD_TYPE = 3
 class Board(Base, IdMixin, TimestampMixin):
     __tablename__ = "board"
 
-    # 1: ScheduleBoardDetail
-    # 2: ProceedingsBoardDetail
-    # 3:
-    # 4:
+    # BASIC_BOARD_TYPE = 1
+    # SCHEDULE_BOARD_TYPE = 2
+    # PROCEEDINGS_BOARD_TYPE = 3
     board_type: Mapped[int] = mapped_column(Integer, nullable=False)
 
     title: Mapped[str] = mapped_column(String, nullable = False,)
@@ -28,7 +30,7 @@ class Board(Base, IdMixin, TimestampMixin):
     )
 
 
-class ScheduleBoardDetail(Base): # 1
+class ScheduleBoardDetail(Base): # 2
     __tablename__ = "schedule_board_detail"
 
     # Apply constraints to the values ​​stored in the DB table
@@ -87,7 +89,7 @@ class ScheduleBoardTask(Base, IdMixin):
     task_status: Mapped[int] = mapped_column(Integer, nullable = False,)
 
 
-class ProceedingsBoardDetail(Base): #2
+class ProceedingsBoardDetail(Base): #3
     __tablename__ = "proceedings_board_detail"
 
     # Foreignkey

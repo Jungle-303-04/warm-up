@@ -11,15 +11,15 @@ board = APIRouter(prefix = "/board")
 # create
 @board.post("/", tags=["board"], status_code=status.HTTP_201_CREATED, response_model=BoardResponse)
 def create_board(request: CreateBoard):
-    create_board = service.create_board(request)
+    created_board = service.create_board(request)
 
-    if create_board is None:
+    if created_board is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create board",
         )
 
-    return create_board
+    return created_board
         
 
 # # read

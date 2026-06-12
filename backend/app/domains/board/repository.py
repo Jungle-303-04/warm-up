@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from app.domains.board.schema import CreateBoard, BoardResponse
+#sqlmodel
 
 def insert_board(request: CreateBoard) -> BoardResponse:
     now = datetime.utcnow()
