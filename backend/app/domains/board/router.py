@@ -1,8 +1,10 @@
 # Board 관련 HTTP 엔드포인트를 정의하는 FastAPI 라우터 파일
 # Java의 Controller처럼 요청을 받고 service 계층으로 작업 넘김
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from app.db.session import get_session
 from app.domains.board.schema import CreateBoard, BoardResponse
 from app.domains.board import service
 
@@ -10,8 +12,8 @@ board = APIRouter(prefix = "/board")
 
 # create
 @board.post("/", tags=["board"], status_code=status.HTTP_201_CREATED, response_model=BoardResponse)
-def create_board(request: CreateBoard):
-    created_board = service.create_board(request)
+def create_board(request: CreateBoard, db: Session = Depends(get_session)):
+    created_board = service.create_board(db, request)
 
     if created_board is None:
         raise HTTPException(

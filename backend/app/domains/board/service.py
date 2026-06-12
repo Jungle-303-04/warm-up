@@ -4,12 +4,13 @@ from app.domains.board.schema import CreateBoard, BoardResponse
 from app.domains.board import repository
 
 from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 
 BASIC_BOARD_TYPE = 1
 SCHEDULE_BOARD_TYPE = 2
 PROCEEDINGS_BOARD_TYPE = 3
 
-def create_board(request: CreateBoard) -> BoardResponse:
+def create_board(db: Session, request: CreateBoard) -> BoardResponse:
     # Validate supported board type.
     if request.board_type not in {
         BASIC_BOARD_TYPE,
@@ -68,4 +69,4 @@ def create_board(request: CreateBoard) -> BoardResponse:
                 detail="schedule fields are only allowed for schedule board",
             )
 
-    return repository.insert_board(request)
+    return repository.insert_board(db, request)
