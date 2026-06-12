@@ -1,6 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 import re
+
+BASE_URL = "https://noonnu.cc"
 
 # html -> BeautifulSoup 객체를 반환
 def get_noonnu_html(url: str):
@@ -23,41 +26,36 @@ def scrape_font_detail(url: str):
 
     # tag
     h2 = soup.find("h2")
-    siblings = h2.find_next_siblings("div")
-    tag_div = siblings[1]
-    tags = [a.text.strip() for a in tag_div.find_all("a")]
+    tags = []
+
+    for div in h2.find_next_siblings("div"):
+        links = div.find_all("a")
+
+        if links:
+            tags = [a.text.strip() for a in links]
+            break
 
     # download_url
     download_url = soup.find("a", class_="noon-yellow-button")
 
 
-    # weights (검색 및 필터용)
-    weights_pre = soup.find("pre", attrs={"name": "webfontSource"})
-    text = weights_pre.text
-    # re.findall : 빈 list 생성 후 반복문 돌려서 list에 append까지 해줌
-    weights = re.findall(r"font-weight:\s*(\d+)", text)
-    # 문자열에서 숫자로 변경
-    weights = [int(w) for w in weights]
 
-    # webfonts (폰트 파일 적용 (굵기, url))
-    webfont_pre = soup.find(
-        "pre",
-        attrs={"name": "webfontSource"}
-    )
+    # weights(검색 및 필터용) / webfonts
+    webfont_pre = soup.find("pre", attrs={"name": "webfontSource"})
 
-    text = webfont_pre.text
-
-    urls = re.findall(
-        r"url\(['\"]?([^'\")]+)",
-        text
-    )
-
+    weights = []
     webfonts = []
-    for weight, url in zip(weights, urls):
-        webfonts.append({
-            "weight": weight,
-            "url": url
-        })
+
+    if webfont_pre:
+        text = webfont_pre.text
+
+        weights = re.findall(r"font-weight:\s*(\d+)", text)
+        weights = [int(w) for w in weights]
+
+        urls = re.findall(r"url\(['\"]?([^'\")]+)", text)
+
+        for weight, url in zip(weights, urls):
+            webfonts.append({"weight": weight, "url": url})
 
     # license
     license_article = soup.find("article")
@@ -93,3 +91,21 @@ def scrape_font_detail(url: str):
     }
 
     return font_data
+
+
+def scrape_font_urls(list_url: str):
+    soup = get_noonnu_html(list_url)
+
+    detail_urls = []
+
+    for a in soup.find_all("a"):
+        href = a.get("href")
+        # 상대 경로를 절대경로로 변환 /font_page/694
+        if href and "/font_page/" in href:
+            full_url = urljoin(BASE_URL, href)
+            detail_urls.append(full_url)
+
+        # 중복 제거
+    detail_urls = list(dict.fromkeys(detail_urls))
+
+    return detail_urls
