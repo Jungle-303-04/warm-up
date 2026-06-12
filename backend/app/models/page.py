@@ -9,7 +9,6 @@ from sqlalchemy import Date, DateTime, Enum, ForeignKey, JSON, String, Text, Tim
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
-from app.models.association import page_tags
 from app.models.enums import PageType
 
 if TYPE_CHECKING:
@@ -96,6 +95,12 @@ class Page(Base):
         nullable=False,
     )
 
+
+    tag : Mapped[str] = mapped_column(
+        String(50),
+        nullable = True,
+    )
+
     #SQLAlchemy가 author_id를 보고 연결해준다 ex) page.author.nickname
     # author_id를 보고 연결된 User 객체를 바로 사용할 수 있게 한다. 예: page.author.nickname
     author: Mapped["User"] = relationship(
@@ -118,10 +123,4 @@ class Page(Base):
         cascade="all, delete-orphan", #페이지가 삭제되면 같이 삭제됨
     )
 
-    #page.tag 가능
-    # 페이지에 붙은 태그 목록이다. page_tags 중간 테이블을 통해 Tag와 연결된다.
-    tags: Mapped[list["Tag"]] = relationship(
-        secondary=page_tags,
-        back_populates="pages",
-    )
 

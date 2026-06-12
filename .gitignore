@@ -1,0 +1,28 @@
+#Python
+__pycache__/
+*.pyc
+.venv/
+
+
+#Node
+#React 프로젝트에서 설치된 패키지들이 들어가는 폴더 : 너무 용량이 크다
+node_modules/
+#React/Vite 빌드 결과물이 들어가는 폴더 : 원본 코드가 아니라 빌드 결과물이어서
+dist/
+
+
+#Env
+#api key, db 비밀번호, jwt 서명 키 등이 있어서
+.env
+backend/.env
+frontend/.env
+
+
+#VSCode
+#개인 개발 설정
+.vscode/
+
+
+#OS
+.DS_Store
+Thumbs.db

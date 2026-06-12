@@ -7,7 +7,6 @@ from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
-from app.models.association import page_tags
 
 if TYPE_CHECKING:
     # 타입 힌트용 import다. 실행 중 순환 import를 피하려고 TYPE_CHECKING 안에서만 가져온다.
@@ -32,18 +31,4 @@ class Tag(Base):
         nullable=False,
     )
 
-    #태그 생성 일시
-    # 태그가 처음 생성된 시각이다. DB 서버 시간이 자동으로 들어간다.
-    created_at: Mapped[DateTimeType] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-    )
 
-    #태그가 있는 페이지
-    #tag.pages 할 수 있게 해줌
-    # 이 태그가 붙은 페이지 목록이다. page_tags 중간 테이블을 통해 Page와 연결된다.
-    pages: Mapped[list["Page"]] = relationship(
-        secondary=page_tags,
-        back_populates="tags",
-    )

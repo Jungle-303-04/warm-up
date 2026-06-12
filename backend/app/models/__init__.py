@@ -1,4 +1,3 @@
-from app.models.association import page_tags
 from app.models.comment import Comment
 from app.models.page import Page
 from app.models.page_block import PageBlock
@@ -11,5 +10,4 @@ __all__ = [
     "PageBlock",
     "Comment",
     "Tag",
-    "page_tags",
 ]

@@ -1,0 +1,19 @@
+#docker 실행 명령어를 짧게 쓰기 위해 설정
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: teamlog-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: #FastAPI에서 localhost로 DB에 접근가능
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - teamlog_postgres_data:/var/lib/postgresql/data # DB 데이터 저장하는 공간 : 컨테이너를 껐다 켜도 DB 데이터가 유지됨
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql #DB 처음 만들어질 때 실행할 SQL 파일
+
+volumes:
+  teamlog_postgres_data:
