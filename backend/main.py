@@ -9,6 +9,8 @@ from models.user import User
 from models.recommendRequest import RecommendRequest
 
 from datetime import datetime, timezone
+from openai_client import client
+import json
 
 app = FastAPI()
 
@@ -152,14 +154,47 @@ def delete_post(post_id : int):
 def recommend_fonts(request: RecommendRequest):
     text = request.text
     preferred_tone = request.preferred_tone
-    
-    return {
-        "analysis": {
-            "emotion": "positive",
-            "visual_traits": ["soft", "bright"],
-            "writing_style": ["casual", "friendly"],
-            "energy": "high",
-            "keywords": ["재미", "기쁨"]
-        },
-        "font": None
-    }
+
+    prompt = f"""
+    다음 문장을 폰트 추천에 사용할 수 있도록 분석해줘.
+
+    문장:
+    {text}
+
+    선호 톤:
+    {preferred_tone}
+
+    반드시 순수 JSON만 반환해.
+    마크다운 코드블록을 쓰지 마.
+    설명 문장을 쓰지 마.
+    JSON 앞뒤에 어떤 문장도 붙이지 마.
+
+    형식:
+    {{
+    "emotion": "",
+    "visual_traits": [],
+    "writing_style": [],
+    "energy": "",
+    "keywords": []
+    }}
+    """
+
+    try:
+        # 응답 전체
+        response = client.responses.create(
+            model="gpt-4.1-mini",
+            input=prompt
+        )
+
+        #응답 text 꺼내기
+        analysis_text = response.output_text
+        #객체 형태의 문자열을 딕셔너리로 변환
+        analysis = json.loads(analysis_text)
+        return {
+            "analysis": analysis,
+            "font": None
+        }
+
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
