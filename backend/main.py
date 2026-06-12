@@ -6,6 +6,7 @@ from database import engine
 from models.post import Post
 from models.font import Font
 from models.user import User
+from models.recommendRequest import RecommendRequest
 
 from datetime import datetime, timezone
 
@@ -146,3 +147,19 @@ def delete_post(post_id : int):
             "success": True,
             "message": "게시글 삭제 완료"
         }
+
+@app.post("/recommend")
+def recommend_fonts(request: RecommendRequest):
+    text = request.text
+    preferred_tone = request.preferred_tone
+    
+    return {
+        "analysis": {
+            "emotion": "positive",
+            "visual_traits": ["soft", "bright"],
+            "writing_style": ["casual", "friendly"],
+            "energy": "high",
+            "keywords": ["재미", "기쁨"]
+        },
+        "font": None
+    }
