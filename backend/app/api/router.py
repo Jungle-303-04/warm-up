@@ -10,7 +10,7 @@ api_router = APIRouter()
 
 @api_router.get("/", include_in_schema=False)
 def redirect_to_docs() -> RedirectResponse:
-    return RedirectResponse(url="/docs")
+    return RedirectResponse(url="/api/docs")
 
 
 api_router.include_router(health_router)
