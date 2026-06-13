@@ -91,7 +91,7 @@ class BoardResponse(BaseModel):
     carbon_copy_user_ids: list[int] = Field(default_factory=list)
 
     schedule_board_detail: ResponseScheduleBoardDetail | None = None
-    schedule_board_tasks: list[ResponseScheduleBoardTaskDetail] = Field(default_factory=list)
+    schedule_board_tasks: list[ResponseScheduleBoardTaskDetail] | None = None
 
     proceedings_board_detail: ResponseProceedingsBoardDetail | None = None
 

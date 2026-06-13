@@ -29,9 +29,6 @@ def convert_to_board_response(db: Session, board: Board) -> BoardResponse:
     schedule_detail = db.get(ScheduleBoardDetail, board.id)
     proceedings_detail = db.get(ProceedingsBoardDetail, board.id)
 
-    schedule_tasks = db.scalars(
-        select(ScheduleBoardTask).where(ScheduleBoardTask.board_id == board.id)
-    ).all()
     assignee_user_ids = db.scalars(
         select(BoardAssignee.user_id).where(BoardAssignee.board_id == board.id)
     ).all()
@@ -43,6 +40,7 @@ def convert_to_board_response(db: Session, board: Board) -> BoardResponse:
     ).all()
 
     schedule_detail_response = None
+    schedule_task_responses = None
     if schedule_detail is not None:
         schedule_detail_response = ResponseScheduleBoardDetail(
             board_id=schedule_detail.board_id,
@@ -51,21 +49,24 @@ def convert_to_board_response(db: Session, board: Board) -> BoardResponse:
             importance=schedule_detail.importance,
         )
 
+        schedule_tasks = db.scalars(
+            select(ScheduleBoardTask).where(ScheduleBoardTask.board_id == board.id)
+        ).all()
+        schedule_task_responses = [
+            ResponseScheduleBoardTaskDetail(
+                id=task.id,
+                task_name=task.task_name,
+                task_status=task.task_status,
+            )
+            for task in schedule_tasks
+        ]
+
     proceedings_detail_response = None
     if proceedings_detail is not None:
         proceedings_detail_response = ResponseProceedingsBoardDetail(
             board_id=proceedings_detail.board_id,
             meeting_date=proceedings_detail.meeting_date,
         )
-
-    schedule_task_responses = [
-        ResponseScheduleBoardTaskDetail(
-            id=task.id,
-            task_name=task.task_name,
-            task_status=task.task_status,
-        )
-        for task in schedule_tasks
-    ]
 
     return BoardResponse(
         id=board.id,
@@ -101,7 +102,7 @@ def insert_board(db: Session, request: CreateBoard) -> BoardResponse:
 
         # Default values for type-specific response DTO fields.
         schedule_detail_response = None
-        schedule_task_responses = []
+        schedule_task_responses = None
         schedule_tasks = []
         proceedings_detail_response = None
 
@@ -134,6 +135,17 @@ def insert_board(db: Session, request: CreateBoard) -> BoardResponse:
             ]
             db.add_all(schedule_tasks)
 
+            # schedule task.id -> API response DTO
+            db.flush()
+            schedule_task_responses = [
+                ResponseScheduleBoardTaskDetail(
+                    id=task.id,
+                    task_name=task.task_name,
+                    task_status=task.task_status,
+                )
+                for task in schedule_tasks
+            ]
+
         # detail: proceedings
         if request.proceedings_board_detail is not None:
             proceedings_detail = ProceedingsBoardDetail(
@@ -162,16 +174,6 @@ def insert_board(db: Session, request: CreateBoard) -> BoardResponse:
         )
 
         db.flush()
-
-        # schedule task.id -> API response DTO
-        schedule_task_responses = [
-            ResponseScheduleBoardTaskDetail(
-                id=task.id,
-                task_name=task.task_name,
-                task_status=task.task_status,
-            )
-            for task in schedule_tasks
-        ]
 
         # DB model -> API response DTO
         response = BoardResponse(
