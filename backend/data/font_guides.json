@@ -1,0 +1,2239 @@
+[
+  {
+    "id": "webfont_guide_001",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_web_fonts_beginners_guide",
+    "source_title": "웹폰트 선택: 초보자를 위한 완벽 가이드",
+    "doc_type": "font_guide",
+    "topic": "project_scope",
+    "title": "장기 프로젝트에는 큰 폰트 패밀리가 유리하다",
+    "content": "정기 간행물, 뉴스레터, 장기 운영 서비스처럼 시간이 지나며 다양한 타이포그래피 요구가 생기는 프로젝트에는 다양한 굵기, 스타일, small caps, ligatures 같은 변형을 포함한 대규모 서체 패밀리가 적합하다.",
+    "tags": [
+      "long_term_project",
+      "font_family",
+      "branding",
+      "weights",
+      "styles"
+    ],
+    "applies_to": [
+      "뉴스레터",
+      "장기 운영 서비스",
+      "브랜드 시스템",
+      "정기 간행물"
+    ],
+    "avoid_for": [
+      "단발성 포스터",
+      "단일 로고"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "유연함",
+      "일관성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "webfont_guide_002",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_web_fonts_beginners_guide",
+    "source_title": "웹폰트 선택: 초보자를 위한 완벽 가이드",
+    "doc_type": "font_guide",
+    "topic": "project_scope",
+    "title": "단기 프로젝트에는 개성 있는 단일 폰트도 가능하다",
+    "content": "포스터, 앨범 커버, 로고, 단발성 프레젠테이션처럼 짧게 쓰이는 프로젝트는 반드시 다양한 굵기나 확장 스타일이 필요하지 않다. 특정 목적에 잘 맞는다면 단일 굵기의 개성 있는 폰트도 사용할 수 있다.",
+    "tags": [
+      "short_term_project",
+      "poster",
+      "logo",
+      "presentation",
+      "display"
+    ],
+    "applies_to": [
+      "포스터",
+      "앨범 커버",
+      "로고",
+      "프레젠테이션"
+    ],
+    "avoid_for": [
+      "장기 운영 서비스",
+      "복잡한 문서 시스템"
+    ],
+    "recommended_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "개성",
+      "강조"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "webfont_guide_003",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_web_fonts_beginners_guide",
+    "source_title": "웹폰트 선택: 초보자를 위한 완벽 가이드",
+    "doc_type": "font_guide",
+    "topic": "text_length",
+    "title": "제목과 소제목에는 표현력 있는 폰트가 적합하다",
+    "content": "제목이나 소제목처럼 짧고 큰 텍스트에는 디스플레이, 데코레이티브, 손글씨, 스크립트 스타일처럼 표현력이 강하고 개성 있는 폰트를 사용할 수 있다. 이런 폰트는 시각적 복잡성과 디테일로 주목성을 만든다.",
+    "tags": [
+      "title",
+      "subtitle",
+      "display",
+      "decorative",
+      "handwriting",
+      "script",
+      "attention"
+    ],
+    "applies_to": [
+      "제목",
+      "소제목",
+      "포스터 문구",
+      "이벤트 문구"
+    ],
+    "avoid_for": [
+      "긴 본문",
+      "설명문"
+    ],
+    "recommended_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "avoid_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "tone": [
+      "표현적",
+      "주목성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "webfont_guide_004",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_web_fonts_beginners_guide",
+    "source_title": "웹폰트 선택: 초보자를 위한 완벽 가이드",
+    "doc_type": "font_guide",
+    "topic": "text_length",
+    "title": "긴 본문에는 가독성이 높은 안정적인 폰트가 필요하다",
+    "content": "다섯 단락을 넘는 긴 텍스트에는 장식성이 강한 폰트보다 눈의 피로를 줄이고 빠르게 읽을 수 있는 친숙한 세리프 또는 가독성 높은 기본 서체가 적합하다.",
+    "tags": [
+      "long_text",
+      "body",
+      "readability",
+      "serif",
+      "stable",
+      "low_fatigue"
+    ],
+    "applies_to": [
+      "기사",
+      "본문",
+      "안내문",
+      "설명문",
+      "블로그"
+    ],
+    "avoid_for": [
+      "포스터 제목",
+      "짧은 이벤트 문구"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "tone": [
+      "안정적",
+      "차분함"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "webfont_guide_005",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_web_fonts_beginners_guide",
+    "source_title": "웹폰트 선택: 초보자를 위한 완벽 가이드",
+    "doc_type": "font_guide",
+    "topic": "font_size",
+    "title": "작은 크기에서는 산세리프가 유리하다",
+    "content": "16pt 이하의 작은 크기에서는 x-height가 높고 획 굵기가 비교적 균일한 산세리프체가 가독성에 유리하다. 작은 공간에서도 글자 색감이 고르게 보이기 때문이다.",
+    "tags": [
+      "small_size",
+      "under_16pt",
+      "sans_serif",
+      "x_height",
+      "readability",
+      "web_ui"
+    ],
+    "applies_to": [
+      "웹 UI",
+      "캡션",
+      "카드 미리보기",
+      "작은 본문"
+    ],
+    "avoid_for": [
+      "큰 포스터 제목"
+    ],
+    "recommended_categories": [
+      "고딕"
+    ],
+    "avoid_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "tone": [
+      "명확함",
+      "실용적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "webfont_guide_006",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_web_fonts_beginners_guide",
+    "source_title": "웹폰트 선택: 초보자를 위한 완벽 가이드",
+    "doc_type": "font_guide",
+    "topic": "font_size",
+    "title": "큰 크기에서는 개성 있는 디스플레이 폰트가 가능하다",
+    "content": "24pt보다 큰 텍스트에는 디스플레이 폰트를 사용할 수 있다. 큰 크기에서는 장식적 특징, 손글씨 느낌, 기하학적 형태, 복고풍 분위기 같은 개성이 잘 드러난다.",
+    "tags": [
+      "large_size",
+      "over_24pt",
+      "display",
+      "decorative",
+      "personality",
+      "headline"
+    ],
+    "applies_to": [
+      "제목",
+      "배너",
+      "포스터",
+      "히어로 문구"
+    ],
+    "avoid_for": [
+      "긴 본문"
+    ],
+    "recommended_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "개성",
+      "강렬함"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "webfont_guide_007",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_web_fonts_beginners_guide",
+    "source_title": "웹폰트 선택: 초보자를 위한 완벽 가이드",
+    "doc_type": "font_guide",
+    "topic": "avoid_rules",
+    "title": "장식적인 폰트는 긴 본문에 부적합하다",
+    "content": "장식적인 폰트는 짧고 큰 텍스트에서는 주목성을 만들 수 있지만, 긴 문단에서는 읽기 어렵고 피로감을 줄 수 있다. 본문에는 모호한 형태의 글꼴을 피해야 한다.",
+    "tags": [
+      "avoid",
+      "decorative",
+      "long_text",
+      "readability",
+      "body"
+    ],
+    "applies_to": [
+      "제목",
+      "짧은 강조 문구"
+    ],
+    "avoid_for": [
+      "본문",
+      "긴 설명문",
+      "기사"
+    ],
+    "recommended_categories": [],
+    "avoid_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "tone": [
+      "주의",
+      "가독성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "webfont_guide_008",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_web_fonts_beginners_guide",
+    "source_title": "웹폰트 선택: 초보자를 위한 완벽 가이드",
+    "doc_type": "font_guide",
+    "topic": "language_support",
+    "title": "글로벌 서비스에는 문자 지원 범위가 중요하다",
+    "content": "웹사이트나 앱이 여러 언어 사용자에게 노출될 가능성이 있다면 필요한 문자 체계를 지원하는 폰트를 선택해야 한다. 문자 지원이 부족하면 브라우저가 다른 폰트로 대체하여 디자인 일관성이 깨질 수 있다.",
+    "tags": [
+      "language_support",
+      "global",
+      "multilingual",
+      "fallback",
+      "consistency"
+    ],
+    "applies_to": [
+      "글로벌 서비스",
+      "웹사이트",
+      "앱",
+      "브랜드 사이트"
+    ],
+    "avoid_for": [
+      "단일 언어 단발성 이미지"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "전문성",
+      "일관성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "webfont_guide_009",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_web_fonts_beginners_guide",
+    "source_title": "웹폰트 선택: 초보자를 위한 완벽 가이드",
+    "doc_type": "font_guide",
+    "topic": "number_style",
+    "title": "숫자가 많은 콘텐츠는 숫자 스타일을 고려해야 한다",
+    "content": "표, 가격, 통계처럼 숫자를 많이 사용하는 콘텐츠에서는 숫자 스타일이 중요하다. 표 형식 숫자는 숫자 폭이 일정해 표에서 규칙적으로 보이고, 구식 숫자는 긴 문단 안에서 자연스럽게 읽힌다.",
+    "tags": [
+      "numbers",
+      "table",
+      "price",
+      "statistics",
+      "tabular_figures",
+      "oldstyle_figures"
+    ],
+    "applies_to": [
+      "가격표",
+      "통계",
+      "표",
+      "관리자 화면"
+    ],
+    "avoid_for": [
+      "감성 포스터"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "고정폭"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "정확함",
+      "실용성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "webfont_guide_010",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_web_fonts_beginners_guide",
+    "source_title": "웹폰트 선택: 초보자를 위한 완벽 가이드",
+    "doc_type": "font_guide",
+    "topic": "font_pairing",
+    "title": "폰트 조합은 대조 또는 유사성으로 만들 수 있다",
+    "content": "여러 폰트를 사용할 때는 대조와 유사성을 기준으로 조합할 수 있다. 제목에는 독특한 디스플레이 폰트를 쓰고 본문에는 차분하고 친숙한 폰트를 쓰면 역할이 분리된다. 같은 패밀리 안의 서로 다른 스타일을 쓰면 일관성이 높아진다.",
+    "tags": [
+      "font_pairing",
+      "contrast",
+      "similarity",
+      "title_body",
+      "consistency"
+    ],
+    "applies_to": [
+      "웹페이지",
+      "게시글 상세",
+      "브랜드 콘텐츠",
+      "포스터"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕",
+      "장식체",
+      "손글씨"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "균형",
+      "일관성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_001",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "purpose_fit",
+    "title": "서체는 프로젝트 목적에 맞아야 한다",
+    "content": "서체 선택의 첫 기준은 프로젝트의 목적이다. 같은 폰트라도 어린이 활동 안내, 과학 발표, 브랜드 로고, 긴 본문처럼 사용 맥락이 달라지면 적합성이 달라진다.",
+    "tags": [
+      "purpose",
+      "context",
+      "project_fit",
+      "audience"
+    ],
+    "applies_to": [
+      "브랜딩",
+      "공지",
+      "안내문",
+      "발표자료"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕",
+      "손글씨",
+      "장식체"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "맥락적",
+      "실용적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_002",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "tone_matching",
+    "title": "서체의 개성은 관객의 감정 반응을 만든다",
+    "content": "독자는 서체를 볼 때 내용보다 먼저 분위기와 감정적 인상을 느낀다. 따라서 신뢰감, 친근함, 즐거움, 긴장감처럼 프로젝트가 요구하는 정서에 맞는 서체를 골라야 한다.",
+    "tags": [
+      "emotion",
+      "tone",
+      "audience",
+      "personality"
+    ],
+    "applies_to": [
+      "홍보문",
+      "브랜드 소개",
+      "이벤트 안내",
+      "게시글"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕",
+      "손글씨",
+      "장식체"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "감성",
+      "신뢰감",
+      "친근함"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_003",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "usage_context",
+    "title": "용도에 따라 제목용과 본문용 서체를 구분해야 한다",
+    "content": "화려하고 개성 있는 필기체나 장식체는 로고와 큰 제목에는 효과적일 수 있지만, 본문 텍스트에는 적합하지 않을 수 있다. 본문에는 장식성보다 읽기 편한 구조가 우선된다.",
+    "tags": [
+      "usage",
+      "logo",
+      "headline",
+      "body",
+      "script",
+      "decorative"
+    ],
+    "applies_to": [
+      "로고",
+      "제목",
+      "포스터"
+    ],
+    "avoid_for": [
+      "본문",
+      "긴 설명문",
+      "기사"
+    ],
+    "recommended_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "avoid_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "tone": [
+      "표현적",
+      "가독성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_004",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "language_support",
+    "title": "문자 지원이 부족한 서체는 전문성을 떨어뜨릴 수 있다",
+    "content": "필요한 문자가 폰트에 없으면 브라우저나 시스템이 다른 폰트로 대체해 표시한다. 이때 스타일과 비율이 달라져 디자인 일관성이 깨지고 전문성이 낮아 보일 수 있다.",
+    "tags": [
+      "language_support",
+      "fallback",
+      "professional",
+      "consistency"
+    ],
+    "applies_to": [
+      "웹사이트",
+      "서비스",
+      "브랜드",
+      "사용자 입력 콘텐츠"
+    ],
+    "avoid_for": [
+      "단일 로고"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "전문성",
+      "안정성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_005",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "readability",
+    "title": "혼동되는 문자를 구분할 수 있어야 한다",
+    "content": "본문이나 정보 전달용 폰트는 대문자 I, 소문자 l, 숫자 1처럼 비슷한 글자를 명확히 구분할 수 있어야 한다. 이런 세부 차이는 독자의 인지 부담을 줄이고 가독성을 높인다.",
+    "tags": [
+      "readability",
+      "clarity",
+      "I_l_1",
+      "information"
+    ],
+    "applies_to": [
+      "본문",
+      "정보 안내",
+      "코드",
+      "표",
+      "UI"
+    ],
+    "avoid_for": [
+      "순수 장식용 제목"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "고정폭"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "명확함",
+      "정확함"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_006",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "font_family",
+    "title": "기본 굵기와 스타일은 활용성을 높인다",
+    "content": "대부분의 실제 프로젝트에서는 Regular, Italic, Bold, Bold Italic 같은 기본 스타일이 있으면 제목, 본문, 강조를 더 안정적으로 구성할 수 있다.",
+    "tags": [
+      "regular",
+      "bold",
+      "italic",
+      "font_family",
+      "hierarchy"
+    ],
+    "applies_to": [
+      "문서",
+      "웹사이트",
+      "블로그",
+      "게시글"
+    ],
+    "avoid_for": [
+      "단일 이미지 로고"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "정돈됨",
+      "실용적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_007",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "opentype",
+    "title": "대체 문자와 OpenType 기능은 표현 선택지를 넓힌다",
+    "content": "대체 글리프, 스와시, 소문자 대문자, 분수, 숫자 스타일 같은 OpenType 기능은 서체 하나 안에서도 더 다양한 타이포그래피 표현을 가능하게 한다.",
+    "tags": [
+      "opentype",
+      "alternate",
+      "swash",
+      "small_caps",
+      "figures"
+    ],
+    "applies_to": [
+      "브랜딩",
+      "편집 디자인",
+      "포스터",
+      "상세페이지"
+    ],
+    "avoid_for": [
+      "단순 본문만 필요한 페이지"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕",
+      "손글씨",
+      "장식체"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "풍부함",
+      "표현력"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_008",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "weights",
+    "title": "다양한 굵기는 긴 텍스트 구조를 유연하게 만든다",
+    "content": "제목, 소제목, 본문, 인용, 강조처럼 여러 층위가 있는 콘텐츠에서는 다양한 굵기를 가진 서체가 시각적 위계와 강조를 만들기 쉽다.",
+    "tags": [
+      "weights",
+      "hierarchy",
+      "emphasis",
+      "long_text"
+    ],
+    "applies_to": [
+      "기사",
+      "블로그",
+      "상세페이지",
+      "문서"
+    ],
+    "avoid_for": [
+      "한 줄 로고"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "명확함",
+      "구조적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_009",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "width",
+    "title": "다양한 폭은 한 패밀리 안에서 더 많은 표현을 가능하게 한다",
+    "content": "좁은 폭은 제한된 공간에 더 많은 단어를 넣는 데 유리하고, 넓은 폭은 제목에 개성을 줄 수 있다. 같은 패밀리의 폭 변형은 일관성을 유지하면서 역할을 나누는 데 도움이 된다.",
+    "tags": [
+      "width",
+      "condensed",
+      "extended",
+      "space",
+      "headline"
+    ],
+    "applies_to": [
+      "카드 UI",
+      "제목",
+      "배너",
+      "정보표"
+    ],
+    "avoid_for": [
+      "긴 본문을 과도하게 압축하는 경우"
+    ],
+    "recommended_categories": [
+      "고딕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "효율적",
+      "개성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_010",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "optical_size",
+    "title": "광학 크기는 크기별 가독성과 인상을 조정한다",
+    "content": "작은 크기용 서체는 더 넓은 자간과 튼튼한 획을 갖는 경우가 많고, 큰 크기용 서체는 더 섬세하고 밀도 있게 보일 수 있다. 다양한 크기에서 같은 브랜드 인상을 유지하려면 광학 크기가 유리하다.",
+    "tags": [
+      "optical_size",
+      "caption",
+      "text",
+      "display",
+      "readability"
+    ],
+    "applies_to": [
+      "캡션",
+      "본문",
+      "헤드라인",
+      "브랜드 시스템"
+    ],
+    "avoid_for": [
+      "단일 크기 로고"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "정교함",
+      "안정성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_011",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "file_quality",
+    "title": "사용 중인 실제 폰트 파일에 필요한 기능이 포함되어야 한다",
+    "content": "서체 패밀리 설명에 기능이 있어도, 실제로 사용하는 웹폰트 파일이나 배포 서비스 버전에 필요한 글리프와 기능이 포함되어 있는지 확인해야 한다.",
+    "tags": [
+      "font_file",
+      "webfont",
+      "glyphs",
+      "features",
+      "verification"
+    ],
+    "applies_to": [
+      "웹사이트",
+      "앱",
+      "상용 서비스"
+    ],
+    "avoid_for": [
+      "임시 시안"
+    ],
+    "recommended_categories": [],
+    "avoid_categories": [],
+    "tone": [
+      "검증",
+      "실무적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_012",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "spacing",
+    "title": "적절한 자간과 커닝은 폰트 품질의 핵심이다",
+    "content": "아무리 형태가 좋은 폰트라도 자간과 커닝이 나쁘면 실제 문장에서는 보기 어렵다. 전문적인 폰트는 글자 사이 공간과 커닝 쌍 데이터가 안정적으로 설계되어야 한다.",
+    "tags": [
+      "spacing",
+      "kerning",
+      "font_quality",
+      "readability"
+    ],
+    "applies_to": [
+      "본문",
+      "제목",
+      "브랜드",
+      "정보표"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "완성도",
+      "가독성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_013",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "font_pairing",
+    "title": "보조 서체는 차별성과 조화 사이의 균형이 필요하다",
+    "content": "두 서체를 함께 사용할 때는 서로 충분히 구분되면서도 전체 디자인을 해치지 않아야 한다. 확신이 없을 때는 세리프와 산세리프처럼 역할이 분명한 조합이 안전하다.",
+    "tags": [
+      "pairing",
+      "contrast",
+      "harmony",
+      "serif",
+      "sans_serif"
+    ],
+    "applies_to": [
+      "브랜딩",
+      "웹디자인",
+      "문서",
+      "포스터"
+    ],
+    "avoid_for": [
+      "서로 지나치게 비슷한 조합",
+      "서로 경쟁하는 조합"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "균형",
+      "조화"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_checklist_014",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/a_checklist_for_choosing_type",
+    "source_title": "글꼴 선택을 위한 체크리스트",
+    "doc_type": "font_guide",
+    "topic": "license",
+    "title": "사용 목적에 맞는 폰트 라이선스를 확인해야 한다",
+    "content": "웹, 데스크톱, 앱, 전자책, 로고, 대규모 서비스처럼 사용 환경에 따라 필요한 라이선스가 다를 수 있다. 추천된 폰트라도 실제 사용 전에 라이선스 범위를 확인해야 한다.",
+    "tags": [
+      "license",
+      "usage_rights",
+      "web",
+      "app",
+      "commercial"
+    ],
+    "applies_to": [
+      "웹사이트",
+      "앱",
+      "브랜드",
+      "상업 프로젝트"
+    ],
+    "avoid_for": [
+      "라이선스가 불명확한 폰트"
+    ],
+    "recommended_categories": [],
+    "avoid_categories": [],
+    "tone": [
+      "실무적",
+      "안전성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_001",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "tone_matching",
+    "title": "서체는 독자에게 먼저 감정적 반응을 일으킨다",
+    "content": "서체는 독자가 내용을 해석하기 전에 먼저 감정적 인상을 만든다. 따라서 글의 목적에 맞는 분위기와 감정을 유도하는 서체를 선택해야 한다.",
+    "tags": [
+      "emotion",
+      "tone",
+      "mood",
+      "first_impression",
+      "brand"
+    ],
+    "applies_to": [
+      "브랜딩",
+      "홍보문",
+      "안내문",
+      "소개글",
+      "포스터"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕",
+      "손글씨",
+      "장식체"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "감성",
+      "신뢰감",
+      "친근함",
+      "전문성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_002",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "selection_priority",
+    "title": "감정적 인상만으로 서체를 선택하면 안 된다",
+    "content": "서체가 주는 감정적 인상은 초기 선택 기준으로 유용하지만, 실제 사용 가능성도 함께 확인해야 한다. 굵기, 언어 지원, 가독성 같은 기술적 조건이 부족하면 좋은 서체라도 프로젝트에 적합하지 않다.",
+    "tags": [
+      "emotion",
+      "technical_fit",
+      "weights",
+      "language_support",
+      "readability"
+    ],
+    "applies_to": [
+      "웹사이트",
+      "서비스",
+      "브랜드",
+      "본문",
+      "게시글"
+    ],
+    "avoid_for": [
+      "감정만 보고 고르는 폰트 추천"
+    ],
+    "recommended_categories": [],
+    "avoid_categories": [],
+    "tone": [
+      "실용적",
+      "안정적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_003",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "trust",
+    "title": "신뢰가 필요한 글에는 진중하고 안정적인 서체가 적합하다",
+    "content": "전문성이나 신뢰가 중요한 상황에서는 지나치게 캐주얼한 서체보다 안정적이고 진중한 인상을 주는 서체가 적합하다.",
+    "tags": [
+      "trust",
+      "professional",
+      "serious",
+      "stable",
+      "formal"
+    ],
+    "applies_to": [
+      "전문 문서",
+      "보고서",
+      "발표자료",
+      "공지",
+      "안내문"
+    ],
+    "avoid_for": [
+      "어린이 활동지",
+      "가벼운 이벤트 문구"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [
+      "손글씨",
+      "장식체"
+    ],
+    "tone": [
+      "신뢰감",
+      "전문성",
+      "안정감"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_004",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "friendly_tone",
+    "title": "편안하고 친근한 글에는 캐주얼한 서체가 어울릴 수 있다",
+    "content": "독자에게 편안함이나 친근함을 주고 싶은 상황에서는 너무 딱딱한 서체보다 부드럽고 캐주얼한 인상의 서체가 더 적합할 수 있다.",
+    "tags": [
+      "friendly",
+      "casual",
+      "warm",
+      "soft",
+      "approachable"
+    ],
+    "applies_to": [
+      "이벤트 안내",
+      "가게 홍보",
+      "어린이 활동 안내",
+      "친근한 게시글"
+    ],
+    "avoid_for": [
+      "과학 발표",
+      "공식 보고서",
+      "전문 문서"
+    ],
+    "recommended_categories": [
+      "손글씨",
+      "둥근모",
+      "고딕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "친근함",
+      "따뜻함",
+      "편안함"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_005",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "cultural_context",
+    "title": "서체의 문화적 연상은 독자층에 따라 다르게 해석될 수 있다",
+    "content": "서체가 주는 인상은 문화적 관습과 디자인 경험에 영향을 받는다. 같은 서체라도 독자층, 지역, 시대에 따라 다르게 받아들여질 수 있으므로 대상 독자를 고려해야 한다.",
+    "tags": [
+      "culture",
+      "audience",
+      "context",
+      "interpretation",
+      "trend"
+    ],
+    "applies_to": [
+      "브랜딩",
+      "글로벌 서비스",
+      "캠페인",
+      "홍보물"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [],
+    "avoid_categories": [],
+    "tone": [
+      "맥락적",
+      "문화적",
+      "시대감"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_006",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "historical_mood",
+    "title": "특정 시대감을 표현하려면 역사적 분위기가 있는 서체를 사용할 수 있다",
+    "content": "서체는 특정 시대나 문화적 분위기를 떠올리게 할 수 있다. 복고, 고전, 중세, 1970년대풍처럼 시대적 인상이 필요한 글에는 해당 분위기를 가진 서체가 적합하다.",
+    "tags": [
+      "retro",
+      "classic",
+      "historical",
+      "vintage",
+      "period_mood"
+    ],
+    "applies_to": [
+      "레트로 포스터",
+      "전시 홍보",
+      "브랜드 콘셉트",
+      "이벤트 문구"
+    ],
+    "avoid_for": [
+      "중립적 본문",
+      "공식 안내문",
+      "정보 전달 중심 문서"
+    ],
+    "recommended_categories": [
+      "바탕",
+      "장식체",
+      "손글씨"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "복고",
+      "고전적",
+      "역사적",
+      "개성적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_007",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "headline_body_pairing",
+    "title": "감성적인 제목 서체와 중립적인 본문 서체를 함께 사용할 수 있다",
+    "content": "제목에는 강한 분위기의 서체를 사용하더라도, 본문에는 중립적이고 가독성이 높은 서체를 사용하는 것이 좋다. 감정 표현과 읽기 편의성을 분리하면 전체 디자인의 완성도가 높아진다.",
+    "tags": [
+      "headline",
+      "body",
+      "pairing",
+      "readability",
+      "neutral"
+    ],
+    "applies_to": [
+      "게시글",
+      "포스터",
+      "블로그",
+      "상세페이지"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕",
+      "장식체",
+      "손글씨"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "균형",
+      "감성",
+      "실용성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_008",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "avoid_rule",
+    "title": "디스플레이용 서체를 본문에 그대로 사용하면 가독성이 떨어진다",
+    "content": "공포 영화 제목처럼 강한 인상을 주는 디스플레이용 서체는 제목에는 효과적이지만, 본문에 사용하면 읽기 어렵고 정보 전달력이 떨어질 수 있다.",
+    "tags": [
+      "display",
+      "decorative",
+      "headline",
+      "body",
+      "readability"
+    ],
+    "applies_to": [
+      "제목",
+      "포스터",
+      "배너",
+      "짧은 문구"
+    ],
+    "avoid_for": [
+      "본문",
+      "긴 설명문",
+      "기사",
+      "안내문"
+    ],
+    "recommended_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "avoid_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "tone": [
+      "강렬함",
+      "개성",
+      "시각적 강조"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_009",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "text_as_whole",
+    "title": "폰트는 글자 하나보다 텍스트 전체의 인상으로 판단해야 한다",
+    "content": "서체를 고를 때 개별 글자나 단어의 모양만 보지 말고, 문장과 문단 전체가 어떤 인상을 주는지 확인해야 한다.",
+    "tags": [
+      "overall_impression",
+      "paragraph",
+      "text_block",
+      "readability",
+      "mood"
+    ],
+    "applies_to": [
+      "본문",
+      "게시글",
+      "카드형 목록",
+      "상세페이지"
+    ],
+    "avoid_for": [
+      "로고 단독 검토"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "전체감",
+      "균형",
+      "가독성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_010",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "layout_expression",
+    "title": "서체 선택뿐 아니라 간격과 배치도 감정을 만든다",
+    "content": "타이포그래피의 감정은 서체 자체뿐 아니라 글자 간격, 줄 간격, 배치, 대비에서도 만들어진다. 의도적으로 단절감이나 긴장감을 만들고 싶다면 배열 방식도 함께 고려해야 한다.",
+    "tags": [
+      "layout",
+      "spacing",
+      "composition",
+      "expression",
+      "experimental"
+    ],
+    "applies_to": [
+      "포스터",
+      "실험적 디자인",
+      "전시",
+      "강한 메시지"
+    ],
+    "avoid_for": [
+      "공식 안내문",
+      "긴 본문",
+      "정보 전달 문서"
+    ],
+    "recommended_categories": [
+      "장식체",
+      "고정폭",
+      "고딕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "실험적",
+      "긴장감",
+      "단절감",
+      "강렬함"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_011",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "communication_vs_readability",
+    "title": "가독성과 메시지 전달은 항상 같은 문제가 아니다",
+    "content": "읽기 쉬운 서체가 항상 강한 메시지를 전달하는 것은 아니다. 감정적 충격이나 독특한 인상을 만들고 싶다면 가독성보다 표현성을 우선할 수도 있다.",
+    "tags": [
+      "communication",
+      "readability",
+      "expression",
+      "impact",
+      "message"
+    ],
+    "applies_to": [
+      "포스터",
+      "캠페인 문구",
+      "전시 문구",
+      "짧은 슬로건"
+    ],
+    "avoid_for": [
+      "본문",
+      "안내문",
+      "설명문",
+      "서비스 UI"
+    ],
+    "recommended_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "강렬함",
+      "실험적",
+      "표현적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "font_emotion_012",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/emotive_considerations_for_choosing_typefaces",
+    "source_title": "서체 선택 시 감정적 고려사항",
+    "doc_type": "font_guide",
+    "topic": "neutral_body",
+    "title": "본문에는 감정보다 중립성과 가독성이 우선된다",
+    "content": "본문 텍스트는 오래 읽히는 영역이므로 강한 감성보다 중립성, 안정성, 가독성이 중요하다. 강한 분위기의 서체는 제목이나 강조 영역에 제한적으로 사용하는 것이 좋다.",
+    "tags": [
+      "body",
+      "neutral",
+      "readability",
+      "stable",
+      "long_text"
+    ],
+    "applies_to": [
+      "본문",
+      "기사",
+      "설명문",
+      "블로그",
+      "안내문"
+    ],
+    "avoid_for": [
+      "짧은 포스터 제목",
+      "강한 슬로건"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [
+      "장식체",
+      "손글씨"
+    ],
+    "tone": [
+      "중립적",
+      "안정적",
+      "차분함"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "type_classification_001",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/introducing_type/making_sense_of_typographic_classifications",
+    "source_title": "타이포그래피 분류를 이해하기",
+    "doc_type": "font_guide",
+    "topic": "classification",
+    "title": "폰트 분류는 추천 후보를 좁히는 필터로 사용할 수 있다",
+    "content": "세상에는 수많은 서체가 있으므로 세리프, 산세리프, 슬랩 세리프, 고정폭, 스크립트, 손글씨, 디스플레이 같은 분류는 후보를 줄이고 논의하기 위한 실용적인 기준이 된다.",
+    "tags": [
+      "classification",
+      "filtering",
+      "serif",
+      "sans_serif",
+      "script",
+      "display"
+    ],
+    "applies_to": [
+      "폰트 탐색",
+      "추천 후보 필터링",
+      "카테고리 매칭"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕",
+      "손글씨",
+      "장식체",
+      "고정폭"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "체계적",
+      "실용적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "type_classification_002",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/introducing_type/making_sense_of_typographic_classifications",
+    "source_title": "타이포그래피 분류를 이해하기",
+    "doc_type": "font_guide",
+    "topic": "classification_rule",
+    "title": "폰트 분류는 절대 규칙이 아니라 탐색 도구다",
+    "content": "서체 분류는 서로 완전히 배타적이지 않다. 어떤 서체는 고정폭이면서 슬랩 세리프일 수 있고, 동시에 디스플레이 용도로도 쓰일 수 있다. 따라서 분류는 정답표가 아니라 탐색과 설명의 틀로 사용해야 한다.",
+    "tags": [
+      "classification",
+      "overlap",
+      "guideline",
+      "not_absolute"
+    ],
+    "applies_to": [
+      "추천 설명",
+      "카테고리 해석",
+      "검색 필터"
+    ],
+    "avoid_for": [
+      "단정적인 분류"
+    ],
+    "recommended_categories": [],
+    "avoid_categories": [],
+    "tone": [
+      "유연함",
+      "주의"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "type_classification_003",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/introducing_type/making_sense_of_typographic_classifications",
+    "source_title": "타이포그래피 분류를 이해하기",
+    "doc_type": "font_guide",
+    "topic": "category_mapping",
+    "title": "장르 분류는 눈누 카테고리와 연결할 수 있다",
+    "content": "구글 폰트의 장르 분류는 국내 폰트 데이터의 고딕, 바탕, 손글씨, 장식체, 고정폭 같은 카테고리와 연결해 추천 후보를 좁히는 데 사용할 수 있다.",
+    "tags": [
+      "category_mapping",
+      "noonnu",
+      "genre",
+      "font_db"
+    ],
+    "applies_to": [
+      "추천 시스템",
+      "DB 매칭",
+      "폰트 후보 선택"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕",
+      "손글씨",
+      "장식체",
+      "고정폭"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "분류",
+      "매칭"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "type_classification_004",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/introducing_type/making_sense_of_typographic_classifications",
+    "source_title": "타이포그래피 분류를 이해하기",
+    "doc_type": "font_guide",
+    "topic": "historical_mood",
+    "title": "역사적 분류는 시대적 분위기를 표현할 때 유용하다",
+    "content": "역사적 분류는 서체가 어떤 시대의 분위기를 연상시키는지 판단하는 데 도움을 준다. 특정 시대 배경이나 복고적 콘셉트를 표현할 때 시대와 연결된 서체를 선택하면 분위기가 강화된다.",
+    "tags": [
+      "historical_classification",
+      "period",
+      "retro",
+      "era",
+      "mood"
+    ],
+    "applies_to": [
+      "레트로 디자인",
+      "영화 세트",
+      "전시 홍보",
+      "복고 이벤트"
+    ],
+    "avoid_for": [
+      "현대적이고 중립적인 서비스 본문"
+    ],
+    "recommended_categories": [
+      "바탕",
+      "장식체"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "시대감",
+      "복고",
+      "고전적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "type_classification_005",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/introducing_type/making_sense_of_typographic_classifications",
+    "source_title": "타이포그래피 분류를 이해하기",
+    "doc_type": "font_guide",
+    "topic": "modern_brand",
+    "title": "현대적인 브랜드에는 고풍스러운 서체를 피할 수 있다",
+    "content": "매우 현대적인 느낌을 주어야 하는 브랜드라면 특정 시대를 강하게 떠올리게 하는 고풍스러운 서체는 피하는 편이 좋다. 시대감이 강하면 브랜드 인상이 의도와 달라질 수 있다.",
+    "tags": [
+      "modern",
+      "brand",
+      "avoid_old_fashioned",
+      "contemporary"
+    ],
+    "applies_to": [
+      "스타트업",
+      "서비스 UI",
+      "현대적 브랜드",
+      "기술 브랜드"
+    ],
+    "avoid_for": [
+      "복고 콘셉트",
+      "역사적 이벤트"
+    ],
+    "recommended_categories": [
+      "고딕"
+    ],
+    "avoid_categories": [
+      "바탕",
+      "장식체"
+    ],
+    "tone": [
+      "현대적",
+      "깔끔함",
+      "중립적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "type_classification_006",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/introducing_type/making_sense_of_typographic_classifications",
+    "source_title": "타이포그래피 분류를 이해하기",
+    "doc_type": "font_guide",
+    "topic": "font_pairing",
+    "title": "서체 조합에서는 시대적 분위기를 맞추거나 의도적으로 대비시킬 수 있다",
+    "content": "기본 서체가 특정 시대의 분위기를 암시한다면 보조 서체도 그 분위기를 이어가는 것이 안정적이다. 다만 의도적으로 대비를 만들고 싶을 때는 서로 다른 시대감의 서체를 조합할 수 있다.",
+    "tags": [
+      "pairing",
+      "historical_mood",
+      "contrast",
+      "harmony"
+    ],
+    "applies_to": [
+      "브랜딩",
+      "편집 디자인",
+      "포스터",
+      "상세페이지"
+    ],
+    "avoid_for": [
+      "무근거한 혼합"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕",
+      "장식체"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "조화",
+      "대비",
+      "시대감"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "type_classification_007",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/introducing_type/making_sense_of_typographic_classifications",
+    "source_title": "타이포그래피 분류를 이해하기",
+    "doc_type": "font_guide",
+    "topic": "display_category",
+    "title": "디스플레이 분류는 본문보다 제목과 강조에 적합하다",
+    "content": "디스플레이로 분류되는 서체는 특정 시각 효과와 강한 인상을 만들기 위한 경우가 많다. 따라서 본문보다는 제목, 포스터, 짧은 광고 문구처럼 주목성이 필요한 곳에 적합하다.",
+    "tags": [
+      "display",
+      "headline",
+      "poster",
+      "attention",
+      "avoid_body"
+    ],
+    "applies_to": [
+      "제목",
+      "포스터",
+      "배너",
+      "짧은 문구"
+    ],
+    "avoid_for": [
+      "본문",
+      "긴 글"
+    ],
+    "recommended_categories": [
+      "장식체"
+    ],
+    "avoid_categories": [
+      "장식체"
+    ],
+    "tone": [
+      "강렬함",
+      "개성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "type_classification_008",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/introducing_type/making_sense_of_typographic_classifications",
+    "source_title": "타이포그래피 분류를 이해하기",
+    "doc_type": "font_guide",
+    "topic": "script_category",
+    "title": "스크립트와 손글씨 계열은 감성과 개인적 인상을 줄 때 유용하다",
+    "content": "스크립트와 손글씨 계열은 기계적인 인상보다 인간적이고 감성적인 느낌을 만들 때 사용할 수 있다. 다만 긴 본문에서는 가독성이 떨어질 수 있으므로 제한적으로 쓰는 것이 좋다.",
+    "tags": [
+      "script",
+      "handwriting",
+      "emotional",
+      "personal",
+      "friendly"
+    ],
+    "applies_to": [
+      "짧은 감성 문구",
+      "초대장",
+      "가게 홍보",
+      "이벤트 문구"
+    ],
+    "avoid_for": [
+      "긴 본문",
+      "공식 문서"
+    ],
+    "recommended_categories": [
+      "손글씨"
+    ],
+    "avoid_categories": [
+      "손글씨"
+    ],
+    "tone": [
+      "감성",
+      "친근함",
+      "개인적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "weights_grades_001",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/exploring_typefaces_with_multiple_weights_or_grades",
+    "source_title": "다양한 굵기 또는 그라데이션을 가진 서체 탐구하기",
+    "doc_type": "font_guide",
+    "topic": "weights",
+    "title": "굵기는 계층 구조, 강조, 대비를 만드는 핵심 도구다",
+    "content": "제목에 더 굵은 글꼴을 쓰거나 특정 단어를 굵게 처리하면 텍스트 안에서 위계와 강조가 생긴다. 굵기 차이는 독자의 시선을 끌고 읽기 흐름에 변화를 만든다.",
+    "tags": [
+      "weights",
+      "hierarchy",
+      "emphasis",
+      "contrast"
+    ],
+    "applies_to": [
+      "제목",
+      "본문 강조",
+      "포스터",
+      "소셜 미디어 자료"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "명확함",
+      "활기"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "weights_grades_002",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/exploring_typefaces_with_multiple_weights_or_grades",
+    "source_title": "다양한 굵기 또는 그라데이션을 가진 서체 탐구하기",
+    "doc_type": "font_guide",
+    "topic": "emphasis",
+    "title": "강조용 굵기는 일반 굵기와 충분히 달라야 한다",
+    "content": "본문의 Regular와 강조용 굵기의 차이가 너무 작으면 독자가 강조를 알아차리기 어렵다. 강조 목적이라면 Semibold보다 Bold나 ExtraBold처럼 확연한 대비가 있는 굵기가 더 효과적일 수 있다.",
+    "tags": [
+      "bold",
+      "semibold",
+      "extra_bold",
+      "emphasis",
+      "contrast"
+    ],
+    "applies_to": [
+      "본문 강조",
+      "공지",
+      "카드 제목",
+      "CTA"
+    ],
+    "avoid_for": [
+      "미묘한 톤만 필요한 차분한 본문"
+    ],
+    "recommended_categories": [
+      "고딕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "강조",
+      "명확함"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "weights_grades_003",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/exploring_typefaces_with_multiple_weights_or_grades",
+    "source_title": "다양한 굵기 또는 그라데이션을 가진 서체 탐구하기",
+    "doc_type": "font_guide",
+    "topic": "visual_interest",
+    "title": "극단적인 굵기 차이는 포스터와 소셜 콘텐츠에 시각적 흥미를 준다",
+    "content": "가는 굵기에서 매우 굵은 굵기까지 극단적인 대비를 활용하면 제목과 큰 글자에서 강한 시각적 리듬과 주목성을 만들 수 있다.",
+    "tags": [
+      "thin",
+      "black",
+      "poster",
+      "social_media",
+      "visual_interest"
+    ],
+    "applies_to": [
+      "포스터",
+      "잡지 표지",
+      "소셜 미디어 이미지",
+      "배너"
+    ],
+    "avoid_for": [
+      "긴 본문",
+      "작은 캡션"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "장식체"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "강렬함",
+      "리듬",
+      "주목성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "weights_grades_004",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/exploring_typefaces_with_multiple_weights_or_grades",
+    "source_title": "다양한 굵기 또는 그라데이션을 가진 서체 탐구하기",
+    "doc_type": "font_guide",
+    "topic": "dark_mode",
+    "title": "어두운 배경과 밝은 글자에는 시각적 굵기 보정이 필요할 수 있다",
+    "content": "어두운 배경 위의 밝은 글자는 실제보다 부풀어 보일 수 있다. 배경과 대비 조건에 따라 더 가벼운 굵기나 등급을 선택하면 시각적으로 균형 잡힌 가독성을 얻을 수 있다.",
+    "tags": [
+      "dark_mode",
+      "reversed_type",
+      "halo_effect",
+      "readability",
+      "grade"
+    ],
+    "applies_to": [
+      "다크모드 UI",
+      "야간 화면",
+      "배너",
+      "표지판"
+    ],
+    "avoid_for": [
+      "밝은 배경의 일반 본문"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "가독성",
+      "균형"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "weights_grades_005",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/exploring_typefaces_with_multiple_weights_or_grades",
+    "source_title": "다양한 굵기 또는 그라데이션을 가진 서체 탐구하기",
+    "doc_type": "font_guide",
+    "topic": "grade",
+    "title": "Grade는 글자 폭을 유지하면서 획 두께를 조정한다",
+    "content": "굵기는 보통 글자 폭에도 영향을 주지만, Grade는 글리프의 폭을 크게 바꾸지 않고 획 두께를 조정한다. 레이아웃 흐름을 유지하면서 인쇄나 화면 조건에 맞게 굵기감을 보정할 때 유용하다.",
+    "tags": [
+      "grade",
+      "stroke",
+      "width",
+      "layout_stability",
+      "readability"
+    ],
+    "applies_to": [
+      "다크모드",
+      "인쇄물",
+      "UI 상태 변화",
+      "정밀 타이포그래피"
+    ],
+    "avoid_for": [
+      "단순 폰트 추천"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "정교함",
+      "실무적"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "weights_grades_006",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/exploring_typefaces_with_multiple_weights_or_grades",
+    "source_title": "다양한 굵기 또는 그라데이션을 가진 서체 탐구하기",
+    "doc_type": "font_guide",
+    "topic": "variable_font",
+    "title": "가변 폰트는 굵기와 등급을 세밀하게 조절할 수 있다",
+    "content": "가변 폰트는 미리 정해진 몇 가지 굵기만 고르는 대신 굵기나 등급의 중간값을 세밀하게 선택할 수 있게 한다. 다양한 상황에서 같은 서체의 인상을 미세하게 조정할 수 있다.",
+    "tags": [
+      "variable_font",
+      "weights",
+      "grade",
+      "fine_tuning",
+      "flexibility"
+    ],
+    "applies_to": [
+      "웹사이트",
+      "디자인 시스템",
+      "브랜드 시스템",
+      "반응형 UI"
+    ],
+    "avoid_for": [
+      "단일 굵기만 필요한 로고"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "유연함",
+      "정교함"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "reliable_typeface_001",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "font_quality",
+    "title": "신뢰할 수 있는 서체는 기술적 조건을 갖춰야 한다",
+    "content": "신뢰할 수 있는 서체는 감정적 인상뿐 아니라 언어 지원, 읽기 쉬운 세부 형태, 다양한 굵기와 스타일, OpenType 기능 같은 기술적 조건을 함께 갖춰야 한다.",
+    "tags": [
+      "reliable",
+      "font_quality",
+      "language_support",
+      "readability",
+      "weights",
+      "opentype"
+    ],
+    "applies_to": [
+      "서비스",
+      "브랜드",
+      "웹사이트",
+      "문서"
+    ],
+    "avoid_for": [
+      "기능이 부족한 실험용 폰트"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "신뢰감",
+      "전문성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "reliable_typeface_002",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "language_support",
+    "title": "사용자 입력 콘텐츠에는 넓은 언어 지원이 필요하다",
+    "content": "사용자 입력이 가능한 디지털 제품이나 CMS 기반 웹사이트에서는 어떤 문자가 들어올지 예측하기 어렵다. 제한적인 문자 세트의 폰트는 주요 텍스트에서 곧 문제가 될 수 있다.",
+    "tags": [
+      "user_generated_content",
+      "cms",
+      "language_support",
+      "fallback"
+    ],
+    "applies_to": [
+      "게시판",
+      "댓글",
+      "CMS",
+      "커뮤니티",
+      "글로벌 서비스"
+    ],
+    "avoid_for": [
+      "로고 단독"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "안정성",
+      "확장성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "reliable_typeface_003",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "global_brand",
+    "title": "다국적 브랜드는 여러 문자 체계에서도 통일된 정체성이 필요하다",
+    "content": "다국적 기업이나 글로벌 서비스는 여러 언어와 문자 체계에서도 브랜드 정체성이 유지되어야 한다. 가능한 경우 다양한 문자 체계를 조화롭게 지원하는 서체 패밀리를 선택하는 것이 좋다.",
+    "tags": [
+      "global_brand",
+      "multi_script",
+      "brand_identity",
+      "consistency"
+    ],
+    "applies_to": [
+      "글로벌 브랜드",
+      "국제 서비스",
+      "다국어 웹사이트"
+    ],
+    "avoid_for": [
+      "지역 한정 단기 홍보물"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "일관성",
+      "전문성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "reliable_typeface_004",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "readability",
+    "title": "본문용 서체는 비슷한 글리프를 구분할 수 있어야 한다",
+    "content": "I, l, 1처럼 서로 닮은 글리프가 구별되지 않으면 독자는 순간적으로 읽기를 멈추게 된다. 특히 산세리프체를 선택할 때는 이런 문자 구분이 중요하다.",
+    "tags": [
+      "readability",
+      "glyph_distinction",
+      "I_l_1",
+      "sans_serif"
+    ],
+    "applies_to": [
+      "본문",
+      "UI",
+      "표지판",
+      "정보 안내",
+      "코드"
+    ],
+    "avoid_for": [
+      "순수 장식용 제목"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "고정폭"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "명확함",
+      "가독성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "reliable_typeface_005",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "weights",
+    "title": "대부분의 상황에서는 여러 굵기와 스타일을 제공하는 서체가 유리하다",
+    "content": "로고처럼 제한된 프로젝트에는 단일 굵기도 가능하지만, 대부분의 문서와 서비스에서는 Regular, Italic, Bold, Bold Italic과 추가 굵기를 제공하는 서체가 더 유연하다.",
+    "tags": [
+      "weights",
+      "styles",
+      "regular",
+      "bold",
+      "italic",
+      "flexibility"
+    ],
+    "applies_to": [
+      "웹사이트",
+      "문서",
+      "브랜드 시스템",
+      "게시글"
+    ],
+    "avoid_for": [
+      "단일 로고"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "유연함",
+      "실용적"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "reliable_typeface_006",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "small_caps",
+    "title": "Small caps와 스타일 변형은 표현 선택지를 늘린다",
+    "content": "이탤릭뿐 아니라 small caps 같은 스타일 변형도 타이포그래피 표현에 도움을 준다. 문서 안에서 강조와 구분을 더 섬세하게 만들 수 있다.",
+    "tags": [
+      "small_caps",
+      "styles",
+      "typographic_options",
+      "emphasis"
+    ],
+    "applies_to": [
+      "편집 디자인",
+      "브랜드 문서",
+      "보고서",
+      "상세페이지"
+    ],
+    "avoid_for": [
+      "단순 카드 미리보기"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "정교함",
+      "전문성"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "reliable_typeface_007",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "width_optical_size",
+    "title": "다양한 너비와 광학 크기는 보조 서체 필요성을 줄인다",
+    "content": "하나의 서체 패밀리에 다양한 너비와 광학 크기가 포함되어 있으면 제목, 본문, 캡션 등 여러 용도를 한 패밀리 안에서 해결할 수 있다. 이는 시각적 일관성을 유지하는 데 유리하다.",
+    "tags": [
+      "width",
+      "optical_size",
+      "font_family",
+      "consistency"
+    ],
+    "applies_to": [
+      "디자인 시스템",
+      "브랜드 사이트",
+      "편집 디자인",
+      "게시판"
+    ],
+    "avoid_for": [
+      "단발성 포스터"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "일관성",
+      "유연함"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "reliable_typeface_008",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "opentype",
+    "title": "OpenType 기능은 가독성과 표현력을 동시에 높일 수 있다",
+    "content": "합자, 문맥별 대체 문자, 분수, 다양한 숫자 형태, small caps 같은 OpenType 기능은 텍스트를 더 읽기 좋고 전문적으로 만들 수 있다. 일부 기능은 장식적 표현에도 활용된다.",
+    "tags": [
+      "opentype",
+      "ligatures",
+      "fractions",
+      "figures",
+      "alternates"
+    ],
+    "applies_to": [
+      "전문 문서",
+      "레시피",
+      "표",
+      "편집 디자인",
+      "브랜딩"
+    ],
+    "avoid_for": [
+      "OpenType을 지원하지 않는 환경"
+    ],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "전문성",
+      "표현력"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "reliable_typeface_009",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "kerning",
+    "title": "적절한 간격과 커닝은 좋은 폰트의 중요한 기준이다",
+    "content": "좋은 폰트는 글자 형태뿐 아니라 글자 사이 간격과 커닝 데이터도 잘 설계되어 있다. 간격이 어색하면 문장 전체의 완성도와 가독성이 떨어진다.",
+    "tags": [
+      "kerning",
+      "spacing",
+      "font_quality",
+      "readability"
+    ],
+    "applies_to": [
+      "본문",
+      "제목",
+      "로고",
+      "웹사이트"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "완성도",
+      "가독성"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "reliable_typeface_010",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "pro_label",
+    "title": "Pro라는 이름만으로 폰트 품질을 판단하면 안 된다",
+    "content": "폰트 이름에 Pro가 붙어 있어도 실제 문자 지원, OpenType 기능, 커닝 품질이 충분하다는 보장은 아니다. 이름이 아니라 실제 기능과 파일 구성을 확인해야 한다.",
+    "tags": [
+      "pro",
+      "marketing",
+      "font_quality",
+      "verification"
+    ],
+    "applies_to": [
+      "폰트 검토",
+      "상용 프로젝트",
+      "브랜드 시스템"
+    ],
+    "avoid_for": [
+      "이름만 보고 선택하는 경우"
+    ],
+    "recommended_categories": [],
+    "avoid_categories": [],
+    "tone": [
+      "검증",
+      "주의"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "reliable_typeface_011",
+    "source": "Google Fonts Knowledge",
+    "source_url": "https://fonts.google.com/knowledge/choosing_type/choosing_reliable_typefaces",
+    "source_title": "신뢰할 수 있는 서체 선택하기",
+    "doc_type": "font_guide",
+    "topic": "candidate_reranking",
+    "title": "추천 후보가 여러 개일 때는 품질 조건으로 재정렬할 수 있다",
+    "content": "분위기에 맞는 폰트 후보가 여러 개라면 문자 지원, 가독성 세부 형태, 굵기 수, 스타일 수, OpenType 기능, 커닝 품질 같은 조건을 기준으로 더 신뢰할 수 있는 서체를 우선 추천할 수 있다.",
+    "tags": [
+      "reranking",
+      "quality_score",
+      "weights",
+      "language_support",
+      "readability"
+    ],
+    "applies_to": [
+      "추천 시스템",
+      "후보 재정렬",
+      "서비스 UI",
+      "브랜드"
+    ],
+    "avoid_for": [],
+    "recommended_categories": [
+      "고딕",
+      "바탕"
+    ],
+    "avoid_categories": [],
+    "tone": [
+      "신뢰성",
+      "실용성"
+    ],
+    "confidence": "high"
+  }
+]
