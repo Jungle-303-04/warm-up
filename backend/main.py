@@ -6,7 +6,7 @@ from database import engine
 from models.post import Post
 from models.font import Font
 from models.user import User
-from models.recommendRequest import RecommendRequest
+from models.recommend import (RecommendRequest, AnalysisResult, FontSelection, RecommendResponse)
 
 from datetime import datetime, timezone
 from openai_client import client
@@ -154,7 +154,7 @@ def delete_post(post_id : int):
 def recommend_fonts(request: RecommendRequest):
     text = request.text
     preferred_tone = request.preferred_tone
-    print("STEP 0: request received")
+
     try:
         with Session(engine) as session: fonts = session.exec(select(Font)).all()
 
@@ -209,7 +209,9 @@ def recommend_fonts(request: RecommendRequest):
     analysis_text = response.output_text.strip()
     #객체 형태의 문자열을 딕셔너리로 변환
     analysis = json.loads(analysis_text)
-
+    # 응답을 모델로 변환
+    analysis_result = AnalysisResult(**analysis)
+    # print("분석결과", analysis_result)
     selection_prompt = f"""
         사용자 문장:
         {text}
@@ -236,14 +238,15 @@ def recommend_fonts(request: RecommendRequest):
         )
     selection_text = selection_response.output_text.strip()
     selection = json.loads(selection_text)
+    selection_result = FontSelection(**selection)
 
-    # print("ANALYSIS RAW:", analysis_text)
-    # print("SELECTION RAW:", selection_text)
+    # print("선택결과:", selection_result)
+    recommend_response = RecommendResponse(
+        analysis=analysis_result,
+        selection=selection_result,
+        candidate_fonts=bool(candidate_fonts),
+        font=None
+    )
 
-    return {
-            "analysis": analysis,
-            "selection": selection,
-            "candidate_fonts": bool(candidate_fonts),
-            "font": None
-    }
+    return recommend_response
 
