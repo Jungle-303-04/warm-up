@@ -1,10 +1,12 @@
-from app.pipeline.schemas import (
+from app.pipeline.api.schemas import (
     DEFAULT_BRANCH,
     DEFAULT_REPOSITORY,
     AgentProposal,
     CodeReference,
     PipelineRequest,
     PipelineResponse,
+    PipelineStageResponse,
+    PipelineStagesResponse,
     PublishSnapshot,
     RepoFile,
     RepoSnapshot,
@@ -12,8 +14,8 @@ from app.pipeline.schemas import (
     StageResult,
     default_files,
 )
-from app.pipeline.service import PipelineService
-from app.pipeline.stages import (
+from app.pipeline.application.service import PipelineService
+from app.pipeline.domain.stages import (
     PIPELINE_STAGE_IDS,
     PIPELINE_STAGES,
     WORKER_STAGE_IDS,
@@ -32,6 +34,8 @@ __all__ = [
     "CodeReference",
     "PipelineRequest",
     "PipelineResponse",
+    "PipelineStageResponse",
+    "PipelineStagesResponse",
     "PipelineService",
     "PipelineStage",
     "PublishSnapshot",

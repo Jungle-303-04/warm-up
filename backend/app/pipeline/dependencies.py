@@ -1,4 +1,4 @@
-from app.pipeline.service import PipelineService
+from app.pipeline.application.service import PipelineService
 
 
 def get_pipeline_service() -> PipelineService:

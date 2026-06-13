@@ -1,7 +1,7 @@
-from app.repo_rag.identity import file_hash
-from app.repo_rag.records import FileRecord
-from app.repo_rag.schemas import RepoFileChange
-from app.pipeline.schemas import RepoSnapshot
+from app.repo_rag.domain.identity import file_hash
+from app.repo_rag.domain.records import FileRecord
+from app.repo_rag.api.schemas import RepoFileChange
+from app.pipeline.api.schemas import RepoSnapshot
 
 
 class RepoDiffService:

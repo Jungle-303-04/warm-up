@@ -1,4 +1,4 @@
-from app.pipeline.schemas import PipelineRequest, RepoFile, default_files
+from app.pipeline.api.schemas import PipelineRequest, RepoFile, default_files
 
 
 def test_default_files_include_code_and_document_examples() -> None:

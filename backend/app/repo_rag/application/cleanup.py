@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from app.repo_rag.store import RepoRagStore
+from app.repo_rag.infrastructure.store import RepoRagStore
 
 
 @dataclass(slots=True)

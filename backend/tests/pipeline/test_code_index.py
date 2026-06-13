@@ -1,5 +1,5 @@
-from app.pipeline.schemas import RepoFile, RepoSnapshot
-from app.pipeline.code_index import CodeIndexService
+from app.pipeline.api.schemas import RepoFile, RepoSnapshot
+from app.pipeline.domain.code_index import CodeIndexService
 
 
 def test_index_extracts_python_function_symbols() -> None:

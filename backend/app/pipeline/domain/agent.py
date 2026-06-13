@@ -1,4 +1,4 @@
-from app.pipeline.schemas import AgentProposal, CodeReference, RetrievalChunk
+from app.pipeline.api.schemas import AgentProposal, CodeReference, RetrievalChunk
 
 
 class AgentProposalService:

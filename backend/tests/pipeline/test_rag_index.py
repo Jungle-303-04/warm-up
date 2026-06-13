@@ -1,5 +1,5 @@
-from app.pipeline.schemas import CodeReference, RepoFile, RepoSnapshot
-from app.pipeline.rag_index import RagIndexService
+from app.pipeline.api.schemas import CodeReference, RepoFile, RepoSnapshot
+from app.pipeline.domain.rag_index import RagIndexService
 
 
 def test_index_creates_chunks_only_for_referenced_nonempty_files() -> None:

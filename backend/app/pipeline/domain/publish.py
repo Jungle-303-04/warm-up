@@ -1,4 +1,4 @@
-from app.pipeline.schemas import AgentProposal, PublishSnapshot, RepoSnapshot, RetrievalChunk
+from app.pipeline.api.schemas import AgentProposal, PublishSnapshot, RepoSnapshot, RetrievalChunk
 
 
 class PublishService:

@@ -1,4 +1,4 @@
-from app.pipeline.schemas import AgentProposal
+from app.pipeline.api.schemas import AgentProposal
 
 
 class ApprovalService:

@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 
-from app.pipeline.schemas import PipelineRequest, RepoFile
-from app.repo_rag.schemas import RepoRagSyncRequest
-from app.repo_rag.service import RepoRagSyncService
+from app.pipeline.api.schemas import PipelineRequest, RepoFile
+from app.repo_rag.api.schemas import RepoRagSyncRequest
+from app.repo_rag.application.service import RepoRagSyncService
 
 
 def sync_request(repository: str, files: list[RepoFile]) -> RepoRagSyncRequest:

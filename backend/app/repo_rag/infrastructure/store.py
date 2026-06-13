@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import Protocol
 
-from app.pipeline.schemas import RepoSnapshot, RetrievalChunk
-from app.repo_rag.records import (
+from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
+from app.repo_rag.domain.records import (
     ChunkRecord,
     FileRecord,
     RepositoryRecord,
@@ -10,7 +10,7 @@ from app.repo_rag.records import (
     SyncEventRecord,
     SyncJobRecord,
 )
-from app.repo_rag.schemas import RepoFileChange, RepoRagSyncRequest
+from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest
 
 
 class RepoRagStore(Protocol):

@@ -1,15 +1,15 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from app.repo_rag.identity import utcnow
-from app.repo_rag.schemas import (
+from app.repo_rag.domain.identity import utcnow
+from app.repo_rag.api.schemas import (
     RepoRagSyncRequest,
     SyncEventView,
     SyncJobStatus,
     SyncJobView,
     SyncTriggerType,
 )
-from app.pipeline.schemas import RetrievalChunk
+from app.pipeline.api.schemas import RetrievalChunk
 
 
 @dataclass(slots=True)

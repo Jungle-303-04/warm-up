@@ -1,6 +1,6 @@
-from app.repo_rag.identity import file_hash, hash_text
-from app.repo_rag.schemas import RepoFileChange
-from app.pipeline.schemas import RepoSnapshot, RetrievalChunk
+from app.repo_rag.domain.identity import file_hash, hash_text
+from app.repo_rag.api.schemas import RepoFileChange
+from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
 
 
 CHUNK_TEXT_LIMIT = 800

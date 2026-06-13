@@ -1,3 +1,3 @@
-from app.health.router import router
+from app.health.api.router import router
 
 __all__ = ["router"]

@@ -1,5 +1,5 @@
-from app.pipeline.schemas import AgentProposal, RepoSnapshot, RetrievalChunk
-from app.pipeline.publish import PublishService
+from app.pipeline.api.schemas import AgentProposal, RepoSnapshot, RetrievalChunk
+from app.pipeline.domain.publish import PublishService
 
 
 def test_publish_creates_safe_static_snapshot_path() -> None:

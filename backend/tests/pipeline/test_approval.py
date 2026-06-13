@@ -1,5 +1,5 @@
-from app.pipeline.schemas import AgentProposal
-from app.pipeline.approval import ApprovalService
+from app.pipeline.api.schemas import AgentProposal
+from app.pipeline.domain.approval import ApprovalService
 
 
 def test_approve_returns_approved_copies_without_mutating_originals() -> None:

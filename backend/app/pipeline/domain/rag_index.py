@@ -1,4 +1,4 @@
-from app.pipeline.schemas import CodeReference, RepoSnapshot, RetrievalChunk
+from app.pipeline.api.schemas import CodeReference, RepoSnapshot, RetrievalChunk
 
 
 class RagIndexService:

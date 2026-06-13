@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 from hashlib import sha256
 from uuid import uuid4
 
-from app.pipeline.schemas import PipelineRequest, RepoFile
-from app.repo_rag.schemas import RepoRagSyncRequest
+from app.pipeline.api.schemas import PipelineRequest, RepoFile
+from app.repo_rag.api.schemas import RepoRagSyncRequest
 
 
 def utcnow() -> datetime:

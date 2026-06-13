@@ -1,9 +1,9 @@
 from fastapi import APIRouter, status
 from fastapi.responses import RedirectResponse
 
-from app.health.router import router as health_router
-from app.pipeline.router import router as pipeline_router
-from app.repo_rag.router import router as repo_rag_router
+from app.health.api.router import router as health_router
+from app.pipeline.api.router import router as pipeline_router
+from app.repo_rag.api.router import router as repo_rag_router
 
 api_router = APIRouter()
 

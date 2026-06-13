@@ -1,5 +1,5 @@
-from app.pipeline.schemas import CodeReference, RetrievalChunk
-from app.pipeline.agent import AgentProposalService
+from app.pipeline.api.schemas import CodeReference, RetrievalChunk
+from app.pipeline.domain.agent import AgentProposalService
 
 
 def test_propose_returns_empty_list_without_code_references() -> None:

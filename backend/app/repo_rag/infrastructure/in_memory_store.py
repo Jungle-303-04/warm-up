@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.repo_rag.identity import (
+from app.repo_rag.domain.identity import (
     file_hash,
     hash_text,
     idempotency_key,
@@ -9,7 +9,7 @@ from app.repo_rag.identity import (
     source_key,
     utcnow,
 )
-from app.repo_rag.records import (
+from app.repo_rag.domain.records import (
     ChunkRecord,
     FileRecord,
     RepositoryRecord,
@@ -17,8 +17,8 @@ from app.repo_rag.records import (
     SyncEventRecord,
     SyncJobRecord,
 )
-from app.repo_rag.schemas import RepoFileChange, RepoRagSyncRequest, SyncJobStatus
-from app.pipeline.schemas import RepoSnapshot, RetrievalChunk
+from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest, SyncJobStatus
+from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
 
 
 ACTIVE_JOB_STATUSES: set[SyncJobStatus] = {"queued", "running"}

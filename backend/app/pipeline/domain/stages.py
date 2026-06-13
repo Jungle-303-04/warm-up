@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass
 from typing import Mapping
 
-from app.pipeline.schemas import StageResult
+from app.pipeline.api.schemas import StageResult
 
 
 @dataclass(frozen=True)

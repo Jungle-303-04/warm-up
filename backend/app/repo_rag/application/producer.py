@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from app.repo_rag.records import SyncJobRecord
-from app.repo_rag.schemas import RepoRagSyncRequest, SyncTriggerType
-from app.repo_rag.store import RepoRagStore
-from app.pipeline.schemas import PipelineRequest
+from app.repo_rag.domain.records import SyncJobRecord
+from app.repo_rag.api.schemas import RepoRagSyncRequest, SyncTriggerType
+from app.repo_rag.infrastructure.store import RepoRagStore
+from app.pipeline.api.schemas import PipelineRequest
 
 
 @dataclass(slots=True)

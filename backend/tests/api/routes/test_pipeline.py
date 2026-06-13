@@ -6,8 +6,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.pipeline import PIPELINE_STAGE_IDS
-from app.pipeline.router import router as pipeline_router
-from app.repo_rag.router import router as repo_rag_router
+from app.pipeline.api.router import router as pipeline_router
+from app.repo_rag.api.router import router as repo_rag_router
 
 app = FastAPI()
 app.include_router(pipeline_router, prefix="/pipeline")

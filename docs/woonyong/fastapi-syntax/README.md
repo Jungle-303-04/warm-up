@@ -555,6 +555,250 @@ def create_item(payload: CreateItem):
 
 FastAPI는 요청 JSON을 읽고 `CreateItem`으로 검증한 뒤 함수에 넣어준다. 타입이 맞지 않으면 자동으로 422 에러를 반환한다.
 
+### Pydantic 모델이란?
+
+Pydantic 모델은 Python class로 데이터의 모양과 타입을 선언하고, 그 선언을 기준으로 데이터를 검증/변환/직렬화하는 객체다.
+
+```python
+from pydantic import BaseModel
+
+
+class User(BaseModel):
+    id: int
+    name: str
+    email: str
+```
+
+이 클래스는 다음 JSON 모양을 표현한다.
+
+```json
+{
+  "id": 1,
+  "name": "Kim",
+  "email": "kim@example.com"
+}
+```
+
+Pydantic 모델이 하는 일:
+
+```text
+1. 입력 데이터가 선언한 타입과 맞는지 검증한다.
+2. 가능한 경우 타입을 변환한다.
+3. Python 객체처럼 필드에 접근하게 해준다.
+4. JSON으로 다시 변환할 수 있다.
+5. FastAPI가 OpenAPI/Swagger 문서를 만들 때 구조 정보로 사용한다.
+```
+
+예:
+
+```python
+user = User(id="1", name="Kim", email="kim@example.com")
+
+print(user.id)    # 1
+print(user.name)  # "Kim"
+```
+
+`id`에 문자열 `"1"`이 들어왔지만, Pydantic이 `int`로 변환할 수 있으면 변환한다.
+
+변환할 수 없는 값은 에러가 된다.
+
+```python
+User(id="abc", name="Kim", email="kim@example.com")
+```
+
+FastAPI request body에서 이런 값이 들어오면 직접 try/except를 하지 않아도 422 응답으로 처리된다.
+
+### BaseModel이란?
+
+`BaseModel`은 Pydantic 모델의 부모 클래스다. `BaseModel`을 상속해야 Pydantic의 검증/변환/직렬화 기능을 사용할 수 있다.
+
+```python
+class User(BaseModel):
+    id: int
+    name: str
+```
+
+이렇게 쓰면 `User`는 일반 Python class가 아니라 Pydantic 모델이 된다.
+
+즉 `BaseModel`은 다음 기능을 붙여준다.
+
+```text
+타입 검증
+기본값 처리
+중첩 모델 검증
+dict/JSON 변환
+FastAPI 문서화 지원
+```
+
+예:
+
+```python
+class Address(BaseModel):
+    city: str
+    street: str
+
+
+class User(BaseModel):
+    id: int
+    name: str
+    address: Address
+```
+
+중첩된 데이터도 검증된다.
+
+```python
+user = User(
+    id=1,
+    name="Kim",
+    address={
+        "city": "Seoul",
+        "street": "Gangnam-daero",
+    },
+)
+
+print(user.address.city)  # "Seoul"
+```
+
+### 일반 class와 Pydantic 모델의 차이
+
+일반 class:
+
+```python
+class User:
+    id: int
+    name: str
+```
+
+이 코드는 타입 힌트만 있을 뿐, JSON 검증이나 변환 기능은 없다.
+
+Pydantic 모델:
+
+```python
+class User(BaseModel):
+    id: int
+    name: str
+```
+
+이 코드는 데이터를 받을 때 실제로 검증하고, FastAPI request/response 모델로 사용할 수 있다.
+
+정리:
+
+```text
+일반 class
+-> Python 객체 구조를 직접 구현해야 함
+
+BaseModel을 상속한 class
+-> Pydantic이 데이터 검증, 변환, JSON 직렬화, 문서화를 지원함
+```
+
+### BaseModel은 구조체처럼 쓰이는가?
+
+감각적으로는 구조체와 비슷하게 볼 수 있다.
+
+```python
+class CreateItem(BaseModel):
+    name: str
+    price: int
+```
+
+이 클래스는 다음 모양의 데이터를 표현한다.
+
+```json
+{
+  "name": "keyboard",
+  "price": 100
+}
+```
+
+즉 “이 데이터는 name이라는 문자열과 price라는 정수를 가진다”는 구조 선언이다.
+
+하지만 단순 구조체보다 더 많은 일을 한다.
+
+- JSON 데이터를 Python 객체로 변환한다.
+- 타입을 검증한다.
+- 기본값을 적용한다.
+- 중첩된 모델도 검증한다.
+- 응답 JSON으로 직렬화한다.
+- OpenAPI/Swagger 문서를 만든다.
+
+예:
+
+```python
+item = CreateItem(name="keyboard", price=100)
+
+print(item.name)   # "keyboard"
+print(item.price)  # 100
+```
+
+잘못된 값이 들어오면 검증 에러가 난다.
+
+```python
+CreateItem(name="keyboard", price="not-number")
+```
+
+FastAPI request body에서 이런 값이 들어오면 자동으로 422 응답을 반환한다.
+
+### 왜 BaseModel을 상속해야 하는가?
+
+그냥 Python class만 쓰면 FastAPI와 Pydantic이 검증/문서화/직렬화를 해줄 수 없다.
+
+```python
+class CreateItem:
+    name: str
+    price: int
+```
+
+이렇게 쓰면 타입 힌트는 있지만 Pydantic 모델이 아니다. JSON body 검증 모델로 쓰기 어렵다.
+
+반면 `BaseModel`을 상속하면 Pydantic 모델이 된다.
+
+```python
+class CreateItem(BaseModel):
+    name: str
+    price: int
+```
+
+FastAPI는 이 모델을 보고 다음을 자동 처리한다.
+
+```text
+요청 JSON 읽기
+-> 타입 검증
+-> Python 객체 생성
+-> Swagger 문서 생성
+-> 응답 JSON 직렬화
+```
+
+그래서 FastAPI에서 request body와 response model은 보통 `BaseModel`을 상속해서 만든다.
+
+### dict 타입을 직접 써도 되는 경우
+
+아주 단순한 응답은 이렇게 써도 된다.
+
+```python
+@router.get("/health", response_model=dict[str, str])
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+```
+
+하지만 실무에서는 이름 있는 모델이 더 읽기 좋다.
+
+```python
+class HealthResponse(BaseModel):
+    status: str
+
+
+@router.get("/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    return HealthResponse(status="ok")
+```
+
+이유:
+
+- 응답 의미가 이름으로 드러난다.
+- 나중에 필드가 늘어나도 관리하기 쉽다.
+- Swagger 문서에서 모델 이름이 보인다.
+- 테스트와 타입 추적이 쉬워진다.
+
 ## 7. Response Model
 
 응답 JSON 모양도 Pydantic 모델로 제한할 수 있다.
@@ -834,7 +1078,60 @@ async def add_process_time_header(request: Request, call_next):
     return response
 ```
 
-## 14. 기본 프로젝트 구조
+## 14. Python에 매크로가 있는가?
+
+Python에는 C/C++의 전처리 매크로 같은 기능은 일반적으로 사용하지 않는다.
+
+대신 다음 방식을 쓴다.
+
+- 상수
+- 함수
+- 데코레이터
+- 클래스
+- dependency
+
+예를 들어 HTTP status는 FastAPI가 제공하는 상수를 쓴다.
+
+```python
+from fastapi import status
+
+status_code=status.HTTP_200_OK
+```
+
+이렇게 쓰면 `200`만 적는 것보다 의미가 분명하다.
+
+```python
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    status_code=status.HTTP_200_OK,
+)
+def health() -> HealthResponse:
+    return HealthResponse(status="ok")
+```
+
+`response_model`, `status_code`를 더 짧게 만들기 위해 공통 상수나 helper를 만들 수도 있다.
+
+```python
+OK_RESPONSE = {"status_code": status.HTTP_200_OK}
+
+
+@router.get("/health", response_model=HealthResponse, **OK_RESPONSE)
+def health() -> HealthResponse:
+    return HealthResponse(status="ok")
+```
+
+하지만 실무에서는 이런 방식이 항상 좋은 것은 아니다. FastAPI 라우터 옵션은 endpoint의 계약을 보여주는 부분이라 명시적으로 적는 편이 더 읽기 쉽다.
+
+권장 기준:
+
+```text
+status.HTTP_200_OK 같은 의미 있는 상수는 사용한다.
+response_model/status_code 자체는 endpoint에 명시한다.
+복잡한 반복이 생기면 helper보다 router prefix/tags/dependencies로 먼저 줄인다.
+```
+
+## 15. 기본 프로젝트 구조
 
 작은 프로젝트:
 
@@ -872,7 +1169,7 @@ app/
 
 실무에서는 기능 단위로 묶는 구조가 커질수록 유리하다. 기능 하나를 이해하려면 해당 폴더 안에서 router, schema, service, repository를 같이 볼 수 있기 때문이다.
 
-## 15. 현재 프로젝트 적용 메모
+## 16. 현재 프로젝트 적용 메모
 
 이 프로젝트에서는 현재 다음 설정을 사용한다.
 
@@ -896,6 +1193,6 @@ CORS middleware
 - `/api/v1`은 API 경로 전체가 바뀌므로 프론트와 테스트가 같이 바뀌어야 한다.
 - CORS는 브라우저 기반 프론트엔드가 백엔드를 직접 호출할 때 필요하다.
 
-## 16. 같이 볼 문서
+## 17. 같이 볼 문서
 
 - [Python/FastAPI 어노테이션 정리](./annotations.md)

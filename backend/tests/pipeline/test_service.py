@@ -1,6 +1,6 @@
 from app.pipeline import PIPELINE_STAGE_IDS
-from app.pipeline.schemas import PipelineRequest
-from app.pipeline.service import PipelineService
+from app.pipeline.api.schemas import PipelineRequest
+from app.pipeline.application.service import PipelineService
 
 
 def test_run_orchestrates_all_minimum_pipeline_stages() -> None:

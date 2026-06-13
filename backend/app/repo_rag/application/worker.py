@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 
-from app.repo_rag.chunking import ChunkingService
-from app.repo_rag.diff import RepoDiffService, change_summary
-from app.repo_rag.schemas import RepoRagSyncResponse
-from app.repo_rag.store import RepoRagStore
+from app.repo_rag.domain.chunking import ChunkingService
+from app.repo_rag.domain.diff import RepoDiffService, change_summary
+from app.repo_rag.api.schemas import RepoRagSyncResponse
+from app.repo_rag.infrastructure.store import RepoRagStore
 from app.repository_source import RepoSyncService
 
 

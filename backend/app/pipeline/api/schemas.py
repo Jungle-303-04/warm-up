@@ -78,6 +78,16 @@ class StageResult(BaseModel):
     detail: str
 
 
+class PipelineStageResponse(BaseModel):
+    id: str
+    name: str
+    purpose: str
+
+
+class PipelineStagesResponse(BaseModel):
+    stages: list[PipelineStageResponse]
+
+
 class PipelineResponse(BaseModel):
     repository: RepoSnapshot
     code_references: list[CodeReference]

@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.pipeline.schemas import PipelineRequest, RepoSnapshot, RetrievalChunk
+from app.pipeline.api.schemas import PipelineRequest, RepoSnapshot, RetrievalChunk
 
 
 SyncTriggerType = Literal["manual", "schedule", "webhook"]

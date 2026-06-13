@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from app.pipeline.schemas import PipelineRequest, RepoFile
+from app.pipeline.api.schemas import PipelineRequest, RepoFile
 from app.repository_source import RepoSyncService
 
 

@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import unquote, urlparse
 
-from app.pipeline.schemas import (
+from app.pipeline.api.schemas import (
     DEFAULT_BRANCH,
     DEFAULT_REPOSITORY,
     PipelineRequest,

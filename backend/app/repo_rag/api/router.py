@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.repo_rag.dependencies import get_repo_rag_sync_service
-from app.repo_rag.schemas import RepoRagSyncRequest, RepoRagSyncResponse
-from app.repo_rag.service import RepoRagSyncService
+from app.repo_rag.api.schemas import RepoRagSyncRequest, RepoRagSyncResponse
+from app.repo_rag.application.service import RepoRagSyncService
 
 router = APIRouter()
 

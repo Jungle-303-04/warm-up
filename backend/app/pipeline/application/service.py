@@ -1,12 +1,12 @@
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from app.pipeline.agent import AgentProposalService
-from app.pipeline.approval import ApprovalService
-from app.pipeline.code_index import CodeIndexService
-from app.pipeline.publish import PublishService
-from app.pipeline.rag_index import RagIndexService
-from app.pipeline.schemas import (
+from app.pipeline.domain.agent import AgentProposalService
+from app.pipeline.domain.approval import ApprovalService
+from app.pipeline.domain.code_index import CodeIndexService
+from app.pipeline.domain.publish import PublishService
+from app.pipeline.domain.rag_index import RagIndexService
+from app.pipeline.api.schemas import (
     AgentProposal,
     CodeReference,
     PipelineRequest,
@@ -15,7 +15,7 @@ from app.pipeline.schemas import (
     RepoSnapshot,
     RetrievalChunk,
 )
-from app.pipeline.stages import build_done_stage_results
+from app.pipeline.domain.stages import build_done_stage_results
 from app.repository_source import RepoSyncService
 
 
