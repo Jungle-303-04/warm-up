@@ -82,7 +82,11 @@ Invite UX는 RepoPilot 접근 권한과 GitHub 접근 권한이 다르다는 것
 자주 생기는 실패:
 
 - repository 미선택
+- GitHub token 만료 또는 revoke
+- private repo 분석에 필요한 OAuth scope 부족
+- 조직 SSO 미승인
 - 사용자의 repo permission 부족
+- GitHub API rate limit
 - initial index 실패
 - publish target 미설정
 
@@ -92,6 +96,17 @@ Invite UX는 RepoPilot 접근 권한과 GitHub 접근 권한이 다르다는 것
 - 왜 중요한지
 - 어떻게 재시도하는지
 - 그래도 project를 사용할 수 있는지
+
+권한 관련 실패는 `required_action`을 함께 보여준다.
+
+```text
+reconnect_github
+grant_scope
+authorize_sso
+request_repo_access
+wait_for_rate_limit
+disconnect_repo
+```
 
 ## MVP 첫 가치
 

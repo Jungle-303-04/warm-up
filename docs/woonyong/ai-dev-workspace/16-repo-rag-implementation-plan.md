@@ -104,8 +104,14 @@ RepoPilot은 Notion 복제가 아니라, 사용자가 선택한 GitHub repo의 �
 ### 5. API와 Frontend Sync 상태 노출
 
 - API
+  - `GET /auth/github/login`: GitHub OAuth 시작
+  - `GET /auth/github/callback`: OAuth code 교환, GitHub token 저장, RepoPilot session cookie 발급
+  - `GET /auth/me`: 현재 RepoPilot 사용자 조회
+  - `POST /auth/logout`: session revoke
+  - `GET /github/repositories`: 로그인 사용자가 접근 가능한 repo 목록 조회
   - `POST /pipeline/sync`: repo sync job 생성 및 현재는 inline 실행
   - 이후 `POST /repository-connections/{id}/sync`: job enqueue만 수행
+  - `GET /repository-connections/{id}/permission`: GitHub token/scope/repo permission 상태 조회
   - `GET /sync-jobs/{id}`: job status, stage events, counts 조회
   - `GET /repository-connections/{id}/chunks`: active chunk 조회
   - `GET /repository-connections/{id}/findings`: stale/partial/missing finding 조회
@@ -122,6 +128,7 @@ RepoPilot은 Notion 복제가 아니라, 사용자가 선택한 GitHub repo의 �
 
 - 화면에서 GitHub 로그인 후 repo를 선택하고 sync 결과를 확인할 수 있다.
 - sync history와 stage event가 읽힌다.
+- 권한 문제가 있으면 `needs_reauth`, `insufficient_scope`, `sso_required`, `repo_access_lost`, `rate_limited` 상태와 required action을 보여준다.
 - stale/inactive chunk가 화면과 retrieval에 섞이지 않는다.
 - 승인된 proposal이 GitHub API나 문서 patch로 실행된 뒤 재-sync로 검증된다.
 
@@ -179,17 +186,18 @@ RepoPilot은 Notion 복제가 아니라, 사용자가 선택한 GitHub repo의 �
 
 ## Implementation Order
 
-1. GitHub OAuth login과 repo 목록 조회
-2. `RepositoryConnection` 중심 Postgres store interface와 SQLAlchemy 구현
-3. `/pipeline/sync`를 Postgres store에 연결
-4. default/open PR/recent active branch sync 정책 추가
-5. persistent repo cache/fetch 추가
-6. source chunk metadata 확장
-7. embedding provider + pgvector 저장
-8. sync job polling worker 전환
-9. repo analysis dashboard UI 추가
-10. finding/proposal 생성과 approval flow 추가
-11. related-code/stale-link proposal 기능으로 확장
+1. GitHub OAuth login, server-side session cookie, repo 목록 조회
+2. GitHub token 암호화 저장과 permission health check
+3. `RepositoryConnection` 중심 Postgres store interface와 SQLAlchemy 구현
+4. `/pipeline/sync`를 Postgres store에 연결
+5. default/open PR/recent active branch sync 정책 추가
+6. persistent repo cache/fetch 추가
+7. source chunk metadata 확장
+8. embedding provider + pgvector 저장
+9. sync job polling worker 전환
+10. repo analysis dashboard UI 추가
+11. finding/proposal 생성과 approval flow 추가
+12. related-code/stale-link proposal 기능으로 확장
 
 ## Assumptions
 
