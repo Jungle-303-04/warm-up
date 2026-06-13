@@ -2,20 +2,19 @@
 
 ## 목표
 
-새 팀은 빠르게 첫 가치를 경험해야 한다. 첫 가치는 repo 연결, project data 확인, page/task 생성, read-only archive 퍼블리싱이다.
+사용자는 빠르게 첫 가치를 경험해야 한다. 첫 가치는 GitHub 로그인, repo 선택, 자동 분석, finding/proposal 확인이다.
 
 ## 설정 흐름
 
-1. 로그인한다.
-2. Workspace를 만든다.
-3. Project를 만든다.
-4. GitHub App을 설치한다.
-5. 하나 이상의 repo를 선택한다.
-6. repo role을 확인한다.
-7. initial sync와 code index를 실행한다.
-8. default page tree를 생성한다.
-9. 팀원을 초대한다.
-10. 선택적으로 static viewer를 publish한다.
+1. GitHub OAuth로 로그인한다.
+2. 접근 가능한 repo 목록을 불러온다.
+3. 분석할 repo를 선택한다.
+4. 분석 branch 범위를 확인한다.
+5. initial sync와 source indexing을 실행한다.
+6. repo analysis dashboard를 보여준다.
+7. finding과 proposal을 생성한다.
+8. 사용자가 proposal을 승인하거나 보류한다.
+9. 승인된 GitHub action을 실행하고 재-sync한다.
 
 ## 기본 페이지 트리
 
@@ -58,10 +57,12 @@ Project
 
 Initial indexing은 다음을 수행한다.
 
+- default branch, open PR branch, 최근 active branch 선택
 - repo tree 읽기
 - secret과 generated file 제외
 - file/symbol metadata parsing
 - issue와 PR 가져오기
+- commit summary 가져오기
 - basic retrieval chunk 생성
 - 첫 code map 생성
 
@@ -80,7 +81,6 @@ Invite UX는 RepoPilot 접근 권한과 GitHub 접근 권한이 다르다는 것
 
 자주 생기는 실패:
 
-- GitHub App 미설치
 - repository 미선택
 - 사용자의 repo permission 부족
 - initial index 실패
@@ -99,7 +99,7 @@ Invite UX는 RepoPilot 접근 권한과 GitHub 접근 권한이 다르다는 것
 
 - repo 연결 완료
 - issue import 완료
-- project home 생성
-- 최소 하나의 page 생성
-- 최소 하나의 task view 확인
-- 최소 하나의 code-doc link suggestion 확인
+- branch/docs/code/commit indexing 완료
+- finding dashboard 확인
+- 최소 하나의 GitHub issue/action proposal 확인
+- 최소 하나의 stale/partial/missing finding 확인

@@ -2,13 +2,13 @@
 
 ## 제품 정의
 
-`RepoPilot`은 개발팀이 문서, 일감, 일정, GitHub 이슈, 실제 코드의 관계를 한 프로젝트 안에서 관리하도록 돕는 협업 워크스페이스다.
+`RepoPilot`은 사용자가 GitHub로 로그인해 repo를 선택하면, 해당 repo의 branch, 코드, 문서, 이슈, PR, 커밋을 자동 분석하고 문서-코드 정합성, 작업 완료도, 다음 action을 제안하는 repo-first 프로젝트 지식 서비스다.
 
 사용감은 Notion처럼 페이지와 뷰를 만들 수 있고, Obsidian/Quartz처럼 Markdown 기반 아카이브와 정적 퍼블리싱이 가능하며, GitHub Projects/Linear처럼 개발 일감을 다룰 수 있어야 한다. 하지만 핵심은 또 다른 Notion을 만드는 것이 아니다. 핵심 차별점은 **프로젝트 지식이 현재 코드와 얼마나 맞는지 보여주는 것**이다.
 
 ## 한 줄 포지셔닝
 
-RepoPilot은 Markdown 문서, 일감 뷰, GitHub 이슈, 코드 참조를 연결하고 이를 정적 프로젝트 아카이브로 퍼블리싱할 수 있는 코드 인지형 프로젝트 지식베이스다.
+RepoPilot은 GitHub repo를 기준으로 Markdown 문서, 이슈, PR, 커밋, 코드 참조를 연결하고 이를 검색 가능한 프로젝트 아카이브와 승인 기반 자동화 제안으로 바꾸는 코드 인지형 프로젝트 지식베이스다.
 
 ## 목표 사용자
 
@@ -30,7 +30,7 @@ RepoPilot은 반복되는 세 가지 비용을 줄여야 한다.
 
 ## 제품 원칙
 
-1. 프로젝트가 최상위 단위다. 하나의 프로젝트는 여러 GitHub repo를 연결할 수 있다.
+1. MVP의 최상위 사용자 행동은 GitHub 로그인 후 repo 선택이다. `Project`나 `Workspace`는 내부 그룹핑 개념으로 시작하고, 사용자는 먼저 `RepositoryConnection`을 다룬다.
 2. 중요한 정보는 모두 페이지 또는 레코드이며, 공통 속성을 가진다.
 3. 작성/협업 영역은 동적이어도, 공개/공유 뷰어는 정적이고 빠르고 단순해야 한다.
 4. Markdown/MDX는 장기 보관과 퍼블리싱을 위한 내구성 있는 포맷이다.
@@ -43,29 +43,22 @@ RepoPilot은 반복되는 세 가지 비용을 줄여야 한다.
 ## 핵심 모델
 
 ```text
-Workspace
-└── Project
-    ├── Pages
-    │   ├── Wiki
-    │   ├── Meeting
-    │   ├── Decision
-    │   ├── Spec
-    │   └── API Doc
-    ├── Work Items
-    │   ├── Task
-    │   ├── Milestone
-    │   └── Schedule
-    ├── Views
-    │   ├── Table
-    │   ├── Kanban
-    │   ├── Calendar
-    │   └── Timeline
-    ├── Repositories
-    │   ├── frontend
-    │   ├── backend
-    │   └── infra
-    └── Published Site
+User
+└── RepositoryConnection
+    ├── Branch Snapshots
+    ├── Source Files
+    │   ├── Code
+    │   └── Docs
+    ├── GitHub Mirrors
+    │   ├── Issues
+    │   ├── PRs
+    │   └── Commits
+    ├── Findings
+    ├── Proposals
+    └── Archive / Viewer
 ```
+
+나중에 여러 repo를 하나의 제품 단위로 묶어야 할 때 `Workspace`나 `ProjectGroup`을 추가한다.
 
 ## 통합 아이템 타입
 
@@ -174,12 +167,14 @@ GitHub 연동은 좁게 시작한다.
 
 MVP:
 
-- 하나의 GitHub 계정/조직과 하나 이상의 repo 연결
+- GitHub OAuth 로그인 후 접근 가능한 repo 목록 표시
+- 사용자가 선택한 repo를 `RepositoryConnection`으로 연결
+- default branch, open PR branch, 최근 active branch 자동 분석
 - 이슈, PR, label, milestone, assignee 가져오기
-- `WorkspaceItem`과 GitHub issue 연결
-- task 또는 meeting action item에서 issue draft 생성
+- repo 안의 README/docs Markdown, 코드, 커밋을 검색/RAG용으로 인덱싱
+- 분석 결과를 `Finding`과 `Proposal`로 저장
+- missing work나 stale document를 GitHub issue draft/update proposal로 제안
 - 사용자가 승인한 뒤에만 issue status/comment 변경
-- repo 내용을 검색/RAG용으로 인덱싱
 
 MVP에서 하지 않는 것:
 
@@ -213,16 +208,14 @@ MVP AI action:
 
 가장 작은 버전에서 다음을 증명한다.
 
-1. 프로젝트에 하나 이상의 GitHub repo를 연결한다.
-2. Markdown/MDX 페이지 트리를 만든다.
-3. 공통 속성과 typed page를 제공한다.
-4. task를 table, kanban, calendar로 볼 수 있다.
-5. GitHub issue 연결과 issue draft 생성을 제공한다.
-6. 파일/심볼 단위 코드 인덱싱을 한다.
-7. 문서에 관련 코드 칩을 표시한다.
-8. 코드-문서 링크의 stale/verified 상태를 표시한다.
-9. 필터와 검색이 가능한 정적 viewer를 퍼블리싱한다.
-10. 로그인 사용자에게 기본 실시간 presence가 있는 편집 경험을 제공한다.
+1. GitHub OAuth로 로그인한다.
+2. 접근 가능한 repo를 선택해 연결한다.
+3. default branch, open PR branch, 최근 active branch를 자동 sync한다.
+4. repo 안의 README/docs Markdown, 코드, 이슈, PR, 커밋을 인덱싱한다.
+5. branch별 작업 영역과 문서-코드 연결 후보를 자동 생성한다.
+6. stale document, partial feature, missing test 같은 finding을 보여준다.
+7. GitHub issue 생성/상태 변경, 문서 수정, comment 작성은 proposal로 만들고 승인 후 실행한다.
+8. repo를 해제하면 내부 인덱스와 분석 결과를 검색에서 즉시 제외하고 정리한다.
 
 ## 명시적 제외 범위
 
@@ -237,13 +230,12 @@ MVP AI action:
 
 MVP가 유용하다고 판단하는 기준:
 
-1. repo를 연결할 수 있다.
-2. wiki/task/meeting page를 만들 수 있다.
-3. task를 kanban과 calendar로 볼 수 있다.
-4. 문서와 코드를 연결할 수 있다.
-5. 코드 변경 후 낡은 문서가 표시된다.
-6. 코드 링크를 클릭하면 VS Code 또는 GitHub로 이동한다.
-7. 읽기 전용 프로젝트 아카이브를 퍼블리싱할 수 있다.
+1. GitHub 로그인 후 repo를 선택할 수 있다.
+2. 선택한 repo의 branch, docs, code, issue, PR, commit이 자동 sync된다.
+3. repo 분석 대시보드에서 작업 영역, stale 문서, missing evidence를 볼 수 있다.
+4. 사용자가 질문하면 연결된 모든 repo와 수집된 근거를 기준으로 답한다.
+5. GitHub issue/action proposal을 승인하면 GitHub에 반영되고 재-sync로 검증된다.
+6. repo 연결 해제 시 내부 인덱스와 vector 검색 결과가 제거된다.
 
 ## 추천 스택
 

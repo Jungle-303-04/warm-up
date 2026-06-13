@@ -4,6 +4,10 @@
 
 AI는 project knowledge, issue, code를 연결하기 위해 존재한다. 제품 모델과 분리된 범용 chat layer가 되면 안 된다.
 
+이 문서는 AI/RAG의 제품 원칙을 다룬다. Repo RAG 저장소, sync job,
+chunk persistence, pgvector 전환 같은 구현 순서는
+`16-repo-rag-implementation-plan.md`를 기준으로 한다.
+
 ## MVP 기능
 
 1. Citation이 있는 repo-aware Q&A

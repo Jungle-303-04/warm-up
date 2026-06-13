@@ -2,24 +2,24 @@
 
 ## MVP 목표
 
-첫 빌드는 RepoPilot이 프로젝트 문서, 일감, GitHub issue, code reference를 연결할 수 있음을 증명해야 한다.
+첫 빌드는 사용자가 GitHub로 로그인해 repo를 선택하면 RepoPilot이 branch, docs, code, issue, PR, commit을 자동 분석하고 finding/proposal을 보여줄 수 있음을 증명해야 한다.
+
+Repo RAG 구현의 최신 기준은 `16-repo-rag-implementation-plan.md`다. 이 문서는
+제품 로드맵을 유지하고, 세부 구현 순서는 16번 문서에 위임한다.
 
 ## 2주 컷라인
 
 반드시 만든다.
 
-1. Project 생성
-2. GitHub App 연결
-3. Multi-repo attachment model
-4. Page tree와 Markdown/MDX item 본문
-5. 공통 item property
-6. Table, kanban, calendar view
-7. GitHub issue link와 issue draft 생성
-8. File/symbol reference용 code indexing
-9. Page 위 related code chip
-10. Stale/verified/broken/suggested 링크 상태
-11. Page tree, search, filter를 가진 static viewer
-12. Editor의 기본 authenticated realtime presence
+1. GitHub OAuth 로그인
+2. repo 선택과 `RepositoryConnection` 생성
+3. default/open PR/recent active branch sync
+4. README/docs/code/issue/PR/commit indexing
+5. repo analysis dashboard
+6. stale document, partial feature, missing test finding
+7. GitHub issue/action proposal
+8. 승인 후 GitHub API 반영과 재-sync 검증
+9. repo disconnect cleanup
 
 하지 않는다.
 
@@ -32,48 +32,48 @@
 
 ## 개발 순서
 
-### Day 1-2: 기반
+### Day 1-2: repo 연결 기반
 
-- Project skeleton
-- Auth
+- GitHub OAuth login
+- RepositoryConnection schema
+- repo list/select UI
 - PostgreSQL schema
-- GitHub App setup
-- Repository connection
+- initial sync job
 
-### Day 3-4: 콘텐츠 모델
+### Day 3-4: source indexing
 
-- `WorkspaceItem`
-- page tree
-- Markdown/MDX body
-- shared properties
-- basic editor
+- branch snapshot
+- SourceFile/SourceChunk
+- README/docs Markdown chunking
+- code file chunking
+- issue/PR/commit mirror
 
-### Day 5-6: 뷰
+### Day 5-6: repo dashboard
 
-- table view
-- kanban view
-- calendar view
-- filters
-- item type switching
+- sync status
+- branch summaries
+- indexed source counts
+- finding list
+- proposal list
 
-### Day 7-8: GitHub
+### Day 7-8: GitHub automation
 
-- issue와 PR 가져오기
-- task와 issue 연결
-- issue draft 생성
-- issue creation approval flow
+- issue/PR sync
+- issue draft proposal
+- issue status/comment update proposal
+- approval and audit flow
 
 ### Day 9-10: Code Index
 
-- repo files 가져오기
-- file/symbol metadata parsing
-- code reference 생성
-- document에 code reference 연결
+- repo snapshot sync와 변경분 diff 계산
+- active file/chunk 저장
+- file-level code chunk 생성
+- document와 code reference를 연결할 기반 저장
 
 ### Day 11: Stale Detection
 
 - verified commit 저장
-- repo update 처리
+- repo update와 soft delete 처리
 - link를 verified/stale/broken/suggested로 표시
 - 상태 색상 노출
 
@@ -104,6 +104,8 @@
 - Workspace/project CRUD
 - GitHub App install flow
 - repo sync worker
+- Repo RAG Postgres store 전환
+- persistent repo cache/fetch
 - item CRUD
 - page tree
 - table/kanban/calendar
@@ -119,6 +121,7 @@
 - comments
 - GitHub Projects v2 field sync
 - multi-repo knowledge map
+- pgvector embedding 저장과 retrieval smoke search
 - 더 정교한 code-symbol detection
 - scheduled project briefing
 
@@ -133,13 +136,11 @@
 
 ## 데모 시나리오
 
-1. project를 만든다.
-2. backend와 frontend repo를 연결한다.
-3. auth spec page를 만든다.
-4. spec을 auth 관련 file과 연결한다.
-5. spec에서 task를 만든다.
-6. GitHub issue draft를 만든다.
-7. sample repo의 연결된 코드를 변경한다.
-8. document status가 yellow/stale로 바뀌는 것을 보여준다.
-9. project archive를 publish한다.
-10. code link를 GitHub 또는 VS Code로 연다.
+1. GitHub로 로그인한다.
+2. `Jungle-303-04/warm-up` repo를 선택한다.
+3. default branch와 active branch가 자동 sync된다.
+4. `docs/woonyong` 문서와 repo code/issue/commit이 인덱싱된다.
+5. dashboard에서 Board API, Recommend API 같은 work area를 본다.
+6. partial feature와 stale document finding을 확인한다.
+7. GitHub issue draft나 document update proposal을 승인한다.
+8. GitHub 반영 후 재-sync로 상태가 갱신되는 것을 보여준다.

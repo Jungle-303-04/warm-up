@@ -70,8 +70,9 @@ FastAPI route는 GitHub/indexing/publishing logic을 직접 수행하지 않고 
 - `main.py`: FastAPI 앱 생성, 전체 router 연결.
 - `api/router.py`: route module들을 한 곳에 모으는 API root router.
 - `api/routes/health.py`: `/health` endpoint.
-- `api/routes/pipeline.py`: `/pipeline`, `/pipeline/run` endpoint.
-- `services/pipeline.py`: 실제 pipeline use case 조립.
+- `api/routes/pipeline.py`: `/pipeline`, `/pipeline/run`, `/pipeline/sync` endpoint.
+- `services/pipeline.py`: 기존 데모 pipeline use case 조립.
+- `services/repo_rag_sync.py`: Repo RAG job, diff, chunk, soft delete 흐름.
 
 ## Core Modules
 
@@ -104,6 +105,10 @@ Worker job으로 처리할 것:
 - 여러 Uvicorn worker는 memory를 공유하지 않는다.
 - 공유 state는 Python global이 아니라 PostgreSQL/Redis에 둔다.
 - 긴 job은 idempotency와 retry handling이 필요하다.
+
+현재 `InMemoryRepoRagStore`는 P0 검증용 골격이다. Repo RAG 구현의 다음
+단계는 `16-repo-rag-implementation-plan.md`에 따라 SQLAlchemy/Postgres
+store와 worker polling으로 전환하는 것이다.
 
 ## Python Modeling
 
@@ -140,6 +145,7 @@ app/services/agent.py       -> tests/services/test_agent.py
 app/services/approval.py    -> tests/services/test_approval.py
 app/services/publish.py     -> tests/services/test_publish.py
 app/services/pipeline.py    -> tests/services/test_pipeline.py
+app/services/repo_rag_sync.py -> tests/services/test_repo_rag_sync.py
 app/workers/runner.py       -> tests/workers/test_runner.py
 ```
 
@@ -160,6 +166,10 @@ publish_snapshots
 agent_proposals
 audit_events
 retrieval_chunks
+repo_snapshots
+repo_files
+sync_jobs
+sync_events
 ```
 
 ## Testing

@@ -6,21 +6,76 @@ RepoPilot은 문서, 일감, 회의록, 일정, 결정, spec을 하나의 콘텐
 
 이 방식은 wiki, task, calendar, issue 시스템을 각각 따로 만드는 것보다 단순하다.
 
+MVP의 사용자-facing 시작점은 `Project` 생성이 아니라 GitHub repo 연결이다. `RepositoryConnection`이 분석과 자동화의 기준 단위이며, `Workspace`와 `Project`는 나중에 여러 repo를 묶는 내부 그룹핑 개념으로 확장한다.
+
 ## 주요 객체
 
 ```text
 Workspace
 Project
-Repository
+RepositoryConnection
+BranchSnapshot
+SourceFile
+SourceChunk
 WorkspaceItem
 View
 GitHubIssueLink
 CodeReference
 DocCodeLink
 PublishSnapshot
+Finding
 AgentProposal
 AuditEvent
 ```
+
+## RepositoryConnection
+
+`RepositoryConnection`은 사용자가 OAuth로 연결한 GitHub repo를 나타낸다.
+
+필수 필드:
+
+- `id`
+- `user_id`
+- `provider`
+- `owner`
+- `repo`
+- `url`
+- `default_branch`
+- `visibility`
+- `permission`
+- `status`: `active | disconnected | cleanup_pending | deleted`
+- `last_synced_at`
+
+repo 연결 해제는 GitHub 원본 repo를 삭제하지 않는다. RepoPilot 내부 source, chunk, embedding, finding, proposal을 inactive 처리하고 검색에서 제외한다.
+
+## Source File과 Chunk
+
+`SourceFile`은 repo에서 수집한 코드, Markdown 문서, issue, PR, commit 같은 원본 단위다.
+
+```text
+repository_connection_id
+branch
+commit_sha
+source_type: code | doc | issue | pr | commit
+path_or_external_id
+content_hash
+is_active
+deleted_at
+```
+
+`SourceChunk`는 검색과 RAG를 위한 파생 단위다.
+
+```text
+source_file_id
+chunk_type: document_heading | code_file | code_symbol | issue_body | pr_body | commit_summary
+text
+chunk_hash
+embedding_id
+is_active
+deleted_at
+```
+
+Vector DB는 `SourceChunk` 검색용이며, 상태 판단의 source of truth는 App DB다.
 
 ## Workspace Item
 

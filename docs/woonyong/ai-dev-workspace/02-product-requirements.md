@@ -6,24 +6,24 @@
 
 ## MVP 사용자 흐름
 
-1. 사용자가 프로젝트를 생성한다.
-2. 하나 이상의 GitHub repo를 연결한다.
-3. RepoPilot이 repo 파일, 심볼, 이슈, PR, label, milestone을 인덱싱한다.
-4. 사용자가 wiki, task, meeting, decision, spec 타입의 페이지를 만든다.
-5. 공통 속성 덕분에 같은 콘텐츠가 문서, table row, kanban card, calendar item으로 표현된다.
-6. 사용자가 페이지를 GitHub issue 및 code reference와 연결한다.
-7. RepoPilot이 코드-문서 링크 상태를 표시한다.
-8. 사용자가 읽기 전용 정적 프로젝트 사이트를 퍼블리싱한다.
-9. 비로그인 또는 권한 없는 사용자는 공개된 viewer에서 페이지 탐색, 검색, 필터만 사용할 수 있다.
+1. 사용자가 GitHub OAuth로 로그인한다.
+2. 접근 가능한 repo 목록에서 분석할 repo를 선택한다.
+3. RepoPilot이 default branch, open PR branch, 최근 active branch를 자동 sync한다.
+4. RepoPilot이 repo 파일, 문서, 이슈, PR, commit, label, milestone을 인덱싱한다.
+5. RepoPilot이 문서-코드 연결 후보, 작업 영역, stale 문서, missing evidence를 자동 생성한다.
+6. 사용자는 대시보드에서 finding과 proposal을 확인한다.
+7. 사용자는 GitHub issue 생성/상태 변경, 문서 수정, comment 작성 proposal을 승인하거나 보류한다.
+8. RepoPilot은 승인된 action을 GitHub나 문서에 반영한 뒤 다시 sync해 결과를 검증한다.
 
 ## 기능 요구사항
 
-### 프로젝트와 repo
+### repo 연결
 
-- 사용자는 workspace 안에 project를 생성할 수 있다.
-- 하나의 project는 여러 GitHub repo를 연결할 수 있다.
-- 각 repo는 `frontend`, `backend`, `infra`, `docs`, `other` 같은 역할을 가진다.
-- repo indexing은 file path, symbol, commit SHA, metadata를 저장한다.
+- 사용자는 GitHub OAuth로 로그인하고 접근 가능한 repo를 선택할 수 있다.
+- 선택된 repo는 `RepositoryConnection`으로 저장된다.
+- 기본 분석 대상은 default branch, open PR branch, 최근 active branch다.
+- repo indexing은 file path, symbol, commit SHA, issue, PR, commit metadata를 저장한다.
+- repo 연결 해제 시 내부 source, chunk, embedding, finding, proposal은 검색에서 즉시 제외되고 cleanup 대상이 된다.
 
 ### 페이지와 아이템
 
@@ -42,8 +42,8 @@
 
 ### GitHub
 
-- 사용자는 task 또는 page를 기존 GitHub issue와 연결할 수 있다.
-- 사용자는 task나 meeting action item에서 GitHub issue draft를 만들 수 있다.
+- RepoPilot은 GitHub issue를 가져와 repo 기준 작업 view로 보여줄 수 있다.
+- RepoPilot은 missing evidence나 stale 문서를 근거로 GitHub issue draft를 만들 수 있다.
 - GitHub write action은 사용자 승인 이후에만 실행된다.
 - repo-specific data를 보여주기 전 GitHub permission check가 적용되어야 한다.
 
@@ -81,15 +81,13 @@
 
 ## MVP 인수 기준
 
-1. project가 하나 이상의 GitHub repo를 연결할 수 있다.
-2. page tree를 만들고 Markdown/MDX로 export할 수 있다.
-3. task를 table, kanban, calendar로 볼 수 있다.
-4. task를 GitHub issue와 연결할 수 있다.
-5. document가 관련 code chip을 보여줄 수 있다.
-6. code change가 document-code link를 stale로 바꿀 수 있다.
-7. static viewer가 project archive를 읽기 전용으로 보여줄 수 있다.
-8. AI가 repo-aware 질문에 citation과 함께 답할 수 있다.
-9. AI는 GitHub/document update를 직접 적용하지 않고 proposal로만 만든다.
+1. GitHub OAuth 로그인 후 repo 목록을 볼 수 있다.
+2. 사용자가 repo를 선택하면 자동 sync job이 생성된다.
+3. branch, docs, code, issues, PRs, commits가 repo 기준으로 인덱싱된다.
+4. finding dashboard가 stale document, partial feature, missing test를 보여준다.
+5. AI가 repo-aware 질문에 citation과 함께 답할 수 있다.
+6. AI는 GitHub/document update를 직접 적용하지 않고 proposal로만 만든다.
+7. 승인된 proposal은 GitHub API나 문서 patch로 실행되고 재-sync로 검증된다.
 
 ## MVP 제외 범위
 

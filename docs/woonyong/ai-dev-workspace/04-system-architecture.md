@@ -2,17 +2,22 @@
 
 ## 요약
 
-RepoPilot은 동적 workspace app과 정적 published viewer를 가진 web-first 애플리케이션이다.
+RepoPilot은 GitHub repo 연결을 시작점으로 하는 web-first 애플리케이션이다. 사용자는 GitHub OAuth로 로그인해 repo를 선택하고, RepoPilot은 branch, docs, code, issue, PR, commit을 자동 분석해 repo dashboard와 approval-based proposal을 제공한다.
+
+Repo RAG의 구체적인 구현 순서와 현재 P0 상태는
+`16-repo-rag-implementation-plan.md`를 기준으로 한다. 현재 `/pipeline/sync`는
+in-memory store와 inline worker로 동작하는 골격이며, 다음 단계에서
+Postgres store와 worker polling 구조로 전환한다.
 
 ```text
 React/Next.js App
-├── Workspace UI
+├── Repo Dashboard
 ├── Static Viewer
 └── Admin/Settings
 
 FastAPI Backend
 ├── Auth and Permissions
-├── Project/Item API
+├── Repository Connection API
 ├── GitHub Integration
 ├── Code Index API
 ├── AI Proposal API
@@ -35,17 +40,18 @@ Storage
 
 ## Repository 모델
 
-각 project는 여러 code repo를 연결할 수 있다. RepoPilot은 코드를 소유하지 않고 GitHub와 선택적 local mapping을 통해 읽고 인덱싱한다.
+MVP에서 `RepositoryConnection`은 사용자가 선택한 GitHub repo 하나를 나타낸다. RepoPilot은 코드를 소유하지 않고 GitHub OAuth/App 권한으로 읽고 인덱싱한다. 여러 repo를 하나로 묶는 `ProjectGroup`은 후속 확장으로 둔다.
 
 아카이브 산출물은 별도로 관리한다.
 
 ```text
-code repo       -> source code, issues, PRs
-app DB          -> 실시간 편집, view, relation, proposal
+GitHub repo     -> code, docs, issues, PRs, commits
+app DB          -> source state, findings, proposals, approval log
+vector DB       -> active source chunk retrieval
 static export   -> public 또는 team archive
 ```
 
-초기 기획의 workspace repo 아이디어는 export target으로 남길 수 있지만, MVP에서 프로젝트마다 별도 Git repo를 필수로 요구하지 않는다.
+초기 기획의 workspace/project 아이디어는 repo 묶음과 export target으로 남긴다. MVP에서 사용자는 별도 project를 만들지 않고 repo 선택으로 시작한다.
 
 ## 핵심 서비스
 
@@ -159,6 +165,7 @@ Permission filtering은 RAG retrieval과 static publishing 전에 실행되어�
 ## 아키텍처 제약
 
 - 긴 작업은 HTTP request handler 안에서 실행하지 않는다.
+- 현재 `/pipeline/sync`의 inline worker는 P0 검증용이며 최종 구조는 job enqueue와 worker polling이다.
 - Vector index는 재생성 가능한 파생 데이터이며 source of truth가 아니다.
 - AI proposal은 승인 없이 되돌리기 어려운 write를 실행하지 않는다.
 - Static viewer는 private repo metadata를 노출하지 않는다.
