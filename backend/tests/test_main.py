@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.pipeline import PIPELINE_STAGE_IDS
+from app.pipeline import DEFAULT_REPOSITORY, PIPELINE_STAGE_IDS, PROPOSAL_STATUS_APPROVED
 
 
 client = TestClient(app)
@@ -40,9 +40,8 @@ def test_run_pipeline_endpoint_returns_complete_response() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["repository"]["repository"] == "sample-repo"
+    assert body["repository"]["repository"] == DEFAULT_REPOSITORY
     assert body["code_references"]
     assert body["retrieval_chunks"]
-    assert body["proposals"][0]["status"] == "approved"
-    assert body["publish_snapshot"]["status"] == "published"
+    assert body["proposals"][0]["status"] == PROPOSAL_STATUS_APPROVED
     assert [stage["id"] for stage in body["stages"]] == list(PIPELINE_STAGE_IDS)

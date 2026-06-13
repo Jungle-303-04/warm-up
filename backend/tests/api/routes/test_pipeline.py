@@ -5,6 +5,15 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.pipeline import (
+    DEFAULT_REPOSITORY,
+    PROPOSAL_STATUS_APPROVED,
+    STAGE_AGENT_PROPOSAL,
+    STAGE_APPROVAL,
+    STAGE_CODE_INDEX,
+    STAGE_RAG_INDEX,
+    STAGE_REPO_SYNC,
+)
 from app.pipeline.api.router import router as pipeline_router
 from app.repo_rag.api.router import router as repo_rag_router
 
@@ -67,29 +76,24 @@ def test_pipeline_run_route_returns_complete_response() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["repository"]["repository"] == "sample-repo"
+    assert body["repository"]["repository"] == DEFAULT_REPOSITORY
     assert body["code_references"]
     assert body["retrieval_chunks"]
-    assert body["proposals"][0]["status"] == "approved"
-    assert body["publish_snapshot"]["status"] == "published"
+    assert body["proposals"][0]["status"] == PROPOSAL_STATUS_APPROVED
+    assert [stage["id"] for stage in body["stages"]] == [
+        STAGE_REPO_SYNC,
+        STAGE_CODE_INDEX,
+        STAGE_RAG_INDEX,
+        STAGE_AGENT_PROPOSAL,
+        STAGE_APPROVAL,
+    ]
 
 
 def test_pipeline_run_route_returns_400_without_repository_source() -> None:
     response = client.post("/pipeline/run", json={})
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "repository_url, repository_path, or files must be provided"
-
-
-def test_pipeline_run_route_syncs_local_repository(tmp_path: Path) -> None:
-    repo_path = create_git_repo(tmp_path)
-
-    response = client.post("/pipeline/run", json={"repository_path": str(repo_path)})
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["repository"]["repository"] == "project"
-    assert [file["path"] for file in body["repository"]["files"]] == ["app.py"]
+    assert response.json()["detail"] == "repository_url or files must be provided"
 
 
 def test_pipeline_run_route_syncs_repository_url(

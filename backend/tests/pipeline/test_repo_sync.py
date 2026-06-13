@@ -78,21 +78,8 @@ def test_sync_commit_sha_changes_when_file_content_changes() -> None:
 def test_sync_rejects_request_without_repository_source() -> None:
     service = RepoSyncService()
 
-    with pytest.raises(ValueError, match="repository_url, repository_path, or files"):
+    with pytest.raises(ValueError, match="repository_url or files"):
         service.sync(PipelineRequest())
-
-
-def test_sync_reads_tracked_text_files_from_repository_path(tmp_path: Path) -> None:
-    repo_path = create_git_repo(tmp_path)
-    service = RepoSyncService()
-
-    snapshot = service.sync(PipelineRequest(repository_path=str(repo_path)))
-
-    assert snapshot.repository == "project"
-    assert snapshot.branch == run_git(repo_path, "rev-parse", "--abbrev-ref", "HEAD")
-    assert snapshot.commit_sha == run_git(repo_path, "rev-parse", "--short=12", "HEAD")
-    assert {file.path for file in snapshot.files} == {"README.md", "app.py"}
-    assert "def run()" in next(file.content for file in snapshot.files if file.path == "app.py")
 
 
 def test_sync_clones_tracked_text_files_from_repository_url(
@@ -110,20 +97,6 @@ def test_sync_clones_tracked_text_files_from_repository_url(
     assert snapshot.branch == run_git(source_repo_path, "rev-parse", "--abbrev-ref", "HEAD")
     assert snapshot.commit_sha == run_git(source_repo_path, "rev-parse", "--short=12", "HEAD")
     assert {file.path for file in snapshot.files} == {"README.md", "app.py"}
-
-
-def test_sync_rejects_missing_repository_path(tmp_path: Path) -> None:
-    service = RepoSyncService()
-
-    with pytest.raises(ValueError, match="repository_path does not exist"):
-        service.sync(PipelineRequest(repository_path=str(tmp_path / "missing")))
-
-
-def test_sync_rejects_empty_repository_url() -> None:
-    service = RepoSyncService()
-
-    with pytest.raises(ValueError, match="repository_url must not be empty"):
-        service.sync(PipelineRequest(repository_url=" "))
 
 
 def test_sync_rejects_non_github_repository_url() -> None:

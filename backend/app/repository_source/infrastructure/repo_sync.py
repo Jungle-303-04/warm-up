@@ -24,14 +24,11 @@ class RepoSyncService:
         if request.repository_url is not None:
             return self._sync_remote_repository(request)
 
-        if request.repository_path:
-            return self._sync_local_repository(request)
-
         return self._sync_request_files(request)
 
     def _sync_request_files(self, request: PipelineRequest) -> RepoSnapshot:
         if not request.files:
-            raise ValueError("repository_url, repository_path, or files must be provided")
+            raise ValueError("repository_url or files must be provided")
 
         digest = sha1()
         digest.update(request.repository.encode())
@@ -47,15 +44,6 @@ class RepoSyncService:
             commit_sha=digest.hexdigest()[:12],
             files=request.files,
         )
-
-    def _sync_local_repository(self, request: PipelineRequest) -> RepoSnapshot:
-        repo_path = Path(request.repository_path or "").expanduser()
-        if not repo_path.exists():
-            raise ValueError(f"repository_path does not exist: {repo_path}")
-        if not repo_path.is_dir():
-            raise ValueError(f"repository_path must be a directory: {repo_path}")
-
-        return self._snapshot_from_local_repository(repo_path, request.repository)
 
     def _sync_remote_repository(self, request: PipelineRequest) -> RepoSnapshot:
         repository_url = request.repository_url.strip() if request.repository_url else ""

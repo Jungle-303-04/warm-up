@@ -25,8 +25,6 @@ def file_hash(file: RepoFile) -> str:
 def source_key(request: PipelineRequest) -> str:
     if request.repository_url:
         return request.repository_url.strip()
-    if request.repository_path:
-        return request.repository_path.strip()
     return request.repository
 
 

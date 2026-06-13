@@ -4,14 +4,20 @@ from typing import Protocol
 from app.pipeline.domain.agent import AgentProposalService
 from app.pipeline.domain.approval import ApprovalService
 from app.pipeline.domain.code_index import CodeIndexService
-from app.pipeline.domain.publish import PublishService
+from app.pipeline.domain.constants import (
+    STAGE_AGENT_PROPOSAL,
+    STAGE_APPROVAL,
+    STAGE_CODE_INDEX,
+    STAGE_RAG_INDEX,
+    STAGE_REPO_SYNC,
+    STAGE_STATUS_DONE,
+)
 from app.pipeline.domain.rag_index import RagIndexService
 from app.pipeline.api.schemas import (
     AgentProposal,
     CodeReference,
     PipelineRequest,
     PipelineResponse,
-    PublishSnapshot,
     RepoSnapshot,
     RetrievalChunk,
     StageResult,
@@ -47,15 +53,6 @@ class ApprovalPort(Protocol):
     def approve(self, proposals: list[AgentProposal]) -> list[AgentProposal]: ...
 
 
-class PublishPort(Protocol):
-    def publish(
-        self,
-        snapshot: RepoSnapshot,
-        chunks: list[RetrievalChunk],
-        proposals: list[AgentProposal],
-    ) -> PublishSnapshot: ...
-
-
 @dataclass(frozen=True)
 class PipelineArtifacts:
     repository: RepoSnapshot
@@ -63,7 +60,6 @@ class PipelineArtifacts:
     retrieval_chunks: list[RetrievalChunk]
     pending_proposals: list[AgentProposal]
     proposals: list[AgentProposal]
-    publish_snapshot: PublishSnapshot
 
 
 @dataclass(slots=True)
@@ -73,7 +69,6 @@ class PipelineService:
     rag_index: RagIndexPort = field(default_factory=RagIndexService)
     agent: AgentProposalPort = field(default_factory=AgentProposalService)
     approval: ApprovalPort = field(default_factory=ApprovalService)
-    publish: PublishPort = field(default_factory=PublishService)
 
     def run(self, request: PipelineRequest) -> PipelineResponse:
         artifacts = self._collect_artifacts(request)
@@ -83,7 +78,6 @@ class PipelineService:
             code_references=artifacts.code_references,
             retrieval_chunks=artifacts.retrieval_chunks,
             proposals=artifacts.proposals,
-            publish_snapshot=artifacts.publish_snapshot,
             stages=self._stage_results(artifacts),
         )
 
@@ -93,7 +87,6 @@ class PipelineService:
         retrieval_chunks = self.rag_index.index(repository, code_references)
         pending_proposals = self.agent.propose(code_references, retrieval_chunks)
         proposals = self.approval.approve(pending_proposals)
-        publish_snapshot = self.publish.publish(repository, retrieval_chunks, proposals)
 
         return PipelineArtifacts(
             repository=repository,
@@ -101,19 +94,33 @@ class PipelineService:
             retrieval_chunks=retrieval_chunks,
             pending_proposals=pending_proposals,
             proposals=proposals,
-            publish_snapshot=publish_snapshot,
         )
 
     def _stage_results(self, artifacts: PipelineArtifacts) -> list[StageResult]:
         return [
-            StageResult(id="repo-sync", status="done", detail=artifacts.repository.commit_sha),
-            StageResult(id="code-index", status="done", detail=str(len(artifacts.code_references))),
-            StageResult(id="rag-index", status="done", detail=str(len(artifacts.retrieval_chunks))),
             StageResult(
-                id="agent-proposal",
-                status="done",
+                id=STAGE_REPO_SYNC,
+                status=STAGE_STATUS_DONE,
+                detail=artifacts.repository.commit_sha,
+            ),
+            StageResult(
+                id=STAGE_CODE_INDEX,
+                status=STAGE_STATUS_DONE,
+                detail=str(len(artifacts.code_references)),
+            ),
+            StageResult(
+                id=STAGE_RAG_INDEX,
+                status=STAGE_STATUS_DONE,
+                detail=str(len(artifacts.retrieval_chunks)),
+            ),
+            StageResult(
+                id=STAGE_AGENT_PROPOSAL,
+                status=STAGE_STATUS_DONE,
                 detail=str(len(artifacts.pending_proposals)),
             ),
-            StageResult(id="approval", status="done", detail=str(len(artifacts.proposals))),
-            StageResult(id="static-publish", status="done", detail=artifacts.publish_snapshot.path),
+            StageResult(
+                id=STAGE_APPROVAL,
+                status=STAGE_STATUS_DONE,
+                detail=str(len(artifacts.proposals)),
+            ),
         ]

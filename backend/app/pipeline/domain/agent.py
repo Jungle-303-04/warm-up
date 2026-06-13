@@ -1,4 +1,8 @@
 from app.pipeline.api.schemas import AgentProposal, CodeReference, RetrievalChunk
+from app.pipeline.domain.constants import (
+    PROPOSAL_STATUS_PENDING,
+    PROPOSAL_TYPE_RELATED_CODE_SUGGESTION,
+)
 
 
 class AgentProposalService:
@@ -16,8 +20,8 @@ class AgentProposalService:
         return [
             AgentProposal(
                 id=f"proposal:{reference.id}",
-                type="related_code_suggestion",
-                status="pending",
+                type=PROPOSAL_TYPE_RELATED_CODE_SUGGESTION,
+                status=PROPOSAL_STATUS_PENDING,
                 target_path=reference.path,
                 evidence=evidence,
                 confidence=0.7 if evidence else 0.4,
