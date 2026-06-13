@@ -41,7 +41,6 @@ class PageCreate(BaseModel):
     end_time: TimeType | None = None
     participants: list[str] = Field(default_factory=list)
     blocks: list[BlockCreate] = Field(default_factory=list)
-    tags: list[str] = Field(default_factory=list)
 
 
 class PageUpdate(BaseModel):
@@ -51,7 +50,6 @@ class PageUpdate(BaseModel):
     end_time: TimeType | None = None
     participants: list[str] | None = None
     blocks: list[BlockCreate] | None = None
-    tags: list[str] | None = None
     ai_summary: str | None = None
 
 
@@ -66,7 +64,6 @@ class PageResponse(BaseModel):
     participants: list[str]
     ai_summary: str | None
     blocks: list[BlockResponse]
-    tags: list[TagResponse]
     created_at: DateTimeType
     updated_at: DateTimeType
 
@@ -83,7 +80,6 @@ class PageListItem(BaseModel):
     author_id: int
     participants: list[str]
     ai_summary: str | None
-    tags: list[TagResponse]
     created_at: DateTimeType
     updated_at: DateTimeType
 

@@ -12,7 +12,7 @@ type PageEditorModalProps = {
   onSaved: () => void;
 };
 
-// 쉼표로 입력한 참여자/태그 문자열을 배열로 바꿉니다.
+// 쉼표로 입력한 참여자 문자열을 배열로 바꿉니다.
 function splitCommaText(value: string) {
   return value
     .split(",")
@@ -45,7 +45,6 @@ export function PageEditorModal({
   const [startTime, setStartTime] = useState("14:00");
   const [endTime, setEndTime] = useState("15:00");
   const [participantsText, setParticipantsText] = useState("");
-  const [tagsText, setTagsText] = useState(isMeeting ? "회의" : "회고");
   const [blocks, setBlocks] = useState<BlockInput[]>([
     {
       type: "PARAGRAPH",
@@ -92,7 +91,6 @@ export function PageEditorModal({
         start_time: isMeeting ? normalizeTime(startTime) : null,
         end_time: isMeeting ? normalizeTime(endTime) : null,
         participants: splitCommaText(participantsText),
-        tags: splitCommaText(tagsText),
         blocks: cleanedBlocks,
       };
 
@@ -173,15 +171,6 @@ export function PageEditorModal({
               value={participantsText}
               onChange={(event) => setParticipantsText(event.target.value)}
               placeholder="예: 찬빈, 민수, 지영"
-            />
-          </label>
-
-          <label className="form-field">
-            <span>태그</span>
-            <input
-              value={tagsText}
-              onChange={(event) => setTagsText(event.target.value)}
-              placeholder="예: 백엔드, API"
             />
           </label>
 

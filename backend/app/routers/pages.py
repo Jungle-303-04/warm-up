@@ -1,14 +1,16 @@
+from __future__ import annotations
+
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import delete, distinct, func, or_, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.enums import PageType
 from app.models.page import Page
 from app.models.page_block import PageBlock
-from app.models.tag import Tag
 from app.models.user import User
 from app.schemas.page_schema import (
     CalendarPageItem,
@@ -17,73 +19,20 @@ from app.schemas.page_schema import (
     PageResponse,
     PageUpdate,
 )
-from app.models.enums import PageType
 
-# router 생성
+# Page 관련 API를 /pages 경로 아래에 묶는다.
 router = APIRouter(prefix="/pages", tags=["Pages"])
-
-
-# 사용자가 보낸 태그 이름들을 깔끔하게 정리
-def normalize_tag_names(tag_names: list[str]) -> list[str]:
-    result = []
-    seen = set()
-
-    for name in tag_names:
-        clean_name = name.strip() #공백 제거
-
-        if not clean_name: #빈 문자열 버린다
-            continue
-
-        key = clean_name.lower() #소문자로 바꾼다
-
-        if key in seen: #이미 본 태그면
-            continue
-
-        seen.add(key) 
-        result.append(clean_name) # 정리된 태그 이름 결과 리스트에 추가
-
-    return result #결과 리스트 반환
-
-# 태그 이름 목록 받아서 
-def get_or_create_tags(
-    db: Session,
-    tag_names: list[str],
-) -> list[Tag]:
-    normalized_names = normalize_tag_names(tag_names)
-
-    if not normalized_names:
-        return []
-
-    existing_tags = db.execute(
-        select(Tag).where(Tag.name.in_(normalized_names))
-    ).scalars().all()
-
-    existing_by_name = {tag.name: tag for tag in existing_tags}
-
-    tags: list[Tag] = []
-
-    for name in normalized_names:
-        if name in existing_by_name:
-            tags.append(existing_by_name[name])
-            continue
-
-        tag = Tag(name=name)
-        db.add(tag)
-        db.flush()
-        tags.append(tag)
-
-    return tags
 
 
 def get_page_or_404(
     db: Session,
     page_id: int,
 ) -> Page:
+    # page_id에 해당하는 Page를 찾고, 본문 블록도 함께 불러온다.
     page = db.execute(
         select(Page)
         .options(
             selectinload(Page.blocks),
-            selectinload(Page.tags),
         )
         .where(Page.id == page_id)
     ).scalar_one_or_none()
@@ -101,24 +50,25 @@ def check_page_owner(
     page: Page,
     current_user: User,
 ):
+    # 현재 로그인한 사용자가 이 Page의 작성자인지 확인한다.
     if page.author_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="해당 페이지를 수정하거나 삭제할 권한이 없습니다.",
+            detail="해당 페이지에 접근할 권한이 없습니다.",
         )
 
 
 @router.post(
     "",
-    response_model=PageResponse, #클라에게 반환
+    response_model=PageResponse,
     status_code=status.HTTP_201_CREATED,
 )
 def create_page(
-    payload: PageCreate, #클라가 보낸 JSON body
-    db: Session = Depends(get_db), #작업용 세션
-    current_user: User = Depends(get_current_user), #현재 로그인한 유저
+    payload: PageCreate,  # 클라이언트가 보낸 페이지 생성 데이터
+    db: Session = Depends(get_db),  # DB 작업에 사용할 세션
+    current_user: User = Depends(get_current_user),  # 토큰으로 확인한 현재 사용자
 ):
-    #새 page 객체 생성
+    # 회의/회고 구분은 payload.type에 저장된다.
     page = Page(
         type=payload.type,
         title=payload.title,
@@ -129,13 +79,12 @@ def create_page(
         participants=payload.participants,
     )
 
-    #페이지에 태그 붙인다
-    page.tags = get_or_create_tags(db, payload.tags)
+    # 먼저 Page를 DB 세션에 추가하고 id를 받아온다.
+    db.add(page)
+    db.flush()
 
-    db.add(page) # db에 저장 준비
-    db.flush() #db에 INSERT보내서 page.id 먼저 받아와라
-
-    for index, block in enumerate(payload.blocks): #블록 만든다
+    # payload.blocks에 들어온 본문 블록들을 PageBlock으로 저장한다.
+    for index, block in enumerate(payload.blocks):
         page_block = PageBlock(
             page_id=page.id,
             type=block.type,
@@ -145,49 +94,42 @@ def create_page(
         )
         db.add(page_block)
 
-    db.commit() #db 저장
+    db.commit()
 
-    return get_page_or_404(db, page.id) #방금 만든 페이지 다시 db에서 조회해서 반환한다
+    # 저장된 Page를 다시 조회해서 blocks까지 포함된 응답으로 반환한다.
+    return get_page_or_404(db, page.id)
 
-# 페이지 목록 가져오는 API
+
+# 페이지 목록 조회 API
+# 예: GET /pages?type=MEETING&page=1&size=10
 @router.get(
     "",
     response_model=PageListResponse,
 )
 def get_pages(
-    type_: PageType | None = Query(default=None, alias="type"), #회의 or 회고
-    page: int = Query(default=1, ge=1), # 몇번째 페이지인지
-    size: int = Query(default=10, ge=1, le=100), #한 페이지에 몇개 가져올지
+    type_: PageType | None = Query(default=None, alias="type"),  # MEETING 또는 RETROSPECTIVE
+    page: int = Query(default=1, ge=1),  # 조회할 페이지 번호
+    size: int = Query(default=10, ge=1, le=100),  # 한 번에 가져올 개수
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    #SELECT *
-    #FROM pages
-    #ORDER BY date DESC, created_at DESC;
-    #쿼리문이다
-    stmt = (
-        select(Page)
-        .options(selectinload(Page.tags))
-        .order_by(Page.date.desc(), Page.created_at.desc())
-    )
+    # Page 목록을 날짜 최신순, 생성시간 최신순으로 조회한다.
+    stmt = select(Page).order_by(Page.date.desc(), Page.created_at.desc())
 
-    #전체 페이지 개수
-    #쿼리문이다
+    # 전체 Page 개수를 센다.
     count_stmt = select(func.count(Page.id))
 
-    #type이 있으면
+    # type이 들어오면 회의 또는 회고만 필터링한다.
     if type_ is not None:
-        #쿼리문이다
-        stmt = stmt.where(Page.type == type_) #db에서 page의 type이 type_인거 조회해라
-        #쿼리문이다
-        count_stmt = count_stmt.where(Page.type == type_) #db에서 page의 type이 type_인 개수
+        stmt = stmt.where(Page.type == type_)
+        count_stmt = count_stmt.where(Page.type == type_)
 
-    total = db.execute(count_stmt).scalar_one() #회의만 조회하면 회의 총 개수만 나온다
+    total = db.execute(count_stmt).scalar_one()
 
-    #db에서 현재 페이지에 보여줄 데이터만 가져온다
+    # 페이지네이션을 적용해서 현재 페이지에 보여줄 데이터만 가져온다.
     items = db.execute(
         stmt.offset((page - 1) * size).limit(size)
-    ).scalars().all() #DB 결과에서 Page 객체들만 리스트로 꺼낸다
+    ).scalars().all()
 
     return PageListResponse(
         items=items,
@@ -196,83 +138,89 @@ def get_pages(
         size=size,
     )
 
-#특정 월에 해당하는 회의/회고를 가져온다
+
+# 캘린더 화면에서 특정 연/월에 해당하는 Page 목록을 조회하는 API
 @router.get(
     "/calendar",
     response_model=list[CalendarPageItem],
 )
 def get_calendar_pages(
+    # year와 month는 URL 쿼리 파라미터로 받는다.
+    # 예: /pages/calendar?year=2026&month=6
     year: int = Query(..., ge=2000, le=2100),
     month: int = Query(..., ge=1, le=12),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # 조회할 달의 시작일을 만든다.
     start_date = date(year, month, 1)
 
+    # 다음 달 1일을 end_date로 잡고, end_date 미만 조건으로 해당 월만 조회한다.
     if month == 12:
         end_date = date(year + 1, 1, 1)
     else:
         end_date = date(year, month + 1, 1)
 
-    #db에서 특정 월 데이터만 가져온다
+    # 현재 로그인한 사용자의 Page 중 해당 월에 속한 것만 가져온다.
     items = db.execute(
         select(Page)
         .where(Page.author_id == current_user.id)
         .where(Page.date >= start_date)
         .where(Page.date < end_date)
-        .order_by(Page.date.asc(), Page.start_time.asc()) #날짜 빠른순서, 같은 날짜면 시작시간 빠른 순서
+        .order_by(Page.date.asc(), Page.start_time.asc())
     ).scalars().all()
 
+    # FastAPI가 CalendarPageItem 리스트 형태의 JSON으로 변환해서 응답한다.
     return items
 
 
-# 제목이나 본문에 검색어가 포함된 회의/회고를 찾는다
-@router.get(
-    "/search",
-    response_model=PageListResponse,
-)
-def search_pages(
-    keyword: str = Query(..., min_length=1),
-    page: int = Query(default=1, ge=1),
-    size: int = Query(default=10, ge=1, le=100),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    pattern = f"%{keyword}%"
+# 검색 API 초안이다. 현재는 사용하지 않으므로 주석 처리해 두었다.
+# @router.get(
+#     "/search",
+#     response_model=PageListResponse,
+# )
+# def search_pages(
+#     keyword: str = Query(..., min_length=1),
+#     page: int = Query(default=1, ge=1),
+#     size: int = Query(default=10, ge=1, le=100),
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(get_current_user),
+# ):
+#     pattern = f"%{keyword}%"
+#
+#     # 제목이나 본문 블록 내용에 검색어가 포함된 Page를 찾는다.
+#     base_filter = or_(
+#         Page.title.ilike(pattern),
+#         PageBlock.content.ilike(pattern),
+#     )
+#
+#     # 검색 조건에 맞는 Page 개수를 센다.
+#     total = db.execute(
+#         select(func.count(distinct(Page.id)))
+#         .outerjoin(PageBlock, Page.id == PageBlock.page_id)
+#         .where(base_filter)
+#     ).scalar_one()
+#
+#     # 검색 결과를 페이지네이션해서 가져온다.
+#     items = db.execute(
+#         select(Page)
+#         .outerjoin(PageBlock, Page.id == PageBlock.page_id)
+#         .where(base_filter)
+#         .distinct()
+#         .order_by(Page.date.desc(), Page.created_at.desc())
+#         .offset((page - 1) * size)
+#         .limit(size)
+#     ).scalars().all()
+#
+#     return PageListResponse(
+#         items=items,
+#         total=total,
+#         page=page,
+#         size=size,
+#     )
 
-    # 검색어가 제목에 있든 본문에 있든 하나라도 맞으면 가져와라
-    base_filter = or_(
-        Page.title.ilike(pattern), #페이지 제목에 keyword가 있거나
-        PageBlock.content.ilike(pattern), #본문 블록 내용에 keyword가 있으면 검색 결과에 포함
-    )
 
-    #검색어에 걸린 페이지가 총 몇 개인지 세는 코드
-    total = db.execute(
-        select(func.count(distinct(Page.id))) #중복 제거한 page 개수만 세라
-        .outerjoin(PageBlock, Page.id == PageBlock.page_id) #page랑 pageBlock을 연결해서 조회하겠다
-        .where(base_filter)
-    ).scalar_one()
-
-
-    items = db.execute(
-        select(Page)
-        .options(selectinload(Page.tags))
-        .outerjoin(PageBlock, Page.id == PageBlock.page_id) #pages랑 page_block 연결
-        .where(base_filter) #제목에 검색어가 있거나 본문 블록 내용에 검색어가 있으면
-        .distinct() #중복 페이지 제거
-        .order_by(Page.date.desc(), Page.created_at.desc()) #정렬
-        .offset((page - 1) * size) #페이지 네이션
-        .limit(size)
-    ).scalars().all() #page 객체들만 리스트로 꺼낸다
-
-    return PageListResponse(
-        items=items,
-        total=total,
-        page=page,
-        size=size,
-    )
-
-# 특정 회의/회고 하나의 상세 정보를 가져온다
+# 특정 Page 하나의 상세 정보를 가져온다.
 @router.get(
     "/{page_id}",
     response_model=PageResponse,
@@ -295,11 +243,11 @@ def update_page(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    #page_id에 해당하는 페이지 DB에서 찾는다
+    # 수정할 Page를 찾고, 현재 사용자가 작성자인지 확인한다.
     page = get_page_or_404(db, page_id)
-    check_page_owner(page, current_user) #이 페이지가 현재 로그인한 사용자의 페이지인지 확인
+    check_page_owner(page, current_user)
 
-    #payload에 값이 있으면 page에 덮어쓰기
+    # payload에 들어온 값만 선택적으로 수정한다.
     if payload.title is not None:
         page.title = payload.title
 
@@ -318,9 +266,7 @@ def update_page(
     if payload.ai_summary is not None:
         page.ai_summary = payload.ai_summary
 
-    if payload.tags is not None:
-        page.tags = get_or_create_tags(db, payload.tags)
-
+    # blocks가 전달되면 기존 블록을 삭제하고 새 블록 목록으로 다시 저장한다.
     if payload.blocks is not None:
         db.execute(
             delete(PageBlock).where(PageBlock.page_id == page.id)
@@ -352,6 +298,7 @@ def delete_page(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # 삭제할 Page를 찾고, 현재 사용자가 작성자인지 확인한 뒤 삭제한다.
     page = get_page_or_404(db, page_id)
     check_page_owner(page, current_user)
 

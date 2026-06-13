@@ -35,7 +35,6 @@ export type PageCreateRequest = {
   end_time: string | null;
   participants: string[];
   blocks: BlockInput[];
-  tags: string[];
 };
 
 // 페이지 생성 후 백엔드가 돌려주는 저장 결과입니다.
