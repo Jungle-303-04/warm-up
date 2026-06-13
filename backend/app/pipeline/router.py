@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.pipeline import PipelineRequest, PipelineResponse, pipeline_stage_payloads
 from app.pipeline.dependencies import get_pipeline_service
@@ -7,12 +7,20 @@ from app.pipeline.service import PipelineService
 router = APIRouter()
 
 
-@router.get("")
+@router.get(
+    "",
+    response_model=dict[str, list[dict[str, str]]],
+    status_code=status.HTTP_200_OK,
+)
 def pipeline() -> dict[str, list[dict[str, str]]]:
     return {"stages": pipeline_stage_payloads()}
 
 
-@router.post("/run")
+@router.post(
+    "/run",
+    response_model=PipelineResponse,
+    status_code=status.HTTP_200_OK,
+)
 def run_pipeline(
     request: PipelineRequest,
     service: PipelineService = Depends(get_pipeline_service),

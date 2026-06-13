@@ -145,6 +145,335 @@ api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 /tasks
 ```
 
+### APIRouter 기본 사용법
+
+`APIRouter()`는 endpoint들을 모아두는 작은 라우터 객체를 만든다.
+
+```python
+from fastapi import APIRouter
+
+router = APIRouter()
+```
+
+이 라우터에 `@router.get`, `@router.post` 같은 데코레이터로 API 함수를 등록한다.
+
+```python
+@router.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+```
+
+의미:
+
+```text
+GET /health 요청이 오면 health 함수를 실행한다.
+```
+
+`APIRouter`는 서버 자체가 아니다. 서버 전체는 `FastAPI()`가 만들고, `APIRouter()`는 경로 묶음을 만든다.
+
+```text
+FastAPI app
+└── APIRouter
+    ├── GET /health
+    ├── POST /items
+    └── GET /items/{item_id}
+```
+
+### @router.get 옵션
+
+`@router.get()` 뒤에는 경로뿐 아니라 문서, 응답, 상태 코드 관련 옵션을 넣을 수 있다.
+
+```python
+@router.get(
+    "/items/{item_id}",
+    response_model=ItemResponse,
+    status_code=200,
+)
+def get_item(item_id: int) -> ItemResponse:
+    ...
+```
+
+실무에서 가장 자주 쓰는 옵션은 `response_model`, `status_code`, `tags`다. `tags`는 endpoint마다 붙이기보다 `include_router()`에서 기능 단위로 한 번에 붙이는 경우가 많다.
+
+#### response_model
+
+응답 JSON의 모양을 지정한다.
+
+```python
+class ItemResponse(BaseModel):
+    id: int
+    name: str
+
+
+@router.get("/items/{item_id}", response_model=ItemResponse)
+def get_item(item_id: int):
+    return {
+        "id": item_id,
+        "name": "keyboard",
+        "internal_memo": "관리자만 봐야 하는 값",
+    }
+```
+
+실제 응답에는 `ItemResponse`에 없는 `internal_memo`가 빠진다.
+
+```json
+{
+  "id": 1,
+  "name": "keyboard"
+}
+```
+
+사용하는 이유:
+
+- API 응답 모양을 고정한다.
+- Swagger 문서에 응답 구조가 나온다.
+- 실수로 내부 필드를 반환해도 응답에서 제거할 수 있다.
+
+실무 사용 빈도: 자주 사용한다.
+
+#### status_code
+
+성공했을 때의 HTTP 상태 코드를 지정한다.
+
+```python
+@router.post("/items", response_model=ItemResponse, status_code=201)
+def create_item(payload: CreateItem):
+    ...
+```
+
+자주 쓰는 값:
+
+- `200 OK`: 일반 조회/실행 성공
+- `201 Created`: 생성 성공
+- `204 No Content`: 삭제 성공, 응답 body 없음
+
+FastAPI의 `status` 상수를 쓰면 숫자 의미가 더 잘 보인다.
+
+```python
+from fastapi import status
+
+@router.post("/items", status_code=status.HTTP_201_CREATED)
+def create_item(payload: CreateItem):
+    ...
+```
+
+실무 사용 빈도: 자주 사용한다.
+
+#### tags
+
+Swagger UI에서 API를 그룹으로 묶는다.
+
+```python
+api_router.include_router(
+    items_router,
+    prefix="/items",
+    tags=["items"],
+)
+```
+
+이렇게 하면 `items_router` 안의 endpoint들이 Swagger UI에서 `items` 그룹으로 보인다.
+
+실무 사용 빈도: 자주 사용한다. 보통 endpoint마다 붙이지 않고 `include_router()`에서 기능 단위로 붙인다.
+
+#### summary
+
+Swagger UI에 표시되는 짧은 설명이다.
+
+```python
+@router.get("/items", summary="아이템 목록 조회")
+def list_items():
+    ...
+```
+
+실무 사용 빈도: 팀 스타일에 따라 다르다. 내부 API에서는 생략하기도 하고, 외부 공개 API에서는 자주 쓴다.
+
+#### description
+
+Swagger UI에 표시되는 긴 설명이다. Markdown을 사용할 수 있다.
+
+```python
+@router.post(
+    "/webhooks/github",
+    description="GitHub webhook signature를 검증한 뒤 sync job을 생성한다.",
+)
+def receive_github_webhook():
+    ...
+```
+
+실무 사용 빈도: 일반 CRUD에서는 잘 안 쓰고, 인증/결제/webhook처럼 설명이 필요한 API에 사용한다.
+
+#### include_in_schema
+
+Swagger/OpenAPI 문서 목록에 이 endpoint를 넣을지 정한다.
+
+```python
+@router.get("/", include_in_schema=False)
+def redirect_to_docs():
+    return RedirectResponse(url="/api/docs")
+```
+
+이 경우:
+
+```text
+GET / 요청은 실제로 동작한다.
+하지만 /api/docs Swagger 화면의 API 목록에는 GET / 가 보이지 않는다.
+```
+
+즉 “endpoint 실행 여부”와 “문서에 표시 여부”는 별개다.
+
+사용하는 상황:
+
+- `/`에서 문서 페이지로 보내는 redirect endpoint
+- 내부 모니터링용 endpoint
+- 개발 중 임시 endpoint
+- 공개 문서에 노출하고 싶지 않은 보조 endpoint
+
+실무 사용 빈도: 자주 쓰지는 않지만 필요할 때 확실히 쓴다.
+
+#### deprecated
+
+더 이상 새 코드에서 쓰지 말아야 하는 API임을 문서에 표시한다.
+
+```python
+@router.get("/old-items", deprecated=True)
+def list_old_items():
+    ...
+```
+
+이 API는 실제로는 계속 동작한다. 다만 Swagger 문서에서 deprecated 표시가 붙는다.
+
+언제 쓰는가?
+
+```text
+기존 프론트/외부 사용자가 아직 old API를 쓰고 있다.
+하지만 새 기능에서는 new API로 옮기고 싶다.
+그래서 old API를 바로 삭제하지 않고 deprecated 표시를 붙인다.
+```
+
+예:
+
+```text
+GET /old-items  -> deprecated 표시, 당분간 유지
+GET /items      -> 새 API
+```
+
+이후 사용자가 모두 새 API로 이동하면 `/old-items`를 제거한다.
+
+실무 사용 빈도: API 교체나 버전 전환 시 사용한다.
+
+#### responses
+
+성공 응답 외의 에러 응답 문서를 추가한다.
+
+```python
+@router.get(
+    "/items/{item_id}",
+    response_model=ItemResponse,
+    responses={
+        404: {"description": "아이템을 찾을 수 없음"},
+        403: {"description": "접근 권한 없음"},
+    },
+)
+def get_item(item_id: int):
+    ...
+```
+
+실무 사용 빈도: 외부 공개 API나 문서 품질이 중요한 API에서 사용한다. 내부 MVP에서는 생략하는 경우도 많다.
+
+예를 들어 내부 redirect endpoint를 문서에서 숨기고 싶으면:
+
+```python
+@router.get("/", include_in_schema=False)
+def redirect_to_docs():
+    ...
+```
+
+`include_in_schema=False`는 API는 동작하지만 Swagger/OpenAPI 문서에는 숨긴다는 뜻이다.
+
+실무 사용 기준:
+
+```text
+거의 기본으로 사용:
+  response_model
+
+상황에 맞게 자주 사용:
+  status_code
+  tags
+
+필요할 때 사용:
+  summary
+  include_in_schema
+  deprecated
+  responses
+
+일반 CRUD에서는 자주 안 씀:
+  description
+```
+
+### include_router
+
+`include_router()`는 다른 라우터에 등록된 endpoint들을 현재 라우터에 합친다.
+
+예를 들어 기능별 라우터가 있다고 하자.
+
+```python
+health_router = APIRouter()
+pipeline_router = APIRouter()
+```
+
+각각 이런 endpoint를 들고 있다.
+
+```text
+health_router:
+  GET /health
+
+pipeline_router:
+  GET /
+  POST /run
+```
+
+이제 큰 라우터에서 합친다.
+
+```python
+api_router.include_router(health_router)
+api_router.include_router(pipeline_router, prefix="/pipeline")
+```
+
+그러면 최종 경로는 이렇게 된다.
+
+```text
+GET /health
+GET /pipeline
+POST /pipeline/run
+```
+
+즉 `prefix="/pipeline"`은 포함되는 라우터의 모든 경로 앞에 `/pipeline`을 붙인다.
+
+`include_router`를 쓰는 이유:
+
+- 기능별로 router 파일을 나눌 수 있다.
+- `main.py`가 모든 endpoint를 직접 알 필요가 없어진다.
+- 기능 단위로 `prefix`, `tags`, dependency를 한 번에 붙일 수 있다.
+- API가 커져도 조립 지점이 깔끔하게 유지된다.
+
+`include_router`에도 옵션을 줄 수 있다.
+
+```python
+api_router.include_router(
+    items_router,
+    prefix="/items",
+    tags=["items"],
+)
+```
+
+자주 쓰는 옵션:
+
+- `prefix`: 포함되는 모든 경로 앞에 붙일 경로
+- `tags`: 포함되는 모든 endpoint에 붙일 문서 그룹
+- `dependencies`: 포함되는 모든 endpoint에 공통 dependency 적용
+- `responses`: 공통 응답 문서 정의
+- `deprecated`: 포함되는 endpoint들을 deprecated 처리
+
 ## 4. Path Parameter
 
 경로 안에 들어가는 값은 path parameter다.

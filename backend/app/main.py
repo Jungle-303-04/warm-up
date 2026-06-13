@@ -26,7 +26,7 @@ def check_worker_queue_connection() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("GitRAG API 서버를 시작합니다")
     check_database_connection()
     check_github_app_configuration()

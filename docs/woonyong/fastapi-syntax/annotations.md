@@ -40,6 +40,13 @@ def health():
 from contextlib import asynccontextmanager
 ```
 
+타입 힌트까지 같이 쓰려면 보통 `AsyncIterator`도 가져온다.
+
+```python
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+```
+
 기본 형태:
 
 ```python
@@ -53,6 +60,14 @@ async def lifespan(app) -> AsyncIterator[None]:
     yield
     # 끝날 때 실행
 ```
+
+중요한 규칙:
+
+- `async def` 함수에 붙인다.
+- 함수 안에 `yield`가 있어야 한다.
+- `yield`는 보통 한 번만 쓴다.
+- `yield` 위쪽은 시작 처리다.
+- `yield` 아래쪽은 종료 처리다.
 
 핵심은 `yield`를 기준으로 코드가 둘로 나뉜다는 점이다.
 
@@ -113,6 +128,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 주의할 점:
 
 - `yield`가 반드시 한 번 있어야 한다.
+- `yield`를 여러 번 쓰는 일반 generator처럼 사용하지 않는다.
 - startup 단계에서 너무 오래 걸리는 일을 하면 서버 시작이 늦어진다.
 - 무거운 작업은 lifespan에서 직접 처리하기보다 background job으로 넘기는 편이 좋다.
 - 종료 구간에서는 연결 종료, 파일 정리처럼 짧고 확실한 정리 작업을 넣는 것이 좋다.
