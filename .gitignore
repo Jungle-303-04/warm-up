@@ -11,6 +11,8 @@ coverage/
 *.egg-info/
 
 .venv/
+.idea/
+*.iml
 __pycache__/
 .pytest_cache/
 .ruff_cache/
