@@ -1,9 +1,6 @@
-from app.pipeline.api.schemas import CodeReference, RetrievalChunk
+from app.pipeline.api.schemas import CodeReference, ProposalStatus, RetrievalChunk
 from app.pipeline.domain.agent import AgentProposalService
-from app.pipeline.domain.constants import (
-    CODE_REFERENCE_STATUS_VERIFIED,
-    ProposalStatus,
-)
+from app.pipeline.domain.code_index import VERIFIED
 
 
 def test_propose_returns_empty_list_without_code_references() -> None:
@@ -21,7 +18,7 @@ def test_propose_creates_evidence_backed_related_code_suggestion() -> None:
             symbol="login",
             line=1,
             commit_sha="abc123",
-            status=CODE_REFERENCE_STATUS_VERIFIED,
+            status=VERIFIED,
         )
     ]
     chunks = [

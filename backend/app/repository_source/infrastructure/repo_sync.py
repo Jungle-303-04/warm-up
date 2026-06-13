@@ -5,18 +5,19 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import unquote, urlparse
 
+from app.validation import required_text
 from app.pipeline.api.schemas import (
     DEFAULT_BRANCH,
-    DEFAULT_REPOSITORY,
+    DEFAULT_REPO,
     PipelineRequest,
     RepoFile,
     RepoSnapshot,
 )
 
 
-MAX_TEXT_FILE_BYTES = 200_000
-ALLOW_FILE_REPOSITORY_URL_ENV = "REPOPILOT_ALLOW_FILE_REPOSITORY_URL"
-GIT_COMMAND_TIMEOUT_SECONDS = 30
+MAX_BYTES = 200_000
+ALLOW_FILE_URL = "REPOPILOT_ALLOW_FILE_REPOSITORY_URL"
+GIT_TIMEOUT = 30
 
 
 class RepoSyncService:
@@ -28,7 +29,7 @@ class RepoSyncService:
 
     def _sync_request_files(self, request: PipelineRequest) -> RepoSnapshot:
         if not request.files:
-            raise ValueError("repository_url or files must be provided")
+            raise ValueError("repository_url 또는 files가 필요합니다")
 
         digest = sha1()
         digest.update(request.repository.encode())
@@ -46,9 +47,10 @@ class RepoSyncService:
         )
 
     def _sync_remote_repository(self, request: PipelineRequest) -> RepoSnapshot:
-        repository_url = request.repository_url.strip() if request.repository_url else ""
-        if not repository_url:
-            raise ValueError("repository_url must not be empty")
+        repository_url = required_text(
+            request.repository_url or "",
+            "repository_url은 비어 있을 수 없습니다",
+        )
         self._validate_repository_url(repository_url)
 
         branch = None if request.branch == DEFAULT_BRANCH else request.branch
@@ -105,7 +107,7 @@ class RepoSyncService:
         except OSError:
             return None
 
-        if len(data) > MAX_TEXT_FILE_BYTES or b"\0" in data:
+        if len(data) > MAX_BYTES or b"\0" in data:
             return None
 
         try:
@@ -119,7 +121,7 @@ class RepoSyncService:
         root: Path,
         repository_url: str | None = None,
     ) -> str:
-        if requested_repository != DEFAULT_REPOSITORY:
+        if requested_repository != DEFAULT_REPO:
             return requested_repository
 
         if repository_url:
@@ -163,13 +165,13 @@ class RepoSyncService:
         if parsed.scheme == "https" and parsed.netloc == "github.com" and parsed.path.strip("/"):
             return
 
-        allow_file_url = os.environ.get(ALLOW_FILE_REPOSITORY_URL_ENV) == "1"
+        allow_file_url = os.environ.get(ALLOW_FILE_URL) == "1"
         if parsed.scheme == "file" and allow_file_url:
             return
 
         raise ValueError(
-            "repository_url must be an https://github.com/... URL"
-            f" or a file:// URL when {ALLOW_FILE_REPOSITORY_URL_ENV}=1"
+            "repository_url은 https://github.com/... URL이어야 합니다"
+            f" 또는 {ALLOW_FILE_URL}=1일 때 file:// URL이어야 합니다"
         )
 
     def _git(self, repo_path: Path, *args: str) -> str:
@@ -182,13 +184,13 @@ class RepoSyncService:
                 check=True,
                 capture_output=True,
                 text=True,
-                timeout=GIT_COMMAND_TIMEOUT_SECONDS,
+                timeout=GIT_TIMEOUT,
             )
         except FileNotFoundError as exc:
             raise ValueError("git executable was not found") from exc
         except subprocess.TimeoutExpired as exc:
             raise ValueError(
-                f"git command timed out after {GIT_COMMAND_TIMEOUT_SECONDS} seconds"
+                f"git command timed out after {GIT_TIMEOUT} seconds"
             ) from exc
         except subprocess.CalledProcessError as exc:
             detail = exc.stderr.strip() or exc.stdout.strip() or "git command failed"

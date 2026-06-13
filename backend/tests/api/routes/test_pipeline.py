@@ -6,13 +6,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.pipeline import (
-    DEFAULT_REPOSITORY,
+    DEFAULT_REPO,
     ProposalStatus,
-    STAGE_AGENT_PROPOSAL,
-    STAGE_APPROVAL,
-    STAGE_CODE_INDEX,
-    STAGE_RAG_INDEX,
-    STAGE_REPO_SYNC,
+    AGENT_PROPOSAL,
+    APPROVAL,
+    CODE_INDEX,
+    RAG_INDEX,
+    REPO_SYNC,
 )
 from app.pipeline.api.router import router as pipeline_router
 from app.repo_rag.api.router import router as repo_rag_router
@@ -76,16 +76,16 @@ def test_pipeline_run_route_returns_complete_response() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["repository"]["repository"] == DEFAULT_REPOSITORY
+    assert body["repository"]["repository"] == DEFAULT_REPO
     assert body["code_references"]
     assert body["retrieval_chunks"]
     assert body["proposals"][0]["status"] == ProposalStatus.APPROVED
     assert [stage["id"] for stage in body["stages"]] == [
-        STAGE_REPO_SYNC,
-        STAGE_CODE_INDEX,
-        STAGE_RAG_INDEX,
-        STAGE_AGENT_PROPOSAL,
-        STAGE_APPROVAL,
+        REPO_SYNC,
+        CODE_INDEX,
+        RAG_INDEX,
+        AGENT_PROPOSAL,
+        APPROVAL,
     ]
 
 
@@ -93,7 +93,7 @@ def test_pipeline_run_route_returns_400_without_repository_source() -> None:
     response = client.post("/pipeline/run", json={})
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "repository_url or files must be provided"
+    assert response.json()["detail"] == "repository_url 또는 files가 필요합니다"
 
 
 def test_pipeline_run_route_syncs_repository_url(
@@ -119,7 +119,7 @@ def test_pipeline_run_route_returns_400_for_invalid_repository_url() -> None:
     )
 
     assert response.status_code == 400
-    assert "repository_url must be an https://github.com/" in response.json()["detail"]
+    assert "repository_url은 https://github.com/" in response.json()["detail"]
 
 
 def test_pipeline_sync_route_returns_repo_rag_job_response() -> None:

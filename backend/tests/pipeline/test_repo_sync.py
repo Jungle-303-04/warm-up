@@ -78,7 +78,7 @@ def test_sync_commit_sha_changes_when_file_content_changes() -> None:
 def test_sync_rejects_request_without_repository_source() -> None:
     service = RepoSyncService()
 
-    with pytest.raises(ValueError, match="repository_url or files"):
+    with pytest.raises(ValueError, match="repository_url 또는 files"):
         service.sync(PipelineRequest())
 
 
@@ -102,7 +102,7 @@ def test_sync_clones_tracked_text_files_from_repository_url(
 def test_sync_rejects_non_github_repository_url() -> None:
     service = RepoSyncService()
 
-    with pytest.raises(ValueError, match="repository_url must be an https://github.com/"):
+    with pytest.raises(ValueError, match="repository_url은 https://github.com/"):
         service.sync(PipelineRequest(repository_url="https://example.com/team/project.git"))
 
 

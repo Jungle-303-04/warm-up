@@ -1,11 +1,16 @@
-from app.pipeline.api.schemas import AgentProposal, CodeReference, RetrievalChunk
-from app.pipeline.domain.constants import ProposalStatus, ProposalType
+from app.pipeline.api.schemas import (
+    AgentProposal,
+    CodeReference,
+    ProposalStatus,
+    ProposalType,
+    RetrievalChunk,
+)
 
 
 class AgentProposalService:
-    CONFIDENCE_WITH_EVIDENCE = 0.7
-    CONFIDENCE_WITHOUT_EVIDENCE = 0.4
-    PROPOSED_CHANGE_TEMPLATE = "문서 컨텍스트를 {path}:{symbol} 코드와 연결하세요."
+    WITH_EVIDENCE = 0.7
+    WITHOUT_EVIDENCE = 0.4
+    CHANGE_TEMPLATE = "문서 컨텍스트를 {path}:{symbol} 코드와 연결하세요."
 
     def propose(
         self,
@@ -21,12 +26,12 @@ class AgentProposalService:
         return [
             AgentProposal(
                 id=f"proposal:{reference.id}",
-                type=ProposalType.RELATED_CODE_SUGGESTION,
+                type=ProposalType.RELATED_CODE,
                 status=ProposalStatus.PENDING,
                 target_path=reference.path,
                 evidence=evidence,
                 confidence=self._confidence(evidence),
-                proposed_change=self.PROPOSED_CHANGE_TEMPLATE.format(
+                proposed_change=self.CHANGE_TEMPLATE.format(
                     path=reference.path,
                     symbol=reference.symbol,
                 ),
@@ -35,5 +40,5 @@ class AgentProposalService:
 
     def _confidence(self, evidence: list[str]) -> float:
         if evidence:
-            return self.CONFIDENCE_WITH_EVIDENCE
-        return self.CONFIDENCE_WITHOUT_EVIDENCE
+            return self.WITH_EVIDENCE
+        return self.WITHOUT_EVIDENCE

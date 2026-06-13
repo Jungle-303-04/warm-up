@@ -1,5 +1,5 @@
 from app.pipeline.api.schemas import CodeReference, RepoFile, RepoSnapshot
-from app.pipeline.domain.constants import CODE_REFERENCE_STATUS_VERIFIED
+from app.pipeline.domain.code_index import VERIFIED
 from app.pipeline.domain.rag_index import RagIndexService
 
 
@@ -22,7 +22,7 @@ def test_index_creates_chunks_only_for_referenced_nonempty_files() -> None:
             symbol="login",
             line=1,
             commit_sha="abc123",
-            status=CODE_REFERENCE_STATUS_VERIFIED,
+            status=VERIFIED,
         ),
         CodeReference(
             id="empty.py:file",
@@ -30,7 +30,7 @@ def test_index_creates_chunks_only_for_referenced_nonempty_files() -> None:
             symbol="file",
             line=1,
             commit_sha="abc123",
-            status=CODE_REFERENCE_STATUS_VERIFIED,
+            status=VERIFIED,
         ),
     ]
 

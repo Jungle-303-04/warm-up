@@ -1,6 +1,5 @@
 from app.pipeline.api.schemas import RepoFile, RepoSnapshot
-from app.pipeline.domain.constants import CODE_REFERENCE_STATUS_VERIFIED
-from app.pipeline.domain.code_index import CodeIndexService
+from app.pipeline.domain.code_index import VERIFIED, CodeIndexService
 
 
 def test_index_extracts_python_function_symbols() -> None:
@@ -39,4 +38,4 @@ def test_index_falls_back_to_file_reference_when_no_symbol_exists() -> None:
     assert len(references) == 1
     assert references[0].id == "README.md:file"
     assert references[0].symbol == "file"
-    assert references[0].status == CODE_REFERENCE_STATUS_VERIFIED
+    assert references[0].status == VERIFIED

@@ -1,5 +1,7 @@
 from app.pipeline.api.schemas import CodeReference, RepoSnapshot
-from app.pipeline.domain.constants import CODE_REFERENCE_STATUS_VERIFIED
+
+
+VERIFIED = "verified"
 
 
 class CodeIndexService:
@@ -17,7 +19,7 @@ class CodeIndexService:
                         symbol="file",
                         line=1,
                         commit_sha=snapshot.commit_sha,
-                        status=CODE_REFERENCE_STATUS_VERIFIED,
+                        status=VERIFIED,
                     )
                 )
                 continue
@@ -30,7 +32,7 @@ class CodeIndexService:
                         symbol=symbol,
                         line=line,
                         commit_sha=snapshot.commit_sha,
-                        status=CODE_REFERENCE_STATUS_VERIFIED,
+                        status=VERIFIED,
                     )
                 )
 

@@ -1,5 +1,4 @@
-from app.pipeline.api.schemas import AgentProposal
-from app.pipeline.domain.constants import ProposalStatus, ProposalType
+from app.pipeline.api.schemas import AgentProposal, ProposalStatus, ProposalType
 from app.pipeline.domain.approval import ApprovalService
 
 
@@ -7,7 +6,7 @@ def test_approve_returns_approved_copies_without_mutating_originals() -> None:
     service = ApprovalService()
     proposal = AgentProposal(
         id="proposal:1",
-        type=ProposalType.RELATED_CODE_SUGGESTION,
+        type=ProposalType.RELATED_CODE,
         status=ProposalStatus.PENDING,
         target_path="app.py",
         evidence=[],

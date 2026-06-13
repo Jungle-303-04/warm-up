@@ -1,8 +1,21 @@
-from pathlib import PurePosixPath
+from enum import StrEnum
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.pipeline.domain.constants import DEFAULT_BRANCH, DEFAULT_REPOSITORY, ProposalStatus, ProposalType
+from app.validation import between, min_value, relative_path, required_text
+
+
+DEFAULT_REPO = "sample-repo"
+DEFAULT_BRANCH = "main"
+
+
+class ProposalStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+
+
+class ProposalType(StrEnum):
+    RELATED_CODE = "related_code_suggestion"
 
 
 class RepoFile(BaseModel):
@@ -12,17 +25,15 @@ class RepoFile(BaseModel):
     @field_validator("path")
     @classmethod
     def validate_path(cls, value: str) -> str:
-        path = value.strip()
-        if not path:
-            raise ValueError("file path must not be empty")
-        parsed = PurePosixPath(path)
-        if parsed.is_absolute() or ".." in parsed.parts:
-            raise ValueError("file path must be a relative repository path")
-        return path
+        return relative_path(
+            value,
+            empty_message="파일 경로는 비어 있을 수 없습니다",
+            invalid_message="파일 경로는 저장소 기준 상대 경로여야 합니다",
+        )
 
 
 class PipelineRequest(BaseModel):
-    repository: str = DEFAULT_REPOSITORY
+    repository: str = DEFAULT_REPO
     branch: str = DEFAULT_BRANCH
     repository_url: str | None = None
     files: list[RepoFile] = Field(default_factory=list)
@@ -30,20 +41,14 @@ class PipelineRequest(BaseModel):
     @field_validator("repository", "branch")
     @classmethod
     def validate_required_text(cls, value: str) -> str:
-        text = value.strip()
-        if not text:
-            raise ValueError("value must not be empty")
-        return text
+        return required_text(value, "값은 비어 있을 수 없습니다")
 
     @field_validator("repository_url")
     @classmethod
     def validate_repository_url(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        text = value.strip()
-        if not text:
-            raise ValueError("repository_url must not be empty")
-        return text
+        return required_text(value, "repository_url은 비어 있을 수 없습니다")
 
 
 class RepoSnapshot(BaseModel):
@@ -64,9 +69,7 @@ class CodeReference(BaseModel):
     @field_validator("line")
     @classmethod
     def validate_line(cls, value: int) -> int:
-        if value < 1:
-            raise ValueError("line must be greater than or equal to 1")
-        return value
+        return min_value(value, 1, "line은 1 이상이어야 합니다")
 
 
 class RetrievalChunk(BaseModel):
@@ -78,9 +81,7 @@ class RetrievalChunk(BaseModel):
     @field_validator("text")
     @classmethod
     def validate_text(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("chunk text must not be empty")
-        return value
+        return required_text(value, "청크 텍스트는 비어 있을 수 없습니다")
 
 
 class AgentProposal(BaseModel):
@@ -95,9 +96,7 @@ class AgentProposal(BaseModel):
     @field_validator("confidence")
     @classmethod
     def validate_confidence(cls, value: float) -> float:
-        if not 0 <= value <= 1:
-            raise ValueError("confidence must be between 0 and 1")
-        return value
+        return between(value, 0, 1, "confidence는 0 이상 1 이하이어야 합니다")
 
 
 class StageResult(BaseModel):

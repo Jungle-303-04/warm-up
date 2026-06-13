@@ -1,5 +1,4 @@
-from app.pipeline.api.schemas import AgentProposal
-from app.pipeline.domain.constants import ProposalStatus
+from app.pipeline.api.schemas import AgentProposal, ProposalStatus
 
 
 class ApprovalService:

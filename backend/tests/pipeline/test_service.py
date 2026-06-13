@@ -1,7 +1,6 @@
-from app.pipeline import PIPELINE_STAGE_IDS
+from app.pipeline import IDS, ProposalStatus
 from app.pipeline.api.schemas import PipelineRequest, RepoFile
 from app.pipeline.application.service import PipelineService
-from app.pipeline.domain.constants import ProposalStatus
 
 
 def test_run_orchestrates_all_minimum_pipeline_stages() -> None:
@@ -26,4 +25,4 @@ def test_run_orchestrates_all_minimum_pipeline_stages() -> None:
     assert response.code_references
     assert response.retrieval_chunks
     assert response.proposals[0].status == ProposalStatus.APPROVED
-    assert [stage.id for stage in response.stages] == list(PIPELINE_STAGE_IDS)
+    assert [stage.id for stage in response.stages] == list(IDS)

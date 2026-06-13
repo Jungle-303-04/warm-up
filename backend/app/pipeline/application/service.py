@@ -4,14 +4,7 @@ from typing import Protocol
 from app.pipeline.domain.agent import AgentProposalService
 from app.pipeline.domain.approval import ApprovalService
 from app.pipeline.domain.code_index import CodeIndexService
-from app.pipeline.domain.constants import (
-    STAGE_AGENT_PROPOSAL,
-    STAGE_APPROVAL,
-    STAGE_CODE_INDEX,
-    STAGE_RAG_INDEX,
-    STAGE_REPO_SYNC,
-    STAGE_STATUS_DONE,
-)
+from app.pipeline.domain import stages
 from app.pipeline.domain.rag_index import RagIndexService
 from app.pipeline.api.schemas import (
     AgentProposal,
@@ -99,28 +92,28 @@ class PipelineService:
     def _stage_results(self, artifacts: PipelineArtifacts) -> list[StageResult]:
         return [
             StageResult(
-                id=STAGE_REPO_SYNC,
-                status=STAGE_STATUS_DONE,
+                id=stages.REPO_SYNC,
+                status=stages.DONE,
                 detail=artifacts.repository.commit_sha,
             ),
             StageResult(
-                id=STAGE_CODE_INDEX,
-                status=STAGE_STATUS_DONE,
+                id=stages.CODE_INDEX,
+                status=stages.DONE,
                 detail=str(len(artifacts.code_references)),
             ),
             StageResult(
-                id=STAGE_RAG_INDEX,
-                status=STAGE_STATUS_DONE,
+                id=stages.RAG_INDEX,
+                status=stages.DONE,
                 detail=str(len(artifacts.retrieval_chunks)),
             ),
             StageResult(
-                id=STAGE_AGENT_PROPOSAL,
-                status=STAGE_STATUS_DONE,
+                id=stages.AGENT_PROPOSAL,
+                status=stages.DONE,
                 detail=str(len(artifacts.pending_proposals)),
             ),
             StageResult(
-                id=STAGE_APPROVAL,
-                status=STAGE_STATUS_DONE,
+                id=stages.APPROVAL,
+                status=stages.DONE,
                 detail=str(len(artifacts.proposals)),
             ),
         ]
