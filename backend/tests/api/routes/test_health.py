@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.routes.health import router
+from app.health.router import router
 
 app = FastAPI()
 app.include_router(router)

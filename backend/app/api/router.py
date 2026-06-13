@@ -1,8 +1,9 @@
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
 
-from app.api.routes.health import router as health_router
-from app.api.routes.pipeline import router as pipeline_router
+from app.health.router import router as health_router
+from app.pipeline.router import router as pipeline_router
+from app.repo_rag.router import router as repo_rag_router
 
 api_router = APIRouter()
 
@@ -14,3 +15,4 @@ def redirect_to_docs() -> RedirectResponse:
 
 api_router.include_router(health_router)
 api_router.include_router(pipeline_router, prefix="/pipeline")
+api_router.include_router(repo_rag_router, prefix="/pipeline")

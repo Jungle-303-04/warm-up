@@ -5,11 +5,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.routes.pipeline import router
 from app.pipeline import PIPELINE_STAGE_IDS
+from app.pipeline.router import router as pipeline_router
+from app.repo_rag.router import router as repo_rag_router
 
 app = FastAPI()
-app.include_router(router, prefix="/pipeline")
+app.include_router(pipeline_router, prefix="/pipeline")
+app.include_router(repo_rag_router, prefix="/pipeline")
 client = TestClient(app)
 
 
