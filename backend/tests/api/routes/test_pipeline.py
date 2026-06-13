@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.pipeline import (
     DEFAULT_REPOSITORY,
-    PROPOSAL_STATUS_APPROVED,
+    ProposalStatus,
     STAGE_AGENT_PROPOSAL,
     STAGE_APPROVAL,
     STAGE_CODE_INDEX,
@@ -79,7 +79,7 @@ def test_pipeline_run_route_returns_complete_response() -> None:
     assert body["repository"]["repository"] == DEFAULT_REPOSITORY
     assert body["code_references"]
     assert body["retrieval_chunks"]
-    assert body["proposals"][0]["status"] == PROPOSAL_STATUS_APPROVED
+    assert body["proposals"][0]["status"] == ProposalStatus.APPROVED
     assert [stage["id"] for stage in body["stages"]] == [
         STAGE_REPO_SYNC,
         STAGE_CODE_INDEX,

@@ -2,7 +2,7 @@ from app.pipeline.api.schemas import CodeReference, RetrievalChunk
 from app.pipeline.domain.agent import AgentProposalService
 from app.pipeline.domain.constants import (
     CODE_REFERENCE_STATUS_VERIFIED,
-    PROPOSAL_STATUS_PENDING,
+    ProposalStatus,
 )
 
 
@@ -36,6 +36,6 @@ def test_propose_creates_evidence_backed_related_code_suggestion() -> None:
     proposals = service.propose(references, chunks)
 
     assert len(proposals) == 1
-    assert proposals[0].status == PROPOSAL_STATUS_PENDING
+    assert proposals[0].status == ProposalStatus.PENDING
     assert proposals[0].evidence == ["repo:app.py@abc123"]
     assert proposals[0].confidence == 0.7

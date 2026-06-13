@@ -13,9 +13,8 @@ from app.pipeline.api.schemas import (
 from app.pipeline.application.service import PipelineService
 from app.pipeline.domain.constants import (
     CODE_REFERENCE_STATUS_VERIFIED,
-    PROPOSAL_STATUS_APPROVED,
-    PROPOSAL_STATUS_PENDING,
-    PROPOSAL_TYPE_RELATED_CODE_SUGGESTION,
+    ProposalStatus,
+    ProposalType,
     STAGE_AGENT_PROPOSAL,
     STAGE_APPROVAL,
     STAGE_CODE_INDEX,
@@ -44,9 +43,8 @@ __all__ = [
     "PipelineResponse",
     "PipelineService",
     "PipelineStage",
-    "PROPOSAL_STATUS_APPROVED",
-    "PROPOSAL_STATUS_PENDING",
-    "PROPOSAL_TYPE_RELATED_CODE_SUGGESTION",
+    "ProposalStatus",
+    "ProposalType",
     "RepoFile",
     "RepoSnapshot",
     "RetrievalChunk",

@@ -1,3 +1,6 @@
+from enum import StrEnum
+
+
 DEFAULT_REPOSITORY = "sample-repo"
 DEFAULT_BRANCH = "main"
 
@@ -11,6 +14,11 @@ STAGE_STATUS_DONE = "done"
 
 CODE_REFERENCE_STATUS_VERIFIED = "verified"
 
-PROPOSAL_STATUS_PENDING = "pending"
-PROPOSAL_STATUS_APPROVED = "approved"
-PROPOSAL_TYPE_RELATED_CODE_SUGGESTION = "related_code_suggestion"
+
+class ProposalStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+
+
+class ProposalType(StrEnum):
+    RELATED_CODE_SUGGESTION = "related_code_suggestion"

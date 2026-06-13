@@ -2,7 +2,7 @@ from pathlib import PurePosixPath
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.pipeline.domain.constants import DEFAULT_BRANCH, DEFAULT_REPOSITORY
+from app.pipeline.domain.constants import DEFAULT_BRANCH, DEFAULT_REPOSITORY, ProposalStatus, ProposalType
 
 
 class RepoFile(BaseModel):
@@ -85,8 +85,8 @@ class RetrievalChunk(BaseModel):
 
 class AgentProposal(BaseModel):
     id: str
-    type: str
-    status: str
+    type: ProposalType
+    status: ProposalStatus
     target_path: str
     evidence: list[str]
     confidence: float
