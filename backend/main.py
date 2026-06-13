@@ -10,6 +10,7 @@ from models.recommend import (RecommendRequest, AnalysisResult, FontSelection, R
 
 from datetime import datetime, timezone
 from openai_client import client
+from pydantic import BaseModel
 import json
 
 app = FastAPI()
@@ -150,7 +151,7 @@ def delete_post(post_id : int):
             "message": "게시글 삭제 완료"
         }
 
-@app.post("/recommend")
+@app.post("/recommend", response_model=RecommendResponse)
 def recommend_fonts(request: RecommendRequest):
     text = request.text
     preferred_tone = request.preferred_tone
@@ -200,24 +201,25 @@ def recommend_fonts(request: RecommendRequest):
         """
 
         # 응답 전체
-    response = client.responses.create(
+    analysis_response = client.responses.parse(
             model="gpt-4.1-mini",
-            input=prompt
+            input=prompt,
+            text_format=AnalysisResult
         )
 
-    #응답 text 꺼내기
-    analysis_text = response.output_text.strip()
-    #객체 형태의 문자열을 딕셔너리로 변환
-    analysis = json.loads(analysis_text)
+    # #응답 text 꺼내기
+    # analysis_text = response.output_text.strip()
+    # #객체 형태의 문자열을 딕셔너리로 변환
+    # analysis = json.loads(analysis_text)
     # 응답을 모델로 변환
-    analysis_result = AnalysisResult(**analysis)
+    analysis_result = analysis_response.output_parsed
     # print("분석결과", analysis_result)
     selection_prompt = f"""
         사용자 문장:
         {text}
 
         문장 분석 결과:
-        {analysis}
+        {analysis_result}
 
         후보 폰트:
         {candidate_fonts}
@@ -225,6 +227,7 @@ def recommend_fonts(request: RecommendRequest):
         후보 폰트 중 가장 적합한 폰트 하나를 선택해.
         반드시 후보 목록에 있는 id만 사용해.
         반드시 순수 JSON만 반환해.
+        설명은 한국어로 답변해.
 
         형식:
         {{
@@ -232,13 +235,15 @@ def recommend_fonts(request: RecommendRequest):
             "reason": ""
         }}
         """
-    selection_response = client.responses.create(
+    selection_response = client.responses.parse(
         model="gpt-4.1-mini",
-        input=selection_prompt
+        input=selection_prompt,
+        text_format=FontSelection
         )
-    selection_text = selection_response.output_text.strip()
-    selection = json.loads(selection_text)
-    selection_result = FontSelection(**selection)
+    
+    # selection_text = selection_response.output_text.strip()
+    # selection = json.loads(selection_text)
+    selection_result = selection_response.output_parsed
 
     # print("선택결과:", selection_result)
     recommend_response = RecommendResponse(
