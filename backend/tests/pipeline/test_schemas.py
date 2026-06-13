@@ -1,13 +1,4 @@
-from app.pipeline.api.schemas import PipelineRequest, RepoFile, default_files
-
-
-def test_default_files_include_code_and_document_examples() -> None:
-    files = default_files()
-
-    assert [file.path for file in files] == [
-        "backend/app/api/auth.py",
-        "docs/auth.md",
-    ]
+from app.pipeline.api.schemas import PipelineRequest, RepoFile
 
 
 def test_pipeline_request_uses_default_sample_repo() -> None:
@@ -17,7 +8,7 @@ def test_pipeline_request_uses_default_sample_repo() -> None:
     assert request.branch == "main"
     assert request.repository_path is None
     assert request.repository_url is None
-    assert request.files == default_files()
+    assert request.files == []
 
 
 def test_pipeline_request_accepts_custom_files() -> None:

@@ -14,8 +14,8 @@ from app.pipeline.api.schemas import (
     PublishSnapshot,
     RepoSnapshot,
     RetrievalChunk,
+    StageResult,
 )
-from app.pipeline.domain.stages import build_done_stage_results
 from app.repository_source import RepoSyncService
 
 
@@ -84,7 +84,7 @@ class PipelineService:
             retrieval_chunks=artifacts.retrieval_chunks,
             proposals=artifacts.proposals,
             publish_snapshot=artifacts.publish_snapshot,
-            stages=build_done_stage_results(self._stage_details(artifacts)),
+            stages=self._stage_results(artifacts),
         )
 
     def _collect_artifacts(self, request: PipelineRequest) -> PipelineArtifacts:
@@ -104,12 +104,16 @@ class PipelineService:
             publish_snapshot=publish_snapshot,
         )
 
-    def _stage_details(self, artifacts: PipelineArtifacts) -> dict[str, str]:
-        return {
-            "repo-sync": artifacts.repository.commit_sha,
-            "code-index": str(len(artifacts.code_references)),
-            "rag-index": str(len(artifacts.retrieval_chunks)),
-            "agent-proposal": str(len(artifacts.pending_proposals)),
-            "approval": str(len(artifacts.proposals)),
-            "static-publish": artifacts.publish_snapshot.path,
-        }
+    def _stage_results(self, artifacts: PipelineArtifacts) -> list[StageResult]:
+        return [
+            StageResult(id="repo-sync", status="done", detail=artifacts.repository.commit_sha),
+            StageResult(id="code-index", status="done", detail=str(len(artifacts.code_references))),
+            StageResult(id="rag-index", status="done", detail=str(len(artifacts.retrieval_chunks))),
+            StageResult(
+                id="agent-proposal",
+                status="done",
+                detail=str(len(artifacts.pending_proposals)),
+            ),
+            StageResult(id="approval", status="done", detail=str(len(artifacts.proposals))),
+            StageResult(id="static-publish", status="done", detail=artifacts.publish_snapshot.path),
+        ]

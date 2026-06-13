@@ -1,16 +1,14 @@
 from app.pipeline import (
+    PIPELINE_STAGES,
     PIPELINE_STAGE_IDS,
     WORKER_STAGE_IDS,
     build_done_stage_results,
-    pipeline_stage_payloads,
 )
 
 
-def test_pipeline_stage_payloads_preserve_stage_order() -> None:
-    payloads = pipeline_stage_payloads()
-
-    assert [stage["id"] for stage in payloads] == list(PIPELINE_STAGE_IDS)
-    assert len(payloads) == len(set(stage["id"] for stage in payloads))
+def test_pipeline_stages_preserve_stage_order() -> None:
+    assert [stage.id for stage in PIPELINE_STAGES] == list(PIPELINE_STAGE_IDS)
+    assert len(PIPELINE_STAGES) == len({stage.id for stage in PIPELINE_STAGES})
 
 
 def test_worker_stage_ids_exclude_human_approval() -> None:

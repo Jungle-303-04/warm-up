@@ -5,7 +5,6 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.pipeline import PIPELINE_STAGE_IDS
 from app.pipeline.api.router import router as pipeline_router
 from app.repo_rag.api.router import router as repo_rag_router
 
@@ -49,16 +48,22 @@ def create_bare_remote(source_repo_path: Path, tmp_path: Path) -> Path:
     return remote_path
 
 
-def test_pipeline_route_returns_stage_metadata() -> None:
-    response = client.get("/pipeline")
-
-    assert response.status_code == 200
-    stage_ids = [stage["id"] for stage in response.json()["stages"]]
-    assert stage_ids == list(PIPELINE_STAGE_IDS)
-
-
 def test_pipeline_run_route_returns_complete_response() -> None:
-    response = client.post("/pipeline/run", json={})
+    response = client.post(
+        "/pipeline/run",
+        json={
+            "files": [
+                {
+                    "path": "backend/app/api/auth.py",
+                    "content": "def login(user_id: str) -> str:\n    return f'token:{user_id}'\n",
+                },
+                {
+                    "path": "docs/auth.md",
+                    "content": "# Auth\n\nLogin issues a token for the current user.\n",
+                },
+            ]
+        },
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -67,6 +72,13 @@ def test_pipeline_run_route_returns_complete_response() -> None:
     assert body["retrieval_chunks"]
     assert body["proposals"][0]["status"] == "approved"
     assert body["publish_snapshot"]["status"] == "published"
+
+
+def test_pipeline_run_route_returns_400_without_repository_source() -> None:
+    response = client.post("/pipeline/run", json={})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "repository_url, repository_path, or files must be provided"
 
 
 def test_pipeline_run_route_syncs_local_repository(tmp_path: Path) -> None:

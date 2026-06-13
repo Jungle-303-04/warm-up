@@ -10,25 +10,12 @@ class RepoFile(BaseModel):
     content: str
 
 
-def default_files() -> list[RepoFile]:
-    return [
-        RepoFile(
-            path="backend/app/api/auth.py",
-            content="def login(user_id: str) -> str:\n    return f'token:{user_id}'\n",
-        ),
-        RepoFile(
-            path="docs/auth.md",
-            content="# Auth\n\nLogin issues a token for the current user.\n",
-        ),
-    ]
-
-
 class PipelineRequest(BaseModel):
     repository: str = DEFAULT_REPOSITORY
     branch: str = DEFAULT_BRANCH
     repository_path: str | None = None
     repository_url: str | None = None
-    files: list[RepoFile] = Field(default_factory=default_files)
+    files: list[RepoFile] = Field(default_factory=list)
 
 
 class RepoSnapshot(BaseModel):
@@ -76,16 +63,6 @@ class StageResult(BaseModel):
     id: str
     status: str
     detail: str
-
-
-class PipelineStageResponse(BaseModel):
-    id: str
-    name: str
-    purpose: str
-
-
-class PipelineStagesResponse(BaseModel):
-    stages: list[PipelineStageResponse]
 
 
 class PipelineResponse(BaseModel):

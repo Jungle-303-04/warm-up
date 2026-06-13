@@ -41,9 +41,9 @@ def test_manual_sync_persists_job_snapshot_files_chunks_and_events() -> None:
         "chunks_upserted",
         "job_succeeded",
     ]
-    assert len(service.store.snapshots) == 1
-    assert len(service.store.files) == 2
-    assert len(service.store.chunks) == 2
+    assert len(service.store.snapshots) == 1  # type: ignore[attr-defined]
+    assert len(service.store.files) == 2  # type: ignore[attr-defined]
+    assert len(service.store.chunks) == 2  # type: ignore[attr-defined]
 
 
 def test_second_sync_detects_diff_and_soft_deletes_inactive_chunks() -> None:
@@ -83,7 +83,7 @@ def test_second_sync_detects_diff_and_soft_deletes_inactive_chunks() -> None:
     }
     assert all(chunk.source_path != "docs.md" for chunk in response.active_chunks)
 
-    inactive_chunks = [chunk for chunk in service.store.chunks.values() if not chunk.is_active]
+    inactive_chunks = [chunk for chunk in service.store.chunks.values() if not chunk.is_active]  # type: ignore[attr-defined]
     assert {chunk.source_path for chunk in inactive_chunks} == {"app.py", "docs.md"}
     assert all(chunk.deleted_at is not None for chunk in inactive_chunks)
 
@@ -112,7 +112,7 @@ def test_producers_dedupe_active_jobs_for_same_repository_branch() -> None:
 
     assert manual_job.id == schedule_job.id
     assert webhook_job.id == duplicate_webhook_job.id
-    assert {manual_job.id, webhook_job.id} <= set(service.store.jobs)
+    assert {manual_job.id, webhook_job.id} <= set(service.store.jobs)  # type: ignore[attr-defined]
     assert webhook_job.status == "queued"
 
 
@@ -128,7 +128,7 @@ def test_worker_releases_repository_branch_lock_after_success() -> None:
     second_job = service.producer.enqueue_schedule(request)
 
     assert second_job.id != first_job.id
-    assert service.store.running_job_ids_by_lock_key == {}
+    assert service.store.running_job_ids_by_lock_key == {}  # type: ignore[attr-defined]
 
 
 def test_cleanup_hard_deletes_inactive_rows_in_batches() -> None:
@@ -150,10 +150,10 @@ def test_cleanup_hard_deletes_inactive_rows_in_batches() -> None:
         )
     )
 
-    inactive_rows = sum(1 for chunk in service.store.chunks.values() if not chunk.is_active)
+    inactive_rows = sum(1 for chunk in service.store.chunks.values() if not chunk.is_active)  # type: ignore[attr-defined]
     assert inactive_rows == 2
 
     deleted = service.cleanup.cleanup(batch_size=1, cutoff=datetime.now(UTC))
 
     assert deleted == 1
-    assert sum(1 for chunk in service.store.chunks.values() if not chunk.is_active) == 1
+    assert sum(1 for chunk in service.store.chunks.values() if not chunk.is_active) == 1  # type: ignore[attr-defined]

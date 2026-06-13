@@ -75,6 +75,13 @@ def test_sync_commit_sha_changes_when_file_content_changes() -> None:
     assert first.commit_sha != second.commit_sha
 
 
+def test_sync_rejects_request_without_repository_source() -> None:
+    service = RepoSyncService()
+
+    with pytest.raises(ValueError, match="repository_url, repository_path, or files"):
+        service.sync(PipelineRequest())
+
+
 def test_sync_reads_tracked_text_files_from_repository_path(tmp_path: Path) -> None:
     repo_path = create_git_repo(tmp_path)
     service = RepoSyncService()

@@ -5,14 +5,11 @@ from app.pipeline.api.schemas import (
     CodeReference,
     PipelineRequest,
     PipelineResponse,
-    PipelineStageResponse,
-    PipelineStagesResponse,
     PublishSnapshot,
     RepoFile,
     RepoSnapshot,
     RetrievalChunk,
     StageResult,
-    default_files,
 )
 from app.pipeline.application.service import PipelineService
 from app.pipeline.domain.stages import (
@@ -21,7 +18,6 @@ from app.pipeline.domain.stages import (
     WORKER_STAGE_IDS,
     PipelineStage,
     build_done_stage_results,
-    pipeline_stage_payloads,
 )
 
 __all__ = [
@@ -34,8 +30,6 @@ __all__ = [
     "CodeReference",
     "PipelineRequest",
     "PipelineResponse",
-    "PipelineStageResponse",
-    "PipelineStagesResponse",
     "PipelineService",
     "PipelineStage",
     "PublishSnapshot",
@@ -44,6 +38,4 @@ __all__ = [
     "RetrievalChunk",
     "StageResult",
     "build_done_stage_results",
-    "default_files",
-    "pipeline_stage_payloads",
 ]

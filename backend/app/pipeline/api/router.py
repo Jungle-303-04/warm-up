@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
+from app.api.errors import http_error
+from app.api.responses import BAD_REQUEST_RESPONSE
 from app.pipeline import (
     PipelineRequest,
     PipelineResponse,
-    PipelineStagesResponse,
-    pipeline_stage_payloads,
 )
 from app.pipeline.dependencies import get_pipeline_service
 from app.pipeline.application.service import PipelineService
@@ -12,25 +12,17 @@ from app.pipeline.application.service import PipelineService
 router = APIRouter()
 
 
-@router.get(
-    "",
-    response_model=PipelineStagesResponse,
-    status_code=status.HTTP_200_OK,
-)
-def pipeline() -> PipelineStagesResponse:
-    return PipelineStagesResponse(stages=pipeline_stage_payloads())
-
-
 @router.post(
     "/run",
     response_model=PipelineResponse,
     status_code=status.HTTP_200_OK,
+    responses=BAD_REQUEST_RESPONSE,
 )
 def run_pipeline(
     request: PipelineRequest,
     service: PipelineService = Depends(get_pipeline_service),
 ) -> PipelineResponse:
-    try:
-        return service.run(request)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return http_error(
+        lambda: service.run(request),
+        {ValueError: status.HTTP_400_BAD_REQUEST},
+    )

@@ -21,16 +21,22 @@ def test_health_returns_ok() -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_pipeline_endpoint_returns_stage_metadata() -> None:
-    response = client.get("/pipeline")
-
-    assert response.status_code == 200
-    stage_ids = [stage["id"] for stage in response.json()["stages"]]
-    assert stage_ids == list(PIPELINE_STAGE_IDS)
-
-
 def test_run_pipeline_endpoint_returns_complete_response() -> None:
-    response = client.post("/pipeline/run", json={})
+    response = client.post(
+        "/pipeline/run",
+        json={
+            "files": [
+                {
+                    "path": "backend/app/api/auth.py",
+                    "content": "def login(user_id: str) -> str:\n    return f'token:{user_id}'\n",
+                },
+                {
+                    "path": "docs/auth.md",
+                    "content": "# Auth\n\nLogin issues a token for the current user.\n",
+                },
+            ]
+        },
+    )
 
     assert response.status_code == 200
     body = response.json()

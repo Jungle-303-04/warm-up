@@ -30,6 +30,9 @@ class RepoSyncService:
         return self._sync_request_files(request)
 
     def _sync_request_files(self, request: PipelineRequest) -> RepoSnapshot:
+        if not request.files:
+            raise ValueError("repository_url, repository_path, or files must be provided")
+
         digest = sha1()
         digest.update(request.repository.encode())
         digest.update(request.branch.encode())
