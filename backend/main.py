@@ -154,60 +154,63 @@ def delete_post(post_id : int):
 def recommend_fonts(request: RecommendRequest):
     text = request.text
     preferred_tone = request.preferred_tone
-    with Session(engine) as session: fonts = session.exec(select(Font)).all()
-
-    candidate_fonts = [
-            {
-                "id": font.id,
-                "name": font.name,
-                "source": font.source,
-                "category": font.category,
-                "tags": font.tags,
-                "description": font.description,
-                "weights": font.weights,
-                "has_webfont": len(font.webfonts) > 0
-            }        
-        for font in fonts
-    ]
-        
-    prompt = f"""
-    다음 문장을 폰트 추천에 사용할 수 있도록 분석해줘.
-
-    문장:
-    {text}
-
-    선호 톤:
-    {preferred_tone}
-
-    반드시 순수 JSON만 반환해.
-    마크다운 코드블록을 쓰지 마.
-    설명 문장을 쓰지 마.
-    JSON 앞뒤에 어떤 문장도 붙이지 마.
-
-    형식:
-    {{
-    "emotion": "",
-    "visual_traits": [],
-    "writing_style": [],
-    "energy": "",
-    "keywords": []
-    }}
-    """
-
+    print("STEP 0: request received")
     try:
+        with Session(engine) as session: fonts = session.exec(select(Font)).all()
+
+        candidate_fonts = [
+                {
+                    "id": font.id,
+                    "name": font.name,
+                    "source": font.source,
+                    "category": font.category,
+                    "tags": font.tags,
+                    "description": font.description,
+                    "weights": font.weights,
+                    "has_webfont": bool(font.webfonts) > 0
+                }        
+            for font in fonts
+        ]
+            
+    except Exception as e:
+        raise HTTPException(status_code=502, detail="Invalid GPT response format")
+    
+    prompt = f"""
+        다음 문장을 폰트 추천에 사용할 수 있도록 분석해줘.
+
+        문장:
+        {text}
+
+        선호 톤:
+        {preferred_tone}
+
+        반드시 순수 JSON만 반환해.
+        마크다운 코드블록을 쓰지 마.
+        설명 문장을 쓰지 마.
+        JSON 앞뒤에 어떤 문장도 붙이지 마.
+
+        형식:
+        {{
+        "emotion": "",
+        "visual_traits": [],
+        "writing_style": [],
+        "energy": "",
+        "keywords": []
+        }}
+        """
+
         # 응답 전체
-        response = client.responses.create(
+    response = client.responses.create(
             model="gpt-4.1-mini",
             input=prompt
         )
 
-        #응답 text 꺼내기
-        analysis_text = response.output_text
-        #객체 형태의 문자열을 딕셔너리로 변환
-        analysis = json.loads(analysis_text)
+    #응답 text 꺼내기
+    analysis_text = response.output_text.strip()
+    #객체 형태의 문자열을 딕셔너리로 변환
+    analysis = json.loads(analysis_text)
 
-
-        selection_prompt = f"""
+    selection_prompt = f"""
         사용자 문장:
         {text}
 
@@ -227,19 +230,20 @@ def recommend_fonts(request: RecommendRequest):
             "reason": ""
         }}
         """
-        selection_response = client.responses.create(
+    selection_response = client.responses.create(
         model="gpt-4.1-mini",
         input=selection_prompt
         )
-        selection_text = selection_response.output_text
-        selection = json.loads(selection_text)
+    selection_text = selection_response.output_text.strip()
+    selection = json.loads(selection_text)
 
-        return {
+    # print("ANALYSIS RAW:", analysis_text)
+    # print("SELECTION RAW:", selection_text)
+
+    return {
             "analysis": analysis,
             "selection": selection,
-            "candidate_fonts": len(candidate_fonts),
+            "candidate_fonts": bool(candidate_fonts),
             "font": None
-        }
+    }
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
