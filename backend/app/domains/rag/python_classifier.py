@@ -1,4 +1,5 @@
 import ast
+from typing import TypeAlias
 
 from pydantic import BaseModel
 
@@ -42,6 +43,7 @@ PYTHON_MODEL_FIELD_CALL_NAMES = {
     "mapped_column",
     "relationship",
 }
+PythonChunkNode: TypeAlias = ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
 
 
 class PythonChunkClassificationDTO(BaseModel):
@@ -54,11 +56,11 @@ class PythonChunkClassificationDTO(BaseModel):
 
 
 class PythonChunkClassifier:
-    def detect_chunk_type(self, node: ast.AST, path: str) -> str:
+    def detect_chunk_type(self, node: PythonChunkNode, path: str) -> str:
         classification = self.classify(node, path)
         return self.resolve_chunk_type(classification)
 
-    def classify(self, node: ast.AST, path: str) -> PythonChunkClassificationDTO:
+    def classify(self, node: PythonChunkNode, path: str) -> PythonChunkClassificationDTO:
         path_role = detect_python_path_role(path)
         return PythonChunkClassificationDTO(
             node_kind=detect_python_node_kind(node),
@@ -86,15 +88,15 @@ class PythonChunkClassifier:
 DEFAULT_PYTHON_CHUNK_CLASSIFIER = PythonChunkClassifier()
 
 
-def detect_python_chunk_type(node: ast.AST, path: str) -> str:
+def detect_python_chunk_type(node: PythonChunkNode, path: str) -> str:
     return DEFAULT_PYTHON_CHUNK_CLASSIFIER.detect_chunk_type(node, path)
 
 
-def classify_python_chunk(node: ast.AST, path: str) -> PythonChunkClassificationDTO:
+def classify_python_chunk(node: PythonChunkNode, path: str) -> PythonChunkClassificationDTO:
     return DEFAULT_PYTHON_CHUNK_CLASSIFIER.classify(node, path)
 
 
-def detect_python_node_kind(node: ast.AST) -> str:
+def detect_python_node_kind(node: PythonChunkNode) -> str:
     if isinstance(node, ast.ClassDef):
         return "class"
     if isinstance(node, ast.AsyncFunctionDef):
@@ -119,7 +121,7 @@ def detect_python_path_role(path: str) -> str | None:
     return None
 
 
-def detect_python_semantic_role(node: ast.AST) -> str | None:
+def detect_python_semantic_role(node: PythonChunkNode) -> str | None:
     if not isinstance(node, ast.ClassDef):
         return None
 
@@ -144,21 +146,19 @@ def build_python_chunk_type(role: str | None, node_kind: str) -> str:
     return f"python_{role}_{node_kind}"
 
 
-def is_test_node(node: ast.AST, path_role: str | None) -> bool:
+def is_test_node(node: PythonChunkNode, path_role: str | None) -> bool:
     if path_role == "test":
         return True
 
-    node_name = getattr(node, "name", "")
-    if isinstance(node_name, str) and node_name.startswith("test_"):
+    if node.name.startswith("test_"):
         return True
 
     decorator_names = detect_decorator_names(node)
     return bool(decorator_names & PYTHON_TEST_DECORATOR_NAMES)
 
 
-def has_api_route_decorator(node: ast.AST) -> bool:
-    decorators = getattr(node, "decorator_list", [])
-    return any(is_api_route_decorator(decorator) for decorator in decorators)
+def has_api_route_decorator(node: PythonChunkNode) -> bool:
+    return any(is_api_route_decorator(decorator) for decorator in node.decorator_list)
 
 
 def detect_class_base_names(node: ast.ClassDef) -> set[str]:
@@ -174,14 +174,14 @@ def detect_class_base_names(node: ast.ClassDef) -> set[str]:
 
 def has_model_field_assignment(node: ast.ClassDef) -> bool:
     for statement in node.body:
-        value = getattr(statement, "value", None)
+        value = field_assignment_value(statement)
         if is_named_call(value, PYTHON_MODEL_FIELD_CALL_NAMES):
             return True
 
     return False
 
 
-def is_api_route_decorator(decorator: ast.AST) -> bool:
+def is_api_route_decorator(decorator: ast.expr) -> bool:
     if not isinstance(decorator, ast.Call):
         return False
 
@@ -198,10 +198,10 @@ def is_api_route_decorator(decorator: ast.AST) -> bool:
     )
 
 
-def detect_decorator_names(node: ast.AST) -> set[str]:
+def detect_decorator_names(node: PythonChunkNode) -> set[str]:
     decorator_names = set()
 
-    for decorator in getattr(node, "decorator_list", []):
+    for decorator in node.decorator_list:
         target = decorator.func if isinstance(decorator, ast.Call) else decorator
         decorator_name = ast_expression_name(target)
         if decorator_name:
@@ -210,7 +210,7 @@ def detect_decorator_names(node: ast.AST) -> set[str]:
     return decorator_names
 
 
-def is_named_call(value: ast.AST | None, call_names: set[str]) -> bool:
+def is_named_call(value: ast.expr | None, call_names: set[str]) -> bool:
     if not isinstance(value, ast.Call):
         return False
 
@@ -218,7 +218,7 @@ def is_named_call(value: ast.AST | None, call_names: set[str]) -> bool:
     return last_name(call_name) in call_names
 
 
-def ast_expression_name(node: ast.AST) -> str:
+def ast_expression_name(node: ast.expr) -> str:
     if isinstance(node, ast.Name):
         return node.id
 
@@ -239,13 +239,22 @@ def last_name(name: str) -> str:
     return normalize_ast_name(name).split(".")[-1]
 
 
-def has_placeholder_body(node: ast.AST) -> bool:
-    body = getattr(node, "body", [])
-    return bool(body) and all(
+def has_placeholder_body(node: PythonChunkNode) -> bool:
+    return bool(node.body) and all(
         isinstance(statement, ast.Pass)
         or (
             isinstance(statement, ast.Return)
             and statement.value is None
         )
-        for statement in body
+        for statement in node.body
     )
+
+
+def field_assignment_value(statement: ast.stmt) -> ast.expr | None:
+    if isinstance(statement, ast.Assign):
+        return statement.value
+
+    if isinstance(statement, ast.AnnAssign):
+        return statement.value
+
+    return None

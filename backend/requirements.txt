@@ -15,6 +15,7 @@ click==8.4.1
 comm==0.2.3
 debugpy==1.8.21
 decorator==5.3.1
+dependency-injector==4.49.0
 distro==1.9.0
 docx2txt==0.9
 durationpy==0.10

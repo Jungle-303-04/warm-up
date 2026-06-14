@@ -1,5 +1,6 @@
-from app.domains.github.service import build_file_snapshot_from_github_response
+from app.domains.github.service import GitHubFileSnapshotBuilder
 from app.domains.github.schema import GitHubFileSnapshotDTO
+from app.domains.rag.chunking_service import ChunkingService
 from app.domains.rag.schema import (
     GitHubRagPipelineRequestDTO,
     GitHubRagPipelineResultDTO,
@@ -7,13 +8,20 @@ from app.domains.rag.schema import (
     GitHubRagSkippedFileDTO,
     RagEvidenceChunkDTO,
 )
-from app.domains.rag.service import build_minimal_evidence_chunks
 
 
 UNSUPPORTED_RAG_FILE_REASON = "unsupported file type for RAG MVP"
 
 
 class GitHubRagPipelineService:
+    def __init__(
+        self,
+        snapshot_builder: GitHubFileSnapshotBuilder,
+        chunking_service: ChunkingService,
+    ) -> None:
+        self.snapshot_builder = snapshot_builder
+        self.chunking_service = chunking_service
+
     def build_index_from_github_files(
         self,
         request: GitHubRagPipelineRequestDTO,
@@ -24,11 +32,13 @@ class GitHubRagPipelineService:
 
         for file_response in request.files:
             try:
-                file_snapshot = build_file_snapshot_from_github_response(
+                file_snapshot = self.snapshot_builder.build(
                     file_response=file_response,
                     commit_sha=request.commit_sha,
                 )
-                file_chunks = build_minimal_evidence_chunks(file_snapshot)
+                file_chunks = self.chunking_service.build_minimal_evidence_chunks(
+                    file_snapshot
+                )
             except ValueError as exc:
                 skipped_files.append(
                     GitHubRagSkippedFileDTO(
