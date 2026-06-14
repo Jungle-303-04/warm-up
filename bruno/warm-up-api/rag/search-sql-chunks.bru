@@ -1,0 +1,24 @@
+meta {
+  name: Search SQL Chunks
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/rag/chunks/search?keyword=code&limit=5
+  body: none
+  auth: none
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("response has SQL search schema", function() {
+    const body = res.getBody();
+    expect(body).to.have.property("keyword");
+    expect(body).to.have.property("limit");
+    expect(body).to.have.property("items");
+  });
+}

@@ -4,12 +4,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from sqlalchemy import text
 
 from app.container import container
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.domains.board import model as board_model
 from app.domains.board.router import board as board_router
+from app.domains.rag import model as rag_model
 from app.domains.rag import router as rag_router_module
 from app.domains.user.model import User
 
@@ -18,6 +20,15 @@ from app.domains.user.model import User
 def wire_dependency_container(app: FastAPI) -> None:
     app.container = container
     container.wire(modules=[rag_router_module])
+
+
+def check_database_connection() -> None:
+    with engine.connect() as connection:
+        connection.execute(text("select 1"))
+
+
+def check_vector_database_connection() -> None:
+    container.rag_vector_repository().count()
 
 
 # DB table 준비
@@ -43,6 +54,8 @@ def unwire_dependency_container() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     wire_dependency_container(app)
+    check_database_connection()
+    check_vector_database_connection()
     create_database_tables()
     create_test_user()
 

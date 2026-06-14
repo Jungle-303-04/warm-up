@@ -1,0 +1,41 @@
+meta {
+  name: Create Basic Board
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/board/
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "board_type": 1,
+    "title": "Bruno basic board",
+    "content": "Basic board created from Bruno collection.",
+    "tag": "bruno-basic",
+    "user_id": 1,
+    "assignee_user_ids": [],
+    "participant_user_ids": [],
+    "carbon_copy_user_ids": []
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body && body.id) {
+    bru.setEnvVar("boardId", body.id);
+  }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("board id is returned", function() {
+    expect(res.getBody()).to.have.property("id");
+  });
+}

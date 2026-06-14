@@ -1,0 +1,26 @@
+meta {
+  name: List Boards
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/board/
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+  size: 20
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("response has items", function() {
+    expect(res.getBody()).to.have.property("items");
+  });
+}

@@ -1,6 +1,9 @@
 # 애플리케이션 전역 의존성 주입 컨테이너를 정의하는 파일
 # service, chunker, factory 같은 객체 생성과 연결 방식을 한 곳에서 관리
+from pathlib import Path
+
 from dependency_injector import containers, providers
+from dotenv import load_dotenv
 
 from app.domains.github.service import (
     GitHubContentDecoder,
@@ -15,11 +18,19 @@ from app.domains.rag.chunk_identity import ChunkIdentityService
 from app.domains.rag.chunker_registry import ChunkerRegistry
 from app.domains.rag.chunking_base import TextSplitter
 from app.domains.rag.chunking_service import ChunkingService
+from app.domains.rag.embedding import OpenAIEmbeddingService
+from app.domains.rag.index_service import RagIndexService
 from app.domains.rag.markdown_chunker import MarkdownChunker
 from app.domains.rag.pipeline import GitHubRagPipelineService
 from app.domains.rag.python_chunker import PythonChunker
 from app.domains.rag.python_classifier import PythonChunkClassifier
+from app.domains.rag.repository import RagSqlRepository
 from app.domains.rag.snapshot_validator import SnapshotValidator
+from app.domains.rag.vector_repository import RagVectorRepository
+
+
+ROOT_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(ROOT_ENV_PATH)
 
 
 # dependency injection container
@@ -77,6 +88,18 @@ class AppContainer(containers.DeclarativeContainer):
         GitHubRagPipelineService,
         snapshot_builder=github_file_snapshot_builder,
         chunking_service=chunking_service,
+    )
+    rag_sql_repository = providers.Singleton(RagSqlRepository)
+    rag_embedding_service = providers.Singleton(OpenAIEmbeddingService)
+    rag_vector_repository = providers.Singleton(
+        RagVectorRepository,
+        embedding_service=rag_embedding_service,
+    )
+    rag_index_service = providers.Singleton(
+        RagIndexService,
+        pipeline_service=rag_pipeline_service,
+        sql_repository=rag_sql_repository,
+        vector_repository=rag_vector_repository,
     )
 
 

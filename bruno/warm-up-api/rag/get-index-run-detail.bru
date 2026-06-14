@@ -1,0 +1,25 @@
+meta {
+  name: Get RAG Index Run Detail
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/rag/runs/{{ragRunId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("response has detailed schema", function() {
+    const body = res.getBody();
+    expect(body).to.have.property("run");
+    expect(body).to.have.property("file_snapshots");
+    expect(body).to.have.property("chunks");
+    expect(body).to.have.property("skipped_files");
+  });
+}

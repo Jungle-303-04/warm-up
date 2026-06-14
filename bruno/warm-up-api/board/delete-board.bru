@@ -1,0 +1,17 @@
+meta {
+  name: Delete Board
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/board/{{boardId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("status is 204", function() {
+    expect(res.getStatus()).to.equal(204);
+  });
+}

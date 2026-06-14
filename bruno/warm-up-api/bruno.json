@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "name": "warm-up-api",
+  "type": "collection",
+  "ignore": [
+    ".git",
+    "node_modules",
+    ".DS_Store"
+  ]
+}

@@ -1,0 +1,49 @@
+meta {
+  name: Create Schedule Board
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/board/
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "board_type": 2,
+    "title": "Bruno schedule board",
+    "content": "Schedule board created from Bruno collection.",
+    "tag": "bruno-schedule",
+    "user_id": 1,
+    "assignee_user_ids": [1],
+    "participant_user_ids": [],
+    "carbon_copy_user_ids": [],
+    "schedule_board_detail": {
+      "start_at": "2026-06-15T10:00:00",
+      "end_at": "2026-06-15T11:00:00",
+      "importance": 7
+    },
+    "schedule_board_tasks": [
+      {
+        "task_name": "prepare Bruno request",
+        "task_status": 1
+      },
+      {
+        "task_name": "verify Bruno response",
+        "task_status": 3
+      }
+    ]
+  }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("schedule detail is saved", function() {
+    expect(res.getBody().schedule_board_detail.importance).to.equal(7);
+  });
+}

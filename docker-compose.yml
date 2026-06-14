@@ -3,13 +3,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: warm-up-app
+    container_name: app
     restart: unless-stopped
     env_file:
       - .env
     depends_on:
       - postgres
       - redis
+      - chroma
+    environment:
+      RAG_CHROMA_HOST: chroma
+      RAG_CHROMA_PORT: 8000
     ports:
       - "${APP_PORT}:8000"
 
@@ -38,6 +42,16 @@ services:
     volumes:
       - redis_data:/data
 
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: warm-up-chroma
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+
 volumes:
   postgres_data:
   redis_data:
+  chroma_data:

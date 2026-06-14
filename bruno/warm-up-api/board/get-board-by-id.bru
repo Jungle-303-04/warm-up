@@ -1,0 +1,21 @@
+meta {
+  name: Get Board By Id
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/board/{{boardId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("board id matches environment", function() {
+    expect(res.getBody().id).to.equal(Number(bru.getEnvVar("boardId")));
+  });
+}

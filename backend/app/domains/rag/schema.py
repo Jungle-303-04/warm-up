@@ -1,8 +1,13 @@
 # RAG API와 내부 pipeline에서 사용하는 DTO를 정의하는 파일
 # chunk, pipeline request, pipeline result 형태를 관리
-from pydantic import BaseModel, field_validator
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domains.github.schema import GitHubFileResponseDTO, GitHubFileSnapshotDTO
+
+
+MAX_SEARCH_LIMIT = 50
 
 
 # chunk metadata DTO
@@ -51,6 +56,8 @@ class RagEvidenceChunkDTO(RagEvidenceChunkDraftDTO):
 class GitHubRagPipelineRequestDTO(BaseModel):
     commit_sha: str
     files: list[GitHubFileResponseDTO]
+    repository_full_name: str | None = None
+    branch: str | None = None
 
     @field_validator("commit_sha")
     @classmethod
@@ -89,3 +96,119 @@ class GitHubRagPipelineResultDTO(BaseModel):
     evidence_chunks: list[RagEvidenceChunkDTO]
     skipped_files: list[GitHubRagSkippedFileDTO]
     summary: GitHubRagPipelineSummaryDTO
+
+
+class RagStoredIndexResponseDTO(BaseModel):
+    run_id: int
+    vector_collection: str
+    sql_chunk_count: int
+    vector_chunk_count: int
+    pipeline_result: GitHubRagPipelineResultDTO
+
+
+class RagIndexRunDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    repository_full_name: str | None = None
+    branch: str | None = None
+    commit_sha: str
+    indexed_at: datetime
+    total_files: int
+    indexed_files: int
+    skipped_files: int
+    total_chunks: int
+
+
+class RagFileSnapshotRecordDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    run_id: int
+    path: str
+    name: str | None = None
+    sha: str | None = None
+    commit_sha: str
+    language: str
+    source_type: str
+    content_hash: str
+    citation: str
+    size: int | None = None
+    html_url: str | None = None
+
+
+class RagChunkRecordDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    run_id: int
+    file_snapshot_id: int
+    external_chunk_id: str
+    chunk_hash: str
+    chunk_index: int
+    path: str
+    commit_sha: str
+    language: str
+    source_type: str
+    chunk_type: str
+    symbol_name: str | None = None
+    start_line: int | None = None
+    end_line: int | None = None
+    citation: str
+    chunk_text: str
+    metadata_json: dict
+    direct_implementation_evidence: bool
+
+
+class RagSkippedFileRecordDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    run_id: int
+    path: str
+    reason: str
+
+
+class RagIndexRunListResponseDTO(BaseModel):
+    items: list[RagIndexRunDTO]
+    total: int
+
+
+class RagIndexRunDetailDTO(BaseModel):
+    run: RagIndexRunDTO
+    file_snapshots: list[RagFileSnapshotRecordDTO]
+    chunks: list[RagChunkRecordDTO]
+    skipped_files: list[RagSkippedFileRecordDTO]
+
+
+class RagSqlChunkSearchResponseDTO(BaseModel):
+    keyword: str
+    limit: int
+    items: list[RagChunkRecordDTO]
+
+
+class RagVectorSearchRequestDTO(BaseModel):
+    query: str
+    limit: int = Field(default=5, ge=1, le=MAX_SEARCH_LIMIT)
+
+    @field_validator("query")
+    @classmethod
+    def validate_query(cls, value: str) -> str:
+        query = value.strip()
+        if not query:
+            raise ValueError("query must not be empty")
+        return query
+
+
+class RagVectorSearchItemDTO(BaseModel):
+    id: str
+    document: str
+    metadata: dict
+    distance: float | None = None
+
+
+class RagVectorSearchResponseDTO(BaseModel):
+    collection: str
+    count: int
+    query: str
+    items: list[RagVectorSearchItemDTO]

@@ -46,3 +46,7 @@ lerna-debug.log*
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local vector database
+.chroma/
+.tmp_*.db

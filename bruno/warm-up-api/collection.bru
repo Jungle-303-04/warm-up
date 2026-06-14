@@ -1,0 +1,26 @@
+headers {
+  accept: application/json
+  content-type: application/json
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8000
+  boardId: 1
+  ragRunId: 0
+  vectorCollection: rag_evidence_chunks
+}
+
+docs {
+  # warm-up API
+
+  Docker Compose로 실행 중인 warm-up FastAPI 서버를 테스트하는 Bruno 컬렉션입니다.
+
+  ## 실행 전 확인
+
+  - app 컨테이너: `app`
+  - API base URL: `http://localhost:8000`
+  - Chroma: `http://localhost:8001`
+  - Postgres: `localhost:5432`
+
+  `Local` environment를 선택하고 요청을 실행하세요.
+}

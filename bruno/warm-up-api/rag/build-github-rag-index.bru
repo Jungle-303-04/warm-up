@@ -1,0 +1,62 @@
+meta {
+  name: Build GitHub RAG Index
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/rag/github/index
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "repository_full_name": "local/warm-up-bruno-test",
+    "branch": "bruno-local",
+    "commit_sha": "brunocommit1234567890",
+    "files": [
+      {
+        "path": "app/routes.py",
+        "name": "routes.py",
+        "sha": "python-bruno-sha",
+        "encoding": "utf-8",
+        "content": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n@router.post('/plans')\ndef create_plan():\n    return {'message': 'plan created'}\n\nclass PlanService:\n    def verify_code_evidence(self):\n        return 'code evidence verified'\n",
+        "size": 240,
+        "html_url": "https://github.com/local/warm-up-bruno-test/blob/bruno/app/routes.py"
+      },
+      {
+        "path": "docs/planning.md",
+        "name": "planning.md",
+        "sha": "markdown-bruno-sha",
+        "encoding": "utf-8",
+        "content": "# Planning Evidence\n\n## Code Trust\nThe kanban plan should be compared with repository code evidence.\n\n## Schedule\nUse code evidence to suggest reliable work plans.\n",
+        "size": 160,
+        "html_url": "https://github.com/local/warm-up-bruno-test/blob/bruno/docs/planning.md"
+      },
+      {
+        "path": "frontend/App.tsx",
+        "name": "App.tsx",
+        "sha": "tsx-bruno-sha",
+        "encoding": "utf-8",
+        "content": "export default function App() { return null }",
+        "size": 45,
+        "html_url": "https://github.com/local/warm-up-bruno-test/blob/bruno/frontend/App.tsx"
+      }
+    ]
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("python and markdown are indexed, tsx is skipped", function() {
+    const summary = res.getBody().summary;
+    expect(summary.total_files).to.equal(3);
+    expect(summary.indexed_files).to.equal(2);
+    expect(summary.skipped_files).to.equal(1);
+    expect(summary.total_chunks).to.be.above(0);
+  });
+}
