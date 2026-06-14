@@ -1,3 +1,5 @@
+# RAG domain의 기존 import 경로를 유지하기 위한 service facade 파일
+# 실제 구현은 chunking, chunk_identity, python_classifier 등으로 분리
 from app.domains.rag.chunk_identity import (
     ChunkIdentityService as ChunkIdentityService,
     build_chunk_hash as build_chunk_hash,
@@ -26,6 +28,7 @@ from langchain_openai import OpenAIEmbeddings
 EMBEDDING_MODEL_NAME = "text-embedding-3-large"
 
 
+# embedding model factory
 def create_embedding_model() -> OpenAIEmbeddings:
     return OpenAIEmbeddings(model=EMBEDDING_MODEL_NAME)
 

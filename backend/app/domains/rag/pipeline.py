@@ -1,3 +1,5 @@
+# GitHub 파일 목록을 RAG index 결과로 변환하는 pipeline 파일
+# file snapshot 생성과 chunking service 호출을 조합
 from app.domains.github.service import GitHubFileSnapshotBuilder
 from app.domains.github.schema import GitHubFileSnapshotDTO
 from app.domains.rag.chunking_service import ChunkingService
@@ -13,6 +15,7 @@ from app.domains.rag.schema import (
 UNSUPPORTED_RAG_FILE_REASON = "unsupported file type for RAG MVP"
 
 
+# GitHub RAG indexing pipeline service
 class GitHubRagPipelineService:
     def __init__(
         self,
@@ -74,6 +77,7 @@ class GitHubRagPipelineService:
         )
 
 
+# pipeline summary DTO 생성
 def build_pipeline_summary(
     total_files: int,
     indexed_files: int,

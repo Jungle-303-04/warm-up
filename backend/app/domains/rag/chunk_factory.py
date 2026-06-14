@@ -1,3 +1,5 @@
+# draft chunk를 저장/응답에 사용할 evidence chunk DTO로 변환하는 파일
+# chunk id, hash, citation 같은 식별 정보를 조립
 from app.domains.github.schema import GitHubFileSnapshotDTO
 from app.domains.rag.chunk_citation import ChunkCitationService
 from app.domains.rag.chunk_identity import ChunkIdentityService
@@ -7,6 +9,7 @@ from app.domains.rag.schema import (
 )
 
 
+# evidence chunk factory
 class ChunkFactory:
     def __init__(
         self,
@@ -55,6 +58,7 @@ class ChunkFactory:
         )
 
 
+# default chunk factory
 DEFAULT_CHUNK_FACTORY = ChunkFactory(
     identity=ChunkIdentityService(),
     citation=ChunkCitationService(),

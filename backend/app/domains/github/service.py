@@ -1,3 +1,5 @@
+# GitHub raw file response를 RAG에서 쓰기 좋은 형태로 변환하는 파일
+# content decoding, language detection, snapshot 생성을 담당
 import base64
 import binascii
 
@@ -17,6 +19,7 @@ PLAIN_TEXT_ENCODINGS = {DEFAULT_TEXT_ENCODING, "text"}
 UNSUPPORTED_LANGUAGE = "unsupported"
 
 
+# GitHub file content decoding
 class GitHubContentDecoder:
     def decode(self, file_response: GitHubFileResponseDTO) -> str:
         encoding = file_response.encoding
@@ -41,6 +44,7 @@ class GitHubContentDecoder:
         return "".join(content.split())
 
 
+# RAG 지원 언어 판별
 class GitHubLanguageDetector:
     def detect(self, path: str) -> str:
         normalized_path = path.lower()
@@ -52,11 +56,13 @@ class GitHubLanguageDetector:
         return UNSUPPORTED_LANGUAGE
 
 
+# GitHub file citation 생성
 class GitHubFileCitationBuilder:
     def build(self, path: str, commit_sha: str) -> str:
         return f"{path}@{commit_sha}"
 
 
+# GitHub file response -> snapshot DTO
 class GitHubFileSnapshotBuilder:
     def __init__(
         self,
@@ -98,6 +104,7 @@ class GitHubFileSnapshotBuilder:
         require_value(commit_sha, "commit_sha")
 
 
+# GitHub domain service facade
 class GitHubService:
     def __init__(
         self,
@@ -143,6 +150,7 @@ class GitHubService:
         return
 
 
+# legacy helper functions
 def decode_github_file_content(file_response: GitHubFileResponseDTO) -> str:
     return GitHubContentDecoder().decode(file_response)
 

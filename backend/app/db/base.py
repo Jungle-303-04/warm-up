@@ -1,3 +1,5 @@
+# SQLAlchemy 공통 Base와 mixin을 정의하는 파일
+# 모든 ORM model이 공통으로 사용할 id, timestamp 컬럼을 제공
 from datetime import datetime
 
 from sqlalchemy import DateTime, Integer

@@ -1,3 +1,5 @@
+# RAG chunk의 id와 hash를 만드는 파일
+# 같은 파일/commit/content 기준으로 chunk를 안정적으로 식별
 from app.common.identity import hash_text
 from app.domains.github.schema import GitHubFileSnapshotDTO
 from app.domains.rag.schema import RagEvidenceChunkDraftDTO
@@ -6,6 +8,7 @@ from app.domains.rag.schema import RagEvidenceChunkDraftDTO
 CHUNK_HASH_LENGTH = 16
 
 
+# chunk identity builder
 class ChunkIdentityService:
     def build_hash(
         self,
@@ -27,9 +30,11 @@ class ChunkIdentityService:
         return f"{file_snapshot.path}@{file_snapshot.commit_sha}:{chunk_hash}"
 
 
+# default identity service
 DEFAULT_CHUNK_IDENTITY_SERVICE = ChunkIdentityService()
 
 
+# legacy helper functions
 def build_chunk_hash(
     file_snapshot: GitHubFileSnapshotDTO,
     chunk: RagEvidenceChunkDraftDTO,

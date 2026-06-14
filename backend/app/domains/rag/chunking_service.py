@@ -1,3 +1,5 @@
+# RAG chunk 생성 흐름을 조립하는 service 파일
+# snapshot 검증 -> 언어별 chunking -> evidence DTO 변환 순서로 처리
 from app.domains.github.schema import GitHubFileSnapshotDTO
 from app.domains.rag.chunker_registry import DEFAULT_CHUNKER_REGISTRY, ChunkerRegistry
 from app.domains.rag.chunk_factory import DEFAULT_CHUNK_FACTORY, ChunkFactory
@@ -8,6 +10,7 @@ from app.domains.rag.snapshot_validator import (
 from app.domains.rag.schema import RagEvidenceChunkDTO
 
 
+# chunking orchestration service
 class ChunkingService:
     def __init__(
         self,
@@ -33,6 +36,7 @@ class ChunkingService:
         return self.factory.build_many(file_snapshot, draft_chunks)
 
 
+# default chunking service
 DEFAULT_CHUNKING_SERVICE = ChunkingService(
     chunkers=DEFAULT_CHUNKER_REGISTRY,
     factory=DEFAULT_CHUNK_FACTORY,

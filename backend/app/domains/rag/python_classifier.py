@@ -1,3 +1,5 @@
+# Python AST node가 어떤 의미의 chunk인지 분류하는 파일
+# path, decorator, class base 등을 보고 API/schema/model/test 역할을 추론
 import ast
 from typing import TypeAlias
 
@@ -46,6 +48,7 @@ PYTHON_MODEL_FIELD_CALL_NAMES = {
 PythonChunkNode: TypeAlias = ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
 
 
+# python chunk classification DTO
 class PythonChunkClassificationDTO(BaseModel):
     node_kind: str
     path_role: str | None = None
@@ -55,6 +58,7 @@ class PythonChunkClassificationDTO(BaseModel):
     is_test: bool = False
 
 
+# python chunk type classifier
 class PythonChunkClassifier:
     def detect_chunk_type(self, node: PythonChunkNode, path: str) -> str:
         classification = self.classify(node, path)
@@ -85,9 +89,11 @@ class PythonChunkClassifier:
         return build_python_chunk_type(role, classification.node_kind)
 
 
+# default classifier
 DEFAULT_PYTHON_CHUNK_CLASSIFIER = PythonChunkClassifier()
 
 
+# legacy helper functions
 def detect_python_chunk_type(node: PythonChunkNode, path: str) -> str:
     return DEFAULT_PYTHON_CHUNK_CLASSIFIER.detect_chunk_type(node, path)
 

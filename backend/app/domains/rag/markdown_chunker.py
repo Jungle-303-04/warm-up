@@ -1,3 +1,5 @@
+# Markdown 파일을 heading 단위로 나누는 chunker 파일
+# 각 section의 line range와 heading을 symbol_name처럼 사용
 from dataclasses import dataclass
 
 from app.domains.github.schema import GitHubFileSnapshotDTO
@@ -5,6 +7,7 @@ from app.domains.rag.chunking_base import LanguageChunker
 from app.domains.rag.schema import RagEvidenceChunkDraftDTO
 
 
+# markdown section data
 @dataclass
 class MarkdownSection:
     text: str
@@ -13,6 +16,7 @@ class MarkdownSection:
     end_line: int
 
 
+# markdown language chunker
 class MarkdownChunker(LanguageChunker):
     language = "markdown"
 
@@ -35,6 +39,7 @@ class MarkdownChunker(LanguageChunker):
         ]
 
 
+# markdown lines -> sections
 def build_markdown_sections(
     lines: list[str],
     default_heading: str,
@@ -75,5 +80,6 @@ def build_markdown_sections(
     return sections
 
 
+# markdown heading 판단
 def is_markdown_heading(line: str) -> bool:
     return line.startswith("#")

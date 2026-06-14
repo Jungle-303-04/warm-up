@@ -1,3 +1,5 @@
+# RAG chunking의 공통 base class와 text splitter를 정의하는 파일
+# 언어별 chunker가 공통으로 사용하는 build_chunk helper도 포함
 from abc import ABC, abstractmethod
 
 from app.domains.github.schema import GitHubFileSnapshotDTO
@@ -17,6 +19,7 @@ NON_DIRECT_IMPLEMENTATION_CHUNK_TYPES = {
 }
 
 
+# plain text splitter
 class TextSplitter:
     def split(self, text: str) -> list[str]:
         splitter = RecursiveCharacterTextSplitter(
@@ -28,9 +31,11 @@ class TextSplitter:
         return splitter.split_text(text)
 
 
+# default text splitter
 DEFAULT_TEXT_SPLITTER = TextSplitter()
 
 
+# language-specific chunker base class
 class LanguageChunker(ABC):
     language: str
 
@@ -61,6 +66,7 @@ class LanguageChunker(ABC):
         )
 
 
+# chunk type 기준으로 직접 구현 근거인지 판단
 def is_direct_implementation_chunk_type(chunk_type: str) -> bool:
     return (
         chunk_type.startswith("python_")

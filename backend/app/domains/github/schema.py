@@ -1,8 +1,11 @@
+# GitHub API 응답과 RAG용 파일 snapshot DTO를 정의하는 파일
+# repository path 검증도 여기서 같이 처리
 from pathlib import PurePosixPath
 
 from pydantic import BaseModel, field_validator
 
 
+# GitHub file content response DTO
 class GitHubFileResponseDTO(BaseModel):
     path: str
     content: str
@@ -18,6 +21,7 @@ class GitHubFileResponseDTO(BaseModel):
         return validate_repository_path(value)
 
 
+# RAG pipeline에서 사용할 GitHub file snapshot DTO
 class GitHubFileSnapshotDTO(BaseModel):
     path: str
     commit_sha: str
@@ -37,6 +41,7 @@ class GitHubFileSnapshotDTO(BaseModel):
         return validate_repository_path(value)
 
 
+# repository 내부 상대 경로인지 검증
 def validate_repository_path(value: str) -> str:
     path = value.strip()
     if not path:

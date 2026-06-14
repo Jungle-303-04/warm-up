@@ -1,3 +1,5 @@
+# 애플리케이션 전역 의존성 주입 컨테이너를 정의하는 파일
+# service, chunker, factory 같은 객체 생성과 연결 방식을 한 곳에서 관리
 from dependency_injector import containers, providers
 
 from app.domains.github.service import (
@@ -20,7 +22,9 @@ from app.domains.rag.python_classifier import PythonChunkClassifier
 from app.domains.rag.snapshot_validator import SnapshotValidator
 
 
+# dependency injection container
 class AppContainer(containers.DeclarativeContainer):
+    # GitHub domain providers
     github_content_decoder = providers.Singleton(GitHubContentDecoder)
     github_language_detector = providers.Singleton(GitHubLanguageDetector)
     github_file_citation_builder = providers.Singleton(GitHubFileCitationBuilder)
@@ -35,6 +39,7 @@ class AppContainer(containers.DeclarativeContainer):
         snapshot_builder=github_file_snapshot_builder,
     )
 
+    # RAG chunker providers
     text_splitter = providers.Singleton(TextSplitter)
     python_classifier = providers.Singleton(PythonChunkClassifier)
     python_chunker = providers.Singleton(
@@ -51,6 +56,7 @@ class AppContainer(containers.DeclarativeContainer):
         ),
     )
 
+    # RAG chunk creation providers
     chunk_identity = providers.Singleton(ChunkIdentityService)
     chunk_citation = providers.Singleton(ChunkCitationService)
     chunk_factory = providers.Singleton(
@@ -65,6 +71,8 @@ class AppContainer(containers.DeclarativeContainer):
         factory=chunk_factory,
         validator=snapshot_validator,
     )
+
+    # RAG pipeline provider
     rag_pipeline_service = providers.Singleton(
         GitHubRagPipelineService,
         snapshot_builder=github_file_snapshot_builder,
@@ -72,4 +80,5 @@ class AppContainer(containers.DeclarativeContainer):
     )
 
 
+# app에서 import해서 사용하는 container instance
 container = AppContainer()

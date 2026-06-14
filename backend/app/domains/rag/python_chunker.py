@@ -1,3 +1,5 @@
+# Python 파일을 AST symbol 단위로 나누는 chunker 파일
+# class/function/async function을 최소 evidence chunk로 생성
 import ast
 from typing import TypeAlias, TypeGuard
 
@@ -11,6 +13,7 @@ MAX_SYMBOL_CHARS = 4000
 PythonChunkNode: TypeAlias = ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
 
 
+# python language chunker
 class PythonChunker(LanguageChunker):
     language = "python"
 
@@ -79,10 +82,12 @@ class PythonChunker(LanguageChunker):
         ]
 
 
+# AST node가 chunk 대상인지 확인
 def is_python_chunk_node(node: ast.AST) -> TypeGuard[PythonChunkNode]:
     return isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
 
 
+# nested chunk list flatten
 def flatten_chunks(
     chunks: list[RagEvidenceChunkDraftDTO | list[RagEvidenceChunkDraftDTO]],
 ) -> list[RagEvidenceChunkDraftDTO]:

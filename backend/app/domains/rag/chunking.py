@@ -1,3 +1,5 @@
+# RAG chunking 관련 공개 API를 모아두는 facade 파일
+# 세부 구현은 chunker, factory, service 모듈로 분리
 from app.domains.rag.chunker_registry import ChunkerRegistry
 from app.domains.rag.chunking_base import (
     DEFAULT_CHUNK_OVERLAP,

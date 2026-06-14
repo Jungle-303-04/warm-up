@@ -1,12 +1,16 @@
+# RAG API와 내부 pipeline에서 사용하는 DTO를 정의하는 파일
+# chunk, pipeline request, pipeline result 형태를 관리
 from pydantic import BaseModel, field_validator
 
 from app.domains.github.schema import GitHubFileResponseDTO, GitHubFileSnapshotDTO
 
 
+# chunk metadata DTO
 class RagChunkMetadataDTO(BaseModel):
     direct_implementation_evidence: bool
 
 
+# chunk 생성 직후의 draft DTO
 class RagEvidenceChunkDraftDTO(BaseModel):
     chunk_text: str
     chunk_type: str
@@ -31,6 +35,7 @@ class RagEvidenceChunkDraftDTO(BaseModel):
         return value
 
 
+# 저장/응답에 사용할 evidence chunk DTO
 class RagEvidenceChunkDTO(RagEvidenceChunkDraftDTO):
     id: str
     chunk_index: int
@@ -42,6 +47,7 @@ class RagEvidenceChunkDTO(RagEvidenceChunkDraftDTO):
     citation: str
 
 
+# GitHub RAG pipeline request DTO
 class GitHubRagPipelineRequestDTO(BaseModel):
     commit_sha: str
     files: list[GitHubFileResponseDTO]
@@ -62,11 +68,13 @@ class GitHubRagPipelineRequestDTO(BaseModel):
         return value
 
 
+# indexing에서 제외된 파일 DTO
 class GitHubRagSkippedFileDTO(BaseModel):
     path: str
     reason: str
 
 
+# pipeline summary DTO
 class GitHubRagPipelineSummaryDTO(BaseModel):
     total_files: int
     indexed_files: int
@@ -74,6 +82,7 @@ class GitHubRagPipelineSummaryDTO(BaseModel):
     total_chunks: int
 
 
+# GitHub RAG pipeline result DTO
 class GitHubRagPipelineResultDTO(BaseModel):
     commit_sha: str
     file_snapshots: list[GitHubFileSnapshotDTO]
