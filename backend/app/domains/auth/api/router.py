@@ -1,9 +1,22 @@
+import os
+
 from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Cookie,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Response,
+    status,
+)
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.container import AppContainer
 from app.db.session import get_session
+from app.domains.auth.api.dependencies import AUTH_COOKIE_NAME, resolve_auth_token
 from app.domains.auth.api.schema import (
     AuthMeResponseDTO,
     AuthTokenResponseDTO,
@@ -18,6 +31,12 @@ from app.domains.auth.domain.errors import (
 
 
 auth = APIRouter(prefix="/auth")
+
+DEFAULT_FRONTEND_CALLBACK_URL = "http://localhost:5173/auth/callback"
+FRONTEND_CALLBACK_URL_ENV = "GITHUB_OAUTH_FRONTEND_CALLBACK_URL"
+AUTH_REDIRECT_STATUS_CODE = status.HTTP_303_SEE_OTHER
+AUTH_COOKIE_SECURE_ENV = "AUTH_COOKIE_SECURE"
+AUTH_COOKIE_SAMESITE = "lax"
 
 
 @auth.get(
@@ -41,7 +60,7 @@ def start_github_oauth_login(
 @auth.get(
     "/github/callback",
     tags=["auth"],
-    response_model=AuthTokenResponseDTO,
+    response_model=None,
 )
 @inject
 def handle_github_oauth_callback(
@@ -49,9 +68,15 @@ def handle_github_oauth_callback(
     state: str = Query(min_length=1),
     db: Session = Depends(get_session),
     auth_service: AuthService = Depends(Provide[AppContainer.auth_service]),
-) -> AuthTokenResponseDTO:
+) -> RedirectResponse:
     try:
-        return auth_service.login_with_github_callback(db, code, state)
+        token_response = auth_service.login_with_github_callback(db, code, state)
+        redirect_response = RedirectResponse(
+            url=get_frontend_callback_url(),
+            status_code=AUTH_REDIRECT_STATUS_CODE,
+        )
+        set_auth_cookie(redirect_response, token_response)
+        return redirect_response
     except AuthConfigurationError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -77,13 +102,14 @@ def handle_github_oauth_callback(
 @inject
 def read_authenticated_user(
     authorization: str | None = Header(default=None),
+    auth_cookie: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     db: Session = Depends(get_session),
     auth_service: AuthService = Depends(Provide[AppContainer.auth_service]),
 ) -> AuthMeResponseDTO:
     try:
         return auth_service.get_authenticated_user(
             db=db,
-            access_token=extract_bearer_token(authorization),
+            access_token=resolve_auth_token(authorization, auth_cookie),
         )
     except (AuthConfigurationError, AuthTokenError, ValueError) as exc:
         raise HTTPException(
@@ -92,12 +118,43 @@ def read_authenticated_user(
         ) from exc
 
 
-def extract_bearer_token(authorization: str | None) -> str:
-    if authorization is None:
-        raise AuthTokenError("authorization header is required")
+@auth.post(
+    "/logout",
+    tags=["auth"],
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def logout_authenticated_user() -> Response:
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    clear_auth_cookie(response)
+    return response
 
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or not token.strip():
-        raise AuthTokenError("bearer token is required")
 
-    return token.strip()
+def set_auth_cookie(response: Response, token_response: AuthTokenResponseDTO) -> None:
+    response.set_cookie(
+        key=AUTH_COOKIE_NAME,
+        value=token_response.access_token,
+        max_age=token_response.expires_in,
+        httponly=True,
+        secure=is_auth_cookie_secure(),
+        samesite=AUTH_COOKIE_SAMESITE,
+        path="/",
+    )
+
+
+def clear_auth_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=AUTH_COOKIE_NAME,
+        httponly=True,
+        secure=is_auth_cookie_secure(),
+        samesite=AUTH_COOKIE_SAMESITE,
+        path="/",
+    )
+
+
+def get_frontend_callback_url() -> str:
+    return os.getenv(FRONTEND_CALLBACK_URL_ENV) or DEFAULT_FRONTEND_CALLBACK_URL
+
+
+def is_auth_cookie_secure() -> bool:
+    value = os.getenv(AUTH_COOKIE_SECURE_ENV, "")
+    return value.lower() in {"1", "true", "yes", "on"}

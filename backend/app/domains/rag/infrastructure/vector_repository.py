@@ -44,7 +44,7 @@ class RagVectorRepository:
             return 0
 
         self.collection.upsert(
-            ids=[chunk.id for chunk in chunks],
+            ids=[self.build_vector_id(chunk) for chunk in chunks],
             documents=[chunk.chunk_text for chunk in chunks],
             embeddings=self.embedding_service.embed_texts(
                 [chunk.chunk_text for chunk in chunks]
@@ -56,15 +56,20 @@ class RagVectorRepository:
     def count(self) -> int:
         return self.collection.count()
 
-    def search(self, query: str, limit: int = 5) -> dict:
-        return self.collection.query(
-            query_embeddings=[self.embedding_service.embed_text(query)],
-            n_results=limit,
-        )
+    def search(self, query: str, limit: int = 5, run_id: int | None = None) -> dict:
+        query_arguments = {
+            "query_embeddings": [self.embedding_service.embed_text(query)],
+            "n_results": limit,
+        }
+        if run_id is not None:
+            query_arguments["where"] = {"run_id": run_id}
+
+        return self.collection.query(**query_arguments)
 
     def build_metadata(self, chunk: RagEvidenceChunkDTO, run_id: int) -> dict:
         return {
             "run_id": run_id,
+            "chunk_id": chunk.id,
             "path": chunk.path,
             "commit_sha": chunk.commit_sha,
             "language": chunk.language,
@@ -80,3 +85,6 @@ class RagVectorRepository:
                 chunk.metadata.direct_implementation_evidence
             ),
         }
+
+    def build_vector_id(self, chunk: RagEvidenceChunkDTO) -> str:
+        return f"{chunk.id}:{chunk.chunk_index}"

@@ -66,6 +66,14 @@ class AuthService:
         )
 
     def get_authenticated_user(self, db: Session, access_token: str) -> AuthMeResponseDTO:
+        account = self.get_authenticated_github_account(db, access_token)
+        return AuthMeResponseDTO(user=self.build_authenticated_user(account))
+
+    def get_authenticated_github_account(
+        self,
+        db: Session,
+        access_token: str,
+    ) -> GitHubOAuthAccount:
         claims = self.jwt_service.verify_access_token(access_token)
         user_id = int(claims["sub"])
         account = self.auth_repository.get_github_account_by_user_id(db, user_id)
@@ -73,7 +81,7 @@ class AuthService:
         if account is None:
             raise ValueError("authenticated github account not found")
 
-        return AuthMeResponseDTO(user=self.build_authenticated_user(account))
+        return account
 
     def build_authenticated_user(
         self,

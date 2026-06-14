@@ -1,6 +1,7 @@
 # RAG API와 내부 pipeline에서 사용하는 DTO를 정의하는 파일
 # chunk, pipeline request, pipeline result 형태를 관리
 from datetime import datetime
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -73,6 +74,44 @@ class GitHubRagPipelineRequestDTO(BaseModel):
         if not value:
             raise ValueError("files must not be empty")
         return value
+
+
+class GitHubRepositoryIndexRequestDTO(BaseModel):
+    repository_full_name: str
+    branch: str | None = None
+
+    @field_validator("repository_full_name")
+    @classmethod
+    def validate_repository_full_name(cls, value: str) -> str:
+        repository_full_name = normalize_repository_full_name(value)
+        if "/" not in repository_full_name:
+            raise ValueError("repository_full_name must use owner/repo format")
+        owner, repo = repository_full_name.split("/", 1)
+        if not owner.strip() or not repo.strip():
+            raise ValueError("repository_full_name must use owner/repo format")
+        return repository_full_name
+
+    @field_validator("branch")
+    @classmethod
+    def validate_branch(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        branch = value.strip()
+        return branch or None
+
+
+def normalize_repository_full_name(value: str) -> str:
+    repository = value.strip()
+    if repository.startswith("git@github.com:"):
+        repository = repository.replace("git@github.com:", "", 1)
+    elif repository.startswith(("http://", "https://")):
+        parsed = urlparse(repository)
+        repository = parsed.path.strip("/")
+
+    if repository.endswith(".git"):
+        repository = repository[:-4]
+
+    return repository.strip("/")
 
 
 # indexing에서 제외된 파일 DTO
@@ -190,6 +229,7 @@ class RagSqlChunkSearchResponseDTO(BaseModel):
 class RagVectorSearchRequestDTO(BaseModel):
     query: str
     limit: int = Field(default=5, ge=1, le=MAX_SEARCH_LIMIT)
+    run_id: int | None = Field(default=None, ge=1)
 
     @field_validator("query")
     @classmethod
@@ -212,3 +252,30 @@ class RagVectorSearchResponseDTO(BaseModel):
     count: int
     query: str
     items: list[RagVectorSearchItemDTO]
+
+
+class RagAskRequestDTO(BaseModel):
+    question: str
+    run_id: int | None = Field(default=None, ge=1)
+    limit: int = Field(default=5, ge=1, le=MAX_SEARCH_LIMIT)
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        question = value.strip()
+        if not question:
+            raise ValueError("question must not be empty")
+        return question
+
+
+class RagAskSourceDTO(BaseModel):
+    citation: str
+    path: str
+    chunk_type: str
+    distance: float | None = None
+
+
+class RagAskResponseDTO(BaseModel):
+    answer: str
+    run_id: int | None = None
+    sources: list[RagAskSourceDTO]

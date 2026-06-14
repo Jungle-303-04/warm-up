@@ -14,6 +14,8 @@ from app.domains.github.domain.content_decoder import GitHubContentDecoder
 from app.domains.github.domain.file_citation import GitHubFileCitationBuilder
 from app.domains.github.domain.file_snapshot_builder import GitHubFileSnapshotBuilder
 from app.domains.github.domain.language_detector import GitHubLanguageDetector
+from app.domains.github.infrastructure.repository import GitHubRepositoryClient
+from app.domains.rag.application.answer_service import RagAnswerService
 from app.domains.rag.application.index_service import RagIndexService
 from app.domains.rag.application.pipeline import GitHubRagPipelineService
 from app.domains.rag.domain.chunk_citation import ChunkCitationService
@@ -58,6 +60,7 @@ class AppContainer(containers.DeclarativeContainer):
         language_detector=github_language_detector,
         citation_builder=github_file_citation_builder,
     )
+    github_repository_client = providers.Singleton(GitHubRepositoryClient)
     github_service = providers.Singleton(
         GitHubService,
         snapshot_builder=github_file_snapshot_builder,
@@ -112,6 +115,11 @@ class AppContainer(containers.DeclarativeContainer):
         RagIndexService,
         pipeline_service=rag_pipeline_service,
         sql_repository=rag_sql_repository,
+        vector_repository=rag_vector_repository,
+        github_repository_client=github_repository_client,
+    )
+    rag_answer_service = providers.Singleton(
+        RagAnswerService,
         vector_repository=rag_vector_repository,
     )
 

@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session
 
+from app.domains.github.infrastructure.repository import GitHubRepositoryClient
 from app.domains.rag.api.schema import (
     GitHubRagPipelineRequestDTO,
+    GitHubRepositoryIndexRequestDTO,
     RagChunkRecordDTO,
     RagFileSnapshotRecordDTO,
     RagIndexRunDTO,
@@ -25,10 +27,26 @@ class RagIndexService:
         pipeline_service: GitHubRagPipelineService,
         sql_repository: RagSqlRepository,
         vector_repository: RagVectorRepository,
+        github_repository_client: GitHubRepositoryClient,
     ) -> None:
         self.pipeline_service = pipeline_service
         self.sql_repository = sql_repository
         self.vector_repository = vector_repository
+        self.github_repository_client = github_repository_client
+
+    def index_repository_and_store(
+        self,
+        db: Session,
+        request: GitHubRepositoryIndexRequestDTO,
+        github_access_token: str,
+    ) -> RagStoredIndexResponseDTO:
+        pipeline_request = (
+            self.github_repository_client.build_pipeline_request_from_repository(
+                access_token=github_access_token,
+                request=request,
+            )
+        )
+        return self.index_and_store(db, pipeline_request)
 
     def index_and_store(
         self,
@@ -98,7 +116,11 @@ class RagIndexService:
         self,
         request: RagVectorSearchRequestDTO,
     ) -> RagVectorSearchResponseDTO:
-        result = self.vector_repository.search(request.query, request.limit)
+        result = self.vector_repository.search(
+            query=request.query,
+            limit=request.limit,
+            run_id=request.run_id,
+        )
 
         return RagVectorSearchResponseDTO(
             collection=self.vector_repository.collection_name,
