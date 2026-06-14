@@ -43,5 +43,15 @@ def create_embeddings():
 
     # print(f"saved: {OUTPUT_PATH}")
 
+def embed_query(text:str):
+
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=text
+
+    )
+
+    return response.data[0].embedding
+
 if __name__ == "__main__":
     create_embeddings()
