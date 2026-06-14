@@ -1,0 +1,22 @@
+meta {
+  name: GitHub OAuth Callback Template
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/auth/github/callback?code={{githubOAuthCode}}&state={{githubOAuthState}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("template fails safely until real github code and state are provided", function() {
+    expect([401, 502, 503]).to.include(res.getStatus());
+  });
+
+  test("response has detail when callback cannot complete", function() {
+    const body = res.getBody();
+    expect(body).to.have.property("detail");
+  });
+}

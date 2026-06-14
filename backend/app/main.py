@@ -9,17 +9,19 @@ from sqlalchemy import text
 from app.container import container
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
-from app.domains.board import model as board_model
-from app.domains.board.router import board as board_router
-from app.domains.rag import model as rag_model
-from app.domains.rag import router as rag_router_module
+from app.domains.auth.api import router as auth_router_module
+from app.domains.auth.infrastructure import model as auth_model
+from app.domains.board.api.router import board as board_router
+from app.domains.board.infrastructure import model as board_model
+from app.domains.rag.api import router as rag_router_module
+from app.domains.rag.infrastructure import model as rag_model
 from app.domains.user.model import User
 
 
 # dependency container 연결
 def wire_dependency_container(app: FastAPI) -> None:
     app.container = container
-    container.wire(modules=[rag_router_module])
+    container.wire(modules=[rag_router_module, auth_router_module])
 
 
 def check_database_connection() -> None:
@@ -67,6 +69,7 @@ app = FastAPI(lifespan=lifespan) # make instance
 
 # router registration
 app.include_router(board_router, tags=["board"])
+app.include_router(auth_router_module.auth, tags=["auth"])
 app.include_router(rag_router_module.rag, tags=["rag"])
 
 # get method

@@ -1,0 +1,31 @@
+meta {
+  name: Start GitHub OAuth Login
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/auth/github/login
+  body: none
+  auth: none
+}
+
+tests {
+  test("status is 200 when configured or 503 when oauth env is missing", function() {
+    expect([200, 503]).to.include(res.getStatus());
+  });
+
+  test("response matches oauth login state", function() {
+    const body = res.getBody();
+
+    if (res.getStatus() === 200) {
+      expect(body).to.have.property("authorize_url");
+      expect(body).to.have.property("state");
+      expect(body).to.have.property("scope");
+    }
+
+    if (res.getStatus() === 503) {
+      expect(body).to.have.property("detail");
+    }
+  });
+}

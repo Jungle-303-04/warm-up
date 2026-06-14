@@ -1,0 +1,22 @@
+meta {
+  name: Get Current Auth User
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/auth/me
+  body: none
+  auth: none
+}
+
+tests {
+  test("missing bearer token returns 401", function() {
+    expect(res.getStatus()).to.equal(401);
+  });
+
+  test("response explains missing authorization", function() {
+    const body = res.getBody();
+    expect(body).to.have.property("detail");
+  });
+}

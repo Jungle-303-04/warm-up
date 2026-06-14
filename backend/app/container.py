@@ -5,28 +5,30 @@ from pathlib import Path
 from dependency_injector import containers, providers
 from dotenv import load_dotenv
 
-from app.domains.github.service import (
-    GitHubContentDecoder,
-    GitHubFileCitationBuilder,
-    GitHubFileSnapshotBuilder,
-    GitHubLanguageDetector,
-    GitHubService,
-)
-from app.domains.rag.chunk_citation import ChunkCitationService
-from app.domains.rag.chunk_factory import ChunkFactory
-from app.domains.rag.chunk_identity import ChunkIdentityService
-from app.domains.rag.chunker_registry import ChunkerRegistry
-from app.domains.rag.chunking_base import TextSplitter
-from app.domains.rag.chunking_service import ChunkingService
-from app.domains.rag.embedding import OpenAIEmbeddingService
-from app.domains.rag.index_service import RagIndexService
-from app.domains.rag.markdown_chunker import MarkdownChunker
-from app.domains.rag.pipeline import GitHubRagPipelineService
-from app.domains.rag.python_chunker import PythonChunker
-from app.domains.rag.python_classifier import PythonChunkClassifier
-from app.domains.rag.repository import RagSqlRepository
-from app.domains.rag.snapshot_validator import SnapshotValidator
-from app.domains.rag.vector_repository import RagVectorRepository
+from app.domains.auth.application.auth_service import AuthService
+from app.domains.auth.domain.jwt_service import JwtService
+from app.domains.auth.infrastructure.github_oauth_client import GitHubOAuthClient
+from app.domains.auth.infrastructure.sql_repository import AuthSqlRepository
+from app.domains.github.application.github_service import GitHubService
+from app.domains.github.domain.content_decoder import GitHubContentDecoder
+from app.domains.github.domain.file_citation import GitHubFileCitationBuilder
+from app.domains.github.domain.file_snapshot_builder import GitHubFileSnapshotBuilder
+from app.domains.github.domain.language_detector import GitHubLanguageDetector
+from app.domains.rag.application.index_service import RagIndexService
+from app.domains.rag.application.pipeline import GitHubRagPipelineService
+from app.domains.rag.domain.chunk_citation import ChunkCitationService
+from app.domains.rag.domain.chunk_factory import ChunkFactory
+from app.domains.rag.domain.chunk_identity import ChunkIdentityService
+from app.domains.rag.domain.chunker_registry import ChunkerRegistry
+from app.domains.rag.domain.chunking_base import TextSplitter
+from app.domains.rag.domain.chunking_service import ChunkingService
+from app.domains.rag.domain.markdown_chunker import MarkdownChunker
+from app.domains.rag.domain.python_chunker import PythonChunker
+from app.domains.rag.domain.python_classifier import PythonChunkClassifier
+from app.domains.rag.domain.snapshot_validator import SnapshotValidator
+from app.domains.rag.infrastructure.embedding import OpenAIEmbeddingService
+from app.domains.rag.infrastructure.sql_repository import RagSqlRepository
+from app.domains.rag.infrastructure.vector_repository import RagVectorRepository
 
 
 ROOT_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
@@ -35,6 +37,17 @@ load_dotenv(ROOT_ENV_PATH)
 
 # dependency injection container
 class AppContainer(containers.DeclarativeContainer):
+    # Auth domain providers
+    auth_github_oauth_client = providers.Singleton(GitHubOAuthClient)
+    auth_jwt_service = providers.Singleton(JwtService)
+    auth_repository = providers.Singleton(AuthSqlRepository)
+    auth_service = providers.Singleton(
+        AuthService,
+        github_oauth_client=auth_github_oauth_client,
+        jwt_service=auth_jwt_service,
+        auth_repository=auth_repository,
+    )
+
     # GitHub domain providers
     github_content_decoder = providers.Singleton(GitHubContentDecoder)
     github_language_detector = providers.Singleton(GitHubLanguageDetector)
