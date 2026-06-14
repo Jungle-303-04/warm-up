@@ -1,6 +1,5 @@
-# DB engine과 session factory를 정의하는 파일
-# repository 계층에서 사용할 SQLAlchemy session을 생성
 import os
+from collections.abc import Generator
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -12,18 +11,16 @@ load_dotenv(ROOT_ENV_PATH)
 
 POSTGRES_DATABASE_URL = os.getenv("POSTGRES_DATABASE_URL")
 
-# connect to PostgreSQL server
-# Python code <-> SQLAlchemy engine <-> PostgreSQL
 engine = create_engine(POSTGRES_DATABASE_URL)
-
-# configure a factory for creating DB sessions.
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,
     autocommit=False,
 )
 
-# make DB session
-def get_session() -> Session:
-    with SessionLocal() as session: # open a new db session
+
+def get_session() -> Generator[Session, None, None]:
+    """FastAPI dependency에서 요청마다 DB 세션을 열고 응답 후 닫게 한다."""
+
+    with SessionLocal() as session:
         yield session
