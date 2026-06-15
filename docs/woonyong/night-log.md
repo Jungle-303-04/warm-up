@@ -8,3 +8,4 @@ DONE: M1 - 재사용 접근성 Modal(ui/modal.tsx) 추가: role=dialog/aria-moda
 DONE: M2 source-add-modal - GitHub레포URL/파일업로드 2-탭 접근성 모달(목업, 제출=닫기), sources-panel '소스 추가' 버튼 연결(준비중 해제, 로컬 useState)
 DONE: I1 auth-menu - 로그인 사용자 아이콘을 실제 GitHub 아바타 img(rounded-full)로 교체 (tsc green)
 DONE: I2 - SOURCE_KINDS.repo.icon을 "folder_code"→"github"로 변경(icon.tsx 인라인 SVG 마크 사용) (tsc green)
+DONE: A1 - lib/types.ts에 AgentResponse 판별유니온(answer/references/summary/abstain/clarify)+Citation 타입 추가, tsc green

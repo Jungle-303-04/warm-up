@@ -52,3 +52,23 @@ export interface BoardTask {
 export type BoardView = "kanban" | "week" | "calendar" | "list";
 
 export type CenterTab = "대화" | "보드" | "뷰어";
+
+// 채팅 답변 골격(D7: lookup + locate + summarize). 백엔드 답변 그래프 출력과 1:1 대응.
+
+// 근거 인용. 답변이 참조한 소스 위치를 가리킨다.
+export interface Citation {
+  sourceId: string; // Source.id
+  sourceName: string; // 표시용 소스 이름
+  path?: string; // 파일 경로(있으면)
+  lines?: [number, number]; // [시작, 끝] 줄 범위
+  snippet?: string; // 인용 미리보기
+  externalUrl?: string; // 외부에서 열기
+}
+
+// 답변 그래프의 판별 유니온. kind로 렌더를 분기한다.
+export type AgentResponse =
+  | { kind: "answer"; text: string; citations: Citation[] } // lookup: 본문 + 인용칩
+  | { kind: "references"; intro?: string; citations: Citation[] } // locate: 파일/위치 목록
+  | { kind: "summary"; text: string; citations?: Citation[] } // summarize: 문단 요약
+  | { kind: "abstain"; reason: string } // 근거 부족 등으로 답변 보류
+  | { kind: "clarify"; question: string }; // 추가 정보 요청
