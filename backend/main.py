@@ -59,10 +59,10 @@ def get_posts():
 def create_post(post_data : Post):
 
     if not post_data.title.strip():
-        raise HTTPException(status_code=400, detail="title is required")
+        raise HTTPException(status_code=400, detail="제목은 필수 입력 항목입니다.")
 
     if not post_data.content.strip():
-        raise HTTPException(status_code=400, detail="content is required")
+        raise HTTPException(status_code=400, detail="내용은 필수 입력 항목입니다.")
 
     # postgreSQL 연결 시작 수행 후 종료
     with Session(engine) as session:
@@ -81,11 +81,18 @@ def get_post(post_id : int):
     with Session(engine) as session:
         # 해당 id의 Row 가져오기
         post = session.get(Post, post_id)
-
         if post is None:
-            return {"message": "게시글 없음"}
+            raise HTTPException(
+                status_code=404,
+                detail="게시글을 찾을 수 없습니다."
+            )
         
         font = session.get(Font, post.font_id)
+        if font is None:
+            raise HTTPException(
+                status_code=500,
+                detail="게시글과 연결된 폰트 정보를 찾을 수 없습니다."
+    )
 
         return  {
                     "id": post.id,
@@ -103,17 +110,17 @@ def get_post(post_id : int):
 def update_post(post_id : int, post_data: Post):
 
     if not post_data.title.strip():
-        raise HTTPException(status_code=400, detail="title is required")
+        raise HTTPException(status_code=400, detail="제목은 필수 입력 항목입니다.")
 
     if not post_data.content.strip():
-        raise HTTPException(status_code=400, detail="content is required")
+        raise HTTPException(status_code=400, detail="제목은 필수 입력 항목입니다.")
     
     with Session (engine) as session:
         post = session.get(Post, post_id)
 
         if post is None:
             # FastAPI 제공 예외 클래스로 정확한 상태코드 내려줌
-            raise HTTPException(status_code=404, detail="Post not found")
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
 
         post.title = post_data.title
         post.content = post_data.content
@@ -139,7 +146,7 @@ def delete_post(post_id : int):
         post = session.get(Post, post_id)
 
         if post is None:
-            raise HTTPException(status_code=404, detail="Post not found")
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
 
         session.delete(post)
         session.commit()
@@ -162,5 +169,5 @@ def recommend_fonts(request: RecommendRequest):
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail="추천 처리 중 오류가 발생했습니다.",
         )

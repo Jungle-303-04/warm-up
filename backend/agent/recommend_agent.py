@@ -19,6 +19,12 @@ def run_recommend_agent(request: RecommendRequest):
     try:
         with Session(engine) as session: fonts = session.exec(select(Font)).all()
 
+        if not fonts:
+            raise HTTPException(
+                status_code=404,
+                detail="추천에 사용할 폰트 데이터가 없습니다."
+            )
+        
         candidate_fonts = [
                 {
                     "id": font.id,
@@ -28,13 +34,13 @@ def run_recommend_agent(request: RecommendRequest):
                     "tags": font.tags,
                     "description": font.description,
                     "weights": font.weights,
-                    "has_webfont": bool(font.webfonts) > 0
+                    "has_webfont": bool(font.webfonts)
                 }        
             for font in fonts
         ]
             
     except Exception as e:
-        raise HTTPException(status_code=502, detail="Invalid GPT response format")
+        raise HTTPException(status_code=500, detail="폰트 후보 조회중 오류가 발생했습니다.")
     
     prompt = f"""
         다음 문장을 폰트 추천에 사용할 수 있도록 분석해줘.
@@ -183,7 +189,6 @@ def run_recommend_agent(request: RecommendRequest):
     recommend_response = RecommendResponse(
         analysis=analysis_result,
         selection=selection_result,
-        candidate_fonts=bool(candidate_fonts),
         font=selected_font_data
     )
 

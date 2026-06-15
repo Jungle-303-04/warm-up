@@ -22,7 +22,6 @@ class FontSelection(BaseModel):
 class RecommendResponse(BaseModel):
     analysis: AnalysisResult
     selection: FontSelection
-    candidate_fonts: int
     font: dict | None = None
 
 
