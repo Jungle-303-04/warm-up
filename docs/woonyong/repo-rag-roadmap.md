@@ -82,7 +82,11 @@ findings/proposals 생성 + approval flow, 코드-문서 링크 상태 추적.
   - [x] `feat: 제안 SQL 모델·매퍼·저장소` (0964787) + `feat: Postgres 영속화 배선` (f167639) —
         `agent_proposals` 테이블, in-memory/SQL 선택, PG-가드 통합 테스트
   - [ ] (후속) LangGraph `interrupt` 기반 승인 게이팅
-- [ ] **Phase C — 백그라운드 워커 실제 처리**: heartbeat 빈 루프 → 실제 큐 소비(poller 패턴 재사용).
+- ✅ **Phase C — 백그라운드 워커 실제 처리** (96 passed / 4 skipped)
+  - [x] `feat: 워커 추상화 + repo-sync 실폴링 워커` (407c9e6) — `Worker`/`HeartbeatWorker`/
+        `SyncPollingWorker`/`build_worker`, repo-sync는 `SyncJobPoller`로 sync 큐 실제 소비
+  - [x] `fix: 크래시하던 static-publish 워커 제거` (1125251) — 전용 큐 없는 단계는 placeholder 명시
+  - 메모: 인덱싱/제안은 sync 워커 내부 인라인 처리. 단계별 전용 큐는 향후 분리 과제.
 - [ ] **Phase D — GitHub App**: webhook 수신·서명검증, 앱 인증(JWT→설치토큰), push 트리거 sync,
       제안을 PR/이슈 코멘트로 쓰기.
 - [ ] **Phase E — 프론트엔드 API 연동**: 저장소·검색·제안·승인 UI.
