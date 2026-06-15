@@ -133,6 +133,8 @@ export const STUDIO_TILES = [
   { icon: "schema", label: "ERD" },
   { icon: "checklist", label: "계획" },
   { icon: "calendar_month", label: "일정 요약" },
+  { icon: "report", label: "보고서" },
+  { icon: "mindmap", label: "마인드맵" },
 ];
 
 export const STUDIO_NOTES = ["도메인 ERD v2", "인증 시퀀스 UML"];

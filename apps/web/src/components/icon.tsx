@@ -22,6 +22,8 @@ import {
   MessageSquare,
   Monitor,
   Moon,
+  Network,
+  NotebookText,
   Plus,
   Search,
   Share2,
@@ -57,6 +59,8 @@ const ICONS: Record<string, LucideIcon> = {
   schema: Database,
   checklist: ListChecks,
   calendar_month: Calendar,
+  report: NotebookText, // 보고서 (스튜디오)
+  mindmap: Network, // 마인드맵 (스튜디오)
   article: StickyNote,
   // 소스 타입 아이콘
   folder_code: FolderGit2, // GitHub 저장소
