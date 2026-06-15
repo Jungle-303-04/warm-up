@@ -1,0 +1,19 @@
+@startuml packages_github_domain
+set namespaceSeparator none
+package "content_decoder" as content_decoder {
+}
+package "file_citation" as file_citation {
+}
+package "file_snapshot_builder" as file_snapshot_builder {
+}
+package "github_service" as github_service {
+}
+package "language_detector" as language_detector {
+}
+package "ports" as ports {
+}
+package "repository" as repository {
+}
+package "schema" as schema {
+}
+@enduml

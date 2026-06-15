@@ -1,0 +1,438 @@
+@startuml classes_rag_domain
+set namespaceSeparator none
+class "AnswerUseCase" as ports.AnswerUseCase {
+  answer(request: RagAskRequestDTO) -> RagAskResponseDTO
+}
+class "ChunkCitationService" as chunk_citation.ChunkCitationService {
+  build_citation(file_snapshot: GitHubFileSnapshotDTO, chunk: RagEvidenceChunkDraftDTO) -> str
+}
+class "ChunkFactory" as chunk_factory.ChunkFactory {
+  citation
+  identity
+  build_many(file_snapshot: GitHubFileSnapshotDTO, draft_chunks: list[RagEvidenceChunkDraftDTO]) -> list[RagEvidenceChunkDTO]
+  build_one(file_snapshot: GitHubFileSnapshotDTO, draft_chunk: RagEvidenceChunkDraftDTO, chunk_index: int) -> RagEvidenceChunkDTO
+}
+class "ChunkIdentityService" as chunk_identity.ChunkIdentityService {
+  build_hash(file_snapshot: GitHubFileSnapshotDTO, chunk: RagEvidenceChunkDraftDTO) -> str
+  build_id(file_snapshot: GitHubFileSnapshotDTO, chunk_hash: str) -> str
+}
+class "Chunker" as ports.Chunker {
+  build_minimal_evidence_chunks(file_snapshot: GitHubFileSnapshotDTO) -> list[RagEvidenceChunkDTO]
+}
+class "ChunkerRegistry" as chunker_registry.ChunkerRegistry {
+  chunkers
+  get(language: str) -> LanguageChunker | None
+}
+class "ChunkingService" as chunking_service.ChunkingService {
+  chunkers
+  factory
+  validator
+  build_minimal_evidence_chunks(file_snapshot: GitHubFileSnapshotDTO) -> list[RagEvidenceChunkDTO]
+}
+class "EmbeddingService" as embedding.EmbeddingService {
+  {abstract}embed_text(text: str) -> list[float]
+  {abstract}embed_texts(texts: list[str]) -> list[list[float]]
+}
+class "EvidenceFormatter" as ports.EvidenceFormatter {
+  format(documents: list[str], metadatas: list[dict]) -> str
+}
+class "EvidenceFormatter" as llm_client.EvidenceFormatter {
+  format(documents: list[str], metadatas: list[dict]) -> str
+  format_one(index: int, document: str, metadatas: list[dict]) -> str
+}
+class "GitHubRagPipelineRequestDTO" as schema.GitHubRagPipelineRequestDTO {
+  branch : str | None
+  commit_sha : str
+  files : list[GitHubFileResponseDTO]
+  repository_full_name : str | None
+  validate_commit_sha(value: str) -> str
+  validate_files(value: list[GitHubFileResponseDTO]) -> list[GitHubFileResponseDTO]
+}
+class "GitHubRagPipelineResultDTO" as schema.GitHubRagPipelineResultDTO {
+  commit_sha : str
+  evidence_chunks : list[RagEvidenceChunkDTO]
+  file_snapshots : list[GitHubFileSnapshotDTO]
+  skipped_files : list[GitHubRagSkippedFileDTO]
+  summary
+}
+class "GitHubRagPipelineService" as pipeline.GitHubRagPipelineService {
+  chunking_service
+  snapshot_builder
+  build_index_from_github_files(request: GitHubRagPipelineRequestDTO) -> GitHubRagPipelineResultDTO
+  collect_artifacts(request: GitHubRagPipelineRequestDTO) -> RagPipelineArtifacts
+}
+class "GitHubRagPipelineSummaryDTO" as schema.GitHubRagPipelineSummaryDTO {
+  indexed_files : int
+  skipped_files : int
+  total_chunks : int
+  total_files : int
+}
+class "GitHubRagSkippedFileDTO" as schema.GitHubRagSkippedFileDTO {
+  path : str
+  reason : str
+}
+class "GitHubRepositoryIndexRequestDTO" as schema.GitHubRepositoryIndexRequestDTO {
+  branch : str | None
+  repository_full_name : str
+  validate_branch(value: str | None) -> str | None
+  validate_repository_full_name(value: str) -> str
+}
+class "HashEmbeddingService" as embedding.HashEmbeddingService {
+  dimension : int
+  embed_text(text: str) -> list[float]
+  embed_texts(texts: list[str]) -> list[list[float]]
+}
+class "IndexPipeline" as ports.IndexPipeline {
+  build_index_from_github_files(request: GitHubRagPipelineRequestDTO) -> GitHubRagPipelineResultDTO
+}
+class "IndexUseCase" as ports.IndexUseCase {
+  get_run_detail(db: Session, run_id: int) -> RagIndexRunDetailDTO | None
+  index_and_store(db: Session, request: GitHubRagPipelineRequestDTO) -> RagStoredIndexResponseDTO
+  index_repository_and_store(db: Session, request: GitHubRepositoryIndexRequestDTO, github_access_token: str) -> RagStoredIndexResponseDTO
+  list_runs(db: Session, limit: int) -> RagIndexRunListResponseDTO
+  search_sql_chunks(db: Session, keyword: str, limit: int) -> RagSqlChunkSearchResponseDTO
+  search_vector_chunks(request: RagVectorSearchRequestDTO) -> RagVectorSearchResponseDTO
+}
+class "LanguageChunker" as chunking_base.LanguageChunker {
+  language : str
+  build_chunk(chunk_text: str, chunk_type: str, start_line: int | None, end_line: int | None, symbol_name: str | None) -> RagEvidenceChunkDraftDTO
+  {abstract}build_chunks(file_snapshot: GitHubFileSnapshotDTO) -> list[RagEvidenceChunkDraftDTO]
+}
+class "LlmClient" as ports.LlmClient {
+  answer_with_evidence(question: str, documents: list[str], metadatas: list[dict]) -> str
+}
+class "MarkdownChunker" as markdown_chunker.MarkdownChunker {
+  language : str
+  build_chunks(file_snapshot: GitHubFileSnapshotDTO) -> list[RagEvidenceChunkDraftDTO]
+}
+class "MarkdownSection" as markdown_chunker.MarkdownSection {
+  end_line : int
+  heading : str
+  start_line : int
+  text : str
+}
+class "OpenAIEmbeddingService" as embedding.OpenAIEmbeddingService {
+  embedding_model : OpenAIEmbeddings
+  embed_text(text: str) -> list[float]
+  embed_texts(texts: list[str]) -> list[list[float]]
+}
+class "OpenAIGenerator" as llm_client.OpenAIGenerator {
+  client : OpenAI
+  model : str
+  generate(messages: list[dict[str, Any]]) -> str
+}
+class "PromptBuilder" as ports.PromptBuilder {
+  build_messages(question: str, documents: list[str], metadatas: list[dict]) -> list[dict[str, str]]
+}
+class "PromptBuilder" as llm_client.PromptBuilder {
+  evidence_formatter
+  system_prompt : str
+  build_messages(question: str, documents: list[str], metadatas: list[dict]) -> list[dict[str, str]]
+  build_user_prompt(question: str, documents: list[str], metadatas: list[dict]) -> str
+}
+class "PythonChunkClassificationDTO" as python_classifier.PythonChunkClassificationDTO {
+  is_api_route : bool
+  is_placeholder : bool
+  is_test : bool
+  node_kind : str
+  path_role : str | None
+  semantic_role : str | None
+}
+class "PythonChunkClassifier" as python_classifier.PythonChunkClassifier {
+  classify(node: PythonChunkNode, path: str) -> PythonChunkClassificationDTO
+  detect_chunk_type(node: PythonChunkNode, path: str) -> str
+  resolve_chunk_type(classification: PythonChunkClassificationDTO) -> str
+}
+class "PythonChunker" as python_chunker.PythonChunker {
+  classifier
+  language : str
+  text_splitter
+  build_chunks(file_snapshot: GitHubFileSnapshotDTO) -> list[RagEvidenceChunkDraftDTO]
+  build_plain_text_chunks(content_text: str, chunk_type: str) -> list[RagEvidenceChunkDraftDTO]
+  build_symbol_chunk(file_snapshot: GitHubFileSnapshotDTO, lines: list[str], node: PythonChunkNode) -> RagEvidenceChunkDraftDTO | list[RagEvidenceChunkDraftDTO]
+}
+class "RagAnswerService" as answer_service.RagAnswerService {
+  llm_client
+  vector_repository
+  answer(request: RagAskRequestDTO) -> RagAskResponseDTO
+}
+class "RagAskRequestDTO" as schema.RagAskRequestDTO {
+  limit : Optional[int]
+  question : str
+  run_id : int | None
+  validate_question(value: str) -> str
+}
+class "RagAskResponseDTO" as schema.RagAskResponseDTO {
+  answer : str
+  run_id : int | None
+  sources : list[RagAskSourceDTO]
+}
+class "RagAskSourceDTO" as schema.RagAskSourceDTO {
+  chunk_type : str
+  citation : str
+  distance : float | None
+  path : str
+}
+class "RagChunk" as model.RagChunk {
+  chunk_hash : Mapped[str]
+  chunk_index : Mapped[int]
+  chunk_text : Mapped[str]
+  chunk_type : Mapped[str]
+  citation : Mapped[str]
+  commit_sha : Mapped[str]
+  direct_implementation_evidence : Mapped[bool]
+  end_line : Mapped[int | None]
+  external_chunk_id : Mapped[str]
+  file_snapshot_id : Mapped[int]
+  language : Mapped[str]
+  metadata_json : Mapped[dict]
+  path : Mapped[str]
+  run_id : Mapped[int]
+  source_type : Mapped[str]
+  start_line : Mapped[int | None]
+  symbol_name : Mapped[str | None]
+}
+class "RagChunkMetadataDTO" as schema.RagChunkMetadataDTO {
+  direct_implementation_evidence : bool
+}
+class "RagChunkRecordDTO" as schema.RagChunkRecordDTO {
+  chunk_hash : str
+  chunk_index : int
+  chunk_text : str
+  chunk_type : str
+  citation : str
+  commit_sha : str
+  direct_implementation_evidence : bool
+  end_line : int | None
+  external_chunk_id : str
+  file_snapshot_id : int
+  id : int
+  language : str
+  metadata_json : dict
+  model_config : ConfigDict
+  path : str
+  run_id : int
+  source_type : str
+  start_line : int | None
+  symbol_name : str | None
+}
+class "RagEvidenceChunkDTO" as schema.RagEvidenceChunkDTO {
+  chunk_hash : str
+  chunk_index : int
+  citation : str
+  commit_sha : str
+  id : str
+  language : str
+  path : str
+  source_type : str
+}
+class "RagEvidenceChunkDraftDTO" as schema.RagEvidenceChunkDraftDTO {
+  chunk_text : str
+  chunk_type : str
+  end_line : int | None
+  metadata
+  start_line : int | None
+  symbol_name : str | None
+  validate_chunk_text(value: str) -> str
+  validate_line(value: int | None) -> int | None
+}
+class "RagFileSnapshot" as model.RagFileSnapshot {
+  citation : Mapped[str]
+  commit_sha : Mapped[str]
+  content_hash : Mapped[str]
+  html_url : Mapped[str | None]
+  language : Mapped[str]
+  name : Mapped[str | None]
+  path : Mapped[str]
+  run_id : Mapped[int]
+  sha : Mapped[str | None]
+  size : Mapped[int | None]
+  source_type : Mapped[str]
+}
+class "RagFileSnapshotRecordDTO" as schema.RagFileSnapshotRecordDTO {
+  citation : str
+  commit_sha : str
+  content_hash : str
+  html_url : str | None
+  id : int
+  language : str
+  model_config : ConfigDict
+  name : str | None
+  path : str
+  run_id : int
+  sha : str | None
+  size : int | None
+  source_type : str
+}
+class "RagIndexRun" as model.RagIndexRun {
+  branch : Mapped[str | None]
+  commit_sha : Mapped[str]
+  indexed_at : Mapped[datetime]
+  indexed_files : Mapped[int]
+  repository_full_name : Mapped[str | None]
+  skipped_files : Mapped[int]
+  total_chunks : Mapped[int]
+  total_files : Mapped[int]
+}
+class "RagIndexRunDTO" as schema.RagIndexRunDTO {
+  branch : str | None
+  commit_sha : str
+  id : int
+  indexed_at : datetime
+  indexed_files : int
+  model_config : ConfigDict
+  repository_full_name : str | None
+  skipped_files : int
+  total_chunks : int
+  total_files : int
+}
+class "RagIndexRunDetailDTO" as schema.RagIndexRunDetailDTO {
+  chunks : list[RagChunkRecordDTO]
+  file_snapshots : list[RagFileSnapshotRecordDTO]
+  run
+  skipped_files : list[RagSkippedFileRecordDTO]
+}
+class "RagIndexRunListResponseDTO" as schema.RagIndexRunListResponseDTO {
+  items : list[RagIndexRunDTO]
+  total : int
+}
+class "RagIndexService" as index_service.RagIndexService {
+  pipeline_service
+  repository_source
+  sql_repository
+  vector_repository
+  build_vector_search_items(result: dict) -> list[RagVectorSearchItemDTO]
+  get_run_detail(db: Session, run_id: int) -> RagIndexRunDetailDTO | None
+  index_and_store(db: Session, request: GitHubRagPipelineRequestDTO) -> RagStoredIndexResponseDTO
+  index_repository_and_store(db: Session, request: GitHubRepositoryIndexRequestDTO, github_access_token: str) -> RagStoredIndexResponseDTO
+  list_runs(db: Session, limit: int) -> RagIndexRunListResponseDTO
+  search_sql_chunks(db: Session, keyword: str, limit: int) -> RagSqlChunkSearchResponseDTO
+  search_vector_chunks(request: RagVectorSearchRequestDTO) -> RagVectorSearchResponseDTO
+}
+class "RagLlm" as llm_client.RagLlm {
+  prompt_builder
+  text_generator
+  answer_with_evidence(question: str, documents: list[str], metadatas: list[dict]) -> str
+}
+class "RagPipelineArtifacts" as pipeline.RagPipelineArtifacts {
+  evidence_chunks : list[RagEvidenceChunkDTO]
+  file_snapshots : list[GitHubFileSnapshotDTO]
+  skipped_files : list[GitHubRagSkippedFileDTO]
+}
+class "RagSkippedFile" as model.RagSkippedFile {
+  path : Mapped[str]
+  reason : Mapped[str]
+  run_id : Mapped[int]
+}
+class "RagSkippedFileRecordDTO" as schema.RagSkippedFileRecordDTO {
+  id : int
+  model_config : ConfigDict
+  path : str
+  reason : str
+  run_id : int
+}
+class "RagSqlChunkSearchResponseDTO" as schema.RagSqlChunkSearchResponseDTO {
+  items : list[RagChunkRecordDTO]
+  keyword : str
+  limit : int
+}
+class "RagSqlRepository" as sql_repository.RagSqlRepository {
+  count_chunks_by_run_id(db: Session, run_id: int) -> int
+  count_runs(db: Session) -> int
+  create_chunks(db: Session, run_id: int, file_snapshot_by_key: dict[tuple[str, str], RagFileSnapshot], result: GitHubRagPipelineResultDTO) -> None
+  create_file_snapshots(db: Session, run_id: int, result: GitHubRagPipelineResultDTO) -> dict[tuple[str, str], RagFileSnapshot]
+  create_index_run(db: Session, request: GitHubRagPipelineRequestDTO, result: GitHubRagPipelineResultDTO) -> RagIndexRun
+  create_skipped_files(db: Session, run_id: int, result: GitHubRagPipelineResultDTO) -> None
+  get_run(db: Session, run_id: int) -> RagIndexRun | None
+  list_chunks(db: Session, run_id: int) -> list[RagChunk]
+  list_file_snapshots(db: Session, run_id: int) -> list[RagFileSnapshot]
+  list_runs(db: Session, limit: int) -> list[RagIndexRun]
+  list_skipped_files(db: Session, run_id: int) -> list[RagSkippedFile]
+  save_pipeline_result(db: Session, request: GitHubRagPipelineRequestDTO, result: GitHubRagPipelineResultDTO) -> RagIndexRun
+  search_chunks_by_keyword(db: Session, keyword: str, limit: int) -> list[RagChunk]
+}
+class "RagStore" as ports.RagStore {
+  count_chunks_by_run_id(db: Session, run_id: int) -> int
+  count_runs(db: Session) -> int
+  get_run(db: Session, run_id: int) -> Any | None
+  list_chunks(db: Session, run_id: int) -> list[Any]
+  list_file_snapshots(db: Session, run_id: int) -> list[Any]
+  list_runs(db: Session, limit: int) -> list[Any]
+  list_skipped_files(db: Session, run_id: int) -> list[Any]
+  save_pipeline_result(db: Session, request: GitHubRagPipelineRequestDTO, result: GitHubRagPipelineResultDTO) -> Any
+  search_chunks_by_keyword(db: Session, keyword: str, limit: int) -> list[Any]
+}
+class "RagStoredIndexResponseDTO" as schema.RagStoredIndexResponseDTO {
+  pipeline_result
+  run_id : int
+  sql_chunk_count : int
+  vector_chunk_count : int
+  vector_collection : str
+}
+class "RagVectorRepository" as vector_repository.RagVectorRepository {
+  client : Client
+  collection : Collection
+  collection_name : str
+  embedding_service
+  host : str | None
+  persist_path : str
+  port : int
+  build_metadata(chunk: RagEvidenceChunkDTO, run_id: int) -> dict
+  build_vector_id(chunk: RagEvidenceChunkDTO) -> str
+  count() -> int
+  create_client()
+  get_collection() -> Collection
+  save_chunks(chunks: list[RagEvidenceChunkDTO], run_id: int) -> int
+  search(query: str, limit: int, run_id: int | None) -> dict
+}
+class "RagVectorSearchItemDTO" as schema.RagVectorSearchItemDTO {
+  distance : float | None
+  document : str
+  id : str
+  metadata : dict
+}
+class "RagVectorSearchRequestDTO" as schema.RagVectorSearchRequestDTO {
+  limit : Optional[int]
+  query : str
+  run_id : int | None
+  validate_query(value: str) -> str
+}
+class "RagVectorSearchResponseDTO" as schema.RagVectorSearchResponseDTO {
+  collection : str
+  count : int
+  items : list[RagVectorSearchItemDTO]
+  query : str
+}
+class "RepoSource" as ports.RepoSource {
+  build_pipeline_request_from_repository(access_token: str, request: GitHubRepositoryIndexRequestDTO) -> GitHubRagPipelineRequestDTO
+}
+class "SnapshotBuilder" as ports.SnapshotBuilder {
+  build(file_response: GitHubFileResponseDTO, commit_sha: str) -> GitHubFileSnapshotDTO
+}
+class "SnapshotValidator" as snapshot_validator.SnapshotValidator {
+  validate(file_snapshot: GitHubFileSnapshotDTO) -> None
+}
+class "TextGenerator" as ports.TextGenerator {
+  generate(messages: list[dict[str, Any]]) -> str
+}
+class "TextSplitter" as chunking_base.TextSplitter {
+  split(text: str) -> list[str]
+}
+class "VectorResultRow" as vector_result.VectorResultRow {
+  distance : float | None
+  document : str
+  id : str
+  metadata : dict[str, Any]
+}
+class "VectorStore" as ports.VectorStore {
+  collection_name : str
+  count() -> int
+  save_chunks(chunks: list[RagEvidenceChunkDTO], run_id: int) -> int
+  search(query: str, limit: int, run_id: int | None) -> dict
+}
+schema.RagEvidenceChunkDTO --|> schema.RagEvidenceChunkDraftDTO
+schema.RagStoredIndexResponseDTO --> schema.GitHubRagPipelineResultDTO : pipeline_result
+schema.GitHubRagPipelineResultDTO --> schema.GitHubRagPipelineSummaryDTO : summary
+schema.RagEvidenceChunkDraftDTO --> schema.RagChunkMetadataDTO : metadata
+schema.RagIndexRunDetailDTO --> schema.RagIndexRunDTO : run
+@enduml

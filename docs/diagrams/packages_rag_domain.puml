@@ -1,0 +1,47 @@
+@startuml packages_rag_domain
+set namespaceSeparator none
+package "answer_service" as answer_service {
+}
+package "chunk_citation" as chunk_citation {
+}
+package "chunk_factory" as chunk_factory {
+}
+package "chunk_identity" as chunk_identity {
+}
+package "chunker_registry" as chunker_registry {
+}
+package "chunking" as chunking {
+}
+package "chunking_base" as chunking_base {
+}
+package "chunking_service" as chunking_service {
+}
+package "embedding" as embedding {
+}
+package "index_service" as index_service {
+}
+package "llm_client" as llm_client {
+}
+package "markdown_chunker" as markdown_chunker {
+}
+package "model" as model {
+}
+package "pipeline" as pipeline {
+}
+package "ports" as ports {
+}
+package "python_chunker" as python_chunker {
+}
+package "python_classifier" as python_classifier {
+}
+package "schema" as schema {
+}
+package "snapshot_validator" as snapshot_validator {
+}
+package "sql_repository" as sql_repository {
+}
+package "vector_repository" as vector_repository {
+}
+package "vector_result" as vector_result {
+}
+@enduml

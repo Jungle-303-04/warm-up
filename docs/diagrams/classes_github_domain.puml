@@ -1,0 +1,63 @@
+@startuml classes_github_domain
+set namespaceSeparator none
+class "GitHubContentDecoder" as content_decoder.GitHubContentDecoder {
+  decode(file_response: GitHubFileResponseDTO) -> str
+  decode_base64_text(content: str) -> str
+}
+class "GitHubFileCitationBuilder" as file_citation.GitHubFileCitationBuilder {
+  build(path: str, commit_sha: str) -> str
+}
+class "GitHubFileResponseDTO" as schema.GitHubFileResponseDTO {
+  content : str
+  encoding : str
+  html_url : str | None
+  name : str | None
+  path : str
+  sha : str | None
+  size : int | None
+  validate_path(value: str) -> str
+}
+class "GitHubFileSnapshotBuilder" as file_snapshot_builder.GitHubFileSnapshotBuilder {
+  citation_builder
+  content_decoder
+  language_detector
+  build(file_response: GitHubFileResponseDTO, commit_sha: str) -> GitHubFileSnapshotDTO
+  validate(file_response: GitHubFileResponseDTO, commit_sha: str) -> None
+}
+class "GitHubFileSnapshotBuilderPort" as ports.GitHubFileSnapshotBuilderPort {
+  build(file_response: GitHubFileResponseDTO, commit_sha: str) -> GitHubFileSnapshotDTO
+}
+class "GitHubFileSnapshotDTO" as schema.GitHubFileSnapshotDTO {
+  citation : str
+  commit_sha : str
+  content_hash : str
+  content_text : str
+  html_url : str | None
+  language : str
+  name : str | None
+  path : str
+  sha : str | None
+  size : int | None
+  source_type : str
+  validate_path(value: str) -> str
+}
+class "GitHubLanguageDetector" as language_detector.GitHubLanguageDetector {
+  detect(path: str) -> str
+}
+class "GitHubRepositoryClient" as repository.GitHubRepositoryClient {
+  http_client
+  build_headers(access_token: str) -> dict[str, str]
+  build_pipeline_request_from_repository(access_token: str, request: GitHubRepositoryIndexRequestDTO) -> GitHubRagPipelineRequestDTO
+  fetch_branch_commit_sha(access_token: str, repository_full_name: str, branch: str) -> str
+  fetch_file_content(access_token: str, repository_full_name: str, path: str, ref: str) -> GitHubFileResponseDTO
+  fetch_repository(access_token: str, repository_full_name: str) -> dict
+  fetch_repository_tree(access_token: str, repository_full_name: str, commit_sha: str) -> list[dict]
+  fetch_supported_files(access_token: str, repository_full_name: str, commit_sha: str, tree_items: list[dict]) -> list[GitHubFileResponseDTO]
+  get_json(access_token: str, path: str) -> dict
+  is_supported_blob(item: dict, path: str | None) -> bool
+}
+class "GitHubService" as github_service.GitHubService {
+  snapshot_builder
+  build_file_snapshot_from_github_response(file_response: GitHubFileResponseDTO, commit_sha: str) -> GitHubFileSnapshotDTO
+}
+@enduml

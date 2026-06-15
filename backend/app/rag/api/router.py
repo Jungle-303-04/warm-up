@@ -99,12 +99,12 @@ def store_github_repository_rag_index(
     tags=["rag"],
     response_model=RagAskResponseDTO,
 )
-@inject
+@inject # dependancy injection
 def ask_repository_rag(
     request: RagAskRequestDTO,
-    authorization: str | None = Header(default=None),
-    auth_cookie: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
-    db: Session = Depends(get_session),
+    authorization: str | None = Header(default=None), # read Authorization in HTTP header
+    auth_cookie: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME), # get login token in cookie
+    db: Session = Depends(get_session), # db session injection
     auth_service: AuthServicePort = Depends(Provide[AppContainer.auth_service]),
     answer_service: AnswerUseCase = Depends(Provide[AppContainer.rag_answer_service]),
 ) -> RagAskResponseDTO:
