@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 
-from app.repo_rag.domain.chunking import ChunkingService
-from app.repo_rag.domain.diff import RepoDiffService, change_summary
 from app.repo_rag.api.schemas import RepoRagSyncResponse
-from app.repo_rag.infrastructure.store import RepoRagStore
+from app.repo_rag.application.indexing import IndexingService
+from app.repo_rag.domain.diff import RepoDiffService, change_summary
+from app.repo_rag.domain.ports import RepoRagStore
 from app.repository_source import RepoSyncService
 
 
@@ -12,7 +12,7 @@ class SyncWorker:
     store: RepoRagStore
     repo_sync: RepoSyncService = field(default_factory=RepoSyncService)
     diff: RepoDiffService = field(default_factory=RepoDiffService)
-    chunking: ChunkingService = field(default_factory=ChunkingService)
+    indexing: IndexingService = field(default_factory=IndexingService)
 
     def run(self, job_id: str) -> RepoRagSyncResponse:
         job = self.store.start_job(job_id)
@@ -43,12 +43,12 @@ class SyncWorker:
             )
             self.store.record_event(job.id, "files_persisted", f"{len(file_records)} active files")
 
-            chunks = self.chunking.chunk_changed_files(snapshot, changes)
+            embedded_chunks = self.indexing.index_changes(snapshot, changes)
             chunk_records = self.store.upsert_chunks(
                 repository.id,
                 snapshot_record.id,
                 file_records,
-                chunks,
+                embedded_chunks,
             )
             self.store.record_event(job.id, "chunks_upserted", f"{len(chunk_records)} chunks")
 
