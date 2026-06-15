@@ -1,0 +1,46 @@
+<mxfile host="65bd71144e">
+    <diagram id="teamlog-erd" name="Teamlog ERD">
+        <mxGraphModel dx="845" dy="565" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="Teamlog ERD" style="text;html=1;strokeColor=none;fillColor=none;fontSize=28;fontStyle=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="20" width="240" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="users" value="&lt;b&gt;users&lt;/b&gt;&lt;hr/&gt;PK id&lt;br/&gt;email varchar(255) unique&lt;br/&gt;password_hash varchar(255)&lt;br/&gt;nickname varchar(50)&lt;br/&gt;created_at timestamptz" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e8f0fe;strokeColor=#2f5597;fontSize=14;align=left;spacing=10;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="120" width="280" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="pages" value="&lt;b&gt;pages&lt;/b&gt;&lt;hr/&gt;PK id&lt;br/&gt;type page_type&lt;br/&gt;title varchar(200)&lt;br/&gt;date date&lt;br/&gt;start_time time nullable&lt;br/&gt;end_time time nullable&lt;br/&gt;FK author_id -&amp;gt; users.id&lt;br/&gt;participants json&lt;br/&gt;ai_summary text nullable&lt;br/&gt;created_at timestamptz&lt;br/&gt;updated_at timestamptz" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#eaf7ea;strokeColor=#38761d;fontSize=14;align=left;spacing=10;" parent="1" vertex="1">
+                    <mxGeometry x="520" y="100" width="340" height="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="page_blocks" value="&lt;b&gt;page_blocks&lt;/b&gt;&lt;hr/&gt;PK id&lt;br/&gt;FK page_id -&amp;gt; pages.id&lt;br/&gt;type block_type&lt;br/&gt;content text&lt;br/&gt;checked boolean nullable&lt;br/&gt;order_index int&lt;br/&gt;created_at timestamptz&lt;br/&gt;updated_at timestamptz&lt;br/&gt;UNIQUE(page_id, order_index)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff4df;strokeColor=#b45f06;fontSize=14;align=left;spacing=10;" parent="1" vertex="1">
+                    <mxGeometry x="1010" y="80" width="330" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="comments" value="&lt;b&gt;comments&lt;/b&gt;&lt;hr/&gt;PK id&lt;br/&gt;FK page_id -&amp;gt; pages.id&lt;br/&gt;FK user_id -&amp;gt; users.id&lt;br/&gt;content text&lt;br/&gt;created_at timestamptz" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f3e8fd;strokeColor=#674ea7;fontSize=14;align=left;spacing=10;" parent="1" vertex="1">
+                    <mxGeometry x="490" y="490" width="320" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="page_embeddings" value="&lt;b&gt;page_embeddings&lt;/b&gt;&lt;hr/&gt;PK id&lt;br/&gt;FK page_id -&amp;gt; pages.id&lt;br/&gt;chunk_index int&lt;br/&gt;chunk_text text&lt;br/&gt;embedding vector(1536)&lt;br/&gt;created_at timestamptz&lt;br/&gt;UNIQUE(page_id, chunk_index)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fdeaea;strokeColor=#990000;fontSize=14;align=left;spacing=10;" parent="1" vertex="1">
+                    <mxGeometry x="1010" y="430" width="330" height="210" as="geometry"/>
+                </mxCell>
+                <mxCell id="rel_user_pages" value="1 : N" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#666666;fontSize=13;edgeStyle=orthogonalEdgeStyle;" parent="1" source="users" target="pages" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rel_page_blocks" value="1 : N" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#666666;fontSize=13;edgeStyle=orthogonalEdgeStyle;" parent="1" source="pages" target="page_blocks" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rel_page_comments" value="1 : N" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#666666;fontSize=13;edgeStyle=orthogonalEdgeStyle;" parent="1" source="pages" target="comments" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rel_user_comments" value="1 : N" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#666666;fontSize=13;edgeStyle=orthogonalEdgeStyle;" parent="1" source="users" target="comments" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rel_page_embeddings" value="1 : N" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#666666;fontSize=13;edgeStyle=orthogonalEdgeStyle;" parent="1" source="pages" target="page_embeddings" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend" value="Enums: page_type = MEETING | RETROSPECTIVE&#xa;block_type = PARAGRAPH | HEADING | BULLET | CHECKLIST | CODE&#xa;Cascade delete: users -&amp;gt; pages/comments, pages -&amp;gt; blocks/comments/embeddings" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=13;align=left;spacing=10;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="720" width="760" height="90" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

@@ -1,0 +1,118 @@
+@startuml
+title Teamlog Class Diagram
+left to right direction
+skinparam classAttributeIconSize 0
+
+class User {
+  +int id
+  +str email
+  +str password_hash
+  +str nickname
+  +datetime created_at
+}
+
+class Page {
+  +int id
+  +PageType type
+  +str title
+  +date date
+  +time? start_time
+  +time? end_time
+  +int author_id
+  +list participants
+  +str? ai_summary
+}
+
+class PageBlock {
+  +int id
+  +int page_id
+  +BlockType type
+  +str content
+  +bool? checked
+  +int order_index
+}
+
+class Comment {
+  +int id
+  +int page_id
+  +int user_id
+  +str content
+}
+
+class PageEmbedding {
+  +int id
+  +int page_id
+  +int chunk_index
+  +str chunk_text
+  +vector(1536) embedding
+}
+
+enum PageType {
+  MEETING
+  RETROSPECTIVE
+}
+
+enum BlockType {
+  PARAGRAPH
+  HEADING
+  BULLET
+  CHECKLIST
+  CODE
+}
+
+class PageCreate
+class PageUpdate
+class PageResponse
+class UserCreate
+class UserLogin
+class UserResponse
+
+class AuthRouter {
+  +signup()
+  +login()
+  +get_me()
+}
+
+class PagesRouter {
+  +create_page()
+  +get_pages()
+  +get_calendar_pages()
+  +get_page()
+  +update_page()
+  +delete_page()
+}
+
+class RagService {
+  +block_to_text()
+  +build_page_header()
+  +build_page_chunks()
+  +get_embedding()
+  +delete_page_embeddings()
+  +refresh_page_embeddings()
+  +try_refresh_page_embeddings()
+}
+
+User "1" --> "0..*" Page : authors
+User "1" --> "0..*" Comment : writes
+Page "1" --> "0..*" PageBlock : owns
+Page "1" --> "0..*" Comment : has
+Page "1" --> "0..*" PageEmbedding : indexes
+Page --> PageType
+PageBlock --> BlockType
+PageCreate ..> PageType
+PageCreate ..> BlockType
+PageUpdate ..> BlockType
+PageResponse ..> Page
+AuthRouter ..> User
+AuthRouter ..> UserCreate
+AuthRouter ..> UserLogin
+AuthRouter ..> UserResponse
+PagesRouter ..> Page
+PagesRouter ..> PageBlock
+PagesRouter ..> PageCreate
+PagesRouter ..> PageUpdate
+PagesRouter ..> PageResponse
+PagesRouter ..> RagService
+RagService ..> Page
+RagService ..> PageEmbedding
+@enduml

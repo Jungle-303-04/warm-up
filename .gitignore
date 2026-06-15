@@ -16,6 +16,11 @@ frontend/.env
 .vscode/
 vscode-setting/
 
+# Local GUI tools
+tools/dbeaver/
+tools/dbeaver-workspace/
+tools/drivers/
+
 # OS
 .DS_Store
 Thumbs.db

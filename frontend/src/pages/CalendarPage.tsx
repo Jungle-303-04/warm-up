@@ -3,7 +3,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { EventClickArg, EventContentArg } from "@fullcalendar/core";
 import type { DateClickArg } from "@fullcalendar/interaction";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { api } from "../api/client";
 import { AppLayout } from "../components/layout/AppLayout";
@@ -80,31 +80,29 @@ export function CalendarPage({ onLogout }: CalendarPageProps) {
 
   const currentMonthLabel = `${visibleYear}년 ${visibleMonth}월`;
 
-  const fetchCalendarItems = useCallback(async () => {
-    try {
-      setIsLoading(true);
+  const fetchCalendarItems = useCallback(
+    async (year = visibleYear, month = visibleMonth) => {
+      try {
+        setIsLoading(true);
 
-      // 현재 보고 있는 년/월의 페이지 목록만 백엔드에서 가져옵니다.
-      const response = await api.get<CalendarPageItem[]>("/pages/calendar", {
-        params: {
-          year: visibleYear,
-          month: visibleMonth,
-        },
-      });
+        // 현재 보고 있는 년/월의 페이지 목록만 백엔드에서 가져옵니다.
+        const response = await api.get<CalendarPageItem[]>("/pages/calendar", {
+          params: {
+            year,
+            month,
+          },
+        });
 
-      setCalendarItems(response.data);
-    } catch (error) {
-      console.error(error);
-      alert("캘린더 데이터를 불러오지 못했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [visibleYear, visibleMonth]);
-
-  useEffect(() => {
-    // 캘린더의 년/월이 바뀔 때마다 해당 월 데이터를 다시 조회합니다.
-    fetchCalendarItems();
-  }, [fetchCalendarItems]);
+        setCalendarItems(response.data);
+      } catch (error) {
+        console.error(error);
+        alert("캘린더 데이터를 불러오지 못했습니다.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [visibleYear, visibleMonth]
+  );
 
   const calendarEvents = useMemo(() => {
     // 백엔드 페이지 목록을 FullCalendar가 이해하는 이벤트 객체로 변환합니다.
@@ -227,9 +225,12 @@ export function CalendarPage({ onLogout }: CalendarPageProps) {
             datesSet={(arg) => {
               // 사용자가 이전/다음 달로 이동하면 visibleYear/Month를 갱신합니다.
               const currentStart = arg.view.currentStart;
+              const year = currentStart.getFullYear();
+              const month = currentStart.getMonth() + 1;
 
-              setVisibleYear(currentStart.getFullYear());
-              setVisibleMonth(currentStart.getMonth() + 1);
+              setVisibleYear(year);
+              setVisibleMonth(month);
+              fetchCalendarItems(year, month);
             }}
             dateClick={handleDateClick}
             eventClick={handleEventClick}

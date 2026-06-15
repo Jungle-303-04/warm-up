@@ -5,8 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.routers import auth, pages
-
+from app.routers import ai, auth, pages
 
 # FastAPI 앱을 만든다 -> 백엔드 서버의 중심 객체
 # FastAPI 앱 인스턴스를 만든다. 이 객체가 백엔드 서버의 중심 역할을 한다.
@@ -17,20 +16,21 @@ app = FastAPI(
 )
 
 
-#CORS 설정(프론트엔드와 백엔드 주소가 다를 때, 브라우저가 요청을 막는 보안 규칙)
+# CORS 설정(프론트엔드와 백엔드 주소가 다를 때, 브라우저가 요청을 막는 보안 규칙)
 # CORS 설정이다. 프론트엔드 주소에서 오는 요청을 백엔드가 허용하게 만든다.
 app.add_middleware(
-    CORSMiddleware, #요청이 들어올 때마다 출처를 확인하고 허용할지 말지 처리
-    allow_origins=[settings.FRONTEND_URL], #주소에서 온 요청만 허용
-    allow_credentials=True, #쿠키나 인증 정보를 포함한 요청도 허용
-    allow_methods=["*"], #모든 HTTP 메서드 허용(GET POST 등등)
-    allow_headers=["*"], #모든 요청 헤더 허용
+    CORSMiddleware,  # 요청이 들어올 때마다 출처를 확인하고 허용할지 말지 처리
+    allow_origins=[settings.FRONTEND_URL],  # 주소에서 온 요청만 허용
+    allow_credentials=True,  # 쿠키나 인증 정보를 포함한 요청도 허용
+    allow_methods=["*"],  # 모든 HTTP 메서드 허용(GET POST 등등)
+    allow_headers=["*"],  # 모든 요청 헤더 허용
 )
 
-#다른 파일에 있는 API들을 이 앱에 붙인다
+# 다른 파일에 있는 API들을 이 앱에 붙인다
 # auth, pages 라우터에 정의된 API들을 현재 FastAPI 앱에 연결한다.
-app.include_router(auth.router) # signup, login, me
-app.include_router(pages.router) #
+app.include_router(auth.router)  # signup, login, me
+app.include_router(pages.router)  #
+app.include_router(ai.router)  # /ai/rag/query
 
 
 # 서버가 살아 있는지 간단히 확인하는 API다. DB는 확인하지 않는다.

@@ -1,7 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import date
 
+from app.services.rag_service import delete_page_embeddings, try_refresh_page_embeddings
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, selectinload
@@ -94,7 +95,10 @@ def create_page(
         )
         db.add(page_block)
 
+    page_id = page.id
     db.commit()
+
+    try_refresh_page_embeddings(db, page.id)
 
     # 저장된 Page를 다시 조회해서 blocks까지 포함된 응답으로 반환한다.
     return get_page_or_404(db, page.id)
@@ -107,7 +111,9 @@ def create_page(
     response_model=PageListResponse,
 )
 def get_pages(
-    type_: PageType | None = Query(default=None, alias="type"),  # MEETING 또는 RETROSPECTIVE
+    type_: PageType | None = Query(
+        default=None, alias="type"
+    ),  # MEETING 또는 RETROSPECTIVE
     page: int = Query(default=1, ge=1),  # 조회할 페이지 번호
     size: int = Query(default=10, ge=1, le=100),  # 한 번에 가져올 개수
     db: Session = Depends(get_db),
@@ -127,9 +133,7 @@ def get_pages(
     total = db.execute(count_stmt).scalar_one()
 
     # 페이지네이션을 적용해서 현재 페이지에 보여줄 데이터만 가져온다.
-    items = db.execute(
-        stmt.offset((page - 1) * size).limit(size)
-    ).scalars().all()
+    items = db.execute(stmt.offset((page - 1) * size).limit(size)).scalars().all()
 
     return PageListResponse(
         items=items,
@@ -162,13 +166,17 @@ def get_calendar_pages(
         end_date = date(year, month + 1, 1)
 
     # 현재 로그인한 사용자의 Page 중 해당 월에 속한 것만 가져온다.
-    items = db.execute(
-        select(Page)
-        .where(Page.author_id == current_user.id)
-        .where(Page.date >= start_date)
-        .where(Page.date < end_date)
-        .order_by(Page.date.asc(), Page.start_time.asc())
-    ).scalars().all()
+    items = (
+        db.execute(
+            select(Page)
+            .where(Page.author_id == current_user.id)
+            .where(Page.date >= start_date)
+            .where(Page.date < end_date)
+            .order_by(Page.date.asc(), Page.start_time.asc())
+        )
+        .scalars()
+        .all()
+    )
 
     # FastAPI가 CalendarPageItem 리스트 형태의 JSON으로 변환해서 응답한다.
     return items
@@ -268,9 +276,7 @@ def update_page(
 
     # blocks가 전달되면 기존 블록을 삭제하고 새 블록 목록으로 다시 저장한다.
     if payload.blocks is not None:
-        db.execute(
-            delete(PageBlock).where(PageBlock.page_id == page.id)
-        )
+        db.execute(delete(PageBlock).where(PageBlock.page_id == page.id))
         db.flush()
 
         for index, block in enumerate(payload.blocks):
@@ -284,9 +290,11 @@ def update_page(
                 )
             )
 
+    page_id = page.id
     db.commit()
 
-    return get_page_or_404(db, page.id)
+    try_refresh_page_embeddings(db, page_id)
+    return get_page_or_404(db, page_id)
 
 
 @router.delete(
@@ -302,6 +310,7 @@ def delete_page(
     page = get_page_or_404(db, page_id)
     check_page_owner(page, current_user)
 
+    delete_page_embeddings(db, page_id)
     db.delete(page)
     db.commit()
 
