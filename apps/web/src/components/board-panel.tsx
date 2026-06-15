@@ -2,32 +2,12 @@
 
 import { useMemo, useState } from "react";
 
+import { addDays, isoDate, parseISO, sameDay, startOfWeek } from "../lib/date";
 import { BOARD_STATUS_META, BOARD_STATUS_ORDER, MEMBERS, TODAY } from "../lib/fixtures";
 import { useWorkspace } from "../lib/store";
 import type { BoardStatus, BoardTask, BoardView } from "../lib/types";
+import { Avatar } from "./ui/avatar";
 import { Icon } from "./icon";
-
-// ── 날짜 유틸 (외부 라이브러리 없이) ────────────────────────────────
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const addDays = (d: Date, n: number) => {
-  const x = startOfDay(d);
-  x.setDate(x.getDate() + n);
-  return x;
-};
-const sameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
-const isoDate = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate(),
-  ).padStart(2, "0")}`;
-const parseISO = (s: string) => {
-  const [y, m, day] = s.split("-").map(Number);
-  return new Date(y, m - 1, day);
-};
-// 월요일 시작 주
-const startOfWeek = (d: Date) => addDays(d, -((d.getDay() + 6) % 7));
 
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
 const VIEWS: { id: BoardView; label: string; icon: string }[] = [
@@ -57,31 +37,6 @@ function StatusDot({ status }: { status: BoardStatus }) {
   );
 }
 
-// 작성자/담당자 아바타. 팀 도구이므로 항목마다 누가 맡았는지 보인다.
-// 실제 avatar_url이 있으면 이미지를, 없으면 이니셜+색 폴백.
-function MemberAvatar({ login }: { login?: string }) {
-  const member = login ? MEMBERS[login] : undefined;
-  if (member?.avatar_url) {
-    return (
-      <img
-        src={member.avatar_url}
-        alt={`${member.name} (@${member.login})`}
-        title={`${member.name} (@${member.login})`}
-        className="h-4 w-4 shrink-0 rounded-full object-cover"
-      />
-    );
-  }
-  return (
-    <span
-      title={member ? `${member.name} (@${member.login})` : "담당자 미지정"}
-      className="grid h-4 w-4 shrink-0 place-items-center rounded-full text-[9px] font-semibold text-white"
-      style={{ background: member?.color ?? "#9aa1ab" }}
-    >
-      {member ? member.name.charAt(0) : "?"}
-    </span>
-  );
-}
-
 function TaskCard({ task }: { task: BoardTask }) {
   const due = parseISO(task.due);
   return (
@@ -95,7 +50,7 @@ function TaskCard({ task }: { task: BoardTask }) {
           {due.getMonth() + 1}/{due.getDate()}
         </span>
         <span className="ml-auto" />
-        <MemberAvatar login={task.author} />
+        <Avatar member={task.author ? MEMBERS[task.author] : undefined} />
       </div>
     </div>
   );

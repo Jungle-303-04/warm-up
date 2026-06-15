@@ -5,15 +5,15 @@
 완료 기준: **tsc green + 커밋 성공**. 결정 기준 = `decisions.md`(D1~D8, O1~O3).
 
 ## 에이전트 상태 (매 실행 시 갱신)
-- last_run: (ISO)
-- last_result: (DONE/BLOCKED/IDLE)
+- last_run: 2026-06-15T19:21:31Z
+- last_result: DONE
 - in_progress: (없음)
 
 ## 태스크 (잘게)
 
 ### 리팩터(공용 헬퍼 흡수 — 중복 제거, 동작 동일)
 - [x] N1. 다크 테마 + 토글 (완료)
-- [ ] R1. `board-panel`: 로컬 날짜유틸 제거 → `lib/date` 사용. 로컬 MemberAvatar 제거 → `ui/avatar`(`<Avatar member=.../>`).
+- [x] R1. `board-panel`: 로컬 날짜유틸 제거 → `lib/date` 사용. 로컬 MemberAvatar 제거 → `ui/avatar`(`<Avatar member=.../>`).
 - [ ] R2. `proposal-card`: `isoToday` 인라인 제거 → `lib/date`의 `isoDate(TODAY)` 사용.
 - [ ] R3. `center-panel`: 패널 래퍼 → `ui/panel`, 탭 분기 className → `lib/cn`.
 - [ ] R4. `studio-panel`: 패널 래퍼 → `ui/panel`.
