@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { BOARD_STATUS_META, BOARD_STATUS_ORDER, TODAY } from "../lib/fixtures";
+import { BOARD_STATUS_META, BOARD_STATUS_ORDER, MEMBERS, TODAY } from "../lib/fixtures";
 import { useWorkspace } from "../lib/store";
 import type { BoardStatus, BoardTask, BoardView } from "../lib/types";
 import { Icon } from "./icon";
@@ -57,6 +57,20 @@ function StatusDot({ status }: { status: BoardStatus }) {
   );
 }
 
+// 작성자/담당자 아바타. 팀 도구이므로 항목마다 누가 맡았는지 보인다.
+function MemberAvatar({ handle }: { handle?: string }) {
+  const member = handle ? MEMBERS[handle] : undefined;
+  return (
+    <span
+      title={member ? `${member.name} (@${member.handle})` : "담당자 미지정"}
+      className="grid h-4 w-4 shrink-0 place-items-center rounded-full text-[9px] font-semibold text-white"
+      style={{ background: member?.color ?? "#9aa1ab" }}
+    >
+      {member ? member.name.charAt(0) : "?"}
+    </span>
+  );
+}
+
 function TaskCard({ task }: { task: BoardTask }) {
   const due = parseISO(task.due);
   return (
@@ -69,6 +83,8 @@ function TaskCard({ task }: { task: BoardTask }) {
         <span>
           {due.getMonth() + 1}/{due.getDate()}
         </span>
+        <span className="ml-auto" />
+        <MemberAvatar handle={task.author} />
       </div>
     </div>
   );

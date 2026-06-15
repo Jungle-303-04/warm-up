@@ -3,6 +3,7 @@ import type {
   BoardStatus,
   BoardStatusMeta,
   BoardTask,
+  Member,
   Source,
   SourceKind,
   SourceKindConfig,
@@ -10,6 +11,14 @@ import type {
 
 // 데모 기준 날짜(2026-06). 보드의 "오늘"·기본 커서로 사용해 SSR/CSR 불일치를 피한다.
 export const TODAY = new Date(2026, 5, 16);
+
+// 데모(목업) 워크스페이스 멤버. 실제로는 워크스페이스 멤버(GitHub 조직)로 대체된다.
+// 로그인 사용자(woonyong-kr)는 화면에서 "나"로 강조된다.
+export const MEMBERS: Record<string, Member> = {
+  "woonyong-kr": { handle: "woonyong-kr", name: "우녕", color: "#0F6E56" },
+  minjeong: { handle: "minjeong", name: "민정", color: "#185FA5" },
+  chanbin: { handle: "chanbin", name: "찬빈", color: "#A32D2D" },
+};
 
 // 새 소스 종류는 여기에 한 줄만 추가하면 UI 전체에 반영된다.
 export const SOURCE_KINDS: Record<SourceKind, SourceKindConfig> = {
@@ -137,14 +146,15 @@ export const BOARD_STATUS_META: Record<BoardStatus, BoardStatusMeta> = {
 };
 
 // RepoLM 라벨이 붙은 이슈(보드↔GitHub 단방향)를 표현하는 데모 태스크.
+// author = 작성자/담당자 handle(MEMBERS). 팀 도구이므로 항목마다 작성자가 보인다.
 export const BOARD_TASKS: BoardTask[] = [
-  { id: "t1", title: "토큰 만료 401 문서화", status: "todo", due: "2026-06-16", repo: "team/api" },
-  { id: "t2", title: "ERD v2 리뷰 반영", status: "todo", due: "2026-06-18", repo: "team/api" },
-  { id: "t3", title: "온보딩 링크 점검", status: "todo", due: "2026-06-22", repo: "team/web" },
-  { id: "t4", title: "인증 미들웨어 리팩터", status: "doing", due: "2026-06-16", repo: "team/api" },
-  { id: "t5", title: "검색 가중치 튜닝", status: "doing", due: "2026-06-17", repo: "team/api" },
-  { id: "t6", title: "PDF 인덱싱 파이프라인", status: "doing", due: "2026-06-19", repo: "team/web" },
-  { id: "t7", title: "OAuth 콜백 안정화", status: "done", due: "2026-06-15", repo: "team/api" },
-  { id: "t8", title: "다크/라이트 토큰 정리", status: "done", due: "2026-06-12", repo: "team/web" },
-  { id: "t9", title: "월말 회고 준비", status: "todo", due: "2026-06-30", repo: "team/web" },
+  { id: "t1", title: "토큰 만료 401 문서화", status: "todo", due: "2026-06-16", repo: "team/api", author: "woonyong-kr" },
+  { id: "t2", title: "ERD v2 리뷰 반영", status: "todo", due: "2026-06-18", repo: "team/api", author: "minjeong" },
+  { id: "t3", title: "온보딩 링크 점검", status: "todo", due: "2026-06-22", repo: "team/web", author: "chanbin" },
+  { id: "t4", title: "인증 미들웨어 리팩터", status: "doing", due: "2026-06-16", repo: "team/api", author: "woonyong-kr" },
+  { id: "t5", title: "검색 가중치 튜닝", status: "doing", due: "2026-06-17", repo: "team/api", author: "minjeong" },
+  { id: "t6", title: "PDF 인덱싱 파이프라인", status: "doing", due: "2026-06-19", repo: "team/web", author: "chanbin" },
+  { id: "t7", title: "OAuth 콜백 안정화", status: "done", due: "2026-06-15", repo: "team/api", author: "woonyong-kr" },
+  { id: "t8", title: "다크/라이트 토큰 정리", status: "done", due: "2026-06-12", repo: "team/web", author: "minjeong" },
+  { id: "t9", title: "월말 회고 준비", status: "todo", due: "2026-06-30", repo: "team/web", author: "chanbin" },
 ];

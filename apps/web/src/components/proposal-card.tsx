@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useMe } from "../hooks/use-me";
 import { useProposalPublish } from "../hooks/use-proposal-publish";
 import { SOURCES, TODAY } from "../lib/fixtures";
 import { useWorkspace } from "../lib/store";
@@ -13,6 +14,7 @@ const isoToday = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart
 ).padStart(2, "0")}`;
 
 export function ProposalCard() {
+  const me = useMe();
   const selected = useWorkspace((s) => s.selected);
   const addBoardTask = useWorkspace((s) => s.addBoardTask);
   const setCenterTab = useWorkspace((s) => s.setCenterTab);
@@ -39,7 +41,12 @@ export function ProposalCard() {
     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
         <Icon name="auto_awesome" size={16} className="text-primary" />
-        제안 · 관련 코드
+        AI 제안
+        {me ? (
+          <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[11px] text-foreground">
+            검토 @{me.login}
+          </span>
+        ) : null}
         <span className="ml-auto">confidence 0.86</span>
       </div>
       <p className="mt-2 text-[14px] leading-relaxed">
