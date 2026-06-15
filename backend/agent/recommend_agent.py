@@ -91,6 +91,12 @@ def run_recommend_agent(request: RecommendRequest):
 
     rag_guides = search_guides(rag_query, top_k=3)
 
+    # GPT가 읽기 좋게 정리한 문자열 버전
+    rag_context = "\n\n".join(
+        guide["document"]
+        for guide in rag_guides
+    )
+
     selection_prompt = f"""
         사용자 문장:
         {text}
@@ -99,7 +105,7 @@ def run_recommend_agent(request: RecommendRequest):
         {analysis_result}
 
         RAG 추천 근거:
-        {rag_guides}
+        {rag_context}
 
         후보 폰트:
         {candidate_fonts}
@@ -116,10 +122,10 @@ def run_recommend_agent(request: RecommendRequest):
         사용자에게 보여줄 설명을 작성해.
 
         규칙:
-        - 반드시 "사용자 글의 특징" 과 "폰트 특징" 을 연결해서 설명해.
+        - 반드시 사용자 글 특징, RAG 근거, 폰트 특징을 모두 포함해 설명해.
         - 단순히 폰트 소개만 하지 마.
         - 왜 이 글에 이 폰트를 추천했는지 설명해.
-        - 1~2문장으로 작성해.
+        - 2~4문장으로 작성해.
         - "~했어요", "~어울려요", "~추천했어요" 말투를 사용해.
         - RAG, 분석 결과, 후보 폰트 등의 단어는 사용하지 마.
         - RAG 추천 근거와 후보 폰트 정보가 충돌하면 후보 폰트 정보를 우선해.
@@ -146,7 +152,6 @@ def run_recommend_agent(request: RecommendRequest):
             "display_reason":""
         }}
         """
-    
     selection_response = client.responses.parse(
         model="gpt-4.1-mini",
         input=selection_prompt,
