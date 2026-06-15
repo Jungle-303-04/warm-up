@@ -2,11 +2,21 @@ import json
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
+from app.api.errors import http_error
+from app.api.responses import BAD_REQUEST_RESPONSE
 from app.config import Settings, get_settings
-from app.github.api.schemas import WebhookAcceptedResponse
+from app.github.api.schemas import (
+    PublishProposalRequest,
+    PublishProposalResponse,
+    WebhookAcceptedResponse,
+)
+from app.github.application.publish_service import ProposalPublishService
 from app.github.application.webhook_service import GitHubWebhookService
-from app.github.dependencies import get_webhook_service
+from app.github.dependencies import get_comment_client, get_webhook_service
+from app.github.domain.ports import GitHubCommentClient
 from app.github.domain.signature import verify_signature
+from app.proposals.application.service import ProposalReviewService
+from app.proposals.dependencies import get_proposal_review_service
 
 router = APIRouter()
 
@@ -53,3 +63,22 @@ async def github_webhook(
         repository=event.repository_full_name,
         branch=event.branch,
     )
+
+
+@router.post(
+    "/proposals/{proposal_id}/publish",
+    response_model=PublishProposalResponse,
+    responses=BAD_REQUEST_RESPONSE,
+)
+def publish_proposal(
+    proposal_id: str,
+    body: PublishProposalRequest,
+    client: GitHubCommentClient = Depends(get_comment_client),
+    proposals: ProposalReviewService = Depends(get_proposal_review_service),
+) -> PublishProposalResponse:
+    def run() -> PublishProposalResponse:
+        record = proposals.get(proposal_id)
+        url = ProposalPublishService(client=client).publish(record, body.issue_number)
+        return PublishProposalResponse(comment_url=url)
+
+    return http_error(run, {KeyError: status.HTTP_404_NOT_FOUND})

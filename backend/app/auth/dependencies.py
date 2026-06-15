@@ -6,9 +6,10 @@ OAuth client_id/secret이 없으면 503으로 안내한다(로그인 자체가 �
 
 from functools import lru_cache
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 
 from app.auth.application.service import AuthService
+from app.auth.domain.records import SessionClaims
 from app.auth.infrastructure.in_memory_token_store import InMemoryGitHubTokenStore
 from app.auth.infrastructure.session_tokens import SessionTokenCodec
 from app.config import Settings, get_settings
@@ -17,6 +18,10 @@ from app.config import Settings, get_settings
 @lru_cache(maxsize=1)
 def _token_store() -> InMemoryGitHubTokenStore:
     return InMemoryGitHubTokenStore()
+
+
+def get_github_token_store() -> InMemoryGitHubTokenStore:
+    return _token_store()
 
 
 def get_auth_service(settings: Settings = Depends(get_settings)) -> AuthService:
@@ -45,3 +50,18 @@ def get_auth_service(settings: Settings = Depends(get_settings)) -> AuthService:
         redirect_uri=settings.github_oauth_redirect_uri,
         scope=settings.github_oauth_scopes,
     )
+
+
+def get_current_claims(
+    rp_session: str | None = Cookie(default=None),
+    service: AuthService = Depends(get_auth_service),
+) -> SessionClaims:
+    if not rp_session:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="로그인이 필요합니다")
+    try:
+        return service.current_user(rp_session)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="세션이 유효하지 않습니다",
+        ) from exc
