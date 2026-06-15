@@ -1,26 +1,42 @@
-# 야간 자동화 백로그 (프론트 전용, 목업 안전)
+# 야간 자동화 — 태스크 보드 + 에이전트 상태
 
-자동화는 **한 번에 하나만**, 위에서부터 처리한다. 각 항목은 tsc(+build) green이어야 유지.
-결정 기준은 `decisions.md`(D1~D8, O1~O3). 백엔드 호출/실데이터는 건드리지 않는다(목업 유지).
-실패하면 그 항목 변경을 되돌리고 `night-log.md`에 BLOCKED로 기록 후 중단.
+자동화 에이전트의 **단일 상태/태스크 소스**. 한 실행 = 한 항목. 위에서부터.
+상태: `[ ]` 대기 · `[~]` 진행중(시작 시 표시) · `[x]` 완료 · `[!]` 블록(에러/모호).
+완료 기준: **tsc green + 커밋 성공**. 결정 기준 = `decisions.md`(D1~D8, O1~O3).
 
-## 순서
+## 에이전트 상태 (매 실행 시 갱신)
+- last_run: (ISO)
+- last_result: (DONE/BLOCKED/IDLE)
+- in_progress: (없음)
 
-- [x] N1. 다크 테마 + 시스템/라이트/다크 토글 (D2/O3) — globals 다크 토큰, 부트스트랩, ThemeToggle.
-- [ ] N2. 공용 모듈 리팩터 마무리 — board-panel/proposal-card는 `lib/date`, board는 `ui/avatar`,
-      center-panel/studio-panel은 `ui/panel`, top-bar 알림버튼은 `ui/icon-button`로 치환(중복 제거). 동작 동일.
-- [ ] N3. 스튜디오 혼합 타일 (D6) — 기존 UML/ERD/계획/일정에 "보고서", "마인드맵" 타일 추가(목업, 클릭=준비 중).
-- [ ] N4. 소스 추가 모달 (D4) — "+ 소스 추가" 클릭 시 2-탭 모달: ①GitHub 레포 URL 연결 ②파일 업로드(md/txt/pdf, 10MB 안내).
-      목업(제출 시 토스트/닫기만). 접근성(역할=dialog, esc 닫기).
-- [ ] N5. 작성자 신원 마감 (F1) — auth-menu 아바타를 실제 GitHub 사진(`avatars.githubusercontent.com/u/{user_id}`),
-      repo 소스 아이콘 `SOURCE_KINDS.repo.icon`을 `"github"`로.
-- [ ] N6. AgentResponse 타입 + kind 렌더 골격 (D7) — `lib/types.ts`에 `AgentResponse`(answer/references/summary/...)
-      추가, chat-view에 kind별 렌더 스텁(목업 데이터). 백엔드 연결 지점만 준비.
+## 태스크 (잘게)
+
+### 리팩터(공용 헬퍼 흡수 — 중복 제거, 동작 동일)
+- [x] N1. 다크 테마 + 토글 (완료)
+- [ ] R1. `board-panel`: 로컬 날짜유틸 제거 → `lib/date` 사용. 로컬 MemberAvatar 제거 → `ui/avatar`(`<Avatar member=.../>`).
+- [ ] R2. `proposal-card`: `isoToday` 인라인 제거 → `lib/date`의 `isoDate(TODAY)` 사용.
+- [ ] R3. `center-panel`: 패널 래퍼 → `ui/panel`, 탭 분기 className → `lib/cn`.
+- [ ] R4. `studio-panel`: 패널 래퍼 → `ui/panel`.
+
+### 스튜디오 혼합 타일(D6)
+- [ ] S1. `fixtures.STUDIO_TILES`에 "보고서","마인드맵" 추가. 필요 아이콘은 `icon.tsx`에 매핑 추가(report→description, mindmap→account_tree 등 lucide). 타일 클릭=준비 중 유지.
+
+### 소스 추가 모달(D4) — 목업
+- [ ] M1. `components/ui/modal.tsx` 생성: 접근성 다이얼로그(role="dialog" aria-modal, 오버레이, Esc 닫기, position:fixed 금지—인플로우 오버레이). 재사용 가능.
+- [ ] M2. `components/source-add-modal.tsx`: 2-탭(①GitHub 레포 URL ②파일 업로드 md/txt/pdf·10MB 안내). 목업(제출=닫기). `sources-panel`의 "소스 추가" 버튼을 이 모달 열도록(준비중 해제, 상태는 로컬 useState).
+
+### GitHub 신원(F1)
+- [ ] I1. `auth-menu`: 로그인 사용자 아이콘 → 실제 사진 `https://avatars.githubusercontent.com/u/${me.user_id}` (plain img, rounded-full).
+- [ ] I2. `fixtures.SOURCE_KINDS.repo.icon` → `"github"`(인라인 SVG 아이콘 사용).
+
+### 채팅 답변 골격(D7) — 목업
+- [ ] A1. `lib/types.ts`에 `AgentResponse` 판별유니온(kind: answer/references/summary/abstain/clarify) + `Citation` 타입 추가.
+- [ ] A2. `chat-view`: 예시 답변을 `AgentResponse` 목업으로 바꾸고 kind별 렌더 스텁(answer=본문+인용칩, references=파일목록, summary=문단, abstain/clarify=안내). 백엔드 연결 지점 주석.
 
 ## 규칙
-
-1. 한 사이클 = 백로그 1개. 작게.
-2. `cd apps/web && ./node_modules/.bin/tsc --noEmit` green 필수. 가능하면 `pnpm build`도.
-3. 디자인/사용성: 진짜 NotebookLM 톤(다크 기본), Tailwind 유틸만, 토큰만 사용.
-4. 끝나면 항목 [x] 체크 + `night-log.md`에 1줄 기록. 커밋 시도(잠기면 변경만 남김).
-5. 결정이 필요한 모호함이 생기면 구현 말고 `night-log.md`에 QUESTION으로 적고 다음 항목으로.
+1. 한 실행 = 1개. 시작 시 `[~]`, 끝 `[x]`/`[!]`.
+2. **반드시 `tsc` green**. 아니면 변경 되돌리고 `[!]` + night-log에 사유.
+3. **반드시 `bash scripts/auto-commit.sh "<msg>"` 로 커밋**(매 사이클). push 금지.
+4. 추상화/가독성 최우선: 중복은 공용 헬퍼(`lib/cn`,`lib/date`,`ui/*`)로. 새 중복 만들지 말 것.
+5. 프론트·목업만. 백엔드/실API/의존성설치/rm/push/`git add -A` 금지.
+6. 모호하면 구현 말고 `[!]` + night-log에 `QUESTION:`.
