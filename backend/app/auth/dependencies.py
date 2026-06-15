@@ -9,6 +9,7 @@ from functools import lru_cache
 from fastapi import Cookie, Depends, HTTPException, status
 
 from app.auth.application.service import AuthService
+from app.auth.domain.ports import GitHubTokenStore
 from app.auth.domain.records import SessionClaims
 from app.auth.infrastructure.in_memory_token_store import InMemoryGitHubTokenStore
 from app.auth.infrastructure.session_tokens import SessionTokenCodec
@@ -16,12 +17,29 @@ from app.config import Settings, get_settings
 
 
 @lru_cache(maxsize=1)
-def _token_store() -> InMemoryGitHubTokenStore:
+def _in_memory_token_store() -> InMemoryGitHubTokenStore:
     return InMemoryGitHubTokenStore()
 
 
-def get_github_token_store() -> InMemoryGitHubTokenStore:
-    return _token_store()
+@lru_cache(maxsize=1)
+def _sql_token_store() -> GitHubTokenStore:
+    settings = get_settings()
+    if settings.postgres_database_url is None:
+        raise RuntimeError("POSTGRES_DATABASE_URL is required for SQL storage")
+
+    from app.auth.infrastructure.sql_token_store import SqlGitHubTokenStore
+    from app.repo_rag.infrastructure.db import create_db_engine, create_session_factory
+
+    session_factory = create_session_factory(create_db_engine(settings.postgres_database_url))
+    return SqlGitHubTokenStore(session_factory)
+
+
+def _resolve_token_store(settings: Settings) -> GitHubTokenStore:
+    return _sql_token_store() if settings.uses_postgres else _in_memory_token_store()
+
+
+def get_github_token_store(settings: Settings = Depends(get_settings)) -> GitHubTokenStore:
+    return _resolve_token_store(settings)
 
 
 def get_auth_service(settings: Settings = Depends(get_settings)) -> AuthService:
@@ -44,7 +62,7 @@ def get_auth_service(settings: Settings = Depends(get_settings)) -> AuthService:
     )
     return AuthService(
         oauth_client=oauth_client,
-        token_store=_token_store(),
+        token_store=_resolve_token_store(settings),
         session_codec=codec,
         client_id=settings.github_oauth_client_id,
         redirect_uri=settings.github_oauth_redirect_uri,
