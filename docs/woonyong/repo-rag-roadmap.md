@@ -72,8 +72,14 @@ findings/proposals 생성 + approval flow, 코드-문서 링크 상태 추적.
   - [x] `feat: LangGraph 제안 그래프 어댑터를 추가` (`LangGraphProposer`, chat model 팩토리,
         Fake ChatModel 오프라인 테스트)
   - [x] `feat: 파이프라인에 LLM 제안 그래프를 배선` (`llm_provider` 설정, 서비스 주입)
-- [ ] **Phase B — Approval (HITL 결정 API/영속화)**: 제안 PENDING 유지, 승인/반려 결정 API,
-      향후 LangGraph `interrupt` 연결 지점.
+- ✅ **Phase B — Approval (HITL 결정, "제안=퀘스트" 상태머신)** (91 passed / 2 skipped)
+  - [x] `feat: REJECTED 상태와 파이프라인 collect 공개` (9ff5e26)
+  - [x] `feat: 제안 리뷰 도메인(레코드·상태전이·포트)` (977d8e8) — PENDING→APPROVED/REJECTED,
+        종료 상태 재결정 차단, 결정 이력(decided_at/reason)
+  - [x] `feat: 리뷰 서비스 + in-memory 저장소` (86eb848) — generate(수락)/list/approve/reject
+  - [x] `feat: 승인/반려 API + 라우터 마운트` (7689f96) — `POST /pipeline/proposals`,
+        `GET /pipeline/proposals[?status=]`, `GET/POST .../{id}/approve|reject`
+  - [ ] (후속) SQL 영속화 어댑터 + UoW, LangGraph `interrupt` 기반 게이팅
 - [ ] **Phase C — 백그라운드 워커 실제 처리**: heartbeat 빈 루프 → 실제 큐 소비(poller 패턴 재사용).
 - [ ] **Phase D — GitHub App**: webhook 수신·서명검증, 앱 인증(JWT→설치토큰), push 트리거 sync,
       제안을 PR/이슈 코멘트로 쓰기.
