@@ -62,6 +62,7 @@ class CodeReference(BaseModel):
     id: str
     path: str
     symbol: str
+    kind: str = "symbol"
     line: int
     commit_sha: str
     status: str

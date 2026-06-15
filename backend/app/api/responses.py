@@ -5,8 +5,7 @@ from pydantic import BaseModel
 
 from app.api.schemas import ErrorResponse
 
-
-OpenApiResponse = dict[int, dict[str, Any]]
+OpenApiResponse = dict[int | str, dict[str, Any]]
 
 
 def error_response(status_code: int, model: type[BaseModel] = ErrorResponse) -> OpenApiResponse:
