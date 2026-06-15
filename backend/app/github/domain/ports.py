@@ -11,3 +11,9 @@ from app.repo_rag.api.schemas import RepoRagSyncRequest
 
 class SyncTrigger(Protocol):
     def trigger(self, request: RepoRagSyncRequest) -> None: ...
+
+
+class GitHubCommentClient(Protocol):
+    """이슈/PR에 코멘트를 작성하는 추상. 작성된 코멘트 URL을 돌려준다."""
+
+    def create_issue_comment(self, repository: str, issue_number: int, body: str) -> str: ...
