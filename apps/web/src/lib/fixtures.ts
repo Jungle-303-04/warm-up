@@ -22,7 +22,7 @@ export const MEMBERS: Record<string, Member> = {
 
 // 새 소스 종류는 여기에 한 줄만 추가하면 UI 전체에 반영된다.
 export const SOURCE_KINDS: Record<SourceKind, SourceKindConfig> = {
-  repo: { icon: "folder_code", label: "GitHub 저장소", chipBg: "#E1F5EE", chipFg: "#0F6E56" },
+  repo: { icon: "github", label: "GitHub 저장소", chipBg: "#E1F5EE", chipFg: "#0F6E56" },
   md: { icon: "description", label: "Markdown", chipBg: "#E6F1FB", chipFg: "#185FA5" },
   text: { icon: "text_snippet", label: "텍스트", chipBg: "#F1EFE8", chipFg: "#5F5E5A" },
   pdf: { icon: "picture_as_pdf", label: "PDF", chipBg: "#FCEBEB", chipFg: "#A32D2D" },

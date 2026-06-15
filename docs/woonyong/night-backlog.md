@@ -5,7 +5,7 @@
 완료 기준: **tsc green + 커밋 성공**. 결정 기준 = `decisions.md`(D1~D8, O1~O3).
 
 ## 에이전트 상태 (매 실행 시 갱신)
-- last_run: 2026-06-16T (I1)
+- last_run: 2026-06-16T (I2)
 - last_result: DONE
 - in_progress: (없음)
 
@@ -27,7 +27,7 @@
 
 ### GitHub 신원(F1)
 - [x] I1. `auth-menu`: 로그인 사용자 아이콘 → 실제 사진 `https://avatars.githubusercontent.com/u/${me.user_id}` (plain img, rounded-full).
-- [ ] I2. `fixtures.SOURCE_KINDS.repo.icon` → `"github"`(인라인 SVG 아이콘 사용).
+- [x] I2. `fixtures.SOURCE_KINDS.repo.icon` → `"github"`(인라인 SVG 아이콘 사용).
 
 ### 채팅 답변 골격(D7) — 목업
 - [ ] A1. `lib/types.ts`에 `AgentResponse` 판별유니온(kind: answer/references/summary/abstain/clarify) + `Citation` 타입 추가.
