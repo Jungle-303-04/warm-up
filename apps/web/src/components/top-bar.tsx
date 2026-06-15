@@ -2,6 +2,7 @@
 
 import { AuthMenu } from "./auth-menu";
 import { Icon } from "./icon";
+import { ThemeToggle } from "./theme-toggle";
 
 export function TopBar() {
   return (
@@ -38,6 +39,7 @@ export function TopBar() {
         >
           <Icon name="notifications" size={18} />
         </button>
+        <ThemeToggle />
         <AuthMenu />
       </div>
     </header>

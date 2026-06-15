@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* board-simple(teal/shadcn) 라이트 테마를 그대로 채택. 다크 모드 없음. */
+/* shadcn HSL 토큰. 라이트 = :root, 다크 = .dark(진짜 NotebookLM 톤). 기본은 시스템(부트스트랩 스크립트). */
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -44,6 +44,33 @@
   --border: 207 19% 88%;
   --input: 207 19% 82%;
   --ring: 176 77% 26%;
+  --code-bg: 200 24% 12%;
+  --code-fg: 210 20% 98%;
+  color-scheme: light;
+}
+
+/* 진짜 NotebookLM 다크 톤 */
+.dark {
+  --background: 220 6% 10%;
+  --foreground: 210 12% 90%;
+  --card: 220 6% 13%;
+  --card-foreground: 210 12% 90%;
+  --primary: 176 55% 47%;
+  --primary-foreground: 220 8% 8%;
+  --secondary: 220 5% 18%;
+  --secondary-foreground: 210 12% 90%;
+  --muted: 220 5% 18%;
+  --muted-foreground: 215 10% 62%;
+  --accent: 176 38% 22%;
+  --accent-foreground: 176 60% 82%;
+  --destructive: 0 62% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 6% 22%;
+  --input: 220 6% 26%;
+  --ring: 176 55% 47%;
+  --code-bg: 220 8% 6%;
+  --code-fg: 210 12% 90%;
+  color-scheme: dark;
 }
 
 * {
@@ -125,8 +152,8 @@ textarea {
 .markdown-body pre {
   overflow-x: auto;
   border-radius: 0.5rem;
-  background: hsl(var(--foreground));
-  color: hsl(var(--background));
+  background: hsl(var(--code-bg));
+  color: hsl(var(--code-fg));
   padding: 0.75rem;
 }
 

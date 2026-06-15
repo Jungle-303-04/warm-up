@@ -25,10 +25,16 @@ team-sharing-model / backend-handoff / frontend-handoff / langgraph-agent-design
 - **테마**: 기본 시스템(prefers-color-scheme), 토글로 light/dark/system. 색은 토큰으로만.
 - **권한 2축 유지**: 가시성=GitHub(`required_repos ⊆ accessible_repos`), 쓰기=역할(`require_write`).
 
+## 확정 결정 (2026-06-16, 2차)
+
+| # | 주제 | 결정 |
+|---|---|---|
+| O1 | 업로드 제한 | **md/txt/pdf만 + 10MB 상한**. 그 외 타입 거부. |
+| O2 | 보드 로컬↔GitHub | **동기화 없음**(로컬 태스크는 RepoLM 내부, GitHub 쓰기는 제안 발행만). |
+| O3 | 테마 기본 | **시스템 따름**(prefers-color-scheme) + light/dark/system 토글. |
+
 ## 열린 결정 (다음 사이클에 질문)
 
-- 업로드 파일 용량/타입 제한, 중복 처리.
-- 보드 로컬 태스크의 GitHub 동기화 여부(현재: 동기화 없음, 발행만).
 - 답변 스트리밍 도입 시점.
 - 스튜디오 생성물(보고서/마인드맵)의 정확한 산출 포맷.
 
