@@ -87,6 +87,11 @@ findings/proposals 생성 + approval flow, 코드-문서 링크 상태 추적.
         `SyncPollingWorker`/`build_worker`, repo-sync는 `SyncJobPoller`로 sync 큐 실제 소비
   - [x] `fix: 크래시하던 static-publish 워커 제거` (1125251) — 전용 큐 없는 단계는 placeholder 명시
   - 메모: 인덱싱/제안은 sync 워커 내부 인라인 처리. 단계별 전용 큐는 향후 분리 과제.
-- [ ] **Phase D — GitHub App**: webhook 수신·서명검증, 앱 인증(JWT→설치토큰), push 트리거 sync,
-      제안을 PR/이슈 코멘트로 쓰기.
+- ✅ **Phase D — GitHub App (핵심)** (111 passed / 4 skipped)
+  - [x] `feat: 웹훅 서명검증 + 설정` (75b913a) — HMAC-SHA256 상수시간 비교
+  - [x] `feat: 웹훅 수신 엔드포인트 + sync 트리거` (5ea17ca) — `POST /github/webhook`,
+        push → repo_rag sync(큐잉/인라인)
+  - [x] `feat: App JWT(RS256) 인증` (ed5ac01) — 10분 만료 한도 준수
+  - [x] `feat: 제안 코멘트 포맷팅 + 발행 서비스` (a36d75b) — `GitHubCommentClient` 포트 + httpx 어댑터
+  - [ ] (후속) 설치 토큰 교환(network) 실연동, 승인 시 이슈/PR 자동 게시(이슈 링크 모델 필요)
 - [ ] **Phase E — 프론트엔드 API 연동**: 저장소·검색·제안·승인 UI.
