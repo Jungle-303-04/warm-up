@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     github_oauth_scopes: str = "read:user repo"
     session_jwt_secret: str = "dev-insecure-session-secret"  # 운영에서는 반드시 교체
     session_ttl_seconds: int = 60 * 60 * 8
+    web_app_url: str = "http://localhost:3000"  # 로그인 완료 후 돌아갈 프론트엔드
 
     # 하이브리드 검색 가중치 (vector + keyword)
     hybrid_vector_weight: float = 0.7
