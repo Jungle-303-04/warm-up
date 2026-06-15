@@ -79,7 +79,9 @@ findings/proposals 생성 + approval flow, 코드-문서 링크 상태 추적.
   - [x] `feat: 리뷰 서비스 + in-memory 저장소` (86eb848) — generate(수락)/list/approve/reject
   - [x] `feat: 승인/반려 API + 라우터 마운트` (7689f96) — `POST /pipeline/proposals`,
         `GET /pipeline/proposals[?status=]`, `GET/POST .../{id}/approve|reject`
-  - [ ] (후속) SQL 영속화 어댑터 + UoW, LangGraph `interrupt` 기반 게이팅
+  - [x] `feat: 제안 SQL 모델·매퍼·저장소` (0964787) + `feat: Postgres 영속화 배선` (f167639) —
+        `agent_proposals` 테이블, in-memory/SQL 선택, PG-가드 통합 테스트
+  - [ ] (후속) LangGraph `interrupt` 기반 승인 게이팅
 - [ ] **Phase C — 백그라운드 워커 실제 처리**: heartbeat 빈 루프 → 실제 큐 소비(poller 패턴 재사용).
 - [ ] **Phase D — GitHub App**: webhook 수신·서명검증, 앱 인증(JWT→설치토큰), push 트리거 sync,
       제안을 PR/이슈 코멘트로 쓰기.
