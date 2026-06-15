@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     llm_provider: str = "none"  # "none" | "openai"
     llm_model: str = "gpt-4o-mini"
 
+    # GitHub App
+    github_app_id: str | None = None
+    github_webhook_secret: str | None = None
+    github_private_key_path: str | None = None
+
     # 하이브리드 검색 가중치 (vector + keyword)
     hybrid_vector_weight: float = 0.7
     hybrid_keyword_weight: float = 0.3
