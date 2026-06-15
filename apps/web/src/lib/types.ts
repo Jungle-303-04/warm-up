@@ -20,11 +20,16 @@ export interface Source {
   content?: string; // md/text/pdf: 뷰어 본문(추출 텍스트)
 }
 
-// 워크스페이스 멤버(데모). 실제로는 GitHub 조직 멤버로 대체된다.
-export interface Member {
-  handle: string; // GitHub login
+// 백엔드 계약과 동일한 작성자 표현(team-sharing-model.md). 모든 작성자/담당자 표시의 기준.
+export interface Author {
+  login: string; // GitHub login
+  avatar_url?: string; // 있으면 실제 아바타, 없으면 이니셜 폴백
+}
+
+// 워크스페이스 멤버(데모). Author + 로컬 표시용(name/이니셜 색).
+export interface Member extends Author {
   name: string;
-  color: string; // 아바타 배경
+  color: string; // avatar_url 없을 때 이니셜 배경
 }
 
 export type BoardStatus = "todo" | "doing" | "done";
@@ -41,7 +46,7 @@ export interface BoardTask {
   status: BoardStatus;
   due: string; // YYYY-MM-DD
   repo: string;
-  author?: string; // 작성자/담당자 handle (Member.handle). 없으면 현재 사용자로 표시
+  author?: string; // 작성자/담당자 login (Member.login). 없으면 담당자 미지정
 }
 
 export type BoardView = "kanban" | "week" | "calendar" | "list";

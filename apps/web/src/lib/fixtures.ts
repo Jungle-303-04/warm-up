@@ -15,9 +15,9 @@ export const TODAY = new Date(2026, 5, 16);
 // 데모(목업) 워크스페이스 멤버. 실제로는 워크스페이스 멤버(GitHub 조직)로 대체된다.
 // 로그인 사용자(woonyong-kr)는 화면에서 "나"로 강조된다.
 export const MEMBERS: Record<string, Member> = {
-  "woonyong-kr": { handle: "woonyong-kr", name: "우녕", color: "#0F6E56" },
-  minjeong: { handle: "minjeong", name: "민정", color: "#185FA5" },
-  chanbin: { handle: "chanbin", name: "찬빈", color: "#A32D2D" },
+  "woonyong-kr": { login: "woonyong-kr", name: "우녕", color: "#0F6E56" },
+  minjeong: { login: "minjeong", name: "민정", color: "#185FA5" },
+  chanbin: { login: "chanbin", name: "찬빈", color: "#A32D2D" },
 };
 
 // 새 소스 종류는 여기에 한 줄만 추가하면 UI 전체에 반영된다.

@@ -18,7 +18,9 @@
 ## 디자인 토큰 (globals.css)
 
 shadcn 스타일 HSL 토큰: `background foreground card primary secondary muted accent destructive border input ring`
-(+ `-foreground`). 라이트 테마, teal 포인트. 유틸로만 사용(`bg-card text-muted-foreground` 등).
+(+ `-foreground`). 유틸로만 사용(`bg-card text-muted-foreground` 등).
+⚠️ **테마(D2, decisions.md)**: **시스템 다크 기본 + 토글(light/dark/system)**, Tailwind만. 진짜 NotebookLM 다크 톤.
+`.dark`/`.light` 토큰 + FOUC 방지 부트스트랩 + 토글을 복구해야 함(이전에 라이트 전용으로 제거됨).
 아이콘은 `<Icon name="..." size={n} />` 래퍼(의미 기반 name→lucide 매핑).
 ⚠️ lucide ^0.460은 **GitHub 브랜드 아이콘이 없다** → GitHub 마크는 `icon.tsx`의 `name="github"` 인라인 SVG로 제공.
 
@@ -52,6 +54,16 @@ shadcn 스타일 HSL 토큰: `background foreground card primary secondary muted
 - 프론트: `api.ts` 클라이언트, `auth-menu`, 제안 발행 연결(이후 사용자가 `use-proposal-publish` 훅으로 정리),
   작성자/멤버 식별 데모(`MEMBERS`, `BoardTask.author`, 보드 아바타, 제안 검토자), `icon`에 GitHub 로고 SVG.
 - 설계: `team-sharing-model.md`, `backend-handoff-prompt.md` 작성(사용자가 계약 규약으로 보강).
+
+## 확정 결정 반영 (decisions.md 우선)
+
+- **D1 실서비스 MVP** — 목업은 단계적 제거, 실데이터/권한/영속화 목표.
+- **D2 테마**: 시스템 다크 기본 + 토글(위 참고). board-simple 라이트 단독은 폐기.
+- **D3/D4 소스**: 레포 + 업로드(md/txt/pdf). "+ 소스 추가" = 레포 연결 / 파일 업로드 2-탭 모달(웹검색 제외).
+- **D5 보드**: GitHub 미러 + 로컬 태스크 혼합(`origin` 배지). 로컬만 편집 가능.
+- **D6 스튜디오**: UML/ERD/계획 + 보고서/마인드맵(혼합 타일).
+- **D7 채팅**: 답변 유형 lookup+locate+summarize 우선(`AgentResponse.kind`로 렌더 분기).
+- **D8 planning**: 채팅 `schedule` kind + 보드 액션 양쪽.
 
 ## 남은 프론트 작업 (계획, 우선순위)
 

@@ -1,24 +1,12 @@
 "use client";
 
 import { SOURCES, THREADS } from "../lib/fixtures";
+import { cn } from "../lib/cn";
 import { useWorkspace } from "../lib/store";
 import { Icon } from "./icon";
 import { Checkbox, SourceRow } from "./source-row";
-
-// 아직 백엔드 미연동인 액션은 비활성 + "준비 중"으로 명시(사일런트 데드엔드 제거).
-function HeaderIcon({ name, label }: { name: string; label: string }) {
-  return (
-    <button
-      type="button"
-      disabled
-      title={`${label} · 준비 중`}
-      aria-label={`${label} · 준비 중`}
-      className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-    >
-      <Icon name={name} size={18} />
-    </button>
-  );
-}
+import { IconButton } from "./ui/icon-button";
+import { Panel } from "./ui/panel";
 
 export function SourcesPanel() {
   const selected = useWorkspace((s) => s.selected);
@@ -29,12 +17,12 @@ export function SourcesPanel() {
   const allOn = SOURCES.every((s) => selected[s.id]);
 
   return (
-    <aside className="flex w-[320px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <Panel as="aside" className="w-[320px] shrink-0">
       <div className="flex items-center justify-between px-3 pt-3">
         <h2 className="text-[14px] font-semibold">소스</h2>
         <div className="flex items-center">
-          <HeaderIcon name="add" label="소스 추가" />
-          <HeaderIcon name="travel_explore" label="탐색" />
+          <IconButton name="add" label="소스 추가" preparing />
+          <IconButton name="travel_explore" label="탐색" preparing />
         </div>
       </div>
 
@@ -68,9 +56,10 @@ export function SourcesPanel() {
                 type="button"
                 onClick={() => openThread(t)}
                 aria-current={active ? "true" : undefined}
-                className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors ${
-                  active ? "bg-secondary font-medium" : "hover:bg-secondary"
-                }`}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors",
+                  active ? "bg-secondary font-medium" : "hover:bg-secondary",
+                )}
               >
                 <Icon name="chat_bubble_outline" size={16} className="text-muted-foreground" />
                 <span className="flex-1 truncate">{t}</span>
@@ -89,6 +78,6 @@ export function SourcesPanel() {
           <Icon name="add" size={18} /> 새 대화
         </button>
       </div>
-    </aside>
+    </Panel>
   );
 }

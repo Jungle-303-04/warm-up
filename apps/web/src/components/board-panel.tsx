@@ -58,11 +58,22 @@ function StatusDot({ status }: { status: BoardStatus }) {
 }
 
 // 작성자/담당자 아바타. 팀 도구이므로 항목마다 누가 맡았는지 보인다.
-function MemberAvatar({ handle }: { handle?: string }) {
-  const member = handle ? MEMBERS[handle] : undefined;
+// 실제 avatar_url이 있으면 이미지를, 없으면 이니셜+색 폴백.
+function MemberAvatar({ login }: { login?: string }) {
+  const member = login ? MEMBERS[login] : undefined;
+  if (member?.avatar_url) {
+    return (
+      <img
+        src={member.avatar_url}
+        alt={`${member.name} (@${member.login})`}
+        title={`${member.name} (@${member.login})`}
+        className="h-4 w-4 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
   return (
     <span
-      title={member ? `${member.name} (@${member.handle})` : "담당자 미지정"}
+      title={member ? `${member.name} (@${member.login})` : "담당자 미지정"}
       className="grid h-4 w-4 shrink-0 place-items-center rounded-full text-[9px] font-semibold text-white"
       style={{ background: member?.color ?? "#9aa1ab" }}
     >
@@ -84,7 +95,7 @@ function TaskCard({ task }: { task: BoardTask }) {
           {due.getMonth() + 1}/{due.getDate()}
         </span>
         <span className="ml-auto" />
-        <MemberAvatar handle={task.author} />
+        <MemberAvatar login={task.author} />
       </div>
     </div>
   );
