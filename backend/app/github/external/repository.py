@@ -5,6 +5,7 @@ from app.github.api.schema import GitHubFileResponseDTO
 from app.rag.api.schema import (
     GitHubRagPipelineRequestDTO,
     GitHubRepositoryIndexRequestDTO,
+    GitHubRepositoryRefDTO,
 )
 
 
@@ -43,6 +44,16 @@ class GitHubRepositoryClient:
     ) -> GitHubRagPipelineRequestDTO:
         """owner/repo 요청 하나로 기본 branch, commit, 지원 파일 목록을 모두 수집한다."""
 
+        repository_ref = self.resolve_repository_ref(access_token, request)
+        return self.build_pipeline_request_from_ref(access_token, repository_ref)
+
+    def resolve_repository_ref(
+        self,
+        access_token: str,
+        request: GitHubRepositoryIndexRequestDTO,
+    ) -> GitHubRepositoryRefDTO:
+        """파일 수집 전에 레포, 브랜치, 현재 commit 기준만 먼저 확정한다."""
+
         repository = self.fetch_repository(access_token, request.repository_full_name)
         branch = request.branch or repository["default_branch"]
         commit_sha = self.fetch_branch_commit_sha(
@@ -50,15 +61,29 @@ class GitHubRepositoryClient:
             repository_full_name=request.repository_full_name,
             branch=branch,
         )
+
+        return GitHubRepositoryRefDTO(
+            repository_full_name=request.repository_full_name,
+            branch=branch,
+            commit_sha=commit_sha,
+        )
+
+    def build_pipeline_request_from_ref(
+        self,
+        access_token: str,
+        repository_ref: GitHubRepositoryRefDTO,
+    ) -> GitHubRagPipelineRequestDTO:
+        """이미 확정한 commit 기준으로 tree와 파일 본문만 수집한다."""
+
         tree_items = self.fetch_repository_tree(
             access_token=access_token,
-            repository_full_name=request.repository_full_name,
-            commit_sha=commit_sha,
+            repository_full_name=repository_ref.repository_full_name,
+            commit_sha=repository_ref.commit_sha,
         )
         files = self.fetch_supported_files(
             access_token=access_token,
-            repository_full_name=request.repository_full_name,
-            commit_sha=commit_sha,
+            repository_full_name=repository_ref.repository_full_name,
+            commit_sha=repository_ref.commit_sha,
             tree_items=tree_items,
         )
 
@@ -66,9 +91,9 @@ class GitHubRepositoryClient:
             raise ValueError("no Python or Markdown files were found for indexing")
 
         return GitHubRagPipelineRequestDTO(
-            repository_full_name=request.repository_full_name,
-            branch=branch,
-            commit_sha=commit_sha,
+            repository_full_name=repository_ref.repository_full_name,
+            branch=repository_ref.branch,
+            commit_sha=repository_ref.commit_sha,
             files=files,
         )
 

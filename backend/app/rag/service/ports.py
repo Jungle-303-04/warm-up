@@ -7,6 +7,7 @@ from app.rag.api.schema import (
     GitHubRagPipelineRequestDTO,
     GitHubRagPipelineResultDTO,
     GitHubRepositoryIndexRequestDTO,
+    GitHubRepositoryRefDTO,
     RagAskRequestDTO,
     RagAskResponseDTO,
     RagEvidenceChunkDTO,
@@ -59,10 +60,22 @@ class AnswerGraph(Protocol):
 
 
 class RepoSource(Protocol):
+    def resolve_repository_ref(
+        self,
+        access_token: str,
+        request: GitHubRepositoryIndexRequestDTO,
+    ) -> GitHubRepositoryRefDTO: ...
+
     def build_pipeline_request_from_repository(
         self,
         access_token: str,
         request: GitHubRepositoryIndexRequestDTO,
+    ) -> GitHubRagPipelineRequestDTO: ...
+
+    def build_pipeline_request_from_ref(
+        self,
+        access_token: str,
+        repository_ref: GitHubRepositoryRefDTO,
     ) -> GitHubRagPipelineRequestDTO: ...
 
 
@@ -112,6 +125,14 @@ class RagStore(Protocol):
         repository_full_name: str,
         branch: str | None = None,
         commit_sha: str | None = None,
+    ) -> Any | None: ...
+
+    def find_exact_run(
+        self,
+        db: Session,
+        repository_full_name: str,
+        branch: str | None,
+        commit_sha: str,
     ) -> Any | None: ...
 
 

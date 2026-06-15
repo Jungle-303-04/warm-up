@@ -113,9 +113,12 @@ function App() {
         },
       )
       setIndexResult(payload)
+      const statusMessage = payload.reused
+        ? `이미 분석된 커밋을 재사용합니다: SQL ${payload.sql_chunk_count}개, Vector ${payload.vector_chunk_count}개`
+        : `분석 완료: SQL ${payload.sql_chunk_count}개, Vector ${payload.vector_chunk_count}개 저장`
       setStatus({
         type: 'success',
-        message: `분석 완료: SQL ${payload.sql_chunk_count}개, Vector ${payload.vector_chunk_count}개 저장`,
+        message: statusMessage,
       })
     })
   }
@@ -146,7 +149,7 @@ function App() {
         question,
         repository_full_name: repositoryName,
         branch: branch.trim() || null,
-        commit_sha: indexResult.pipeline_result?.commit_sha || null,
+        commit_sha: indexResult.commit_sha || indexResult.pipeline_result?.commit_sha || null,
         limit: 5,
       })
       setAnswerResult(payload)

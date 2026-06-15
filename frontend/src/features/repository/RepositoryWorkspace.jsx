@@ -140,13 +140,17 @@ function ProgressPanel({ message }) {
 }
 
 function RunSummary({ indexResult }) {
-  const commitSha = indexResult.pipeline_result?.commit_sha
+  const commitSha = indexResult.commit_sha || indexResult.pipeline_result?.commit_sha
 
   return (
     <dl className="run-summary">
       <div>
         <dt>작업 번호</dt>
         <dd>{indexResult.run_id}</dd>
+      </div>
+      <div>
+        <dt>상태</dt>
+        <dd>{indexResult.reused ? '기존 분석 재사용' : '신규 분석 저장'}</dd>
       </div>
       <div>
         <dt>기준 커밋</dt>

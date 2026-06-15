@@ -58,7 +58,7 @@ class RagVectorRepository:
             return 0
 
         self.collection.upsert(
-            ids=[self.build_vector_id(chunk) for chunk in chunks],
+            ids=[self.build_vector_id(run_id, chunk) for chunk in chunks],
             documents=[chunk.chunk_text for chunk in chunks],
             embeddings=self.embedding_service.embed_texts(
                 [chunk.chunk_text for chunk in chunks]
@@ -136,10 +136,10 @@ class RagVectorRepository:
             ),
         }
 
-    def build_vector_id(self, chunk: RagEvidenceChunkDTO) -> str:
-        """같은 청크가 여러 run이나 순번에서 충돌하지 않도록 Chroma id를 만든다."""
+    def build_vector_id(self, run_id: int, chunk: RagEvidenceChunkDTO) -> str:
+        """같은 코드 조각이 여러 분석 run에 저장되어도 서로 덮어쓰지 않게 id를 만든다."""
 
-        return f"{chunk.id}:{chunk.chunk_index}"
+        return f"{run_id}:{chunk.id}:{chunk.chunk_index}"
 
 
 def build_where_filter(

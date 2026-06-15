@@ -178,6 +178,27 @@ class RagSqlRepository:
 
         return db.scalars(stmt.order_by(RagIndexRun.id.desc()).limit(1)).first()
 
+    def find_exact_run(
+        self,
+        db: Session,
+        repository_full_name: str,
+        branch: str | None,
+        commit_sha: str,
+    ) -> RagIndexRun | None:
+        """중복 저장 방지를 위해 레포 이름, 브랜치, 커밋이 모두 같은 run만 찾는다."""
+
+        stmt = select(RagIndexRun).where(
+            RagIndexRun.repository_full_name == repository_full_name,
+            RagIndexRun.commit_sha == commit_sha,
+        )
+
+        if branch is None:
+            stmt = stmt.where(RagIndexRun.branch.is_(None))
+        else:
+            stmt = stmt.where(RagIndexRun.branch == branch)
+
+        return db.scalars(stmt.order_by(RagIndexRun.id.desc()).limit(1)).first()
+
     def list_file_snapshots(self, db: Session, run_id: int) -> list[RagFileSnapshot]:
         """특정 run에서 인덱싱된 파일 목록을 재구성한다."""
 

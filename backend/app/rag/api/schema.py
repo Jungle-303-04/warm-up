@@ -70,6 +70,12 @@ class GitHubRagPipelineRequestDTO(BaseModel):
         return value
 
 
+class GitHubRepositoryRefDTO(BaseModel):
+    repository_full_name: str
+    branch: str
+    commit_sha: str
+
+
 class GitHubRepositoryIndexRequestDTO(BaseModel):
     repository_full_name: str
     branch: str | None = None
@@ -130,10 +136,14 @@ class GitHubRagPipelineResultDTO(BaseModel):
 
 class RagStoredIndexResponseDTO(BaseModel):
     run_id: int
+    reused: bool = False
+    repository_full_name: str | None = None
+    branch: str | None = None
+    commit_sha: str
     vector_collection: str
     sql_chunk_count: int
     vector_chunk_count: int
-    pipeline_result: GitHubRagPipelineResultDTO
+    pipeline_result: GitHubRagPipelineResultDTO | None = None
 
 
 class RagIndexRunDTO(BaseModel):

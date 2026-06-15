@@ -202,6 +202,22 @@ JSON body
 
 `/rag/ask` 요청 DTO에는 `run_id`를 직접 넣지 않는다. 특정 작업 이력을 재현하거나 확인해야 할 때는 `/rag/runs/{run_id}` 같은 조회 API나 `/rag/vector/search`의 개발용 필터에서 `run_id`를 사용한다.
 
+인덱싱 저장도 같은 기준을 사용한다.
+
+```text
+repository_full_name + branch + commit_sha가 이미 SQL에 있다
+-> 같은 코드 버전을 이미 분석한 것이다
+-> GitHub 파일 본문 수집, chunk 생성, SQL 저장, vector 저장을 다시 하지 않는다
+-> 기존 run을 재사용하고 응답에 reused=true를 내려준다
+
+repository_full_name + branch + commit_sha 조합이 없다
+-> 처음 보는 코드 버전이다
+-> GitHub 파일을 수집하고 SQL/vector DB에 새로 저장한다
+-> 응답에 reused=false를 내려준다
+```
+
+이 기준 때문에 같은 브랜치를 여러 번 분석해도 branch가 가리키는 commit이 그대로면 DB가 계속 커지지 않는다. 반대로 commit이 바뀌면 실제 코드 기준이 바뀐 것이므로 새 스냅샷으로 저장한다.
+
 `limit`은 기본값 5이고, 1 이상 `MAX_SEARCH_LIMIT` 이하로 제한된다.
 
 즉 이 단계는 사용자 입력을 코드에서 신뢰할 수 있는 형태로 바꾸는 단계다.

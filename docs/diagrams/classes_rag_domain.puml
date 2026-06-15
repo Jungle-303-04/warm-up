@@ -354,6 +354,8 @@ class "RagSqlRepository" as sql_repository.RagSqlRepository {
 class "RagStore" as ports.RagStore {
   count_chunks_by_run_id(db: Session, run_id: int) -> int
   count_runs(db: Session) -> int
+  find_exact_run(db: Session, repository_full_name: str, branch: str | None, commit_sha: str) -> Any | None
+  find_latest_run(db: Session, repository_full_name: str, branch: str | None, commit_sha: str | None) -> Any | None
   get_run(db: Session, run_id: int) -> Any | None
   list_chunks(db: Session, run_id: int) -> list[Any]
   list_file_snapshots(db: Session, run_id: int) -> list[Any]
@@ -363,7 +365,11 @@ class "RagStore" as ports.RagStore {
   search_chunks_by_keyword(db: Session, keyword: str, limit: int) -> list[Any]
 }
 class "RagStoredIndexResponseDTO" as schema.RagStoredIndexResponseDTO {
-  pipeline_result
+  branch : str | None
+  commit_sha : str
+  pipeline_result : GitHubRagPipelineResultDTO | None
+  repository_full_name : str | None
+  reused : bool
   run_id : int
   sql_chunk_count : int
   vector_chunk_count : int
@@ -377,13 +383,13 @@ class "RagVectorRepository" as vector_repository.RagVectorRepository {
   host : str | None
   persist_path : str
   port : int
-  build_metadata(chunk: RagEvidenceChunkDTO, run_id: int) -> dict
-  build_vector_id(chunk: RagEvidenceChunkDTO) -> str
+  build_metadata(chunk: RagEvidenceChunkDTO, run_id: int, repository_full_name: str | None, branch: str | None) -> dict
+  build_vector_id(run_id: int, chunk: RagEvidenceChunkDTO) -> str
   count() -> int
   create_client()
   get_collection() -> Collection
-  save_chunks(chunks: list[RagEvidenceChunkDTO], run_id: int) -> int
-  search(query: str, limit: int, run_id: int | None) -> dict
+  save_chunks(chunks: list[RagEvidenceChunkDTO], run_id: int, repository_full_name: str | None, branch: str | None) -> int
+  search(query: str, limit: int, run_id: int | None, repository_full_name: str | None, branch: str | None, commit_sha: str | None) -> dict
 }
 class "RagVectorSearchItemDTO" as schema.RagVectorSearchItemDTO {
   distance : float | None
@@ -427,11 +433,11 @@ class "VectorResultRow" as vector_result.VectorResultRow {
 class "VectorStore" as ports.VectorStore {
   collection_name : str
   count() -> int
-  save_chunks(chunks: list[RagEvidenceChunkDTO], run_id: int) -> int
-  search(query: str, limit: int, run_id: int | None) -> dict
+  save_chunks(chunks: list[RagEvidenceChunkDTO], run_id: int, repository_full_name: str | None, branch: str | None) -> int
+  search(query: str, limit: int, run_id: int | None, repository_full_name: str | None, branch: str | None, commit_sha: str | None) -> dict
 }
 schema.RagEvidenceChunkDTO --|> schema.RagEvidenceChunkDraftDTO
-schema.RagStoredIndexResponseDTO --> schema.GitHubRagPipelineResultDTO : pipeline_result
+schema.RagStoredIndexResponseDTO --> schema.GitHubRagPipelineResultDTO : pipeline_result optional
 schema.GitHubRagPipelineResultDTO --> schema.GitHubRagPipelineSummaryDTO : summary
 schema.RagEvidenceChunkDraftDTO --> schema.RagChunkMetadataDTO : metadata
 schema.RagIndexRunDetailDTO --> schema.RagIndexRunDTO : run

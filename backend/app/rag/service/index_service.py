@@ -1,8 +1,12 @@
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 from app.rag.api.schema import (
     GitHubRagPipelineRequestDTO,
+    GitHubRagPipelineResultDTO,
     GitHubRepositoryIndexRequestDTO,
+    GitHubRepositoryRefDTO,
     RagChunkRecordDTO,
     RagFileSnapshotRecordDTO,
     RagIndexRunDTO,
@@ -45,13 +49,29 @@ class RagIndexService:
         request: GitHubRepositoryIndexRequestDTO,
         github_access_token: str,
     ) -> RagStoredIndexResponseDTO:
-        """레포지토리 요청을 GitHub 파일 목록 요청으로 바꾼 뒤 인덱싱 저장 흐름을 실행한다."""
+        """같은 레포/브랜치/커밋이 이미 저장됐으면 재사용하고, 아니면 인덱싱한다."""
 
-        pipeline_request = (
-            self.repository_source.build_pipeline_request_from_repository(
-                access_token=github_access_token,
-                request=request,
+        repository_ref = self.repository_source.resolve_repository_ref(
+            access_token=github_access_token,
+            request=request,
+        )
+        existing_run = self.find_existing_run(db, repository_ref)
+
+        if existing_run is not None:
+            return self.build_stored_index_response(
+                db=db,
+                run=existing_run,
+                vector_chunk_count=self.sql_repository.count_chunks_by_run_id(
+                    db,
+                    existing_run.id,
+                ),
+                pipeline_result=None,
+                reused=True,
             )
+
+        pipeline_request = self.repository_source.build_pipeline_request_from_ref(
+            access_token=github_access_token,
+            repository_ref=repository_ref,
         )
         return self.index_and_store(db, pipeline_request)
 
@@ -60,7 +80,21 @@ class RagIndexService:
         db: Session,
         request: GitHubRagPipelineRequestDTO,
     ) -> RagStoredIndexResponseDTO:
-        """파일 스냅샷을 청크로 만든 뒤 SQL 기록과 벡터 검색 데이터를 함께 저장한다."""
+        """같은 저장 기준이 없을 때만 SQL 기록과 벡터 검색 데이터를 새로 저장한다."""
+
+        existing_run = self.find_existing_run(db, request)
+
+        if existing_run is not None:
+            return self.build_stored_index_response(
+                db=db,
+                run=existing_run,
+                vector_chunk_count=self.sql_repository.count_chunks_by_run_id(
+                    db,
+                    existing_run.id,
+                ),
+                pipeline_result=None,
+                reused=True,
+            )
 
         pipeline_result = self.pipeline_service.build_index_from_github_files(request)
         run = self.sql_repository.save_pipeline_result(db, request, pipeline_result)
@@ -71,8 +105,47 @@ class RagIndexService:
             branch=request.branch,
         )
 
+        return self.build_stored_index_response(
+            db=db,
+            run=run,
+            vector_chunk_count=vector_chunk_count,
+            pipeline_result=pipeline_result,
+            reused=False,
+        )
+
+    def find_existing_run(
+        self,
+        db: Session,
+        repository_ref: GitHubRepositoryRefDTO | GitHubRagPipelineRequestDTO,
+    ) -> Any | None:
+        """레포 이름, 브랜치, 커밋이 모두 같은 기존 인덱싱 run을 찾는다."""
+
+        if repository_ref.repository_full_name is None:
+            return None
+
+        return self.sql_repository.find_exact_run(
+            db=db,
+            repository_full_name=repository_ref.repository_full_name,
+            branch=repository_ref.branch,
+            commit_sha=repository_ref.commit_sha,
+        )
+
+    def build_stored_index_response(
+        self,
+        db: Session,
+        run: Any,
+        vector_chunk_count: int,
+        pipeline_result: GitHubRagPipelineResultDTO | None,
+        reused: bool,
+    ) -> RagStoredIndexResponseDTO:
+        """신규 저장과 기존 run 재사용 응답을 같은 DTO 모양으로 만든다."""
+
         return RagStoredIndexResponseDTO(
             run_id=run.id,
+            reused=reused,
+            repository_full_name=run.repository_full_name,
+            branch=run.branch,
+            commit_sha=run.commit_sha,
             vector_collection=self.vector_repository.collection_name,
             sql_chunk_count=self.sql_repository.count_chunks_by_run_id(db, run.id),
             vector_chunk_count=vector_chunk_count,
