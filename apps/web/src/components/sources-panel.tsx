@@ -1,14 +1,18 @@
 "use client";
 
+import { useState } from "react";
+
 import { SOURCES, THREADS } from "../lib/fixtures";
 import { cn } from "../lib/cn";
 import { useWorkspace } from "../lib/store";
 import { Icon } from "./icon";
+import { SourceAddModal } from "./source-add-modal";
 import { Checkbox, SourceRow } from "./source-row";
 import { IconButton } from "./ui/icon-button";
 import { Panel } from "./ui/panel";
 
 export function SourcesPanel() {
+  const [addOpen, setAddOpen] = useState(false);
   const selected = useWorkspace((s) => s.selected);
   const setAllSources = useWorkspace((s) => s.setAllSources);
   const activeThreadId = useWorkspace((s) => s.activeThreadId);
@@ -21,7 +25,7 @@ export function SourcesPanel() {
       <div className="flex items-center justify-between px-3 pt-3">
         <h2 className="text-[14px] font-semibold">소스</h2>
         <div className="flex items-center">
-          <IconButton name="add" label="소스 추가" preparing />
+          <IconButton name="add" label="소스 추가" onClick={() => setAddOpen(true)} />
           <IconButton name="travel_explore" label="탐색" preparing />
         </div>
       </div>
@@ -78,6 +82,8 @@ export function SourcesPanel() {
           <Icon name="add" size={18} /> 새 대화
         </button>
       </div>
+
+      <SourceAddModal open={addOpen} onClose={() => setAddOpen(false)} />
     </Panel>
   );
 }

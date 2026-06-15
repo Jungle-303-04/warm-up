@@ -5,7 +5,7 @@
 완료 기준: **tsc green + 커밋 성공**. 결정 기준 = `decisions.md`(D1~D8, O1~O3).
 
 ## 에이전트 상태 (매 실행 시 갱신)
-- last_run: 2026-06-15T19:49:55Z
+- last_run: 2026-06-16T00:00:00Z
 - last_result: DONE
 - in_progress: (없음)
 
@@ -23,7 +23,7 @@
 
 ### 소스 추가 모달(D4) — 목업
 - [x] M1. `components/ui/modal.tsx` 생성: 접근성 다이얼로그(role="dialog" aria-modal, 오버레이, Esc 닫기, position:fixed 금지—인플로우 오버레이). 재사용 가능.
-- [ ] M2. `components/source-add-modal.tsx`: 2-탭(①GitHub 레포 URL ②파일 업로드 md/txt/pdf·10MB 안내). 목업(제출=닫기). `sources-panel`의 "소스 추가" 버튼을 이 모달 열도록(준비중 해제, 상태는 로컬 useState).
+- [x] M2. `components/source-add-modal.tsx`: 2-탭(①GitHub 레포 URL ②파일 업로드 md/txt/pdf·10MB 안내). 목업(제출=닫기). `sources-panel`의 "소스 추가" 버튼을 이 모달 열도록(준비중 해제, 상태는 로컬 useState).
 
 ### GitHub 신원(F1)
 - [ ] I1. `auth-menu`: 로그인 사용자 아이콘 → 실제 사진 `https://avatars.githubusercontent.com/u/${me.user_id}` (plain img, rounded-full).
