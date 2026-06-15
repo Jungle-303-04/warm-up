@@ -1,0 +1,35 @@
+meta {
+  name: Ask Repository RAG
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/rag/ask
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "repository_full_name": "{{ragRepositoryFullName}}",
+    "branch": "{{ragBranch}}",
+    "commit_sha": "{{ragCommitSha}}",
+    "question": "이 레포에서 RAG 인덱싱 흐름을 설명해줘",
+    "limit": 5
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("response has repository answer schema", function() {
+    const body = res.getBody();
+    expect(body).to.have.property("answer");
+    expect(body).to.have.property("repository_full_name");
+    expect(body).to.have.property("commit_sha");
+    expect(body).to.have.property("sources");
+  });
+}

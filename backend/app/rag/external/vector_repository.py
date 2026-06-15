@@ -45,8 +45,14 @@ class RagVectorRepository:
 
         return self.client.get_or_create_collection(name=self.collection_name)
 
-    def save_chunks(self, chunks: list[RagEvidenceChunkDTO], run_id: int) -> int:
-        """SQL run_id와 같은 metadata를 붙여 청크를 벡터 DB에 upsert한다."""
+    def save_chunks(
+        self,
+        chunks: list[RagEvidenceChunkDTO],
+        run_id: int,
+        repository_full_name: str | None = None,
+        branch: str | None = None,
+    ) -> int:
+        """코드 기준 metadata를 붙여 청크를 벡터 DB에 upsert한다."""
 
         if not chunks:
             return 0
@@ -57,7 +63,15 @@ class RagVectorRepository:
             embeddings=self.embedding_service.embed_texts(
                 [chunk.chunk_text for chunk in chunks]
             ),
-            metadatas=[self.build_metadata(chunk, run_id) for chunk in chunks],
+            metadatas=[
+                self.build_metadata(
+                    chunk=chunk,
+                    run_id=run_id,
+                    repository_full_name=repository_full_name,
+                    branch=branch,
+                )
+                for chunk in chunks
+            ],
         )
         return len(chunks)
 
@@ -66,23 +80,45 @@ class RagVectorRepository:
 
         return self.collection.count()
 
-    def search(self, query: str, limit: int = 5, run_id: int | None = None) -> dict:
-        """질문을 embedding으로 바꿔 유사 청크를 찾고, run_id가 있으면 범위를 제한한다."""
+    def search(
+        self,
+        query: str,
+        limit: int = 5,
+        run_id: int | None = None,
+        repository_full_name: str | None = None,
+        branch: str | None = None,
+        commit_sha: str | None = None,
+    ) -> dict:
+        """질문을 embedding으로 바꾼 뒤 지정된 코드 기준 안에서 유사 청크를 찾는다."""
 
         query_arguments = {
             "query_embeddings": [self.embedding_service.embed_text(query)],
             "n_results": limit,
         }
-        if run_id is not None:
-            query_arguments["where"] = {"run_id": run_id}
+        where_filter = build_where_filter(
+            run_id=run_id,
+            repository_full_name=repository_full_name,
+            branch=branch,
+            commit_sha=commit_sha,
+        )
+        if where_filter:
+            query_arguments["where"] = where_filter
 
         return self.collection.query(**query_arguments)
 
-    def build_metadata(self, chunk: RagEvidenceChunkDTO, run_id: int) -> dict:
-        """벡터 검색 결과만으로도 citation과 SQL run을 추적할 수 있게 metadata를 만든다."""
+    def build_metadata(
+        self,
+        chunk: RagEvidenceChunkDTO,
+        run_id: int,
+        repository_full_name: str | None,
+        branch: str | None,
+    ) -> dict:
+        """검색 결과만으로도 레포, 커밋, citation을 추적할 수 있게 metadata를 만든다."""
 
         return {
             "run_id": run_id,
+            "repository_full_name": repository_full_name or "",
+            "branch": branch or "",
             "chunk_id": chunk.id,
             "path": chunk.path,
             "commit_sha": chunk.commit_sha,
@@ -104,3 +140,31 @@ class RagVectorRepository:
         """같은 청크가 여러 run이나 순번에서 충돌하지 않도록 Chroma id를 만든다."""
 
         return f"{chunk.id}:{chunk.chunk_index}"
+
+
+def build_where_filter(
+    run_id: int | None = None,
+    repository_full_name: str | None = None,
+    branch: str | None = None,
+    commit_sha: str | None = None,
+) -> dict:
+    """입력된 검색 기준만 Chroma metadata where 조건으로 바꾼다."""
+
+    conditions = []
+
+    if run_id is not None:
+        conditions.append({"run_id": run_id})
+    if repository_full_name:
+        conditions.append({"repository_full_name": repository_full_name})
+    if branch:
+        conditions.append({"branch": branch})
+    if commit_sha:
+        conditions.append({"commit_sha": commit_sha})
+
+    if not conditions:
+        return {}
+
+    if len(conditions) == 1:
+        return conditions[0]
+
+    return {"$and": conditions}

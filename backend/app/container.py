@@ -178,6 +178,7 @@ class AppContainer(containers.DeclarativeContainer):
     rag_answer_service = providers.Singleton(
         RagAnswerService,
         answer_graph=rag_answer_graph,
+        sql_repository=rag_sql_repository,
     )
 
     # Agent chat: 아직은 echo responder와 메모리 저장소로 최소 채팅 흐름만 만든다.

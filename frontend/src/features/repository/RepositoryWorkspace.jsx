@@ -140,11 +140,17 @@ function ProgressPanel({ message }) {
 }
 
 function RunSummary({ indexResult }) {
+  const commitSha = indexResult.pipeline_result?.commit_sha
+
   return (
     <dl className="run-summary">
       <div>
-        <dt>Run</dt>
+        <dt>작업 번호</dt>
         <dd>{indexResult.run_id}</dd>
+      </div>
+      <div>
+        <dt>기준 커밋</dt>
+        <dd>{commitSha ? commitSha.slice(0, 8) : '-'}</dd>
       </div>
       <div>
         <dt>SQL</dt>

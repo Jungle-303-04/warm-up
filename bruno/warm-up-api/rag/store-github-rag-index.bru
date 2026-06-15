@@ -53,6 +53,11 @@ script:post-response {
     bru.setEnvVar("ragRunId", body.run_id);
     bru.setEnvVar("vectorCollection", body.vector_collection);
   }
+  if (body && body.pipeline_result) {
+    bru.setEnvVar("ragRepositoryFullName", "local/warm-up-bruno-test");
+    bru.setEnvVar("ragBranch", "bruno-local");
+    bru.setEnvVar("ragCommitSha", body.pipeline_result.commit_sha);
+  }
 }
 
 tests {

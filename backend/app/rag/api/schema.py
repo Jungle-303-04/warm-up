@@ -221,6 +221,9 @@ class RagVectorSearchRequestDTO(BaseModel):
     query: str
     limit: int = Field(default=5, ge=1, le=MAX_SEARCH_LIMIT)
     run_id: int | None = Field(default=None, ge=1)
+    repository_full_name: str | None = None
+    branch: str | None = None
+    commit_sha: str | None = None
 
     @field_validator("query")
     @classmethod
@@ -229,6 +232,24 @@ class RagVectorSearchRequestDTO(BaseModel):
         if not query:
             raise ValueError("query must not be empty")
         return query
+
+    @field_validator("repository_full_name")
+    @classmethod
+    def validate_repository_full_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        repository_full_name = normalize_repository_full_name(value)
+        if "/" not in repository_full_name:
+            raise ValueError("repository_full_name must use owner/repo format")
+        return repository_full_name
+
+    @field_validator("branch", "commit_sha")
+    @classmethod
+    def validate_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        return text or None
 
 
 class RagVectorSearchItemDTO(BaseModel):
@@ -247,7 +268,9 @@ class RagVectorSearchResponseDTO(BaseModel):
 
 class RagAskRequestDTO(BaseModel):
     question: str
-    run_id: int | None = Field(default=None, ge=1)
+    repository_full_name: str
+    branch: str | None = None
+    commit_sha: str | None = None
     limit: int = Field(default=5, ge=1, le=MAX_SEARCH_LIMIT)
 
     @field_validator("question")
@@ -257,6 +280,25 @@ class RagAskRequestDTO(BaseModel):
         if not question:
             raise ValueError("question must not be empty")
         return question
+
+    @field_validator("repository_full_name")
+    @classmethod
+    def validate_repository_full_name(cls, value: str) -> str:
+        repository_full_name = normalize_repository_full_name(value)
+        if "/" not in repository_full_name:
+            raise ValueError("repository_full_name must use owner/repo format")
+        owner, repo = repository_full_name.split("/", 1)
+        if not owner.strip() or not repo.strip():
+            raise ValueError("repository_full_name must use owner/repo format")
+        return repository_full_name
+
+    @field_validator("branch", "commit_sha")
+    @classmethod
+    def validate_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        return text or None
 
 
 class RagAskSourceDTO(BaseModel):
@@ -268,5 +310,8 @@ class RagAskSourceDTO(BaseModel):
 
 class RagAskResponseDTO(BaseModel):
     answer: str
+    repository_full_name: str | None = None
+    branch: str | None = None
+    commit_sha: str | None = None
     run_id: int | None = None
     sources: list[RagAskSourceDTO]

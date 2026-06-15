@@ -22,15 +22,16 @@
 사용자 질문
 -> RagAskRequestDTO
 -> ask_repository_rag()
--> RagAnswerService.answer()
--> RagAnswerGraph.run()
--> Vector 검색
+-> RagAnswerService.answer(db, request)
+-> SQL에서 질문 기준 index_run 조회
+-> RagAnswerGraph.run(request, index_run)
+-> commit_sha 기준 Vector 검색
 -> 검색 결과 row 변환
 -> LLM에게 질문 + Vector 근거 전달
 -> RagAskResponseDTO로 사용자에게 반환
 ```
 
-즉 현재 구현된 것은 `Vector 검색 기반 RAG 답변`이다. SQL 검색, SQL/Vector 결과 결합, 작업 판단, 다음 로직 실행은 확장 포인트로 남아 있다.
+즉 현재 구현된 것은 `SQL로 코드 기준을 확정한 뒤 Vector 검색으로 답변하는 RAG 흐름`이다. SQL keyword 검색, SQL/Vector 결과 결합, 작업 판단, 다음 로직 실행은 확장 포인트로 남아 있다.
 
 ## 현재 구현과 구조만 있는 흐름
 
@@ -42,7 +43,8 @@
 | 입력을 요청 DTO로 받기 | 구현됨 | `backend/app/rag/api/schema.py`의 `RagAskRequestDTO` |
 | 어떤 작업인지 판단 | 구조만 있음 | `/rag/ask`로 들어온 요청은 무조건 답변 생성으로 처리한다. 별도 intent 판단 구현은 아직 없다. |
 | 검색 계획 세우기 | 구조만 있음 | `RagAnswerGraph`가 `retrieve_vector -> generate_answer -> build_response` 선형 graph를 실행한다. 별도 planner 객체는 아직 없다. |
-| SQL 검색 | 일부 구현됨, ask 흐름에는 미연결 | `RagSqlRepository.search_chunks_by_keyword()` 같은 SQL 검색 기능은 있지만 `/rag/ask`에는 아직 연결되지 않았다. |
+| SQL 기준 조회 | 구현됨 | `RagAnswerService`가 `RagSqlRepository.find_latest_run()`으로 레포/브랜치/커밋에 맞는 인덱싱 run을 찾는다. |
+| SQL keyword 검색 | 일부 구현됨, ask 흐름에는 미연결 | `RagSqlRepository.search_chunks_by_keyword()` 같은 정확 단어 검색 기능은 있지만 `/rag/ask`의 evidence 결합에는 아직 연결되지 않았다. |
 | Vector 검색 | 구현됨 | `RagVectorRepository.search()` |
 | 검색 결과 결합 | 구조만 있음 | `VectorResultRow`로 vector 결과를 row화하지만 SQL/Vector fusion 로직은 아직 없다. |
 | LLM에게 질문 + 근거 전달 | 구현됨 | `RagLlm.answer_with_evidence()`, `PromptBuilder`, `EvidenceFormatter` |
@@ -67,13 +69,13 @@ container.py
   rag_answer_graph 조립 후 rag_answer_service 주입
     ↓
 answer_service.py
-  answer(request)가 graph runner에 위임
+  answer(db, request)가 SQL에서 기준 run을 찾고 graph runner에 위임
     ↓
 answer_graph.py
-  RagAnswerGraph.run(request)
+  RagAnswerGraph.run(request, index_run)
     ↓
 vector_repository.py
-  search(question, limit, run_id)
+  search(question, limit, repository_full_name, branch, commit_sha)
     ↓
 embedding.py
   embed_text(question)
@@ -106,22 +108,31 @@ Cookie: warm_up_auth_token=...
 ```json
 {
   "question": "이 레포에서 RAG 인덱싱 흐름을 설명해줘",
-  "run_id": 3,
+  "repository_full_name": "Jungle-303-04/warm-up",
+  "branch": "minjeong",
+  "commit_sha": "abc123...",
   "limit": 5
 }
 ```
 
-이 요청에서 중요한 값은 세 가지다.
+이 요청에서 중요한 값은 다섯 가지다.
 
 ```text
 question
   사용자가 LLM에게 묻고 싶은 질문이다.
 
-run_id
-  현재 코드에서 쓰는 인덱싱 작업 실행 번호다.
-  단, 신뢰 기준은 run_id가 아니라 commit_sha가 되어야 한다.
-  run_id는 "언제 수집했는가", "작업이 성공했는가", "진행률이 몇 퍼센트인가"를 추적하는 운영용 번호에 가깝다.
-  실제 RAG 답변 기준은 "어떤 커밋의 코드인가"가 되어야 하므로, 장기 설계에서는 repository_id + commit_sha를 기준으로 검색 범위를 고정하는 쪽이 맞다.
+repository_full_name
+  사용자가 질문하려는 GitHub 레포다.
+  owner/repo 형식이나 GitHub URL을 받을 수 있고, 서버에서 owner/repo 형식으로 정리한다.
+
+branch
+  사용자가 보고 있는 브랜치다.
+  없으면 서버는 해당 레포의 저장된 최신 인덱싱 결과를 기준으로 찾을 수 있다.
+
+commit_sha
+  실제 코드 기준이다.
+  있으면 이 커밋에서 만든 chunk만 검색한다.
+  없으면 SQL에서 repository_full_name과 branch에 맞는 최신 인덱싱 run을 찾아 commit_sha를 확정한다.
 
 limit
   vector DB에서 최대 몇 개의 관련 chunk를 가져올지 정하는 값이다.
@@ -142,7 +153,9 @@ backend/app/rag/api/schema.py
 ```python
 class RagAskRequestDTO(BaseModel):
     question: str
-    run_id: int | None = Field(default=None, ge=1)
+    repository_full_name: str
+    branch: str | None = None
+    commit_sha: str | None = None
     limit: int = Field(default=5, ge=1, le=MAX_SEARCH_LIMIT)
 
     @field_validator("question")
@@ -158,15 +171,21 @@ FastAPI는 클라이언트가 보낸 JSON body를 보고 `RagAskRequestDTO` 객�
 
 ```text
 JSON body
--> RagAskRequestDTO(question, run_id, limit)
+-> RagAskRequestDTO(question, repository_full_name, branch, commit_sha, limit)
 ```
 
 이 DTO가 하는 일은 단순히 값을 담는 것만이 아니다.
 
 `question`은 앞뒤 공백을 제거하고, 빈 문자열이면 거부한다.
 
-`run_id`는 있으면 1 이상이어야 한다.
-다만 이 값은 코드 신뢰 기준이 아니다. `run_id`는 "이번 인덱싱 작업이 몇 번 작업이었는가"를 나타내는 실행 추적 번호에 가깝다.
+`repository_full_name`은 질문 대상 레포다.
+사용자는 보통 화면에서 레포 URL이나 `owner/repo`를 입력한다.
+
+`branch`는 선택값이다.
+사용자가 특정 브랜치를 보고 있다면 같이 보낸다.
+
+`commit_sha`도 선택값이다.
+프론트가 직전에 인덱싱 응답에서 받은 commit_sha를 알고 있으면 같이 보내는 것이 가장 정확하다.
 
 흐름으로 보면 이렇다.
 
@@ -175,12 +194,13 @@ JSON body
 -> 서버가 index_run_id 또는 job_id 성격의 run_id를 만든다
 -> GitHub에서 현재 branch의 commit_sha를 확인한다
 -> 파일과 chunk는 commit_sha, path, chunk_hash를 기준으로 저장한다
--> run_id는 이 저장 작업의 상태, 진행률, 실패 원인, 재시도 이력을 추적한다
+-> 질문할 때는 repository_full_name, branch, commit_sha 기준으로 검색한다
+-> run_id는 저장 작업의 상태, 진행률, 실패 원인, 재시도 이력을 추적한다
 ```
 
-그래서 일반 사용 화면에서는 사용자가 `run_id`를 외워 입력하는 식이 아니다. 사용자는 보통 레포와 브랜치 또는 특정 커밋을 선택하고, 서버는 그 선택을 `commit_sha`로 해석해야 한다.
+그래서 일반 사용 화면에서는 사용자가 `run_id`를 외워 입력하는 식이 아니다. 사용자는 보통 레포와 브랜치 또는 특정 커밋을 선택하고, 서버는 그 선택을 SQL의 인덱싱 이력과 연결해 `commit_sha` 기준으로 검색한다.
 
-Postman이나 개발 테스트에서만 특정 작업 이력을 재현하려고 `run_id`를 직접 넣어 확인할 수 있다.
+`/rag/ask` 요청 DTO에는 `run_id`를 직접 넣지 않는다. 특정 작업 이력을 재현하거나 확인해야 할 때는 `/rag/runs/{run_id}` 같은 조회 API나 `/rag/vector/search`의 개발용 필터에서 `run_id`를 사용한다.
 
 `limit`은 기본값 5이고, 1 이상 `MAX_SEARCH_LIMIT` 이하로 제한된다.
 
@@ -222,7 +242,7 @@ def ask_repository_rag(
 
     try:
         resolve_github_account(db, auth_service, authorization, auth_cookie)
-        return answer_service.answer(request)
+        return answer_service.answer(db, request)
     except AuthTokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -265,18 +285,18 @@ def ask_repository_rag(
 
 `auth_service`는 인증된 GitHub 계정인지 확인하는 서비스다.
 
-`answer_service`가 실제 RAG 답변 생성을 담당하는 서비스다.
+`answer_service`가 SQL에서 질문 기준 index run을 찾고 RAG 답변 생성을 시작하는 서비스다.
 
 라우터 함수 안에서 가장 중요한 줄은 이 두 줄이다.
 
 ```python
 resolve_github_account(db, auth_service, authorization, auth_cookie)
-return answer_service.answer(request)
+return answer_service.answer(db, request)
 ```
 
 첫 번째 줄은 인증 확인이다. 로그인된 사용자만 RAG ask를 실행하게 막는다.
 
-두 번째 줄은 실제 RAG 답변 생성으로 넘어가는 부분이다.
+두 번째 줄은 SQL에서 기준 index run을 찾은 뒤 RAG 답변 생성으로 넘어가는 부분이다.
 
 목표 사이클 기준으로 보면 현재 라우터는 아직 복잡한 작업 판단을 하지 않는다. 인증만 확인하고, 모든 `/rag/ask` 요청을 `answer_service.answer()`로 보낸다.
 
@@ -328,6 +348,7 @@ rag_answer_graph = providers.Singleton(
 rag_answer_service = providers.Singleton(
     RagAnswerService,
     answer_graph=rag_answer_graph,
+    sql_repository=rag_sql_repository,
 )
 ```
 
@@ -348,6 +369,7 @@ RagAnswerGraph
 ```text
 RagAnswerService
   answer_graph
+  sql_repository
 ```
 
 `@inject`와 `Depends(Provide[AppContainer.rag_answer_service])`는 이 컨테이너 설정을 보고 `ask_repository_rag()` 함수에 `answer_service`를 넣어준다.
@@ -409,6 +431,7 @@ rag_answer_service
 rag_answer_service = providers.Singleton(
     RagAnswerService,
     answer_graph=rag_answer_graph,
+    sql_repository=rag_sql_repository,
 )
 ```
 
@@ -417,6 +440,7 @@ rag_answer_service = providers.Singleton(
 ```text
 RagAnswerService 객체를 하나 만들어라.
 그 객체를 만들 때 answer_graph 자리에는 위에서 만든 rag_answer_graph를 넣어라.
+그 객체를 만들 때 sql_repository 자리에는 SQL 인덱싱 이력을 조회할 rag_sql_repository를 넣어라.
 이렇게 만든 객체는 한 번 만들고 계속 재사용하라.
 ```
 
@@ -434,51 +458,52 @@ backend/app/rag/service/answer_service.py
 
 ```python
 class RagAnswerService:
-    """RAG 답변 생성 use case를 graph runner에 위임한다."""
+    """질문 요청의 코드 기준을 SQL에서 확정한 뒤 graph runner에 위임한다."""
 
-    def __init__(
-        self,
-        answer_graph: AnswerGraph,
-    ) -> None:
+    def __init__(self, answer_graph: AnswerGraph, sql_repository: RagStore) -> None:
         self.answer_graph = answer_graph
+        self.sql_repository = sql_repository
 
-    def answer(self, request: RagAskRequestDTO) -> RagAskResponseDTO:
-        """질문과 선택 run_id로 관련 청크를 찾고 출처 목록과 함께 답변한다."""
+    def answer(self, db: Session, request: RagAskRequestDTO) -> RagAskResponseDTO:
+        """레포/브랜치/커밋 기준의 최신 인덱싱 run을 찾아 답변한다."""
 
-        return self.answer_graph.run(request)
+        index_run = self.find_index_run(db, request)
+        return self.answer_graph.run(request, index_run)
 ```
 
-`RagAnswerService`는 더 이상 vector 검색과 LLM 호출 순서를 직접 들고 있지 않다. `/rag/ask` use case 입구를 유지하면서 실제 실행 흐름은 `RagAnswerGraph`에 위임한다.
+`RagAnswerService`는 vector 검색과 LLM 호출 순서를 직접 들고 있지 않다. 대신 SQL에서 질문 기준이 될 인덱싱 run을 먼저 찾고, 실제 실행 흐름은 `RagAnswerGraph`에 위임한다.
 
 이렇게 나누면 라우터 입장에서는 여전히 아래 한 줄만 보면 된다.
 
 ```text
-answer_service.answer(request)
+answer_service.answer(db, request)
 ```
 
 하지만 내부 구현은 LangGraph workflow로 분리된다.
 
-처음 공부할 때는 이 클래스를 어렵게 보지 않아도 된다. 핵심은 아래 한 줄이다.
+처음 공부할 때는 이 클래스를 어렵게 보지 않아도 된다. 핵심은 아래 두 줄이다.
 
 ```python
-return self.answer_graph.run(request)
+index_run = self.find_index_run(db, request)
+return self.answer_graph.run(request, index_run)
 ```
 
-즉 `RagAnswerService`는 "내가 직접 답변을 만들겠다"가 아니라 "답변을 만드는 graph에게 일을 넘기겠다"는 얇은 입구다.
+즉 `RagAnswerService`는 "내가 직접 답변을 만들겠다"가 아니라 "어떤 커밋 기준으로 답해야 하는지 확정한 뒤 graph에게 일을 넘기겠다"는 use case 입구다.
 
 ```text
 router.py
--> answer_service.answer(request)
--> answer_graph.run(request)
+-> answer_service.answer(db, request)
+-> SQL에서 repository_full_name, branch, commit_sha에 맞는 index_run 조회
+-> answer_graph.run(request, index_run)
 ```
 
-왜 이런 얇은 클래스를 두냐면, 라우터가 graph 내부 흐름을 직접 알지 않게 만들기 위해서다. 라우터는 `answer(request)`라는 계약만 알고 있으면 된다. 나중에 graph 안쪽에 SQL 검색, 검색 결과 결합, 메모리, 에이전트 액션 노드가 추가되어도 라우터 코드는 그대로 둘 수 있다.
+왜 이런 클래스를 두냐면, 라우터가 graph 내부 흐름과 SQL 기준 조회 방식을 직접 알지 않게 만들기 위해서다. 라우터는 `answer(db, request)`라는 계약만 알고 있으면 된다. 나중에 graph 안쪽에 SQL keyword 검색, 검색 결과 결합, 메모리, 에이전트 액션 노드가 추가되어도 라우터 코드는 그대로 둘 수 있다.
 
 다만 이 클래스가 "추상화 그 자체"는 아니다. 더 정확히 말하면 `AnswerUseCase`라는 인터페이스 계약을 실제로 구현한 use case 입구다.
 
 ```text
 AnswerUseCase
-  answer(request)를 가져야 한다는 계약
+  answer(db, request)를 가져야 한다는 계약
 
 RagAnswerService
   그 계약을 구현하고, 실제 처리는 RagAnswerGraph에 맡기는 클래스
@@ -488,9 +513,10 @@ RagAnswerService
 
 ```text
 1. 생성자에서 answer_graph를 받는다.
-2. self.answer_graph에 저장한다.
-3. answer(request)가 호출되면 self.answer_graph.run(request)를 실행한다.
-4. 그 결과인 RagAskResponseDTO를 그대로 반환한다.
+2. 생성자에서 sql_repository를 받는다.
+3. answer(db, request)가 호출되면 SQL에서 기준 index_run을 찾는다.
+4. self.answer_graph.run(request, index_run)를 실행한다.
+5. 그 결과인 RagAskResponseDTO를 그대로 반환한다.
 ```
 
 ## 6. Answer Graph가 선형 RAG 흐름을 실행한다
@@ -506,6 +532,7 @@ backend/app/rag/service/answer_graph.py
 ```python
 class RagAnswerState(TypedDict, total=False):
     request: RagAskRequestDTO
+    index_run: Any
     rows: list[VectorResultRow]
     answer: str
     sources: list[RagAskSourceDTO]
@@ -542,6 +569,115 @@ def build_graph(self):
 
 현재는 아직 분기 없는 선형 graph다. 하지만 흐름이 graph로 표현되었기 때문에 나중에 아래 노드들을 사이에 끼우기 쉬워진다.
 
+### 현재 LangGraph의 실제 논리
+
+현재 `RagAnswerGraph`는 전체 LLM agent workflow가 아니다. 지금 graph가 담당하는 범위는 `/rag/ask` 요청 하나를 받아서 저장된 RAG 근거로 답변을 만드는 최소 흐름이다.
+
+```mermaid
+flowchart LR
+    A["초기 state<br/>request + index_run"] --> B["retrieve_vector"]
+    B --> C["generate_answer"]
+    C --> D["build_response"]
+    D --> E["END"]
+```
+
+초기 state에는 두 값이 들어간다.
+
+```text
+request
+  사용자의 질문, repository_full_name, branch, commit_sha, limit을 담은 DTO다.
+
+index_run
+  RagAnswerService가 SQL에서 먼저 찾은 인덱싱 run이다.
+  graph는 이 값을 기준으로 실제 답변에 사용할 repository_full_name, branch, commit_sha를 확정한다.
+```
+
+여기서 중요한 점은 `index_run`을 graph 내부에서 직접 찾지 않는다는 것이다.
+
+```text
+RagAnswerService
+-> SQL에서 index_run 조회
+-> RagAnswerGraph.run(request, index_run)
+```
+
+즉 graph는 “어떤 코드 기준으로 답할 것인가”를 판단하는 곳이 아니라, 이미 확정된 코드 기준 안에서 검색과 답변 생성을 실행하는 곳이다.
+
+### 노드별 책임
+
+| 노드 | 입력으로 보는 state | 새로 만드는 state | 현재 판단 기준 |
+| --- | --- | --- | --- |
+| `retrieve_vector` | `request`, `index_run` | `rows` | SQL에서 확정된 `repository_full_name`, `branch`, `commit_sha`로 vector 검색 범위를 제한한다. |
+| `generate_answer` | `request`, `rows` | `answer`, `sources` | `rows`가 비어 있으면 LLM을 호출하지 않고 기본 답변을 만든다. `rows`가 있으면 LLM에 질문과 근거를 넘긴다. |
+| `build_response` | `answer`, `sources`, `index_run` | `response` | API 응답 DTO에 답변, 출처, 실제 기준 레포/브랜치/커밋, 추적용 run_id를 담는다. |
+
+### 엣지 기준
+
+현재 graph의 엣지는 전부 무조건 이동이다.
+
+```text
+retrieve_vector -> generate_answer
+  조건 없음.
+  vector 검색 결과가 있든 없든 다음 노드로 간다.
+
+generate_answer -> build_response
+  조건 없음.
+  LLM 답변이든 기본 답변이든 response로 포장해야 하므로 다음 노드로 간다.
+
+build_response -> END
+  조건 없음.
+  응답 DTO가 만들어지면 graph 실행을 끝낸다.
+```
+
+따라서 현재 graph에는 `add_conditional_edges(...)`가 없다. 조건 판단은 엣지가 아니라 노드 내부에 있다.
+
+```python
+if not rows:
+    return {
+        "answer": NO_EVIDENCE_ANSWER,
+        "sources": [],
+    }
+```
+
+이 조건은 `generate_answer` 노드 안에 있다. 의미는 아래와 같다.
+
+```text
+검색 근거가 없음
+-> LLM 호출 안 함
+-> "저장된 RAG 근거를 찾지 못했습니다..." 기본 답변 생성
+
+검색 근거가 있음
+-> LLM 호출
+-> 질문 + documents + metadatas로 답변 생성
+```
+
+이렇게 한 이유는 근거가 없을 때 모델이 일반 지식으로 추측하는 것을 막기 위해서다. 현재 서비스의 신뢰 기준은 사용자가 입력한 보드 내용이 아니라, 인덱싱되어 저장된 코드 근거이기 때문이다.
+
+### 아직 LangGraph에 들어오지 않은 것
+
+현재 graph에는 아래 로직이 없다.
+
+```text
+intent 판단
+SQL keyword 검색
+SQL/Vector 결과 결합
+보드 수정 제안
+GitHub issue 생성
+에이전트 액션 실행
+사용자 선택지에 따른 분기
+채팅 메모리 반영
+```
+
+이 기능들이 들어오면 그때는 선형 엣지만으로 부족해진다. 예를 들어 아래처럼 조건부 엣지가 필요해질 수 있다.
+
+```text
+classify_intent
+-> 질문이면 retrieve_evidence
+-> 보드 수정 요청이면 suggest_board_update
+-> 이슈 생성 요청이면 prepare_github_issue
+```
+
+그때의 LangGraph는 현재보다 더 agent workflow에 가까워진다. 지금 graph는 그 전 단계인 “저장된 코드 근거로 질문에 답하기”만 담당한다.
+
 ```text
 classify_intent
 retrieve_sql
@@ -573,13 +709,16 @@ backend/app/rag/service/answer_graph.py
 
 ```python
 def retrieve_vector(self, state: RagAnswerState) -> RagAnswerState:
-    """질문과 run_id로 vector DB에서 관련 청크를 찾는다."""
+    """질문과 확정된 commit 기준으로 vector DB에서 관련 청크를 찾는다."""
 
     request = state["request"]
+    index_run = state["index_run"]
     search_result = self.vector_repository.search(
         query=request.question,
         limit=request.limit,
-        run_id=request.run_id,
+        repository_full_name=index_run.repository_full_name,
+        branch=index_run.branch,
+        commit_sha=index_run.commit_sha,
     )
     return {"rows": parse_vector_result(search_result)}
 ```
@@ -588,7 +727,7 @@ def retrieve_vector(self, state: RagAnswerState) -> RagAnswerState:
 
 ```text
 질문을 vector 검색한다.
-run_id가 있으면 해당 run_id 안에서만 찾는다.
+SQL에서 확정한 repository_full_name, branch, commit_sha 안에서만 찾는다.
 limit 개수만큼 가져온다.
 ```
 
@@ -598,7 +737,9 @@ limit 개수만큼 가져온다.
 search_result = self.vector_repository.search(
     query=request.question,
     limit=request.limit,
-    run_id=request.run_id,
+    repository_full_name=index_run.repository_full_name,
+    branch=index_run.branch,
+    commit_sha=index_run.commit_sha,
 )
 ```
 
@@ -606,24 +747,13 @@ search_result = self.vector_repository.search(
 
 `request.limit`은 가져올 근거 chunk 개수다.
 
-`request.run_id`는 현재 코드에서 특정 인덱싱 실행 결과로 검색 범위를 좁히는 값이다.
-여기서 중요한 점은 `run_id`가 검색어가 아니라 filter라는 것이다.
-질문 문장과 비슷한 chunk를 찾되, 그 후보군을 특정 실행 결과로 제한한다.
-
-다만 목표 설계에서는 이 역할을 `run_id`가 아니라 `commit_sha`가 맡는 것이 더 적절하다.
-RAG 답변의 신뢰 기준은 "언제 pulling 했는가"가 아니라 "어떤 커밋의 코드인가"이기 때문이다.
+`index_run.commit_sha`는 SQL에서 찾은 실제 코드 기준이다.
+여기서 중요한 점은 `commit_sha`가 검색어가 아니라 filter라는 것이다.
+질문 문장과 비슷한 chunk를 찾되, 그 후보군을 해당 레포의 해당 커밋에서 나온 chunk로 제한한다.
 
 ```text
-현재 MVP 코드
-  run_id 없음
-  -> collection 전체에서 question과 가까운 chunk 검색
-
-  run_id 있음
-  -> metadata.run_id가 같은 chunk만 후보로 두고
-  -> 그 안에서 question과 가까운 chunk 검색
-
-목표 설계
-  repository_id + commit_sha 있음
+현재 코드 기준
+  repository_full_name + branch + commit_sha 있음
   -> 해당 레포의 해당 커밋에서 나온 chunk만 후보로 두고
   -> 그 안에서 question과 가까운 chunk 검색
 ```
@@ -639,15 +769,29 @@ backend/app/rag/external/vector_repository.py
 관련 코드:
 
 ```python
-def search(self, query: str, limit: int = 5, run_id: int | None = None) -> dict:
-    """질문을 embedding으로 바꿔 유사 청크를 찾고, run_id가 있으면 범위를 제한한다."""
+def search(
+    self,
+    query: str,
+    limit: int = 5,
+    run_id: int | None = None,
+    repository_full_name: str | None = None,
+    branch: str | None = None,
+    commit_sha: str | None = None,
+) -> dict:
+    """질문을 embedding으로 바꾼 뒤 지정된 코드 기준 안에서 유사 청크를 찾는다."""
 
     query_arguments = {
         "query_embeddings": [self.embedding_service.embed_text(query)],
         "n_results": limit,
     }
-    if run_id is not None:
-        query_arguments["where"] = {"run_id": run_id}
+    where_filter = build_where_filter(
+        run_id=run_id,
+        repository_full_name=repository_full_name,
+        branch=branch,
+        commit_sha=commit_sha,
+    )
+    if where_filter:
+        query_arguments["where"] = where_filter
 
     return self.collection.query(**query_arguments)
 ```
@@ -666,26 +810,19 @@ self.embedding_service.embed_text(query)
 "n_results": limit
 ```
 
-셋째, 현재 MVP 코드에서는 `run_id`가 있으면 metadata filter를 건다.
-
-```python
-query_arguments["where"] = {"run_id": run_id}
-```
-
-즉 `run_id=3`이면 vector DB 전체가 아니라 metadata에 `run_id`가 3으로 저장된 chunk만 검색한다.
-
-하지만 이 방식은 장기적으로 최종 기준이 되기에는 부족하다.
-같은 레포를 같은 커밋 기준으로 두 번 인덱싱했다면 run_id는 다르지만 코드 내용은 같다.
-반대로 같은 날 pulling했더라도 branch가 움직여 commit_sha가 달라졌다면 코드 기준은 달라진다.
-
-따라서 최종 검색 필터는 아래처럼 가는 것이 더 자연스럽다.
+셋째, `repository_full_name`, `branch`, `commit_sha` 같은 기준이 있으면 metadata filter를 건다.
 
 ```python
 query_arguments["where"] = {
-    "repository_id": repository_id,
-    "commit_sha": commit_sha,
+    "$and": [
+        {"repository_full_name": repository_full_name},
+        {"branch": branch},
+        {"commit_sha": commit_sha},
+    ]
 }
 ```
+
+즉 사용자가 몇 번째 run인지 몰라도, 서버가 SQL에서 찾은 commit_sha를 기준으로 vector DB 후보군을 좁힌다.
 
 `run_id`는 아래처럼 작업 이력과 진행 상태 추적에 쓰는 편이 맞다.
 
@@ -1113,7 +1250,10 @@ LLM 답변을 받은 뒤 `RagAnswerGraph.build_response()`는 최종 응답 DTO�
 return {
     "response": RagAskResponseDTO(
         answer=state["answer"],
-        run_id=request.run_id,
+        repository_full_name=index_run.repository_full_name,
+        branch=index_run.branch,
+        commit_sha=index_run.commit_sha,
+        run_id=index_run.id,
         sources=state.get("sources", []),
     )
 }
@@ -1124,13 +1264,19 @@ return {
 ```python
 class RagAskResponseDTO(BaseModel):
     answer: str
+    repository_full_name: str | None = None
+    branch: str | None = None
+    commit_sha: str | None = None
     run_id: int | None = None
     sources: list[RagAskSourceDTO]
 ```
 
 `answer`는 LLM이 만든 최종 답변이다.
 
-`run_id`는 어떤 인덱싱 실행 범위를 기준으로 답했는지 표시한다.
+`repository_full_name`, `branch`, `commit_sha`는 실제 답변 기준이 된 코드 스냅샷이다.
+
+`run_id`는 그 코드 스냅샷을 저장한 인덱싱 작업 번호다.
+사용자가 직접 알아야 하는 값이 아니라, 서버가 SQL에서 찾은 결과를 응답에 표시하는 값이다.
 
 `sources`는 답변 아래에 보여줄 출처 목록이다.
 
@@ -1160,6 +1306,9 @@ def build_sources(rows: list[VectorResultRow]) -> list[RagAskSourceDTO]:
 ```json
 {
   "answer": "이 레포의 RAG ask 흐름은 ...",
+  "repository_full_name": "Jungle-303-04/warm-up",
+  "branch": "minjeong",
+  "commit_sha": "abc123...",
   "run_id": 3,
   "sources": [
     {
@@ -1180,10 +1329,10 @@ def build_sources(rows: list[VectorResultRow]) -> list[RagAskSourceDTO]:
 backend/app/rag/api/router.py
 ```
 
-`ask_repository_rag()`는 `answer_service.answer(request)`의 결과를 그대로 반환한다.
+`ask_repository_rag()`는 `answer_service.answer(db, request)`의 결과를 그대로 반환한다.
 
 ```python
-return answer_service.answer(request)
+return answer_service.answer(db, request)
 ```
 
 FastAPI는 이 반환값을 `response_model=RagAskResponseDTO`에 맞춰 JSON으로 직렬화한다.
@@ -1191,8 +1340,9 @@ FastAPI는 이 반환값을 `response_model=RagAskResponseDTO`에 맞춰 JSON으
 즉 전체 흐름은 이렇게 끝난다.
 
 ```text
-RagAnswerService.answer()
--> RagAnswerGraph.run()
+RagAnswerService.answer(db, request)
+-> SQL에서 repository_full_name, branch, commit_sha에 맞는 index_run 조회
+-> RagAnswerGraph.run(request, index_run)
 -> RagAskResponseDTO
 -> FastAPI JSON response
 -> Client
@@ -1208,7 +1358,7 @@ RagAnswerService.answer()
 | 입력을 요청 DTO로 받기 | `RagAskRequestDTO` | 구현됨 |
 | 어떤 작업인지 판단 | `/rag/ask`로 들어오면 RAG 답변으로 고정 | 구조만 있음 |
 | 검색 계획 세우기 | `RagAnswerGraph`가 `retrieve_vector -> generate_answer -> build_response` 순서로 실행 | 구조만 있음 |
-| SQL 검색 / Vector 검색 | `RagVectorRepository.search()` | Vector는 구현됨, SQL은 ask 흐름에 미연결 |
+| SQL 검색 / Vector 검색 | `RagSqlRepository.find_latest_run()`, `RagVectorRepository.search()` | SQL 기준 조회와 Vector 검색은 구현됨, SQL keyword evidence 결합은 미구현 |
 | 검색 결과 결합 | `parse_vector_result()`로 row 정리 | 구조만 있음 |
 | LLM에게 질문 + 근거 전달 | `RagLlm.answer_with_evidence()` | 구현됨 |
 | LLM 결과 해석 | `OpenAIGenerator.generate()`가 텍스트 반환 | 단순 구현 |
@@ -1224,7 +1374,7 @@ RagAnswerService.answer()
 
 현재 `/rag/ask`는 모든 입력을 답변 생성 요청으로 본다.
 
-추가된다면 위치는 `ask_repository_rag()`와 `RagAnswerService.answer()` 사이가 자연스럽다.
+추가된다면 위치는 `ask_repository_rag()`와 `RagAnswerService.answer(db, request)` 사이가 자연스럽다.
 
 ```text
 ask_repository_rag()
@@ -1254,7 +1404,9 @@ GitHub issue 생성 요청인지
 search_result = self.vector_repository.search(
     query=request.question,
     limit=request.limit,
-    run_id=request.run_id,
+    repository_full_name=index_run.repository_full_name,
+    branch=index_run.branch,
+    commit_sha=index_run.commit_sha,
 )
 ```
 
@@ -1266,7 +1418,8 @@ question
    - use_vector: true
    - use_sql: true
    - keyword: ...
-   - run_id: ...
+   - repository_full_name: ...
+   - commit_sha: ...
    - limit: ...
 ```
 
@@ -1278,13 +1431,13 @@ RagAnswerGraph
 -> 계획에 따라 retrieve_vector / retrieve_sql 노드 실행
 ```
 
-### 3. SQL 검색
+### 3. SQL keyword 검색
 
-상태: 일부 구현됨, ask 흐름에는 미연결
+상태: 일부 구현됨, ask evidence 결합에는 미연결
 
 SQL 저장소는 이미 RAG 인덱스 실행 결과와 chunk를 저장/조회하는 책임을 가진다.
 
-현재 ask 흐름은 `RagSqlRepository`를 사용하지 않는다. 하지만 keyword 기반 검색이나 run 상세 조회 같은 구조는 이미 SQL repository 쪽에 있다.
+현재 ask 흐름은 `RagSqlRepository.find_latest_run()`으로 질문 기준이 될 인덱싱 run을 찾는다. 다만 keyword 기반 SQL evidence 검색은 아직 LLM 근거 결합 흐름에 연결되지 않았다.
 
 추가된다면 흐름은 이렇게 될 수 있다.
 
@@ -1409,10 +1562,11 @@ Graph가 LLM 답변과 source 목록을 응답 DTO로 포장한다.
 
 ```text
 ask_repository_rag(request)
--> answer_service.answer(request)
--> answer_graph.run(request)
+-> answer_service.answer(db, request)
+-> SQL에서 repository_full_name, branch, commit_sha에 맞는 index_run 조회
+-> answer_graph.run(request, index_run)
 -> retrieve_vector
--> vector_repository.search(request.question, request.limit, request.run_id)
+-> vector_repository.search(question, limit, repository_full_name, branch, commit_sha)
 -> embedding_service.embed_text(question)
 -> Chroma collection.query(...)
 -> parse_vector_result(...)
@@ -1421,7 +1575,7 @@ ask_repository_rag(request)
 -> PromptBuilder + EvidenceFormatter
 -> OpenAIGenerator.generate(messages)
 -> build_response
--> RagAskResponseDTO(answer, run_id, sources)
+-> RagAskResponseDTO(answer, repository_full_name, branch, commit_sha, run_id, sources)
 ```
 
 ## 앞으로 확장할 수 있는 지점
@@ -1445,9 +1599,9 @@ PR comment 작성
 
 이 단계가 생기면 `IntentDetector`, `Planner`, `AgentService` 같은 객체가 들어올 수 있다.
 
-### 2. SQL 검색 추가
+### 2. SQL keyword 검색 추가
 
-현재 `/rag/ask`는 vector 검색만 한다.
+현재 `/rag/ask`는 SQL에서 기준 인덱싱 run을 찾은 뒤, 그 run의 레포/브랜치/커밋 기준으로 vector 검색을 한다.
 
 하지만 SQL에는 chunk 원문, 경로, run 기록, skipped file 등이 구조적으로 저장되어 있다.
 

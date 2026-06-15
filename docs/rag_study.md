@@ -30,7 +30,7 @@ API 요청
 -> 사용자에게 답변하거나, 다음 로직 실행
 ```
 
-현재 `/rag/ask` 구현은 이 완성형 사이클 중에서 `Vector 검색 -> LLM 답변 -> 사용자 응답` 흐름을 먼저 구현한 형태다. SQL 검색, SQL/Vector 결과 결합, 후속 로직 실행 여부 판단은 이후 agent workflow로 확장할 수 있는 지점이다.
+현재 `/rag/ask` 구현은 이 완성형 사이클 중에서 `SQL 기준 run 조회 -> Vector 검색 -> LLM 답변 -> 사용자 응답` 흐름을 먼저 구현한 형태다. SQL keyword 검색, SQL/Vector 결과 결합, 후속 로직 실행 여부 판단은 이후 agent workflow로 확장할 수 있는 지점이다.
 
 자세한 코드 매핑은 `docs/rag_ask_flow.md`를 본다.
 
@@ -88,6 +88,7 @@ flowchart TB
     IndexService --> PipelineService
     IndexService --> SQL
     IndexService --> VectorDB
+    AnswerService --> SQL
     AnswerService --> VectorDB
     AnswerService --> LLM
 ```
@@ -145,15 +146,15 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph SearchAndAnswer[검색과 답변]
-        D1[Client sends question + run_id]
+        D1[Client sends question + repository_full_name + commit_sha]
         D2[POST /rag/ask]
         D3[ask_repository_rag]
-        D4[AnswerService]
-        D5[Vector DB search]
+        D4[AnswerService resolves SQL index run]
+        D5[Vector DB search by commit_sha]
         D6[LLM answer]
         D1 --> D2 --> D3 --> D4 --> D5 --> D6
 
-        E1[Client sends query + run_id]
+        E1[Client sends query + repository_full_name + commit_sha]
         E2[POST /rag/vector/search]
         E3[search_rag_chunks_from_vector]
         E4[IndexService]
@@ -219,11 +220,48 @@ flowchart TB
 ```text
 사용자 질문
 -> RagAskRequestDTO
--> RagAnswerService.answer()
--> Vector 검색
+-> RagAnswerService.answer(db, request)
+-> SQL에서 레포/브랜치/커밋 기준 index run 조회
+-> commit_sha 기준 Vector 검색
 -> LLM에게 질문 + 근거 전달
 -> RagAskResponseDTO
 ```
+
+## 현재 LangGraph 읽기
+
+현재 `RagAnswerGraph`는 전체 에이전트 workflow가 아니라 `/rag/ask` 답변용 최소 graph다.
+
+```text
+retrieve_vector
+-> generate_answer
+-> build_response
+-> END
+```
+
+노드는 세 개다.
+
+```text
+retrieve_vector
+  SQL에서 확정된 index_run의 repository_full_name, branch, commit_sha로 vector 검색 범위를 제한한다.
+  결과는 rows로 state에 추가한다.
+
+generate_answer
+  rows가 없으면 LLM을 호출하지 않고 기본 답변을 만든다.
+  rows가 있으면 질문과 근거 chunk를 LLM client에 넘겨 답변을 만든다.
+
+build_response
+  answer, sources, repository_full_name, branch, commit_sha, run_id를 RagAskResponseDTO로 포장한다.
+```
+
+현재 엣지는 모두 무조건 이동이다.
+
+```text
+retrieve_vector -> generate_answer
+generate_answer -> build_response
+build_response -> END
+```
+
+즉 지금은 `add_conditional_edges(...)`가 없다. 조건 판단은 `generate_answer` 내부의 `if not rows`에만 있다. 나중에 intent 판단, 보드 수정 제안, GitHub issue 생성 같은 기능이 들어오면 그때 조건부 엣지와 새 노드를 추가한다.
 
 ## 1. 입구부터 보기
 

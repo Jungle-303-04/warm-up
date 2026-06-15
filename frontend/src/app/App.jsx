@@ -120,18 +120,33 @@ function App() {
     })
   }
 
+  function updateRepositoryFullName(value) {
+    setRepositoryFullName(value)
+    setIndexResult(null)
+    setAnswerResult(null)
+  }
+
+  function updateBranch(value) {
+    setBranch(value)
+    setIndexResult(null)
+    setAnswerResult(null)
+  }
+
   async function askRepository(event) {
     event.preventDefault()
 
-    if (!indexResult?.run_id) {
+    if (!indexResult) {
       setStatus({ type: 'error', message: '먼저 레포지토리 분석을 실행해 주세요.' })
       return
     }
 
+    const repositoryName = repositoryFullName.trim()
     await runAction('ask', '저장된 근거로 답변을 생성하는 중입니다.', async () => {
       const payload = await postJson(`${API_BASE_URL}/rag/ask`, {
         question,
-        run_id: indexResult.run_id,
+        repository_full_name: repositoryName,
+        branch: branch.trim() || null,
+        commit_sha: indexResult.pipeline_result?.commit_sha || null,
         limit: 5,
       })
       setAnswerResult(payload)
@@ -177,8 +192,8 @@ function App() {
             isLoading={isLoading}
             isIndexing={isIndexing}
             isAsking={isAsking}
-            onRepositoryChange={setRepositoryFullName}
-            onBranchChange={setBranch}
+            onRepositoryChange={updateRepositoryFullName}
+            onBranchChange={updateBranch}
             onQuestionChange={setQuestion}
             onIndexRepository={indexRepository}
             onAskRepository={askRepository}

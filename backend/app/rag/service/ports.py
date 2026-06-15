@@ -51,11 +51,11 @@ class IndexUseCase(Protocol):
 
 
 class AnswerUseCase(Protocol):
-    def answer(self, request: RagAskRequestDTO) -> RagAskResponseDTO: ...
+    def answer(self, db: Session, request: RagAskRequestDTO) -> RagAskResponseDTO: ...
 
 
 class AnswerGraph(Protocol):
-    def run(self, request: RagAskRequestDTO) -> RagAskResponseDTO: ...
+    def run(self, request: RagAskRequestDTO, index_run: Any) -> RagAskResponseDTO: ...
 
 
 class RepoSource(Protocol):
@@ -106,11 +106,25 @@ class RagStore(Protocol):
         limit: int = 10,
     ) -> list[Any]: ...
 
+    def find_latest_run(
+        self,
+        db: Session,
+        repository_full_name: str,
+        branch: str | None = None,
+        commit_sha: str | None = None,
+    ) -> Any | None: ...
+
 
 class VectorStore(Protocol):
     collection_name: str
 
-    def save_chunks(self, chunks: list[RagEvidenceChunkDTO], run_id: int) -> int: ...
+    def save_chunks(
+        self,
+        chunks: list[RagEvidenceChunkDTO],
+        run_id: int,
+        repository_full_name: str | None = None,
+        branch: str | None = None,
+    ) -> int: ...
 
     def count(self) -> int: ...
 
@@ -119,6 +133,9 @@ class VectorStore(Protocol):
         query: str,
         limit: int = 5,
         run_id: int | None = None,
+        repository_full_name: str | None = None,
+        branch: str | None = None,
+        commit_sha: str | None = None,
     ) -> dict: ...
 
 

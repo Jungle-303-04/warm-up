@@ -157,6 +157,27 @@ class RagSqlRepository:
 
         return db.get(RagIndexRun, run_id)
 
+    def find_latest_run(
+        self,
+        db: Session,
+        repository_full_name: str,
+        branch: str | None = None,
+        commit_sha: str | None = None,
+    ) -> RagIndexRun | None:
+        """사용자가 고른 레포 기준으로 가장 최근에 저장된 코드 스냅샷을 찾는다."""
+
+        stmt = select(RagIndexRun).where(
+            RagIndexRun.repository_full_name == repository_full_name
+        )
+
+        if branch is not None:
+            stmt = stmt.where(RagIndexRun.branch == branch)
+
+        if commit_sha is not None:
+            stmt = stmt.where(RagIndexRun.commit_sha == commit_sha)
+
+        return db.scalars(stmt.order_by(RagIndexRun.id.desc()).limit(1)).first()
+
     def list_file_snapshots(self, db: Session, run_id: int) -> list[RagFileSnapshot]:
         """특정 run에서 인덱싱된 파일 목록을 재구성한다."""
 

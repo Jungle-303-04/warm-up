@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -17,7 +17,10 @@ NO_EVIDENCE_ANSWER = (
 
 
 class RagAnswerState(TypedDict, total=False):
+    # LangGraph의 state는 노드들이 이어서 읽고 쓰는 공유 작업 메모리다.
+    # 각 노드는 전체 state를 다시 만들지 않고, 자신이 추가/수정한 값만 dict로 반환한다.
     request: RagAskRequestDTO
+    index_run: Any
     rows: list[VectorResultRow]
     answer: str
     sources: list[RagAskSourceDTO]
@@ -36,18 +39,28 @@ class RagAnswerGraph:
         self.llm_client = llm_client
         self.graph = self.build_graph()
 
-    def run(self, request: RagAskRequestDTO) -> RagAskResponseDTO:
+    def run(self, request: RagAskRequestDTO, index_run: Any) -> RagAskResponseDTO:
         """질문 요청을 graph state로 실행하고 최종 응답 DTO를 반환한다."""
 
-        state = self.graph.invoke({"request": request})
+        # index_run은 graph가 직접 찾지 않는다.
+        # RagAnswerService가 SQL에서 레포/브랜치/커밋 기준을 먼저 확정하고,
+        # graph는 그 확정된 코드 스냅샷 안에서만 검색과 답변 생성을 수행한다.
+        state = self.graph.invoke({"request": request, "index_run": index_run})
         return state["response"]
 
     def build_graph(self):
         graph = StateGraph(RagAnswerState)
+
+        # 현재 graph는 완성형 agent workflow가 아니라 RAG 답변용 최소 선형 흐름이다.
+        # 노드는 "검색 -> 답변 생성 -> 응답 포장" 세 책임으로만 나눈다.
         graph.add_node("retrieve_vector", self.retrieve_vector)
         graph.add_node("generate_answer", self.generate_answer)
         graph.add_node("build_response", self.build_response)
 
+        # 현재 엣지는 조건 분기가 없다.
+        # 항상 retrieve_vector -> generate_answer -> build_response -> END 순서로 이동한다.
+        # 근거가 없을 때 LLM을 호출하지 않는 판단은 조건부 엣지가 아니라
+        # generate_answer 노드 내부의 if not rows 조건에서 처리한다.
         graph.set_entry_point("retrieve_vector")
         graph.add_edge("retrieve_vector", "generate_answer")
         graph.add_edge("generate_answer", "build_response")
@@ -56,14 +69,24 @@ class RagAnswerGraph:
         return graph.compile()
 
     def retrieve_vector(self, state: RagAnswerState) -> RagAnswerState:
-        """질문과 run_id로 vector DB에서 관련 청크를 찾는다."""
+        """질문과 확정된 commit 기준으로 vector DB에서 관련 청크를 찾는다."""
 
         request = state["request"]
+        index_run = state["index_run"]
+
+        # 사용자가 임의로 적은 보드/질문 내용은 신뢰 기준이 아니다.
+        # SQL에서 확정한 index_run의 repository_full_name, branch, commit_sha를 필터로 써서
+        # 실제 저장된 코드 스냅샷 안의 chunk만 검색 후보로 둔다.
         search_result = self.vector_repository.search(
             query=request.question,
             limit=request.limit,
-            run_id=request.run_id,
+            repository_full_name=index_run.repository_full_name,
+            branch=index_run.branch,
+            commit_sha=index_run.commit_sha,
         )
+
+        # Chroma 결과는 ids/documents/metadatas/distances가 따로 오므로,
+        # 다음 노드가 다루기 쉬운 row 목록으로 변환해서 state에 rows로 추가한다.
         return {"rows": parse_vector_result(search_result)}
 
     def generate_answer(self, state: RagAnswerState) -> RagAnswerState:
@@ -72,12 +95,18 @@ class RagAnswerGraph:
         request = state["request"]
         rows = state.get("rows", [])
 
+        # 검색 근거가 없으면 LLM을 호출하지 않는다.
+        # 이 서비스는 "저장된 코드 근거 기반 답변"이 목표라서,
+        # 근거 없이 모델이 추측 답변을 만들 가능성을 여기서 차단한다.
         if not rows:
             return {
                 "answer": NO_EVIDENCE_ANSWER,
                 "sources": [],
             }
 
+        # 현재 LLM 연결은 RAG 답변 텍스트 생성까지만 담당한다.
+        # 에이전트 액션 선택, 보드 수정 제안 실행, GitHub issue 생성 같은 workflow는
+        # 아직 이 graph의 노드/엣지로 들어와 있지 않다.
         return {
             "answer": self.llm_client.answer_with_evidence(
                 question=request.question,
@@ -90,11 +119,16 @@ class RagAnswerGraph:
     def build_response(self, state: RagAnswerState) -> RagAnswerState:
         """Graph state를 API 응답 DTO로 포장한다."""
 
-        request = state["request"]
+        index_run = state["index_run"]
+        # run_id는 사용자가 질문할 때 고르는 기준이 아니라 추적용 번호다.
+        # 응답에는 실제 답변 기준이 된 repository_full_name, branch, commit_sha를 함께 내려준다.
         return {
             "response": RagAskResponseDTO(
                 answer=state["answer"],
-                run_id=request.run_id,
+                repository_full_name=index_run.repository_full_name,
+                branch=index_run.branch,
+                commit_sha=index_run.commit_sha,
+                run_id=index_run.id,
                 sources=state.get("sources", []),
             )
         }
@@ -105,6 +139,8 @@ def build_sources(rows: list[VectorResultRow]) -> list[RagAskSourceDTO]:
 
     sources: list[RagAskSourceDTO] = []
     for row in rows:
+        # vector metadata에 저장해 둔 citation/path/chunk_type을 API 응답용 출처 DTO로 옮긴다.
+        # 이 값들이 있어야 사용자가 LLM 답변이 어떤 코드 조각에서 나온 것인지 확인할 수 있다.
         sources.append(
             RagAskSourceDTO(
                 citation=str(row.metadata.get("citation", "")),

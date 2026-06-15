@@ -112,7 +112,7 @@ def ask_repository_rag(
 
     try:
         resolve_github_account(db, auth_service, authorization, auth_cookie)
-        return answer_service.answer(request)
+        return answer_service.answer(db, request)
     except AuthTokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

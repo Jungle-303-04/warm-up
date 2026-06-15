@@ -67,6 +67,8 @@ class RagIndexService:
         vector_chunk_count = self.vector_repository.save_chunks(
             chunks=pipeline_result.evidence_chunks,
             run_id=run.id,
+            repository_full_name=request.repository_full_name,
+            branch=request.branch,
         )
 
         return RagStoredIndexResponseDTO(
@@ -137,6 +139,9 @@ class RagIndexService:
             query=request.query,
             limit=request.limit,
             run_id=request.run_id,
+            repository_full_name=request.repository_full_name,
+            branch=request.branch,
+            commit_sha=request.commit_sha,
         )
 
         return RagVectorSearchResponseDTO(
