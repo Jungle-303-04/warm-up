@@ -19,10 +19,11 @@ export function loginUrl(): string {
   return `${API_BASE}/auth/github/login`;
 }
 
-export async function getMe(): Promise<Me | null> {
+export async function getMe(signal?: AbortSignal): Promise<Me | null> {
   const res = await fetch(`${API_BASE}/auth/me`, {
     credentials: "include",
     cache: "no-store",
+    signal,
   });
   if (res.status === 401) return null;
   if (!res.ok) throw new Error(`사용자 조회 실패 (${res.status})`);
