@@ -118,8 +118,10 @@ question
   사용자가 LLM에게 묻고 싶은 질문이다.
 
 run_id
-  어떤 인덱싱 실행 결과 안에서만 검색할지 제한하는 값이다.
-  없으면 전체 vector collection에서 검색할 수 있다.
+  현재 코드에서 쓰는 인덱싱 작업 실행 번호다.
+  단, 신뢰 기준은 run_id가 아니라 commit_sha가 되어야 한다.
+  run_id는 "언제 수집했는가", "작업이 성공했는가", "진행률이 몇 퍼센트인가"를 추적하는 운영용 번호에 가깝다.
+  실제 RAG 답변 기준은 "어떤 커밋의 코드인가"가 되어야 하므로, 장기 설계에서는 repository_id + commit_sha를 기준으로 검색 범위를 고정하는 쪽이 맞다.
 
 limit
   vector DB에서 최대 몇 개의 관련 chunk를 가져올지 정하는 값이다.
@@ -164,6 +166,21 @@ JSON body
 `question`은 앞뒤 공백을 제거하고, 빈 문자열이면 거부한다.
 
 `run_id`는 있으면 1 이상이어야 한다.
+다만 이 값은 코드 신뢰 기준이 아니다. `run_id`는 "이번 인덱싱 작업이 몇 번 작업이었는가"를 나타내는 실행 추적 번호에 가깝다.
+
+흐름으로 보면 이렇다.
+
+```text
+레포지토리 인덱싱 실행
+-> 서버가 index_run_id 또는 job_id 성격의 run_id를 만든다
+-> GitHub에서 현재 branch의 commit_sha를 확인한다
+-> 파일과 chunk는 commit_sha, path, chunk_hash를 기준으로 저장한다
+-> run_id는 이 저장 작업의 상태, 진행률, 실패 원인, 재시도 이력을 추적한다
+```
+
+그래서 일반 사용 화면에서는 사용자가 `run_id`를 외워 입력하는 식이 아니다. 사용자는 보통 레포와 브랜치 또는 특정 커밋을 선택하고, 서버는 그 선택을 `commit_sha`로 해석해야 한다.
+
+Postman이나 개발 테스트에서만 특정 작업 이력을 재현하려고 `run_id`를 직접 넣어 확인할 수 있다.
 
 `limit`은 기본값 5이고, 1 이상 `MAX_SEARCH_LIMIT` 이하로 제한된다.
 
@@ -344,6 +361,67 @@ AppContainer가 RagAnswerGraph와 하위 객체까지 조립해서 주입한다.
 
 목표 사이클에서 말한 `흐름 만들기`, `인터페이스화`, `조립 가능한 형태`는 이 레이어와 관련이 깊다.
 
+처음 읽을 때는 `container.py`를 비즈니스 로직 파일로 보면 헷갈린다. 이 파일은 질문에 답하거나, chunk를 만들거나, GitHub API를 직접 호출하는 파일이 아니다. 역할은 아래 한 문장에 가깝다.
+
+```text
+각 기능 객체를 어떤 부품으로 만들고, 어떤 객체에 꽂아 넣을지 정하는 조립 설명서
+```
+
+예를 들어 `/rag/ask` 답변 기능 하나만 보더라도 실제로는 여러 부품이 필요하다.
+
+```text
+질문을 embedding으로 바꾸는 객체
+-> vector DB에서 근거를 찾는 객체
+-> 근거를 프롬프트로 정리하는 객체
+-> OpenAI에 요청하는 객체
+-> graph 흐름을 실행하는 객체
+-> 라우터가 호출할 answer service
+```
+
+이 부품들을 라우터 안에서 직접 만들면 라우터가 너무 복잡해진다. 그래서 `container.py`가 대신 아래 작업을 담당한다.
+
+```text
+RagVectorRepository 만들기
+RagLlm 만들기
+RagAnswerGraph 만들기
+RagAnswerService 만들기
+FastAPI 라우터에 RagAnswerService 주입하기
+```
+
+그래서 `container.py`에 코드가 많아 보이는 이유는, 여러 기능의 실제 처리 로직이 들어 있어서가 아니라 "프로젝트 전체 객체 조립표"가 한 곳에 모여 있기 때문이다. 현재는 auth, board, github, rag, agent 부품이 모두 같은 컨테이너에 있으므로 더 많아 보인다.
+
+초보자 기준으로 읽을 때는 이 파일을 위에서부터 전부 외우려고 하지 말고, 지금 필요한 기능 묶음만 보면 된다. `/rag/ask`를 공부 중이라면 아래 묶음만 먼저 보면 충분하다.
+
+```text
+rag_embedding_service
+rag_vector_repository
+rag_evidence_formatter
+rag_prompt_builder
+rag_text_generator
+rag_llm_client
+rag_answer_graph
+rag_answer_service
+```
+
+여기서 마지막 줄이 라우터로 들어간다.
+
+```python
+rag_answer_service = providers.Singleton(
+    RagAnswerService,
+    answer_graph=rag_answer_graph,
+)
+```
+
+이 코드는 풀어서 말하면 아래와 같다.
+
+```text
+RagAnswerService 객체를 하나 만들어라.
+그 객체를 만들 때 answer_graph 자리에는 위에서 만든 rag_answer_graph를 넣어라.
+이렇게 만든 객체는 한 번 만들고 계속 재사용하라.
+```
+
+`providers.Singleton(...)`은 "앱이 실행되는 동안 같은 객체 하나를 계속 사용하겠다"는 의미다. 반대로 매번 새 객체를 만들고 싶을 때는 `providers.Factory(...)` 같은 방식을 쓸 수 있다.
+
 ## 5. Answer Service가 Graph Runner에 위임한다
 
 파일:
@@ -379,6 +457,41 @@ answer_service.answer(request)
 ```
 
 하지만 내부 구현은 LangGraph workflow로 분리된다.
+
+처음 공부할 때는 이 클래스를 어렵게 보지 않아도 된다. 핵심은 아래 한 줄이다.
+
+```python
+return self.answer_graph.run(request)
+```
+
+즉 `RagAnswerService`는 "내가 직접 답변을 만들겠다"가 아니라 "답변을 만드는 graph에게 일을 넘기겠다"는 얇은 입구다.
+
+```text
+router.py
+-> answer_service.answer(request)
+-> answer_graph.run(request)
+```
+
+왜 이런 얇은 클래스를 두냐면, 라우터가 graph 내부 흐름을 직접 알지 않게 만들기 위해서다. 라우터는 `answer(request)`라는 계약만 알고 있으면 된다. 나중에 graph 안쪽에 SQL 검색, 검색 결과 결합, 메모리, 에이전트 액션 노드가 추가되어도 라우터 코드는 그대로 둘 수 있다.
+
+다만 이 클래스가 "추상화 그 자체"는 아니다. 더 정확히 말하면 `AnswerUseCase`라는 인터페이스 계약을 실제로 구현한 use case 입구다.
+
+```text
+AnswerUseCase
+  answer(request)를 가져야 한다는 계약
+
+RagAnswerService
+  그 계약을 구현하고, 실제 처리는 RagAnswerGraph에 맡기는 클래스
+```
+
+그래서 `answer_service.py`를 읽을 때는 아래 정도만 먼저 이해하면 된다.
+
+```text
+1. 생성자에서 answer_graph를 받는다.
+2. self.answer_graph에 저장한다.
+3. answer(request)가 호출되면 self.answer_graph.run(request)를 실행한다.
+4. 그 결과인 RagAskResponseDTO를 그대로 반환한다.
+```
 
 ## 6. Answer Graph가 선형 RAG 흐름을 실행한다
 
@@ -493,7 +606,27 @@ search_result = self.vector_repository.search(
 
 `request.limit`은 가져올 근거 chunk 개수다.
 
-`request.run_id`는 특정 인덱싱 실행 결과로 검색 범위를 좁히는 값이다.
+`request.run_id`는 현재 코드에서 특정 인덱싱 실행 결과로 검색 범위를 좁히는 값이다.
+여기서 중요한 점은 `run_id`가 검색어가 아니라 filter라는 것이다.
+질문 문장과 비슷한 chunk를 찾되, 그 후보군을 특정 실행 결과로 제한한다.
+
+다만 목표 설계에서는 이 역할을 `run_id`가 아니라 `commit_sha`가 맡는 것이 더 적절하다.
+RAG 답변의 신뢰 기준은 "언제 pulling 했는가"가 아니라 "어떤 커밋의 코드인가"이기 때문이다.
+
+```text
+현재 MVP 코드
+  run_id 없음
+  -> collection 전체에서 question과 가까운 chunk 검색
+
+  run_id 있음
+  -> metadata.run_id가 같은 chunk만 후보로 두고
+  -> 그 안에서 question과 가까운 chunk 검색
+
+목표 설계
+  repository_id + commit_sha 있음
+  -> 해당 레포의 해당 커밋에서 나온 chunk만 후보로 두고
+  -> 그 안에서 question과 가까운 chunk 검색
+```
 
 ## 8. Vector Repository가 실제 Vector DB를 검색한다
 
@@ -533,13 +666,59 @@ self.embedding_service.embed_text(query)
 "n_results": limit
 ```
 
-셋째, `run_id`가 있으면 metadata filter를 건다.
+셋째, 현재 MVP 코드에서는 `run_id`가 있으면 metadata filter를 건다.
 
 ```python
 query_arguments["where"] = {"run_id": run_id}
 ```
 
 즉 `run_id=3`이면 vector DB 전체가 아니라 metadata에 `run_id`가 3으로 저장된 chunk만 검색한다.
+
+하지만 이 방식은 장기적으로 최종 기준이 되기에는 부족하다.
+같은 레포를 같은 커밋 기준으로 두 번 인덱싱했다면 run_id는 다르지만 코드 내용은 같다.
+반대로 같은 날 pulling했더라도 branch가 움직여 commit_sha가 달라졌다면 코드 기준은 달라진다.
+
+따라서 최종 검색 필터는 아래처럼 가는 것이 더 자연스럽다.
+
+```python
+query_arguments["where"] = {
+    "repository_id": repository_id,
+    "commit_sha": commit_sha,
+}
+```
+
+`run_id`는 아래처럼 작업 이력과 진행 상태 추적에 쓰는 편이 맞다.
+
+```text
+run_id 또는 index_run_id
+  이번 인덱싱 작업 번호
+  진행률 표시
+  실패/성공 상태 기록
+  어떤 commit_sha를 수집했는지 연결
+
+commit_sha
+  실제 코드 기준
+  RAG 검색의 신뢰 기준
+  chunk 중복 판단과 재사용 기준
+```
+
+예를 들어 같은 commit_sha를 다시 인덱싱한다면 chunk_id는 아래처럼 안정적으로 만들 수 있다.
+
+```text
+path@commit_sha:chunk_hash
+```
+
+그러면 같은 코드 조각은 같은 ID를 가지므로 중복 저장을 줄이고, RAG 검색도 "실제 코드 버전" 기준으로 정렬된다.
+
+정리하면 `run_id`는 아래 용도에 가깝다.
+
+```text
+인덱싱 작업 상태 추적
+프로그레스바 표시
+실패한 작업 재시도
+어떤 commit_sha를 수집했는지 감사 로그로 남기기
+테스트할 때 특정 작업 실행을 재현하기
+```
 
 마지막 줄:
 

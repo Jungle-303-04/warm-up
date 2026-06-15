@@ -52,16 +52,9 @@ load_dotenv(ROOT_ENV_PATH)
 
 
 class AppContainer(containers.DeclarativeContainer):
-    """서비스, 저장소, 외부 클라이언트를 한 곳에서 조립해 라우터에 주입한다."""
+    """앱에서 쓰는 객체를 만들고 연결하는 조립 지점이다."""
 
-    agent_chat_store = providers.Singleton(InMemoryChatStore)
-    agent_responder = providers.Singleton(EchoAgentResponder)
-    agent_chat_service = providers.Singleton(
-        AgentChatService,
-        store=agent_chat_store,
-        responder=agent_responder,
-    )
-
+    # Common: 외부 API 호출에 공통으로 들어가는 HTTP 부품이다.
     http_user_agent_filter = providers.Singleton(
         UserAgentFilter,
         user_agent=USER_AGENT,
@@ -71,12 +64,14 @@ class AppContainer(containers.DeclarativeContainer):
         filters=providers.List(http_user_agent_filter),
     )
 
+    # Board: 보드 API가 사용할 저장소와 서비스만 조립한다.
     board_repository = providers.Singleton(BoardSqlRepository)
     board_service = providers.Singleton(
         BoardService,
         board_repository=board_repository,
     )
 
+    # Auth: GitHub OAuth, JWT, 사용자 계정 저장소를 인증 서비스에 묶는다.
     auth_github_oauth_client = providers.Singleton(
         GitHubOAuthClient,
         http_client=http_client,
@@ -90,6 +85,7 @@ class AppContainer(containers.DeclarativeContainer):
         auth_repository=auth_repository,
     )
 
+    # GitHub: GitHub API 응답을 코드 스냅샷으로 바꾸는 부품이다.
     github_content_decoder = providers.Singleton(GitHubContentDecoder)
     github_language_detector = providers.Singleton(GitHubLanguageDetector)
     github_file_citation_builder = providers.Singleton(GitHubFileCitationBuilder)
@@ -108,6 +104,7 @@ class AppContainer(containers.DeclarativeContainer):
         snapshot_builder=github_file_snapshot_builder,
     )
 
+    # RAG chunking: 파일 스냅샷을 검색 가능한 evidence chunk로 나눈다.
     text_splitter = providers.Singleton(TextSplitter)
     python_classifier = providers.Singleton(PythonChunkClassifier)
     python_chunker = providers.Singleton(
@@ -139,16 +136,19 @@ class AppContainer(containers.DeclarativeContainer):
         validator=snapshot_validator,
     )
 
-    rag_pipeline_service = providers.Singleton(
-        GitHubRagPipelineService,
-        snapshot_builder=github_file_snapshot_builder,
-        chunking_service=chunking_service,
-    )
+    # RAG storage: SQL과 vector DB에 저장하고 검색하는 공통 저장소다.
     rag_sql_repository = providers.Singleton(RagSqlRepository)
     rag_embedding_service = providers.Singleton(OpenAIEmbeddingService)
     rag_vector_repository = providers.Singleton(
         RagVectorRepository,
         embedding_service=rag_embedding_service,
+    )
+
+    # RAG indexing: GitHub 파일을 chunk로 바꿔 SQL/vector DB에 저장한다.
+    rag_pipeline_service = providers.Singleton(
+        GitHubRagPipelineService,
+        snapshot_builder=github_file_snapshot_builder,
+        chunking_service=chunking_service,
     )
     rag_index_service = providers.Singleton(
         RagIndexService,
@@ -158,6 +158,7 @@ class AppContainer(containers.DeclarativeContainer):
         repository_source=github_repository_client,
     )
 
+    # RAG ask: 저장된 evidence를 찾고 LLM 답변으로 바꾸는 흐름을 조립한다.
     rag_evidence_formatter = providers.Singleton(EvidenceFormatter)
     rag_prompt_builder = providers.Singleton(
         PromptBuilder,
@@ -177,6 +178,15 @@ class AppContainer(containers.DeclarativeContainer):
     rag_answer_service = providers.Singleton(
         RagAnswerService,
         answer_graph=rag_answer_graph,
+    )
+
+    # Agent chat: 아직은 echo responder와 메모리 저장소로 최소 채팅 흐름만 만든다.
+    agent_chat_store = providers.Singleton(InMemoryChatStore)
+    agent_responder = providers.Singleton(EchoAgentResponder)
+    agent_chat_service = providers.Singleton(
+        AgentChatService,
+        store=agent_chat_store,
+        responder=agent_responder,
     )
 
 
