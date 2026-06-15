@@ -3,6 +3,7 @@ from fastapi.responses import RedirectResponse
 
 from app.health.api.router import router as health_router
 from app.pipeline.api.router import router as pipeline_router
+from app.proposals.api.router import router as proposals_router
 from app.repo_rag.api.router import router as repo_rag_router
 
 api_router = APIRouter()
@@ -16,3 +17,4 @@ def redirect_to_docs() -> RedirectResponse:
 api_router.include_router(health_router, tags=["health"])
 api_router.include_router(pipeline_router, prefix="/pipeline", tags=["pipeline"])
 api_router.include_router(repo_rag_router, prefix="/pipeline", tags=["repo-rag"])
+api_router.include_router(proposals_router, prefix="/pipeline", tags=["proposals"])
