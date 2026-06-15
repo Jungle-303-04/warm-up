@@ -94,4 +94,6 @@ findings/proposals 생성 + approval flow, 코드-문서 링크 상태 추적.
   - [x] `feat: App JWT(RS256) 인증` (ed5ac01) — 10분 만료 한도 준수
   - [x] `feat: 제안 코멘트 포맷팅 + 발행 서비스` (a36d75b) — `GitHubCommentClient` 포트 + httpx 어댑터
   - [ ] (후속) 설치 토큰 교환(network) 실연동, 승인 시 이슈/PR 자동 게시(이슈 링크 모델 필요)
-- [ ] **Phase E — 프론트엔드 API 연동**: 저장소·검색·제안·승인 UI.
+- ✅ **Phase E — 프론트엔드 API 연동** (tsc --noEmit 통과)
+  - [x] `feat: 제안 검토 보드 프론트엔드` (2206785) — `lib/api.ts` 타입 클라이언트,
+        `ProposalsBoard`(상태 필터·승인/반려·새로고침), 정적 소개 페이지 교체
