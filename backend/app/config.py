@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     github_webhook_secret: str | None = None
     github_private_key_path: str | None = None
 
+    # GitHub OAuth (사용자 로그인)
+    github_oauth_client_id: str | None = None
+    github_oauth_client_secret: str | None = None
+    github_oauth_redirect_uri: str = "http://localhost:8000/auth/github/callback"
+    github_oauth_scopes: str = "read:user repo"
+    session_jwt_secret: str = "dev-insecure-session-secret"  # 운영에서는 반드시 교체
+    session_ttl_seconds: int = 60 * 60 * 8
+
     # 하이브리드 검색 가중치 (vector + keyword)
     hybrid_vector_weight: float = 0.7
     hybrid_keyword_weight: float = 0.3
