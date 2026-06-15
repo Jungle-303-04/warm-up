@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { isoDate } from "../lib/date";
 import { useMe } from "../hooks/use-me";
 import { useProposalPublish } from "../hooks/use-proposal-publish";
 import { SOURCES, TODAY } from "../lib/fixtures";
@@ -9,9 +10,6 @@ import { useWorkspace } from "../lib/store";
 import { Icon } from "./icon";
 
 const PROPOSAL_TITLE = "문서 반영: docs/auth.md 401 처리";
-const isoToday = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart(2, "0")}-${String(
-  TODAY.getDate(),
-).padStart(2, "0")}`;
 
 export function ProposalCard() {
   const me = useMe();
@@ -33,7 +31,7 @@ export function ProposalCard() {
 
   const approve = () => {
     setDecision("approved");
-    addBoardTask({ title: PROPOSAL_TITLE, status: "todo", due: isoToday, repo: defaultRepo });
+    addBoardTask({ title: PROPOSAL_TITLE, status: "todo", due: isoDate(TODAY), repo: defaultRepo });
     setAddedToBoard(true);
   };
 
