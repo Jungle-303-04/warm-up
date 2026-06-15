@@ -54,6 +54,10 @@ class AnswerUseCase(Protocol):
     def answer(self, request: RagAskRequestDTO) -> RagAskResponseDTO: ...
 
 
+class AnswerGraph(Protocol):
+    def run(self, request: RagAskRequestDTO) -> RagAskResponseDTO: ...
+
+
 class RepoSource(Protocol):
     def build_pipeline_request_from_repository(
         self,

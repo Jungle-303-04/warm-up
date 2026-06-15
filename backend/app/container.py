@@ -22,6 +22,7 @@ from app.github.domain.file_citation import GitHubFileCitationBuilder
 from app.github.domain.file_snapshot_builder import GitHubFileSnapshotBuilder
 from app.github.domain.language_detector import GitHubLanguageDetector
 from app.github.external.repository import GitHubRepositoryClient
+from app.rag.service.answer_graph import RagAnswerGraph
 from app.rag.service.answer_service import RagAnswerService
 from app.rag.service.index_service import RagIndexService
 from app.rag.service.pipeline import GitHubRagPipelineService
@@ -168,10 +169,14 @@ class AppContainer(containers.DeclarativeContainer):
         prompt_builder=rag_prompt_builder,
         text_generator=rag_text_generator,
     )
-    rag_answer_service = providers.Singleton(
-        RagAnswerService,
+    rag_answer_graph = providers.Singleton(
+        RagAnswerGraph,
         vector_repository=rag_vector_repository,
         llm_client=rag_llm_client,
+    )
+    rag_answer_service = providers.Singleton(
+        RagAnswerService,
+        answer_graph=rag_answer_graph,
     )
 
 
