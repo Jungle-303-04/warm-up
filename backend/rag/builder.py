@@ -8,27 +8,24 @@ def build_embedding_text(chunk: dict) -> str:
     {chunk['content']}
 
     태그:
-    {chr(10).join(chunk.get('tags', []))}
+    {"\n".join(chunk.get('tags', []))}
 
     적용 대상:
-    {chr(10).join(chunk.get('applies_to', []))}
+    {"\n".join(chunk.get('applies_to', []))}
 
     추천 카테고리:
-    {chr(10).join(chunk.get('recommended_categories', []))}
+    {"\n".join(chunk.get('recommended_categories', []))}
 
     톤:
-    {chr(10).join(chunk.get('tone', []))}
+    {"\n".join(chunk.get('tone', []))}
     """.strip()
 
+# chunk 여러개를 문자열 여러개로 생성
 def build_embedding_inputs(chunks):
     embedding_inputs = []
 
     for chunk in chunks:
         text = build_embedding_text(chunk)
         embedding_inputs.append(text)
-
-    print(embedding_inputs[0])
-    print(embedding_inputs[1])
-    print(len(embedding_inputs[1]))
     
     return embedding_inputs
