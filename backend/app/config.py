@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     embedding_dimension: int = 1536
     openai_api_key: str | None = None
 
+    # LLM 제안 (에이전트). "none"이면 휴리스틱 fallback으로 동작한다.
+    llm_provider: str = "none"  # "none" | "openai"
+    llm_model: str = "gpt-4o-mini"
+
     # 하이브리드 검색 가중치 (vector + keyword)
     hybrid_vector_weight: float = 0.7
     hybrid_keyword_weight: float = 0.3
