@@ -1,9 +1,11 @@
 "use client";
 
+import { cn } from "../lib/cn";
 import { useWorkspace } from "../lib/store";
 import type { CenterTab } from "../lib/types";
 import { BoardPanel } from "./board-panel";
 import { ChatView } from "./chat-view";
+import { Panel } from "./ui/panel";
 import { ViewerPanel } from "./viewer-panel";
 
 const TABS: CenterTab[] = ["대화", "보드", "뷰어"];
@@ -12,7 +14,7 @@ export function CenterPanel() {
   const tab = useWorkspace((s) => s.centerTab);
   const setTab = useWorkspace((s) => s.setCenterTab);
   return (
-    <section className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <Panel className="flex-1">
       <div
         role="tablist"
         aria-label="중앙 패널 보기"
@@ -27,11 +29,12 @@ export function CenterPanel() {
             aria-selected={tab === t}
             aria-controls={`panel-${t}`}
             onClick={() => setTab(t)}
-            className={`rounded-full px-2.5 py-1 text-[13px] transition-colors ${
+            className={cn(
+              "rounded-full px-2.5 py-1 text-[13px] transition-colors",
               tab === t
                 ? "bg-secondary font-semibold text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
             {t}
           </button>
@@ -46,6 +49,6 @@ export function CenterPanel() {
       >
         {tab === "대화" ? <ChatView /> : tab === "보드" ? <BoardPanel /> : <ViewerPanel />}
       </div>
-    </section>
+    </Panel>
   );
 }
