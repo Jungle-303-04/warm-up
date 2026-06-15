@@ -24,10 +24,8 @@ class Settings(BaseSettings):
     llm_provider: str = "none"  # "none" | "openai"
     llm_model: str = "gpt-4o-mini"
 
-    # GitHub App
-    github_app_id: str | None = None
+    # GitHub 웹훅
     github_webhook_secret: str | None = None
-    github_private_key_path: str | None = None
 
     # GitHub OAuth (사용자 로그인)
     github_oauth_client_id: str | None = None

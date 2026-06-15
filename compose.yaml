@@ -6,9 +6,11 @@ x-backend-env: &backend-env
   DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://repopilot:repopilot@postgres:5432/repopilot}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-  GITHUB_APP_ID: ${GITHUB_APP_ID:-}
-  GITHUB_APP_PRIVATE_KEY_PATH: ${GITHUB_APP_PRIVATE_KEY_PATH:-}
   GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+  GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+  GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+  SESSION_JWT_SECRET: ${SESSION_JWT_SECRET:-dev-insecure-session-secret}
+  WEB_APP_URL: ${WEB_APP_URL:-http://localhost:3000}
 
 x-backend-service: &backend-service
   image: repopilot-api:local
