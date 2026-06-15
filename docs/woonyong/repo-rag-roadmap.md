@@ -97,3 +97,13 @@ findings/proposals 생성 + approval flow, 코드-문서 링크 상태 추적.
 - ✅ **Phase E — 프론트엔드 API 연동** (tsc --noEmit 통과)
   - [x] `feat: 제안 검토 보드 프론트엔드` (2206785) — `lib/api.ts` 타입 클라이언트,
         `ProposalsBoard`(상태 필터·승인/반려·새로고침), 정적 소개 페이지 교체
+  - 메모: 이후 사용자가 Tailwind v4 + 디자인토큰으로 프론트 재구성 시작(별도 진행).
+- ✅ **Phase F — GitHub OAuth 로그인 흐름** (128 passed / 4 skipped)
+  - [x] `feat: authorize URL + state(CSRF)` (cc3575d)
+  - [x] `feat: 세션 JWT(HS256)` (4548e0d)
+  - [x] `feat: OAuth 로그인 서비스 + 토큰 저장소` (5739e5b) — code→token 교환·사용자 조회·토큰 보관
+  - [x] `feat: /auth/github/login·callback·/auth/me` (febae58) — 쿠키 기반 state/세션
+  - [x] `feat: CORS 미들웨어` (프론트 오리진+credentials)
+  - [x] `refactor: App JWT 죽은 코드 제거` (1d181c8) — OAuth가 대체
+  - [x] `feat: OAuth 토큰으로 제안 GitHub 발행` (b7bc23f) — `POST /github/proposals/{id}/publish`,
+        세션→사용자→토큰→코멘트(발행 경로 라이브화)
