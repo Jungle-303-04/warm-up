@@ -39,3 +39,20 @@ def get_font_by_id(fonts, font_id):
             return font
 
     return None
+
+def build_font_detail(font):
+    return {
+        "id": font.id,
+        "name": font.name,
+        "source": font.source,
+        "is_paid": font.is_paid,
+        "license": font.license,
+        "category": font.category,
+        "tags": font.tags,
+        "description": font.description,
+        "weights": font.weights,
+        "download_url": font.download_url,
+        "source_url": font.source_url,
+        "license_summary": font.license_summary,
+        "webfonts": font.webfonts,
+    }
