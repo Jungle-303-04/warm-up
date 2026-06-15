@@ -32,7 +32,13 @@ export function AuthMenu() {
         title={`GitHub: ${me.login}`}
         className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[13px] text-foreground"
       >
-        <Icon name="account_circle" size={18} className="text-primary" />
+        <img
+          src={`https://avatars.githubusercontent.com/u/${me.user_id}`}
+          alt={me.login}
+          width={18}
+          height={18}
+          className="rounded-full"
+        />
         {me.login}
       </span>
     );

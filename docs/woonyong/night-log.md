@@ -6,3 +6,4 @@ DONE: R4 - studio-panel aside 셸을 ui/Panel(as="aside")로 교체, 중복 카�
 DONE: S1 - 스튜디오 타일에 보고서(report→NotebookText)·마인드맵(mindmap→Network) 추가, 클릭=준비중 유지, tsc green
 DONE: M1 - 재사용 접근성 Modal(ui/modal.tsx) 추가: role=dialog/aria-modal, absolute inset-0 인플로우 오버레이, Esc·오버레이 닫기, close 아이콘(X) 매핑 (tsc green) [2026-06-15T19:51:05Z]
 DONE: M2 source-add-modal - GitHub레포URL/파일업로드 2-탭 접근성 모달(목업, 제출=닫기), sources-panel '소스 추가' 버튼 연결(준비중 해제, 로컬 useState)
+DONE: I1 auth-menu - 로그인 사용자 아이콘을 실제 GitHub 아바타 img(rounded-full)로 교체 (tsc green)
