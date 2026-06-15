@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.proposals.dependencies import _store
+from app.proposals.dependencies import _in_memory_store as _store
 
 client = TestClient(app)
 
