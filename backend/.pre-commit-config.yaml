@@ -1,0 +1,9 @@
+# 설치: pip install pre-commit && pre-commit install
+# 커밋 시 ruff lint(--fix) + format을 자동 적용한다.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
