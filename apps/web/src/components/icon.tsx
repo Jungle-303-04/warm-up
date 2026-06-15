@@ -31,6 +31,7 @@ import {
   StickyNote,
   Sun,
   Workflow,
+  X,
 } from "lucide-react";
 
 // board-simple과 동일한 lucide 라인 아이콘. 의미 기반 name → 컴포넌트 매핑.
@@ -68,6 +69,7 @@ const ICONS: Record<string, LucideIcon> = {
   text_snippet: AlignLeft, // 텍스트
   picture_as_pdf: FileType, // PDF
   link: Link2,
+  close: X, // 모달/다이얼로그 닫기
 };
 
 export function Icon({
