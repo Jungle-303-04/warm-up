@@ -65,12 +65,13 @@ findings/proposals 생성 + approval flow, 코드-문서 링크 상태 추적.
 
 **진행**
 
-- 🔄 **Phase A — AI 에이전트 코어 (LangGraph 제안 그래프)**
+- ✅ **Phase A — AI 에이전트 코어 (LangGraph 제안 그래프)** (77 passed / 2 skipped)
   - [x] `chore: LangGraph 의존성을 추가`
   - [x] `feat: 제안 생성용 LLM 포트와 에이전트 연결을 추가` (`LlmProposer`, `ProposalDraft`,
         `AgentProposalService`에 주입 + 휴리스틱 fallback 보존)
-  - [ ] `feat: LangGraph 제안 그래프 어댑터를 추가` (chat model 팩토리 + Fake ChatModel 테스트)
-  - [ ] `chore: config·dependencies 배선` (`llm_provider`, 파이프라인 서비스 주입)
+  - [x] `feat: LangGraph 제안 그래프 어댑터를 추가` (`LangGraphProposer`, chat model 팩토리,
+        Fake ChatModel 오프라인 테스트)
+  - [x] `feat: 파이프라인에 LLM 제안 그래프를 배선` (`llm_provider` 설정, 서비스 주입)
 - [ ] **Phase B — Approval (HITL 결정 API/영속화)**: 제안 PENDING 유지, 승인/반려 결정 API,
       향후 LangGraph `interrupt` 연결 지점.
 - [ ] **Phase C — 백그라운드 워커 실제 처리**: heartbeat 빈 루프 → 실제 큐 소비(poller 패턴 재사용).
