@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 
-import { SOURCES, SUGGESTIONS } from "../lib/fixtures";
+import { DEMO_RESPONSE, SOURCES, SUGGESTIONS } from "../lib/fixtures";
 import { selectScopeCount, useWorkspace } from "../lib/store";
-import { CitationChip } from "./citation-chip";
+import { AgentMessage } from "./agent-message";
 import { Icon } from "./icon";
 import { ProposalCard } from "./proposal-card";
 
@@ -57,17 +57,11 @@ export function ChatView() {
             ))}
           </div>
 
-          {/* 예시 대화는 진행 중인 스레드에서만 표시 */}
+          {/* 예시 대화는 진행 중인 스레드에서만 표시. 실제 연동 시 DEMO_RESPONSE를
+              백엔드 답변 그래프 출력(AgentResponse)으로 대체한다. */}
           {activeThreadId ? (
             <div className="mt-6 space-y-3">
-              <p className="text-[13px] leading-relaxed">
-                로그인 실패는 JWT 만료가 가장 흔한 원인입니다. 인증 미들웨어가 만료 토큰을 401로
-                처리합니다.
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                <CitationChip index={1} label="api/auth.py:12-18" />
-                <CitationChip index={2} label="docs/auth.md" />
-              </div>
+              <AgentMessage response={DEMO_RESPONSE} />
               <ProposalCard />
             </div>
           ) : null}

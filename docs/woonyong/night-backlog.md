@@ -5,7 +5,7 @@
 완료 기준: **tsc green + 커밋 성공**. 결정 기준 = `decisions.md`(D1~D8, O1~O3).
 
 ## 에이전트 상태 (매 실행 시 갱신)
-- last_run: 2026-06-16T (A1)
+- last_run: 2026-06-16T (A2)
 - last_result: DONE
 - in_progress: (없음)
 
@@ -31,7 +31,7 @@
 
 ### 채팅 답변 골격(D7) — 목업
 - [x] A1. `lib/types.ts`에 `AgentResponse` 판별유니온(kind: answer/references/summary/abstain/clarify) + `Citation` 타입 추가.
-- [ ] A2. `chat-view`: 예시 답변을 `AgentResponse` 목업으로 바꾸고 kind별 렌더 스텁(answer=본문+인용칩, references=파일목록, summary=문단, abstain/clarify=안내). 백엔드 연결 지점 주석.
+- [x] A2. `chat-view`: 예시 답변을 `AgentResponse` 목업으로 바꾸고 kind별 렌더 스텁(answer=본문+인용칩, references=파일목록, summary=문단, abstain/clarify=안내). 백엔드 연결 지점 주석.
 
 ## 규칙
 1. 한 실행 = 1개. 시작 시 `[~]`, 끝 `[x]`/`[!]`.

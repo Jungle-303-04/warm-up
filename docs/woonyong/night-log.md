@@ -9,3 +9,4 @@ DONE: M2 source-add-modal - GitHub레포URL/파일업로드 2-탭 접근성 모�
 DONE: I1 auth-menu - 로그인 사용자 아이콘을 실제 GitHub 아바타 img(rounded-full)로 교체 (tsc green)
 DONE: I2 - SOURCE_KINDS.repo.icon을 "folder_code"→"github"로 변경(icon.tsx 인라인 SVG 마크 사용) (tsc green)
 DONE: A1 - lib/types.ts에 AgentResponse 판별유니온(answer/references/summary/abstain/clarify)+Citation 타입 추가, tsc green
+DONE: A2 chat-view - 예시 답변을 AgentResponse 목업(DEMO_RESPONSE)으로 교체, kind별 렌더 스텁(agent-message.tsx) 추가·CitationChip 재사용, 백엔드 연결 주석 (tsc green) [2026-06-15T20:16:03Z]

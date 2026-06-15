@@ -1,5 +1,6 @@
 // UI 셸용 더미 데이터. 실제 연동 시 서버 응답으로 대체된다.
 import type {
+  AgentResponse,
   BoardStatus,
   BoardStatusMeta,
   BoardTask,
@@ -127,6 +128,16 @@ export const SUGGESTIONS = [
   "최근 브랜치에서 바뀐 핵심 로직은?",
   "문서와 코드가 어긋난 부분을 찾아줘",
 ];
+
+// 채팅 답변 데모(D7). 실제 연동 시 백엔드 답변 그래프 출력으로 대체된다.
+export const DEMO_RESPONSE: AgentResponse = {
+  kind: "answer",
+  text: "로그인 실패는 JWT 만료가 가장 흔한 원인입니다. 인증 미들웨어가 만료 토큰을 401로 처리합니다.",
+  citations: [
+    { sourceId: "a", sourceName: "team/api", path: "api/auth.py", lines: [12, 18] },
+    { sourceId: "c", sourceName: "docs/architecture.md", path: "docs/auth.md" },
+  ],
+};
 
 export const STUDIO_TILES = [
   { icon: "account_tree", label: "UML" },
