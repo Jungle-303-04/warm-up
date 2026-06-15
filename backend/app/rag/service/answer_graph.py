@@ -1,4 +1,4 @@
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -10,6 +10,10 @@ from app.rag.api.schema import (
 from app.rag.domain.vector_result import VectorResultRow, parse_vector_result
 from app.rag.service.ports import LlmClient, VectorStore
 
+
+EvidenceRoute = Literal["has_evidence", "no_evidence"]
+HAS_EVIDENCE_ROUTE: EvidenceRoute = "has_evidence"
+NO_EVIDENCE_ROUTE: EvidenceRoute = "no_evidence"
 
 NO_EVIDENCE_ANSWER = (
     "저장된 RAG 근거를 찾지 못했습니다. 먼저 레포지토리 분석을 실행해 주세요."
@@ -51,19 +55,26 @@ class RagAnswerGraph:
     def build_graph(self):
         graph = StateGraph(RagAnswerState)
 
-        # 현재 graph는 완성형 agent workflow가 아니라 RAG 답변용 최소 선형 흐름이다.
-        # 노드는 "검색 -> 답변 생성 -> 응답 포장" 세 책임으로만 나눈다.
+        # 현재 graph는 완성형 agent workflow가 아니라 RAG 답변용 최소 흐름이다.
+        # 근거 검색 이후에는 "근거 있음 / 근거 없음"을 조건부 엣지로 분기한다.
         graph.add_node("retrieve_vector", self.retrieve_vector)
         graph.add_node("generate_answer", self.generate_answer)
+        graph.add_node("build_no_evidence_answer", self.build_no_evidence_answer)
         graph.add_node("build_response", self.build_response)
 
-        # 현재 엣지는 조건 분기가 없다.
-        # 항상 retrieve_vector -> generate_answer -> build_response -> END 순서로 이동한다.
-        # 근거가 없을 때 LLM을 호출하지 않는 판단은 조건부 엣지가 아니라
-        # generate_answer 노드 내부의 if not rows 조건에서 처리한다.
+        # retrieve_vector 이후에는 rows 존재 여부로 다음 노드를 고른다.
+        # rows가 있으면 LLM 답변 생성으로 가고, 없으면 재검색/확장 지점이 될 no-evidence 노드로 간다.
         graph.set_entry_point("retrieve_vector")
-        graph.add_edge("retrieve_vector", "generate_answer")
+        graph.add_conditional_edges(
+            "retrieve_vector",
+            self.route_after_retrieval,
+            {
+                HAS_EVIDENCE_ROUTE: "generate_answer",
+                NO_EVIDENCE_ROUTE: "build_no_evidence_answer",
+            },
+        )
         graph.add_edge("generate_answer", "build_response")
+        graph.add_edge("build_no_evidence_answer", "build_response")
         graph.add_edge("build_response", END)
 
         return graph.compile()
@@ -89,20 +100,18 @@ class RagAnswerGraph:
         # 다음 노드가 다루기 쉬운 row 목록으로 변환해서 state에 rows로 추가한다.
         return {"rows": parse_vector_result(search_result)}
 
+    def route_after_retrieval(self, state: RagAnswerState) -> EvidenceRoute:
+        """검색 근거 존재 여부에 따라 LLM 호출 여부를 graph edge에서 결정한다."""
+
+        if state.get("rows"):
+            return HAS_EVIDENCE_ROUTE
+        return NO_EVIDENCE_ROUTE
+
     def generate_answer(self, state: RagAnswerState) -> RagAnswerState:
-        """검색된 근거가 있으면 LLM 답변을 만들고, 없으면 기본 답변을 사용한다."""
+        """검색된 근거가 있을 때 LLM 답변을 만든다."""
 
         request = state["request"]
         rows = state.get("rows", [])
-
-        # 검색 근거가 없으면 LLM을 호출하지 않는다.
-        # 이 서비스는 "저장된 코드 근거 기반 답변"이 목표라서,
-        # 근거 없이 모델이 추측 답변을 만들 가능성을 여기서 차단한다.
-        if not rows:
-            return {
-                "answer": NO_EVIDENCE_ANSWER,
-                "sources": [],
-            }
 
         # 현재 LLM 연결은 RAG 답변 텍스트 생성까지만 담당한다.
         # 에이전트 액션 선택, 보드 수정 제안 실행, GitHub issue 생성 같은 workflow는
@@ -114,6 +123,16 @@ class RagAnswerGraph:
                 metadatas=[row.metadata for row in rows],
             ),
             "sources": build_sources(rows),
+        }
+
+    def build_no_evidence_answer(self, state: RagAnswerState) -> RagAnswerState:
+        """검색 근거가 없을 때 LLM 추측을 막고 기본 답변을 만든다."""
+
+        # 지금은 기본 답변만 만들지만, 이후에는 이 노드를 SQL 검색, 질문 재작성,
+        # 검색 범위 확장, 사용자 재질문 같은 재검색 workflow로 교체할 수 있다.
+        return {
+            "answer": NO_EVIDENCE_ANSWER,
+            "sources": [],
         }
 
     def build_response(self, state: RagAnswerState) -> RagAnswerState:

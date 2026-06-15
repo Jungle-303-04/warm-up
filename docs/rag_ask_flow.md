@@ -541,11 +541,13 @@ class RagAnswerState(TypedDict, total=False):
 
 `RagAnswerState`는 graph 노드들이 공유하는 작업 상태다.
 
-현재 graph는 아래 세 노드를 순서대로 실행한다.
+현재 graph는 아래 네 노드와 하나의 조건부 엣지로 실행된다.
 
 ```text
 retrieve_vector
--> generate_answer
+-> route_after_retrieval
+   -> rows 있음: generate_answer
+   -> rows 없음: build_no_evidence_answer
 -> build_response
 -> END
 ```
@@ -557,17 +559,26 @@ def build_graph(self):
     graph = StateGraph(RagAnswerState)
     graph.add_node("retrieve_vector", self.retrieve_vector)
     graph.add_node("generate_answer", self.generate_answer)
+    graph.add_node("build_no_evidence_answer", self.build_no_evidence_answer)
     graph.add_node("build_response", self.build_response)
 
     graph.set_entry_point("retrieve_vector")
-    graph.add_edge("retrieve_vector", "generate_answer")
+    graph.add_conditional_edges(
+        "retrieve_vector",
+        self.route_after_retrieval,
+        {
+            HAS_EVIDENCE_ROUTE: "generate_answer",
+            NO_EVIDENCE_ROUTE: "build_no_evidence_answer",
+        },
+    )
     graph.add_edge("generate_answer", "build_response")
+    graph.add_edge("build_no_evidence_answer", "build_response")
     graph.add_edge("build_response", END)
 
     return graph.compile()
 ```
 
-현재는 아직 분기 없는 선형 graph다. 하지만 흐름이 graph로 표현되었기 때문에 나중에 아래 노드들을 사이에 끼우기 쉬워진다.
+현재는 전체 agent workflow는 아니지만, 근거 유무 판단은 이미 조건부 엣지로 분리되어 있다. 그래서 나중에 근거가 없을 때 SQL 검색, 질문 재작성, 검색 범위 확장 같은 노드를 끼우기 쉽다.
 
 ### 현재 LangGraph의 실제 논리
 
@@ -576,9 +587,12 @@ def build_graph(self):
 ```mermaid
 flowchart LR
     A["초기 state<br/>request + index_run"] --> B["retrieve_vector"]
-    B --> C["generate_answer"]
-    C --> D["build_response"]
-    D --> E["END"]
+    B --> C{"route_after_retrieval<br/>rows 있음?"}
+    C -->|"yes"| D["generate_answer"]
+    C -->|"no"| E["build_no_evidence_answer"]
+    D --> F["build_response"]
+    E --> F
+    F --> G["END"]
 ```
 
 초기 state에는 두 값이 들어간다.
@@ -607,38 +621,61 @@ RagAnswerService
 | 노드 | 입력으로 보는 state | 새로 만드는 state | 현재 판단 기준 |
 | --- | --- | --- | --- |
 | `retrieve_vector` | `request`, `index_run` | `rows` | SQL에서 확정된 `repository_full_name`, `branch`, `commit_sha`로 vector 검색 범위를 제한한다. |
-| `generate_answer` | `request`, `rows` | `answer`, `sources` | `rows`가 비어 있으면 LLM을 호출하지 않고 기본 답변을 만든다. `rows`가 있으면 LLM에 질문과 근거를 넘긴다. |
+| `route_after_retrieval` | `rows` | 다음 노드 이름 | `rows`가 있으면 `generate_answer`, 없으면 `build_no_evidence_answer`로 보낸다. |
+| `generate_answer` | `request`, `rows` | `answer`, `sources` | 검색 근거가 있는 경우에만 LLM에 질문과 근거를 넘긴다. |
+| `build_no_evidence_answer` | `rows` | `answer`, `sources` | 검색 근거가 없으면 LLM을 호출하지 않고 기본 답변을 만든다. |
 | `build_response` | `answer`, `sources`, `index_run` | `response` | API 응답 DTO에 답변, 출처, 실제 기준 레포/브랜치/커밋, 추적용 run_id를 담는다. |
 
 ### 엣지 기준
 
-현재 graph의 엣지는 전부 무조건 이동이다.
+현재 graph에는 조건부 엣지 하나와 일반 엣지 세 개가 있다.
 
 ```text
-retrieve_vector -> generate_answer
-  조건 없음.
-  vector 검색 결과가 있든 없든 다음 노드로 간다.
+retrieve_vector -> route_after_retrieval
+  rows 존재 여부를 검사한다.
+
+route_after_retrieval -> generate_answer
+  rows가 있으면 이동한다.
+
+route_after_retrieval -> build_no_evidence_answer
+  rows가 없으면 이동한다.
 
 generate_answer -> build_response
   조건 없음.
-  LLM 답변이든 기본 답변이든 response로 포장해야 하므로 다음 노드로 간다.
+  LLM 답변을 response로 포장해야 하므로 다음 노드로 간다.
+
+build_no_evidence_answer -> build_response
+  조건 없음.
+  기본 답변도 response로 포장해야 하므로 다음 노드로 간다.
 
 build_response -> END
   조건 없음.
   응답 DTO가 만들어지면 graph 실행을 끝낸다.
 ```
 
-따라서 현재 graph에는 `add_conditional_edges(...)`가 없다. 조건 판단은 엣지가 아니라 노드 내부에 있다.
+현재 조건부 엣지는 아래 코드가 담당한다.
 
 ```python
-if not rows:
-    return {
-        "answer": NO_EVIDENCE_ANSWER,
-        "sources": [],
+graph.add_conditional_edges(
+    "retrieve_vector",
+    self.route_after_retrieval,
+    {
+        HAS_EVIDENCE_ROUTE: "generate_answer",
+        NO_EVIDENCE_ROUTE: "build_no_evidence_answer",
     }
+)
 ```
 
-이 조건은 `generate_answer` 노드 안에 있다. 의미는 아래와 같다.
+조건 함수는 아래처럼 단순하다.
+
+```python
+def route_after_retrieval(self, state: RagAnswerState) -> EvidenceRoute:
+    if state.get("rows"):
+        return HAS_EVIDENCE_ROUTE
+    return NO_EVIDENCE_ROUTE
+```
+
+의미는 아래와 같다.
 
 ```text
 검색 근거가 없음
@@ -650,7 +687,22 @@ if not rows:
 -> 질문 + documents + metadatas로 답변 생성
 ```
 
-이렇게 한 이유는 근거가 없을 때 모델이 일반 지식으로 추측하는 것을 막기 위해서다. 현재 서비스의 신뢰 기준은 사용자가 입력한 보드 내용이 아니라, 인덱싱되어 저장된 코드 근거이기 때문이다.
+이렇게 한 이유는 두 가지다.
+
+```text
+1. 근거가 없을 때 모델이 일반 지식으로 추측하는 것을 막는다.
+2. 나중에 근거 없음 경로를 재검색 workflow로 확장할 수 있게 한다.
+```
+
+현재 `build_no_evidence_answer`는 기본 답변만 만든다. 하지만 이후에는 이 노드를 아래 흐름으로 바꿀 수 있다.
+
+```text
+build_no_evidence_answer
+-> retrieve_sql
+-> rewrite_query
+-> expand_repository_scope
+-> ask_user_for_more_context
+```
 
 ### 아직 LangGraph에 들어오지 않은 것
 
@@ -667,7 +719,7 @@ GitHub issue 생성
 채팅 메모리 반영
 ```
 
-이 기능들이 들어오면 그때는 선형 엣지만으로 부족해진다. 예를 들어 아래처럼 조건부 엣지가 필요해질 수 있다.
+이 기능들이 들어오면 조건부 엣지가 더 늘어난다. 예를 들어 아래처럼 갈라질 수 있다.
 
 ```text
 classify_intent
@@ -985,13 +1037,19 @@ backend/app/rag/service/answer_graph.py
 관련 코드:
 
 ```python
-if not rows:
-    return {"answer": NO_EVIDENCE_ANSWER, "sources": []}
+graph.add_conditional_edges(
+    "retrieve_vector",
+    self.route_after_retrieval,
+    {
+        HAS_EVIDENCE_ROUTE: "generate_answer",
+        NO_EVIDENCE_ROUTE: "build_no_evidence_answer",
+    },
+)
 ```
 
 검색 결과가 없으면 LLM을 호출하지 않는다.
 
-왜냐하면 이 RAG 서비스의 원칙은 저장된 근거만 사용해 답변하는 것이기 때문이다. 근거가 없는데 LLM을 호출하면 모델이 일반 지식으로 추측할 수 있다.
+왜냐하면 `route_after_retrieval` 조건부 엣지가 `rows` 없음 상태를 `build_no_evidence_answer` 노드로 보내기 때문이다. 이 RAG 서비스의 원칙은 저장된 근거만 사용해 답변하는 것이다. 근거가 없는데 LLM을 호출하면 모델이 일반 지식으로 추측할 수 있다.
 
 그래서 현재 코드는 근거가 없을 때 명확히 말한다.
 

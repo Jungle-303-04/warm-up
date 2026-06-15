@@ -233,35 +233,47 @@ flowchart TB
 
 ```text
 retrieve_vector
--> generate_answer
+-> route_after_retrieval
+   -> rows 있음: generate_answer
+   -> rows 없음: build_no_evidence_answer
 -> build_response
 -> END
 ```
 
-노드는 세 개다.
+주요 노드는 네 개다.
 
 ```text
 retrieve_vector
   SQL에서 확정된 index_run의 repository_full_name, branch, commit_sha로 vector 검색 범위를 제한한다.
   결과는 rows로 state에 추가한다.
 
+route_after_retrieval
+  rows가 있으면 generate_answer로 간다.
+  rows가 없으면 build_no_evidence_answer로 간다.
+
 generate_answer
-  rows가 없으면 LLM을 호출하지 않고 기본 답변을 만든다.
-  rows가 있으면 질문과 근거 chunk를 LLM client에 넘겨 답변을 만든다.
+  검색 근거가 있을 때만 질문과 근거 chunk를 LLM client에 넘겨 답변을 만든다.
+
+build_no_evidence_answer
+  검색 근거가 없을 때 LLM을 호출하지 않고 기본 답변을 만든다.
+  나중에는 이 경로를 재검색, SQL 검색, 질문 재작성 노드로 확장할 수 있다.
 
 build_response
   answer, sources, repository_full_name, branch, commit_sha, run_id를 RagAskResponseDTO로 포장한다.
 ```
 
-현재 엣지는 모두 무조건 이동이다.
+현재 `retrieve_vector` 다음 엣지는 조건부 이동이다.
 
 ```text
-retrieve_vector -> generate_answer
+retrieve_vector -> route_after_retrieval
+route_after_retrieval -> generate_answer             # rows 있음
+route_after_retrieval -> build_no_evidence_answer   # rows 없음
 generate_answer -> build_response
+build_no_evidence_answer -> build_response
 build_response -> END
 ```
 
-즉 지금은 `add_conditional_edges(...)`가 없다. 조건 판단은 `generate_answer` 내부의 `if not rows`에만 있다. 나중에 intent 판단, 보드 수정 제안, GitHub issue 생성 같은 기능이 들어오면 그때 조건부 엣지와 새 노드를 추가한다.
+즉 근거 없음 판단은 `generate_answer` 내부 if가 아니라 `add_conditional_edges(...)`로 분리되어 있다. 나중에 intent 판단, 보드 수정 제안, GitHub issue 생성 같은 기능이 들어오면 조건부 엣지와 새 노드를 더 추가한다.
 
 ## 1. 입구부터 보기
 
