@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.validation import between, min_value, relative_path, required_text
 
-
 DEFAULT_REPO = "sample-repo"
 DEFAULT_BRANCH = "main"
 
@@ -78,6 +77,11 @@ class RetrievalChunk(BaseModel):
     source_path: str
     text: str
     citation: str
+    chunk_type: str | None = None
+    symbol_name: str | None = None
+    start_line: int | None = None
+    end_line: int | None = None
+    language: str | None = None
 
     @field_validator("text")
     @classmethod

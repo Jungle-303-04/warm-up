@@ -1,10 +1,15 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
-from app.pipeline.api.schemas import PipelineRequest, RepoSnapshot, RetrievalChunk
-
+from app.pipeline.api.schemas import (
+    DEFAULT_BRANCH,
+    DEFAULT_REPO,
+    PipelineRequest,
+    RepoSnapshot,
+    RetrievalChunk,
+)
 
 SyncTriggerType = Literal["manual", "schedule", "webhook"]
 SyncJobStatus = Literal["queued", "running", "succeeded", "failed"]
@@ -51,3 +56,51 @@ class RepoRagSyncResponse(BaseModel):
     changes: list[RepoFileChange]
     active_chunks: list[RetrievalChunk]
     events: list[SyncEventView]
+
+
+class SyncJobAcceptedResponse(BaseModel):
+    """Postgres 경로: sync를 큐에 넣고 즉시 반환하는 응답(202)."""
+
+    job: SyncJobView
+
+
+class SyncJobDetailResponse(BaseModel):
+    """job 상태 조회 응답."""
+
+    job: SyncJobView
+    events: list[SyncEventView]
+
+
+class RepoRagSearchRequest(BaseModel):
+    query: str
+    repository: str = DEFAULT_REPO
+    branch: str = DEFAULT_BRANCH
+    repository_url: str | None = None
+    limit: int = 10
+
+    @field_validator("query")
+    @classmethod
+    def validate_query(cls, value: str) -> str:
+        query = value.strip()
+        if not query:
+            raise ValueError("query는 비어 있을 수 없습니다")
+        return query
+
+    @field_validator("limit")
+    @classmethod
+    def validate_limit(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("limit은 1 이상이어야 합니다")
+        return value
+
+
+class RepoRagSearchHit(BaseModel):
+    chunk: RetrievalChunk
+    score: float
+    vector_score: float
+    keyword_score: float
+
+
+class RepoRagSearchResponse(BaseModel):
+    query: str
+    hits: list[RepoRagSearchHit]

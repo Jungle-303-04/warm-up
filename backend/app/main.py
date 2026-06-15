@@ -1,16 +1,21 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-import logging
 
 from fastapi import FastAPI
 
 from app.api.router import api_router
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 
 def check_database_connection() -> None:
-    logger.info("DB 저장소가 아직 설정되지 않아 DB 연결 확인을 건너뜁니다")
+    settings = get_settings()
+    if settings.uses_postgres:
+        logger.info("Postgres 저장소로 repo-rag를 구동합니다")
+    else:
+        logger.info("POSTGRES_DATABASE_URL 미설정 — in-memory 저장소로 동작합니다")
 
 
 def check_github_app_configuration() -> None:
@@ -18,7 +23,13 @@ def check_github_app_configuration() -> None:
 
 
 def check_embedding_provider_configuration() -> None:
-    logger.info("임베딩 제공자가 아직 설정되지 않아 임베딩 설정 확인을 건너뜁니다")
+    settings = get_settings()
+    logger.info(
+        "임베딩 제공자=%s, 모델=%s, 차원=%s",
+        settings.embedding_provider,
+        settings.embedding_model,
+        settings.embedding_dimension,
+    )
 
 
 def check_worker_queue_connection() -> None:
