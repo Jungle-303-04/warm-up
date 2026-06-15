@@ -5,7 +5,7 @@
 완료 기준: **tsc green + 커밋 성공**. 결정 기준 = `decisions.md`(D1~D8, O1~O3).
 
 ## 에이전트 상태 (매 실행 시 갱신)
-- last_run: 2026-06-16T01:00:00Z
+- last_run: 2026-06-16T02:00:00Z
 - last_result: DONE
 - in_progress: (없음)
 
@@ -16,7 +16,7 @@
 - [x] R1. `board-panel`: 로컬 날짜유틸 제거 → `lib/date` 사용. 로컬 MemberAvatar 제거 → `ui/avatar`(`<Avatar member=.../>`).
 - [x] R2. `proposal-card`: `isoToday` 인라인 제거 → `lib/date`의 `isoDate(TODAY)` 사용.
 - [x] R3. `center-panel`: 패널 래퍼 → `ui/panel`, 탭 분기 className → `lib/cn`.
-- [ ] R4. `studio-panel`: 패널 래퍼 → `ui/panel`.
+- [x] R4. `studio-panel`: 패널 래퍼 → `ui/panel`.
 
 ### 스튜디오 혼합 타일(D6)
 - [ ] S1. `fixtures.STUDIO_TILES`에 "보고서","마인드맵" 추가. 필요 아이콘은 `icon.tsx`에 매핑 추가(report→description, mindmap→account_tree 등 lucide). 타일 클릭=준비 중 유지.

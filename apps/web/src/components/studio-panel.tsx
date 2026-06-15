@@ -2,10 +2,11 @@
 
 import { STUDIO_NOTES, STUDIO_TILES } from "../lib/fixtures";
 import { Icon } from "./icon";
+import { Panel } from "./ui/panel";
 
 export function StudioPanel() {
   return (
-    <aside className="flex w-[300px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <Panel as="aside" className="w-[300px] shrink-0">
       <div className="flex items-center justify-between px-3 pt-3">
         <h2 className="text-[14px] font-semibold">스튜디오</h2>
       </div>
@@ -51,6 +52,6 @@ export function StudioPanel() {
           ))}
         </div>
       </div>
-    </aside>
+    </Panel>
   );
 }
