@@ -1,16 +1,13 @@
 # Third Party
 from fastapi import HTTPException
-from sqlmodel import Session, select
 
 # Local
-from database import engine
 from openai_client import client
-
-from models.font import Font
 from models.recommend import (RecommendRequest, AnalysisResult, FontSelection, RecommendResponse,
 )
 
 from rag.search import search_guides
+from mcp.font_tools import list_fonts, build_candidate_fonts, get_font_by_id
 
 def run_recommend_agent(request: RecommendRequest):
     text = request.text
@@ -26,35 +23,17 @@ def run_recommend_agent(request: RecommendRequest):
 
     return recommend_response
 
+# mcp tool을 호출해서 추천 흐름에 맞게 조립
 def get_candidate_fonts():
-    try:
-        with Session(engine) as session: fonts = session.exec(select(Font)).all()
+    fonts = list_fonts()
 
-    except Exception:
-        raise HTTPException(
-        status_code=500, 
-        detail="폰트 후보 조회중 오류가 발생했습니다.")
-    
     if not fonts:
         raise HTTPException(
             status_code=404,
             detail="추천에 사용할 폰트 데이터가 없습니다."
         )
         
-    candidate_fonts = [
-            {
-                "id": font.id,
-                "name": font.name,
-                "source": font.source,
-                "category": font.category,
-                "tags": font.tags,
-                "description": font.description,
-                "weights": font.weights,
-                "has_webfont": bool(font.webfonts)
-            }        
-        for font in fonts
-    ]
-
+    candidate_fonts = build_candidate_fonts(fonts)
     return fonts, candidate_fonts
     
 
@@ -190,14 +169,10 @@ def select_font(text, analysis_result, rag_context, candidate_fonts):
     return selection_result
 
 def find_selected_font(fonts, selection_result):
-    selected_font = next(
-        (
-            font
-            for font in fonts
-            if font.id == selection_result.font_id
-        ),
-        None
-    )
+    selected_font = get_font_by_id(
+    fonts,
+    selection_result.font_id
+)
     
     if selected_font is None:
         raise HTTPException(
