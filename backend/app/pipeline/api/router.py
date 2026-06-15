@@ -6,8 +6,8 @@ from app.pipeline import (
     PipelineRequest,
     PipelineResponse,
 )
-from app.pipeline.dependencies import get_pipeline_service
 from app.pipeline.application.service import PipelineService
+from app.pipeline.dependencies import get_pipeline_service
 
 router = APIRouter()
 

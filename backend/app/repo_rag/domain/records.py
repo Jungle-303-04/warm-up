@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from app.repo_rag.domain.identity import utcnow
+from app.pipeline.api.schemas import RetrievalChunk
 from app.repo_rag.api.schemas import (
     RepoRagSyncRequest,
     SyncEventView,
@@ -9,7 +9,19 @@ from app.repo_rag.api.schemas import (
     SyncJobView,
     SyncTriggerType,
 )
-from app.pipeline.api.schemas import RetrievalChunk
+from app.repo_rag.domain.identity import utcnow
+
+
+@dataclass(slots=True)
+class EmbeddedChunk:
+    """청크와 그 임베딩 벡터를 함께 담는 값 객체.
+
+    임베딩 생성 책임은 IndexingService가 갖고, 저장소(store)는 이미 임베딩이
+    부착된 청크만 영속화한다. embedding이 None이면 저장소는 벡터를 비워 둔다.
+    """
+
+    chunk: RetrievalChunk
+    embedding: list[float] | None = None
 
 
 @dataclass(slots=True)
@@ -59,6 +71,11 @@ class ChunkRecord:
     is_active: bool
     created_at: datetime
     deleted_at: datetime | None = None
+    chunk_type: str | None = None
+    symbol_name: str | None = None
+    start_line: int | None = None
+    end_line: int | None = None
+    language: str | None = None
 
     def to_chunk(self) -> RetrievalChunk:
         return RetrievalChunk(
@@ -66,6 +83,11 @@ class ChunkRecord:
             source_path=self.source_path,
             text=self.text,
             citation=self.citation,
+            chunk_type=self.chunk_type,
+            symbol_name=self.symbol_name,
+            start_line=self.start_line,
+            end_line=self.end_line,
+            language=self.language,
         )
 
 

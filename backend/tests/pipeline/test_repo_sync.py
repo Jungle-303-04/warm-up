@@ -102,7 +102,7 @@ def test_sync_clones_tracked_text_files_from_repository_url(
 def test_sync_rejects_non_github_repository_url() -> None:
     service = RepoSyncService()
 
-    with pytest.raises(ValueError, match="repository_url은 https://github.com/"):
+    with pytest.raises(ValueError, match=r"repository_url은 https://github\.com/"):
         service.sync(PipelineRequest(repository_url="https://example.com/team/project.git"))
 
 

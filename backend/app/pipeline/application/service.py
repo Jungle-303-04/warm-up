@@ -1,11 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from app.pipeline.domain.agent import AgentProposalService
-from app.pipeline.domain.approval import ApprovalService
-from app.pipeline.domain.code_index import CodeIndexService
-from app.pipeline.domain import stages
-from app.pipeline.domain.rag_index import RagIndexService
 from app.pipeline.api.schemas import (
     AgentProposal,
     CodeReference,
@@ -15,6 +10,11 @@ from app.pipeline.api.schemas import (
     RetrievalChunk,
     StageResult,
 )
+from app.pipeline.domain import stages
+from app.pipeline.domain.agent import AgentProposalService
+from app.pipeline.domain.approval import ApprovalService
+from app.pipeline.domain.code_index import CodeIndexService
+from app.pipeline.domain.rag_index import RagIndexService
 from app.repository_source import RepoSyncService
 
 

@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
+from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest, SyncJobStatus
 from app.repo_rag.domain.identity import (
     file_hash,
     hash_text,
@@ -11,15 +13,13 @@ from app.repo_rag.domain.identity import (
 )
 from app.repo_rag.domain.records import (
     ChunkRecord,
+    EmbeddedChunk,
     FileRecord,
     RepositoryRecord,
     SnapshotRecord,
     SyncEventRecord,
     SyncJobRecord,
 )
-from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest, SyncJobStatus
-from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
-
 
 ACTIVE_JOB_STATUSES: set[SyncJobStatus] = {"queued", "running"}
 
@@ -66,6 +66,15 @@ class InMemoryRepoRagStore:
         self.active_job_ids_by_key[request_idempotency_key] = job.id
         self.active_job_ids_by_lock_key[request_lock_key] = job.id
         self.record_event(job.id, "job_queued", f"{request.trigger_type} sync job queued")
+        return job
+
+    def claim_next_queued_job(self) -> SyncJobRecord | None:
+        queued = [job for job in self.jobs.values() if job.status == "queued"]
+        if not queued:
+            return None
+        job = min(queued, key=lambda job: job.created_at)
+        job.status = "running"
+        self.record_event(job.id, "job_claimed", "claimed by worker")
         return job
 
     def get_job(self, job_id: str) -> SyncJobRecord:
@@ -158,6 +167,9 @@ class InMemoryRepoRagStore:
         self.repository_ids_by_key[repository_source_key] = repository.id
         return repository
 
+    def find_repository_id(self, source_key: str) -> str | None:
+        return self.repository_ids_by_key.get(source_key)
+
     def active_files(self, repository_id: str) -> dict[str, FileRecord]:
         active_files: dict[str, FileRecord] = {}
         for (repo_id, path), file_id in self.active_file_ids_by_path.items():
@@ -239,12 +251,13 @@ class InMemoryRepoRagStore:
         repository_id: str,
         snapshot_id: str,
         file_records: dict[str, FileRecord],
-        chunks: list[RetrievalChunk],
+        chunks: list[EmbeddedChunk],
     ) -> list[ChunkRecord]:
         now = utcnow()
         records: list[ChunkRecord] = []
 
-        for chunk in chunks:
+        for embedded in chunks:
+            chunk = embedded.chunk
             file_record = file_records[chunk.source_path]
             chunk_hash = hash_text(f"{chunk.source_path}\0{chunk.text}\0{chunk.citation}")
             record = ChunkRecord(
@@ -258,6 +271,11 @@ class InMemoryRepoRagStore:
                 citation=chunk.citation,
                 is_active=True,
                 created_at=now,
+                chunk_type=chunk.chunk_type,
+                symbol_name=chunk.symbol_name,
+                start_line=chunk.start_line,
+                end_line=chunk.end_line,
+                language=chunk.language,
             )
             self.chunks[record.id] = record
             records.append(record)
@@ -268,9 +286,7 @@ class InMemoryRepoRagStore:
         chunks = [
             chunk.to_chunk()
             for chunk in self.chunks.values()
-            if chunk.repository_id == repository_id
-            and chunk.is_active
-            and chunk.deleted_at is None
+            if chunk.repository_id == repository_id and chunk.is_active and chunk.deleted_at is None
         ]
         return sorted(chunks, key=lambda chunk: chunk.source_path)
 

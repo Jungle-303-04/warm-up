@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.pipeline import DEFAULT_REPO, IDS, ProposalStatus
 
-
 client = TestClient(app)
 
 

@@ -5,7 +5,6 @@ from app.pipeline.domain.symbol_extractor import (
     SymbolExtractor,
 )
 
-
 VERIFIED = "verified"
 DEFAULT_EXTRACTORS: tuple[SymbolExtractor, ...] = (PythonSymbolExtractor(),)
 

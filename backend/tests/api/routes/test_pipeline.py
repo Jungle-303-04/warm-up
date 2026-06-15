@@ -6,13 +6,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.pipeline import (
-    DEFAULT_REPO,
-    ProposalStatus,
     AGENT_PROPOSAL,
     APPROVAL,
     CODE_INDEX,
+    DEFAULT_REPO,
     RAG_INDEX,
     REPO_SYNC,
+    ProposalStatus,
 )
 from app.pipeline.api.router import router as pipeline_router
 from app.repo_rag.api.router import router as repo_rag_router

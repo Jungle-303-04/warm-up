@@ -1,8 +1,7 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 from app.pipeline.api.schemas import StageResult
-
 
 REPO_SYNC = "repo-sync"
 CODE_INDEX = "code-index"

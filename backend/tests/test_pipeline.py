@@ -1,9 +1,9 @@
 from app.pipeline import (
     ALL,
-    IDS,
     APPROVAL,
-    REPO_SYNC,
     DONE,
+    IDS,
+    REPO_SYNC,
     WORKER_IDS,
     build_done_stage_results,
 )

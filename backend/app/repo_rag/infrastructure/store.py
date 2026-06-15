@@ -1,69 +1,10 @@
-from datetime import datetime
-from typing import Protocol
+"""하위호환용 re-export.
 
-from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
-from app.repo_rag.domain.records import (
-    ChunkRecord,
-    FileRecord,
-    RepositoryRecord,
-    SnapshotRecord,
-    SyncEventRecord,
-    SyncJobRecord,
-)
-from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest
+RepoRagStore 포트는 domain/ports.py로 이동했다. 기존 import 경로
+(app.repo_rag.infrastructure.store)를 유지하기 위해 여기서 다시 내보낸다.
+신규 코드는 app.repo_rag.domain.ports 를 사용한다.
+"""
 
+from app.repo_rag.domain.ports import RepoRagStore
 
-class RepoRagStore(Protocol):
-    def create_job(self, request: RepoRagSyncRequest) -> SyncJobRecord: ...
-
-    def get_job(self, job_id: str) -> SyncJobRecord: ...
-
-    def start_job(self, job_id: str) -> SyncJobRecord: ...
-
-    def claim_job_lock(self, job_id: str) -> None: ...
-
-    def release_job_lock(self, job_id: str) -> None: ...
-
-    def attach_job_repository(self, job_id: str, repository_id: str) -> None: ...
-
-    def finish_job(self, job_id: str) -> SyncJobRecord: ...
-
-    def fail_job(self, job_id: str, error: str) -> SyncJobRecord: ...
-
-    def record_event(self, job_id: str, stage: str, detail: str) -> SyncEventRecord: ...
-
-    def job_events(self, job_id: str) -> list[SyncEventRecord]: ...
-
-    def upsert_repository(
-        self,
-        request: RepoRagSyncRequest,
-        snapshot: RepoSnapshot,
-    ) -> RepositoryRecord: ...
-
-    def active_files(self, repository_id: str) -> dict[str, FileRecord]: ...
-
-    def record_snapshot(
-        self,
-        repository_id: str,
-        snapshot: RepoSnapshot,
-    ) -> SnapshotRecord: ...
-
-    def apply_file_changes(
-        self,
-        repository_id: str,
-        snapshot_id: str,
-        snapshot: RepoSnapshot,
-        changes: list[RepoFileChange],
-    ) -> dict[str, FileRecord]: ...
-
-    def upsert_chunks(
-        self,
-        repository_id: str,
-        snapshot_id: str,
-        file_records: dict[str, FileRecord],
-        chunks: list[RetrievalChunk],
-    ) -> list[ChunkRecord]: ...
-
-    def active_chunks(self, repository_id: str) -> list[RetrievalChunk]: ...
-
-    def hard_delete_inactive(self, batch_size: int, cutoff: datetime) -> int: ...
+__all__ = ["RepoRagStore"]

@@ -2,7 +2,17 @@ from datetime import UTC, datetime
 
 from app.pipeline.api.schemas import PipelineRequest, RepoFile
 from app.repo_rag.api.schemas import RepoRagSyncRequest
+from app.repo_rag.application.cleanup import RetentionCleanupService
+from app.repo_rag.application.indexing import IndexingService
+from app.repo_rag.application.producer import SyncJobProducer
 from app.repo_rag.application.service import RepoRagSyncService
+from app.repo_rag.application.unit_of_work import InMemoryUnitOfWork
+from app.repo_rag.application.worker import SyncWorker
+from app.repo_rag.infrastructure.in_memory_store import InMemoryRepoRagStore
+
+
+def _service(store: InMemoryRepoRagStore) -> RepoRagSyncService:
+    return RepoRagSyncService(uow_factory=lambda: InMemoryUnitOfWork(store))
 
 
 def sync_request(repository: str, files: list[RepoFile]) -> RepoRagSyncRequest:
@@ -10,7 +20,8 @@ def sync_request(repository: str, files: list[RepoFile]) -> RepoRagSyncRequest:
 
 
 def test_manual_sync_persists_job_snapshot_files_chunks_and_events() -> None:
-    service = RepoRagSyncService()
+    store = InMemoryRepoRagStore()
+    service = _service(store)
 
     response = service.run(
         sync_request(
@@ -41,13 +52,14 @@ def test_manual_sync_persists_job_snapshot_files_chunks_and_events() -> None:
         "chunks_upserted",
         "job_succeeded",
     ]
-    assert len(service.store.snapshots) == 1  # type: ignore[attr-defined]
-    assert len(service.store.files) == 2  # type: ignore[attr-defined]
-    assert len(service.store.chunks) == 2  # type: ignore[attr-defined]
+    assert len(store.snapshots) == 1
+    assert len(store.files) == 2
+    assert len(store.chunks) == 2
 
 
 def test_second_sync_detects_diff_and_soft_deletes_inactive_chunks() -> None:
-    service = RepoRagSyncService()
+    store = InMemoryRepoRagStore()
+    service = _service(store)
 
     service.run(
         sync_request(
@@ -81,15 +93,15 @@ def test_second_sync_detects_diff_and_soft_deletes_inactive_chunks() -> None:
         "new.py",
         "same.py",
     }
-    assert all(chunk.source_path != "docs.md" for chunk in response.active_chunks)
 
-    inactive_chunks = [chunk for chunk in service.store.chunks.values() if not chunk.is_active]  # type: ignore[attr-defined]
+    inactive_chunks = [chunk for chunk in store.chunks.values() if not chunk.is_active]
     assert {chunk.source_path for chunk in inactive_chunks} == {"app.py", "docs.md"}
     assert all(chunk.deleted_at is not None for chunk in inactive_chunks)
 
 
 def test_producers_dedupe_active_jobs_for_same_repository_branch() -> None:
-    service = RepoRagSyncService()
+    store = InMemoryRepoRagStore()
+    producer = SyncJobProducer(store)
     request = PipelineRequest(
         repository="team/repo",
         files=[RepoFile(path="app.py", content="def run(): pass\n")],
@@ -99,40 +111,38 @@ def test_producers_dedupe_active_jobs_for_same_repository_branch() -> None:
         files=[RepoFile(path="app.py", content="def run(): pass\n")],
     )
 
-    manual_job = service.producer.enqueue_manual(request)
-    schedule_job = service.producer.enqueue_schedule(request)
-    webhook_job = service.producer.enqueue_webhook(
-        webhook_request,
-        requested_commit_sha="abc123",
-    )
-    duplicate_webhook_job = service.producer.enqueue_webhook(
-        webhook_request,
-        requested_commit_sha="abc123",
-    )
+    manual_job = producer.enqueue_manual(request)
+    schedule_job = producer.enqueue_schedule(request)
+    webhook_job = producer.enqueue_webhook(webhook_request, requested_commit_sha="abc123")
+    duplicate_webhook_job = producer.enqueue_webhook(webhook_request, requested_commit_sha="abc123")
 
     assert manual_job.id == schedule_job.id
     assert webhook_job.id == duplicate_webhook_job.id
-    assert {manual_job.id, webhook_job.id} <= set(service.store.jobs)  # type: ignore[attr-defined]
+    assert {manual_job.id, webhook_job.id} <= set(store.jobs)
     assert webhook_job.status == "queued"
 
 
 def test_worker_releases_repository_branch_lock_after_success() -> None:
-    service = RepoRagSyncService()
+    store = InMemoryRepoRagStore()
+    producer = SyncJobProducer(store)
+    worker = SyncWorker(store, indexing=IndexingService())
     request = PipelineRequest(
         repository="team/repo",
         files=[RepoFile(path="app.py", content="def run(): pass\n")],
     )
-    first_job = service.producer.enqueue_manual(request)
+    first_job = producer.enqueue_manual(request)
 
-    service.worker.run(first_job.id)
-    second_job = service.producer.enqueue_schedule(request)
+    worker.run(first_job.id)
+    second_job = producer.enqueue_schedule(request)
 
     assert second_job.id != first_job.id
-    assert service.store.running_job_ids_by_lock_key == {}  # type: ignore[attr-defined]
+    assert store.running_job_ids_by_lock_key == {}
 
 
 def test_cleanup_hard_deletes_inactive_rows_in_batches() -> None:
-    service = RepoRagSyncService()
+    store = InMemoryRepoRagStore()
+    service = _service(store)
+    cleanup = RetentionCleanupService(store)
 
     service.run(
         sync_request(
@@ -150,10 +160,10 @@ def test_cleanup_hard_deletes_inactive_rows_in_batches() -> None:
         )
     )
 
-    inactive_rows = sum(1 for chunk in service.store.chunks.values() if not chunk.is_active)  # type: ignore[attr-defined]
+    inactive_rows = sum(1 for chunk in store.chunks.values() if not chunk.is_active)
     assert inactive_rows == 2
 
-    deleted = service.cleanup.cleanup(batch_size=1, cutoff=datetime.now(UTC))
+    deleted = cleanup.cleanup(batch_size=1, cutoff=datetime.now(UTC))
 
     assert deleted == 1
-    assert sum(1 for chunk in service.store.chunks.values() if not chunk.is_active) == 1  # type: ignore[attr-defined]
+    assert sum(1 for chunk in store.chunks.values() if not chunk.is_active) == 1

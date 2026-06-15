@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from app.validation import min_value
 from app.repo_rag.infrastructure.store import RepoRagStore
+from app.validation import min_value
 
 
 @dataclass(slots=True)

@@ -5,7 +5,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import unquote, urlparse
 
-from app.validation import required_text
 from app.pipeline.api.schemas import (
     DEFAULT_BRANCH,
     DEFAULT_REPO,
@@ -13,7 +12,7 @@ from app.pipeline.api.schemas import (
     RepoFile,
     RepoSnapshot,
 )
-
+from app.validation import required_text
 
 MAX_BYTES = 200_000
 ALLOW_FILE_URL = "REPOPILOT_ALLOW_FILE_REPOSITORY_URL"
