@@ -1,55 +1,17 @@
-const stages = [
-  {
-    id: "repo-sync",
-    name: "Repo Sync",
-    detail: "repo, issue, PR, label, milestone metadata"
-  },
-  {
-    id: "code-index",
-    name: "Code Index",
-    detail: "file, symbol, commit, code reference"
-  },
-  {
-    id: "rag-index",
-    name: "RAG Index",
-    detail: "docs, issues, PRs, code chunks with permission metadata"
-  },
-  {
-    id: "agent-proposal",
-    name: "Agent Proposal",
-    detail: "related code, stale links, issue drafts, doc updates"
-  },
-  {
-    id: "approval",
-    name: "Approval",
-    detail: "human review before GitHub or document writes"
-  },
-  {
-    id: "static-publish",
-    name: "Static Publish",
-    detail: "read-only static archive with search and filters"
-  }
-] as const;
+import ProposalsBoard from "./proposals-board";
 
 export default function Home() {
   return (
     <main>
       <section className="shell">
-        <p className="eyebrow">RepoPilot Pipeline</p>
-        <h1>문서와 코드의 연결 상태를 추적하는 최소 실행 골격</h1>
+        <p className="eyebrow">RepoPilot</p>
+        <h1>코드 기반 제안 검토 보드</h1>
         <p className="summary">
-          이 화면은 제품 UI가 아니라 로컬 파이프라인이 올라왔는지 확인하는
-          시작점입니다. 실제 MVP는 문서, 일감, GitHub 이슈, 코드 참조를 하나의
-          프로젝트 모델로 연결합니다.
+          RepoPilot이 코드와 문서를 분석해 만든 제안을 검토합니다. 대기 중인 제안을
+          승인하거나 반려하면 상태가 기록됩니다. 데이터는 백엔드 API에서 실시간으로
+          불러옵니다.
         </p>
-        <ul className="pipeline">
-          {stages.map((stage) => (
-            <li key={stage.id}>
-              <strong>{stage.name}</strong>
-              <span>{stage.detail}</span>
-            </li>
-          ))}
-        </ul>
+        <ProposalsBoard />
       </section>
     </main>
   );
