@@ -1,7 +1,8 @@
 # 민정 Board 클래스 UML
 
 이 UML은 `origin/minjeong`의 현재 구현을 기준으로 한다. 주요 근거 파일은
-`backend/app/db/base.py`와 `backend/app/domains/board/model.py`다.
+`backend/app/db/base.py`, `backend/app/domains/board/model.py`,
+`backend/app/domains/user/model.py`다.
 멤버 표기는 실제 SQLAlchemy 문법을 닮은 코드형 축약을 사용한다.
 반복적인 `nullable=False`는 타입 힌트가 이미 의도를 보여주는 경우 생략하고,
 외래키, 기본키, nullable 예외처럼 구조 이해에 중요한 정보는 남겼다.
@@ -54,6 +55,120 @@ python3 docs/woonyong/dev-tools/raise-svg-cardinality-labels.py \
 - [class-uml.dot](./assets/class-uml.dot)
 - [table-relations.dot](./assets/table-relations.dot)
 
+## 요청/응답 DTO UML
+
+`8368026` 기준으로 `schema.py`에 생성/수정 요청 DTO, 검색 parameter DTO,
+응답 DTO가 분리돼 있다. `CreateBoard.board_type`은 기본값 `1`을 가진다.
+아래 다이어그램은 실제 Pydantic 클래스의 포함/상속 관계를 보여준다.
+
+```mermaid
+classDiagram
+    direction LR
+
+    class CreateBoard {
+        <<Pydantic request DTO>>
+        +int board_type = Field(1)
+        +str title
+        +str content
+        +str? tag
+        +int user_id
+        +list~int~ assignee_user_ids
+        +list~int~ participant_user_ids
+        +list~int~ carbon_copy_user_ids
+        +CreateScheduleBoardDetail? schedule_board_detail
+        +list~CreateScheduleBoardTaskDetail~ schedule_board_tasks
+        +CreateProceedingsBoardDetail? proceedings_board_detail
+    }
+
+    class CreateScheduleBoardDetail {
+        <<Pydantic request DTO>>
+        +datetime start_at
+        +datetime end_at
+        +int importance ge 1 le 10
+    }
+
+    class CreateScheduleBoardTaskDetail {
+        <<Pydantic request DTO>>
+        +str task_name
+        +int task_status ge 1 le 4
+    }
+
+    class CreateProceedingsBoardDetail {
+        <<Pydantic request DTO>>
+        +datetime meeting_date
+    }
+
+    class UpdateBoard {
+        <<Pydantic request DTO>>
+        +inherits CreateBoard
+    }
+
+    class BoardSearchParams {
+        <<Pydantic query DTO>>
+        +str? title
+        +int? user_id
+        +str? tag
+        +int page = Field(1, ge=1)
+        +int size = Field(20, ge=1, le=100)
+    }
+
+    class BoardResponse {
+        <<Pydantic response DTO>>
+        +int id
+        +int board_type
+        +str title
+        +str content
+        +str? tag
+        +int user_id
+        +datetime created_at
+        +datetime updated_at
+        +list~int~ assignee_user_ids
+        +list~int~ participant_user_ids
+        +list~int~ carbon_copy_user_ids
+        +ResponseScheduleBoardDetail? schedule_board_detail
+        +list~ResponseScheduleBoardTaskDetail~? schedule_board_tasks
+        +ResponseProceedingsBoardDetail? proceedings_board_detail
+    }
+
+    class ResponseScheduleBoardDetail {
+        <<Pydantic response DTO>>
+        +int board_id
+        +datetime start_at
+        +datetime end_at
+        +int importance
+    }
+
+    class ResponseScheduleBoardTaskDetail {
+        <<Pydantic response DTO>>
+        +int id
+        +str task_name
+        +int task_status
+    }
+
+    class ResponseProceedingsBoardDetail {
+        <<Pydantic response DTO>>
+        +int board_id
+        +datetime meeting_date
+    }
+
+    class BoardPageResponse {
+        <<Pydantic response DTO>>
+        +list~BoardResponse~ items
+        +int total
+        +int page
+        +int size
+    }
+
+    CreateBoard <|-- UpdateBoard
+    CreateBoard "1" o-- "0..1" CreateScheduleBoardDetail : schedule_board_detail
+    CreateBoard "1" o-- "0..*" CreateScheduleBoardTaskDetail : schedule_board_tasks
+    CreateBoard "1" o-- "0..1" CreateProceedingsBoardDetail : proceedings_board_detail
+    BoardResponse "1" o-- "0..1" ResponseScheduleBoardDetail : schedule_board_detail
+    BoardResponse "1" o-- "0..*" ResponseScheduleBoardTaskDetail : schedule_board_tasks
+    BoardResponse "1" o-- "0..1" ResponseProceedingsBoardDetail : proceedings_board_detail
+    BoardPageResponse "1" o-- "0..*" BoardResponse : items
+```
+
 ## 논리 원본
 
 ```mermaid
@@ -84,6 +199,13 @@ classDiagram
         +content: Map[str] = col(Text)
         +tag: Map[str|None] = col(Str, NULL=True)
         +user_id: Map[int] = col(FK("user.id"))
+    }
+
+    class BoardTypeConstants {
+        <<module constants>>
+        +BASIC_BOARD_TYPE = 1
+        +SCHEDULE_BOARD_TYPE = 2
+        +PROCEEDINGS_BOARD_TYPE = 3
     }
 
     class ScheduleBoardDetail {
@@ -134,8 +256,9 @@ classDiagram
     }
 
     class User {
-        <<external unresolved table: user>>
-        +id: Map[int]
+        <<table: user>>
+        +table = "user"
+        +id: Map[int] = col(Int, PK=True, AI=True)
     }
 
     Base <|-- Board
@@ -145,10 +268,12 @@ classDiagram
     Base <|-- BoardCarbonCopy
     Base <|-- BoardAssignee
     Base <|-- BoardParticipant
+    Base <|-- User
 
     IdMixin <|.. Board
     TimestampMixin <|.. Board
     IdMixin <|.. ScheduleBoardTask
+    IdMixin <|.. User
 
     Board "1" <-- "0..1" ScheduleBoardDetail : board_id
     ScheduleBoardDetail "1" <-- "0..*" ScheduleBoardTask : board_id
@@ -166,9 +291,9 @@ classDiagram
 ## 해석 메모
 
 - `Board`는 모든 게시글의 공통 부모 테이블 역할을 한다. 코드 주석상
-  `board_type` 값 `1`은 `ScheduleBoardDetail`, 값 `2`는
-  `ProceedingsBoardDetail`로 연결될 의도다. 아직 이 매핑을 강제하는 DB
-  제약은 없다.
+	  `board_type` 값 `1`은 detail이 없는 basic board, 값 `2`는
+	  `ScheduleBoardDetail`, 값 `3`은 `ProceedingsBoardDetail`로 연결될 의도다.
+	  아직 이 매핑을 강제하는 DB 제약은 없다.
 - `ScheduleBoardDetail`과 `ProceedingsBoardDetail`은 `board_id`를 기본키이자
   외래키로 사용한다. 따라서 한 Board는 각 상세 테이블에 최대 1개의 상세
   row만 가질 수 있다.
@@ -177,7 +302,8 @@ classDiagram
   일정 상세 row에 종속되는 구조로 바뀌었다.
 - `BoardCarbonCopy`, `BoardAssignee`, `BoardParticipant`는 `(board_id,
   user_id)` 복합 기본키를 가진 Board-User 역할 연결 테이블이다.
-- 모델은 `ForeignKey("user.id")`를 참조하지만, `origin/minjeong`에는 아직
-  구현된 `User` ORM 클래스나 `user` 테이블 정의가 없다.
+- 최신 구현에서 `backend/app/domains/user/model.py`에 최소 `User(Base, IdMixin)`
+  모델이 생겼다. 앱 시작 시 `main.py`가 테스트용 `User(id=1)`을 생성하지만,
+  아직 인증/JWT와 연결된 실제 사용자 도메인으로 보기에는 임시 성격이 강하다.
 - 외래키는 선언되어 있지만 SQLAlchemy `relationship()` 속성은 아직
   정의되어 있지 않다.

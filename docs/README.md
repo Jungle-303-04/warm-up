@@ -8,7 +8,6 @@
 
 - [스킬 문서](./skills/README.md)
 - [설정/운영 문서](./config/README.md)
-- [인물별 작업 분석](./people/README.md)
 
 ## Woonyong 문서 묶음
 
@@ -16,6 +15,7 @@
 - [AI 구현 로드맵](./woonyong/ai-implementation/README.md)
 - [AI 개발 워크스페이스 / RepoPilot](./woonyong/ai-dev-workspace/README.md)
 - [개발 도구 사용법](./woonyong/dev-tools/README.md)
+- [우현 warm-up 구현 분석](./woonyong/woohyun/README.md)
 
 ## 폴더 구조
 
@@ -24,11 +24,13 @@ docs
 ├── skills
 ├── config
 ├── people
+│   └── README.md
 └── woonyong
     ├── full-stack-tech-loadmap
     ├── ai-implementation
     ├── ai-dev-workspace
-    └── dev-tools
+    ├── dev-tools
+    └── woohyun
 ```
 
 ## 스킬 문서
@@ -46,11 +48,6 @@ docs
 - [설정/운영 인덱스](./config/README.md)
 - [운영 컨벤션](./config/conventions.md)
 - [개발 도구 사용법](./woonyong/dev-tools/README.md)
-
-## 인물별 작업 분석
-
-- [인물별 작업 분석 인덱스](./people/README.md)
-- [찬빈 작업 분석](./people/chanbin/README.md)
 
 ## 개발 도구 사용법
 

@@ -189,3 +189,236 @@ def get_me(user_id: str = Depends(get_current_user)):
 ```
 
 DB session, 인증 사용자, service 객체 주입에 자주 사용한다.
+
+## @field_validator
+
+`@field_validator`는 Pydantic 모델에서 특정 필드 값을 검증하거나 정리할 때 쓰는 데코레이터다.
+
+가져오는 위치:
+
+```python
+from pydantic import field_validator
+```
+
+기본 예시:
+
+```python
+from pydantic import BaseModel, field_validator
+
+
+class RepoFile(BaseModel):
+    path: str
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        path = value.strip()
+        if not path:
+            raise ValueError("파일 경로는 비어 있을 수 없습니다")
+        return path
+```
+
+의미:
+
+```text
+RepoFile 객체를 만들 때 path 값을 검사한다.
+검증에 성공하면 정리된 값을 반환한다.
+검증에 실패하면 ValueError를 발생시킨다.
+FastAPI 요청 body에서 실패하면 보통 422 validation error로 응답된다.
+```
+
+여러 필드를 한 함수로 검사할 수도 있다.
+
+```python
+class PipelineRequest(BaseModel):
+    repository: str
+    branch: str
+
+    @field_validator("repository", "branch")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("값은 비어 있을 수 없습니다")
+        return text
+```
+
+주의할 점:
+
+- 필드 하나의 형식, 빈 값, 범위처럼 모델 자체가 책임질 수 있는 검증에 적합하다.
+- DB 조회, GitHub API 호출처럼 외부 상태가 필요한 검증은 서비스 계층에서 처리하는 편이 좋다.
+- validator는 값을 반환해야 한다. 반환값이 실제 모델 필드 값으로 들어간다.
+
+## @classmethod
+
+`@classmethod`는 메서드가 객체 인스턴스가 아니라 클래스 자체를 첫 번째 인자로 받게 하는 데코레이터다.
+
+일반 인스턴스 메서드:
+
+```python
+class User:
+    def hello(self):
+        print(self)
+```
+
+`self`는 만들어진 객체 자신이다.
+
+클래스 메서드:
+
+```python
+class User:
+    @classmethod
+    def create_guest(cls):
+        return cls()
+```
+
+`cls`는 클래스 자신이다. 여기서는 `User`를 뜻한다.
+
+Pydantic validator에서 자주 같이 쓰는 형태:
+
+```python
+@field_validator("path")
+@classmethod
+def validate_path(cls, value: str) -> str:
+    ...
+```
+
+이렇게 쓰는 이유:
+
+```text
+validator는 특정 객체가 이미 만들어진 뒤 실행되는 메서드가 아니다.
+객체를 만들기 전에 필드 값을 검사하는 클래스 수준 함수에 가깝다.
+그래서 self 대신 cls를 받는 classmethod 형태로 둔다.
+```
+
+여기서 `cls`를 직접 쓰지 않더라도, Pydantic validator의 표준적인 형태라 같이 붙여두는 경우가 많다.
+
+## @dataclass
+
+`@dataclass`는 데이터를 담는 클래스를 짧게 만들 수 있게 해주는 Python 표준 라이브러리 데코레이터다.
+
+가져오는 위치:
+
+```python
+from dataclasses import dataclass
+```
+
+기본 예시:
+
+```python
+@dataclass
+class PipelineStage:
+    id: str
+    name: str
+    purpose: str
+```
+
+위 코드는 Python이 자동으로 `__init__`, `__repr__`, `__eq__` 같은 기본 메서드를 만들어준다.
+
+직접 쓰면 이런 코드를 작성해야 한다.
+
+```python
+class PipelineStage:
+    def __init__(self, id: str, name: str, purpose: str) -> None:
+        self.id = id
+        self.name = name
+        self.purpose = purpose
+```
+
+`@dataclass`를 쓰면 이렇게 바로 객체를 만들 수 있다.
+
+```python
+stage = PipelineStage(
+    id="repo-sync",
+    name="저장소 동기화",
+    purpose="저장소 스냅샷을 만든다.",
+)
+```
+
+필드 접근:
+
+```python
+print(stage.id)
+print(stage.name)
+print(stage.purpose)
+```
+
+즉 `@dataclass`는 “값을 담는 목적의 클래스”를 만들 때 코드 양을 줄여준다.
+
+### @dataclass(frozen=True)
+
+`frozen=True`는 객체를 만든 뒤 필드 값을 바꾸지 못하게 한다.
+
+```python
+@dataclass(frozen=True)
+class PipelineStage:
+    id: str
+    name: str
+    purpose: str
+```
+
+이렇게 만든 객체는 생성 후 수정할 수 없다.
+
+```python
+stage = PipelineStage(
+    id="repo-sync",
+    name="저장소 동기화",
+    purpose="저장소 스냅샷을 만든다.",
+)
+
+stage.name = "다른 이름"  # 에러
+```
+
+왜 쓰는가?
+
+- 설정값처럼 변하면 안 되는 데이터를 보호한다.
+- 실수로 stage 정의를 바꾸는 일을 막는다.
+- 값 객체처럼 안전하게 사용할 수 있다.
+
+예를 들어 pipeline 단계 정의는 실행 중에 바뀌면 안 된다.
+
+```python
+PIPELINE_STAGES = (
+    PipelineStage(id="repo-sync", name="저장소 동기화", purpose="..."),
+    PipelineStage(id="code-index", name="코드 인덱싱", purpose="..."),
+)
+```
+
+그래서 `PipelineStage`에 `frozen=True`를 붙이면 “이 단계 정의는 고정값이다”라는 의도가 코드에 드러난다.
+
+### dataclass와 Pydantic BaseModel의 차이
+
+`dataclass`는 Python 표준 라이브러리다. 가볍게 값을 담는 객체를 만들 때 좋다.
+
+`BaseModel`은 Pydantic 기능이다. JSON 검증, 타입 변환, FastAPI 문서화가 필요할 때 좋다.
+
+기준:
+
+```text
+내부에서만 쓰는 고정 설정/값 객체
+-> dataclass
+
+API 요청/응답 JSON 검증과 문서화
+-> BaseModel
+```
+
+예:
+
+```python
+@dataclass(frozen=True)
+class PipelineStage:
+    id: str
+    name: str
+    purpose: str
+```
+
+이건 내부 stage 정의라 `dataclass`가 적절하다.
+
+```python
+class PipelineStageResponse(BaseModel):
+    id: str
+    name: str
+    purpose: str
+```
+
+이건 API 응답 모델이라 `BaseModel`이 적절하다.

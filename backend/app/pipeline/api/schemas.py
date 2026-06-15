@@ -11,6 +11,7 @@ DEFAULT_BRANCH = "main"
 class ProposalStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
+    REJECTED = "rejected"
 
 
 class ProposalType(StrEnum):

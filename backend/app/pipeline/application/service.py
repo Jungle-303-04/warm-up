@@ -64,7 +64,7 @@ class PipelineService:
     approval: ApprovalPort = field(default_factory=ApprovalService)
 
     def run(self, request: PipelineRequest) -> PipelineResponse:
-        artifacts = self._collect_artifacts(request)
+        artifacts = self.collect(request)
 
         return PipelineResponse(
             repository=artifacts.repository,
@@ -74,7 +74,11 @@ class PipelineService:
             stages=self._stage_results(artifacts),
         )
 
-    def _collect_artifacts(self, request: PipelineRequest) -> PipelineArtifacts:
+    def collect(self, request: PipelineRequest) -> PipelineArtifacts:
+        """파이프라인을 끝까지 실행해 산출물(제안 포함)을 모은다.
+
+        제안 영속화/리뷰처럼 단계별 산출물이 필요한 호출자가 재사용한다.
+        """
         repository = self.repo_sync.sync(request)
         code_references = self.code_index.index(repository)
         retrieval_chunks = self.rag_index.index(repository, code_references)

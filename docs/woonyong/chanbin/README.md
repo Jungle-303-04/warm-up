@@ -12,6 +12,8 @@
 ## 문서
 
 - [2026-06-11 warm-up 일일 구현 아카이브](./2026-06-11-warm-up-daily-implementation-archive.md)
+- [2026-06-12 warm-up 커밋 흐름 분석](./2026-06-12-warm-up-commit-history-analysis.md)
+- [2026-06-14 페이지 임베딩 테이블 분석](./2026-06-14-warm-up-page-embedding-analysis.md)
 
 ## 검토 규칙
 

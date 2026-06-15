@@ -42,6 +42,16 @@ digraph ClassUML {
 </TABLE>
 >];
 
+  BoardTypeConstants [label=<
+<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5" COLOR="#3e4452" BGCOLOR="#21252b">
+  <TR><TD ALIGN="CENTER" BALIGN="CENTER"><FONT FACE="Menlo" POINT-SIZE="10" COLOR="#7f848e">«module constants»</FONT><BR/><FONT FACE="Arial" POINT-SIZE="15" COLOR="#e5c07b"><B>BoardTypeConstants</B></FONT></TD></TR>
+  <HR/>
+  <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="13"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">BASIC_BOARD_TYPE</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#d19a66">1</FONT></FONT></TD></TR>
+  <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="13"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">SCHEDULE_BOARD_TYPE</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#d19a66">2</FONT></FONT></TD></TR>
+  <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="13"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">PROCEEDINGS_BOARD_TYPE</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#d19a66">3</FONT></FONT></TD></TR>
+</TABLE>
+>];
+
   ScheduleBoardDetail [label=<
 <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5" COLOR="#3e4452" BGCOLOR="#21252b">
   <TR><TD ALIGN="CENTER" BALIGN="CENTER"><FONT FACE="Menlo" POINT-SIZE="10" COLOR="#7f848e">«table: schedule_board_detail»</FONT><BR/><FONT FACE="Arial" POINT-SIZE="15" COLOR="#e5c07b"><B>ScheduleBoardDetail</B></FONT></TD></TR>
@@ -107,13 +117,23 @@ digraph ClassUML {
 </TABLE>
 >];
 
+  User [label=<
+<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5" COLOR="#3e4452" BGCOLOR="#21252b">
+  <TR><TD ALIGN="CENTER" BALIGN="CENTER"><FONT FACE="Menlo" POINT-SIZE="10" COLOR="#7f848e">«table: user»</FONT><BR/><FONT FACE="Arial" POINT-SIZE="15" COLOR="#e5c07b"><B>User</B></FONT></TD></TR>
+  <HR/>
+  <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="13"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#c678dd">table</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#98c379">&quot;user&quot;</FONT></FONT></TD></TR>
+  <TR><TD ALIGN="LEFT" BALIGN="LEFT"><FONT FACE="Menlo" POINT-SIZE="13"><FONT COLOR="#56b6c2">+</FONT><FONT COLOR="#e06c75">id</FONT><FONT COLOR="#56b6c2">:</FONT>&#160;<FONT COLOR="#e5c07b">Map</FONT><FONT COLOR="#56b6c2">[</FONT><FONT COLOR="#e5c07b">int</FONT><FONT COLOR="#56b6c2">]</FONT>&#160;<FONT COLOR="#56b6c2">=</FONT>&#160;<FONT COLOR="#61afef">col</FONT><FONT COLOR="#56b6c2">(</FONT><FONT COLOR="#e5c07b">Int</FONT><FONT COLOR="#56b6c2">,</FONT>&#160;<FONT COLOR="#c678dd">PK</FONT><FONT COLOR="#56b6c2">=</FONT><FONT COLOR="#d19a66">True</FONT><FONT COLOR="#56b6c2">,</FONT>&#160;<FONT COLOR="#c678dd">AI</FONT><FONT COLOR="#56b6c2">=</FONT><FONT COLOR="#d19a66">True</FONT><FONT COLOR="#56b6c2">)</FONT></FONT></TD></TR>
+</TABLE>
+>];
+
   { rank=same; Base; IdMixin; TimestampMixin; }
-  { rank=same; Board; ScheduleBoardDetail; ScheduleBoardTask; ProceedingsBoardDetail; BoardCarbonCopy; BoardAssignee; BoardParticipant; }
+  { rank=same; Board; BoardTypeConstants; ScheduleBoardDetail; ScheduleBoardTask; ProceedingsBoardDetail; BoardCarbonCopy; BoardAssignee; BoardParticipant; User; }
   ScheduleBoardDetail -> ScheduleBoardTask [style=invis, weight=20];
   ScheduleBoardTask -> ProceedingsBoardDetail [style=invis, weight=20];
   ProceedingsBoardDetail -> BoardCarbonCopy [style=invis, weight=20];
   BoardCarbonCopy -> BoardAssignee [style=invis, weight=20];
   BoardAssignee -> BoardParticipant [style=invis, weight=20];
+  BoardParticipant -> User [style=invis, weight=20];
 
   Base -> Board [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
   Base -> ScheduleBoardDetail [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
@@ -122,7 +142,9 @@ digraph ClassUML {
   Base -> BoardCarbonCopy [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
   Base -> BoardAssignee [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
   Base -> BoardParticipant [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
+  Base -> User [dir=back, arrowtail=normal, arrowhead=none, color="#7f848e", weight=5];
   IdMixin -> Board [dir=back, arrowtail=normal, arrowhead=none, style=dashed, color="#7f848e", weight=2];
   TimestampMixin -> Board [dir=back, arrowtail=normal, arrowhead=none, style=dashed, color="#7f848e", weight=2];
   IdMixin -> ScheduleBoardTask [dir=back, arrowtail=normal, arrowhead=none, style=dashed, color="#7f848e", weight=2];
+  IdMixin -> User [dir=back, arrowtail=normal, arrowhead=none, style=dashed, color="#7f848e", weight=2];
 }
