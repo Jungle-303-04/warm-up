@@ -7,34 +7,43 @@ from models.recommend import (RecommendRequest, AnalysisResult, FontSelection, R
 )
 
 from rag.search import search_guides
-from mcp.font_tools import list_fonts, build_candidate_fonts, get_font_by_id
+# from font_mcp.font_tools import list_fonts, build_candidate_fonts, get_font_by_id
+from font_mcp.font_client import (list_candidate_fonts_from_mcp, get_font_detail_by_id_from_mcp,
+)
 
 def run_recommend_agent(request: RecommendRequest):
     text = request.text
     preferred_tone = request.preferred_tone
-    fonts, candidate_fonts = get_candidate_fonts()
+    candidate_fonts = get_candidate_fonts()
     analysis_result = analyze_text(text,preferred_tone)
     rag_guides = search_rag_guides(text, analysis_result, preferred_tone)
     rag_context = build_rag_context(rag_guides)
     selection_result = select_font(text, analysis_result, rag_context, candidate_fonts)
-    selected_font = find_selected_font(fonts, selection_result)
-    selected_font_data = build_selected_font_data(selected_font)
+    # selected_font = find_selected_font(fonts, selection_result)
+    # selected_font_data = build_selected_font_data(selected_font)
+    selected_font_data = get_font_detail_by_id_from_mcp(selection_result.font_id)
+
+    if selected_font_data is None:
+        raise HTTPException(
+            status_code=500,
+            detail="MCP 서버에서 선택된 폰트 정보를 찾을 수 없습니다."
+    )
+
     recommend_response = build_response(analysis_result, selection_result, selected_font_data)
 
     return recommend_response
 
 # mcp tool을 호출해서 추천 흐름에 맞게 조립
 def get_candidate_fonts():
-    fonts = list_fonts()
+    candidate_fonts = list_candidate_fonts_from_mcp()
 
-    if not fonts:
+    if not candidate_fonts:
         raise HTTPException(
             status_code=404,
             detail="추천에 사용할 폰트 데이터가 없습니다."
         )
         
-    candidate_fonts = build_candidate_fonts(fonts)
-    return fonts, candidate_fonts
+    return candidate_fonts
     
 
 def analyze_text(text, preferred_tone):
@@ -168,44 +177,11 @@ def select_font(text, analysis_result, rag_context, candidate_fonts):
 
     return selection_result
 
-def find_selected_font(fonts, selection_result):
-    selected_font = get_font_by_id(
-    fonts,
-    selection_result.font_id
-)
-    
-    if selected_font is None:
-        raise HTTPException(
-            status_code=500,
-            detail="GPT가 후보 목록에 없는 font_id를 선택했습니다."
-        ) 
-
-    return selected_font
-
-def build_selected_font_data(selected_font):
-    selected_font_data = {
-        "id": selected_font.id,
-        "name": selected_font.name,
-        "source": selected_font.source,
-        "is_paid": selected_font.is_paid,
-        "license": selected_font.license,
-        "category": selected_font.category,
-        "tags": selected_font.tags,
-        "description": selected_font.description,
-        "weights": selected_font.weights,
-        "download_url": selected_font.download_url,
-        "source_url": selected_font.source_url,
-        "license_summary": selected_font.license_summary,
-        "webfonts": selected_font.webfonts,
-    }
-
-    return selected_font_data
-
 def build_response(analysis_result, selection_result, selected_font_data):
     recommend_response = RecommendResponse(
-    analysis=analysis_result,
-    selection=selection_result,
-    font=selected_font_data
+        analysis=analysis_result,
+        selection=selection_result,
+        font=selected_font_data
     )
 
     return recommend_response
