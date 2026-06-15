@@ -1,8 +1,9 @@
 import argparse
-import asyncio
 import signal
+import threading
 
-from app.pipeline import ALL, WORKER_IDS
+from app.pipeline import WORKER_IDS
+from app.workers.workers import build_worker
 
 
 def parse_args() -> argparse.Namespace:
@@ -15,28 +16,15 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-async def run(kind: str) -> None:
-    stop_event = asyncio.Event()
-    loop = asyncio.get_running_loop()
-
-    for signame in ("SIGINT", "SIGTERM"):
-        loop.add_signal_handler(getattr(signal, signame), stop_event.set)
-
-    stage = next(stage for stage in ALL if stage.id == kind)
-    print(f"RepoPilot worker started: {stage.id} - {stage.purpose}", flush=True)
-
-    while not stop_event.is_set():
-        try:
-            await asyncio.wait_for(stop_event.wait(), timeout=60)
-        except TimeoutError:
-            print(f"RepoPilot worker heartbeat: {kind}", flush=True)
-
-    print(f"RepoPilot worker stopped: {kind}", flush=True)
-
-
 def main() -> None:
     args = parse_args()
-    asyncio.run(run(args.kind))
+    worker = build_worker(args.kind)
+
+    stop = threading.Event()
+    for signame in ("SIGINT", "SIGTERM"):
+        signal.signal(getattr(signal, signame), lambda *_: stop.set())
+
+    worker.run(should_stop=stop.is_set)
 
 
 if __name__ == "__main__":
