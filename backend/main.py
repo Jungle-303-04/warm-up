@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from openai_client import client
 from pydantic import BaseModel
 import json
+from rag.search import search_guides
 
 app = FastAPI()
 
@@ -213,7 +214,23 @@ def recommend_fonts(request: RecommendRequest):
     # analysis = json.loads(analysis_text)
     # 응답을 모델로 변환
     analysis_result = analysis_response.output_parsed
-    # print("분석결과", analysis_result)
+    rag_query = f"""
+    사용자 문장:
+    {text}
+
+    분석 결과:
+    emotion={analysis_result.emotion}
+    visual_traits={analysis_result.visual_traits}
+    writing_style{analysis_result.writing_style}
+    energy={analysis_result.energy}
+    keywords={analysis_result.keywords}
+
+    선호 톤:
+    {preferred_tone}
+    """
+
+    rag_guides = search_guides(rag_query, top_k=3)
+
     selection_prompt = f"""
         사용자 문장:
         {text}
@@ -221,12 +238,25 @@ def recommend_fonts(request: RecommendRequest):
         문장 분석 결과:
         {analysis_result}
 
+        RAG 추천 근거:
+        {rag_guides}
+
         후보 폰트:
         {candidate_fonts}
 
         후보 폰트 중 가장 적합한 폰트 하나를 선택해.
         반드시 후보 목록에 있는 id만 사용해.
+        
+        추천 이유(reason)는 반드시 아래 내용을 반영해:
+        - 문장 분석 결과
+        - RAG 추천 근거
+        - 후보 폰트의 category, tags, description, weights
+
+        RAG 추천 근거와 후보 폰트 정보가 충돌하면 후보 폰트 정보를 우선해.
+        없는 정보를 지어내지 마.
+
         반드시 순수 JSON만 반환해.
+        마크다운 코드블록을 쓰지 마.
         설명은 한국어로 답변해.
 
         형식:
@@ -245,12 +275,44 @@ def recommend_fonts(request: RecommendRequest):
     # selection = json.loads(selection_text)
     selection_result = selection_response.output_parsed
 
+    selected_font = next(
+    (
+        font
+        for font in fonts
+        if font.id == selection_result.font_id
+    ),
+    None
+)
+
+    if selected_font is None:
+        raise HTTPException(
+            status_code=500,
+            detail="GPT가 후보 목록에 없는 font_id를 선택했습니다."
+        )
+
+    selected_font_data = {
+    "id": selected_font.id,
+    "name": selected_font.name,
+    "source": selected_font.source,
+    "is_paid": selected_font.is_paid,
+    "license": selected_font.license,
+    "category": selected_font.category,
+    "tags": selected_font.tags,
+    "description": selected_font.description,
+    "weights": selected_font.weights,
+    "download_url": selected_font.download_url,
+    "source_url": selected_font.source_url,
+    "license_summary": selected_font.license_summary,
+    "webfonts": selected_font.webfonts,
+    }
+    
+
     # print("선택결과:", selection_result)
     recommend_response = RecommendResponse(
         analysis=analysis_result,
         selection=selection_result,
         candidate_fonts=bool(candidate_fonts),
-        font=None
+        font=selected_font_data
     )
 
     return recommend_response
