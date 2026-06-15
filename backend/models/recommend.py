@@ -16,6 +16,7 @@ class AnalysisResult(BaseModel):
 class FontSelection(BaseModel):
     font_id: int
     reason: str
+    display_reason: str
 
 # 전체 응답 wrapper
 class RecommendResponse(BaseModel):
