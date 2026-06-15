@@ -55,6 +55,8 @@ services:
       retries: 10
       start_period: 10s
 
+  # repo-sync 워커만 실제 sync 큐를 폴링해 인덱싱 파이프라인을 돌린다.
+  # code-index/rag-index/agent는 전용 큐가 생기기 전까지 placeholder(heartbeat)다.
   worker-repo-sync:
     <<: *backend-service
     command: ["python", "-m", "app.workers.runner", "repo-sync"]
@@ -76,12 +78,6 @@ services:
   worker-agent:
     <<: *backend-service
     command: ["python", "-m", "app.workers.runner", "agent-proposal"]
-    volumes:
-      - ./backend/app:/app/app
-
-  worker-publish:
-    <<: *backend-service
-    command: ["python", "-m", "app.workers.runner", "static-publish"]
     volumes:
       - ./backend/app:/app/app
 
