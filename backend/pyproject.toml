@@ -8,10 +8,15 @@ dependencies = [
   "fastapi>=0.115.0,<1.0.0",
   "httpx>=0.28.0,<1.0.0",
   "langchain>=1.3.7",
+  "langchain-openai>=0.2.0",
+  "langchain-text-splitters>=0.3.0",
+  "openai>=1.40.0",
   "pgvector>=0.3.0,<1.0.0",
+  "psycopg[binary]>=3.2.0,<4.0.0",
   "pydantic-settings>=2.7.0,<3.0.0",
   "redis>=5.2.0,<7.0.0",
   "sqlalchemy[asyncio]>=2.0.0,<3.0.0",
+  "tenacity>=9.0.0,<10.0.0",
   "structlog>=24.4.0,<26.0.0",
   "typer>=0.15.0,<1.0.0",
   "uvicorn[standard]>=0.34.0,<1.0.0",
@@ -38,6 +43,14 @@ addopts = ["--import-mode=importlib"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint]
+# E/F=pyflakes·pycodestyle, I=isort, UP=pyupgrade, B=bugbear, SIM=simplify, RUF=ruff
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["B008"]  # FastAPI는 기본인자에 Depends(...)를 쓰는 패턴이 정상
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["E501"]
 
 [tool.setuptools.packages.find]
 where = ["."]
