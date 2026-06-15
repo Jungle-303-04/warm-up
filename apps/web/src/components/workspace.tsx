@@ -7,11 +7,28 @@ import { Icon } from "./icon";
 import { MarkdownView } from "./markdown-view";
 import { generateProposals, publishProposal } from "../lib/api";
 
-// ── 더미 데이터 ─────────────────────────────────────────────────────
+// ── 소스 타입 추상화 ─────────────────────────────────────────────────
+// 새 소스 종류는 SOURCE_KINDS에 한 줄만 추가하면 UI 전체에 반영된다.
+type SourceKind = "repo" | "md" | "text" | "pdf";
+
+type SourceKindConfig = {
+  icon: string;
+  label: string;
+  chipBg: string;
+  chipFg: string;
+};
+
+const SOURCE_KINDS: Record<SourceKind, SourceKindConfig> = {
+  repo: { icon: "folder_code", label: "GitHub 저장소", chipBg: "#E1F5EE", chipFg: "#0F6E56" },
+  md: { icon: "description", label: "Markdown", chipBg: "#E6F1FB", chipFg: "#185FA5" },
+  text: { icon: "text_snippet", label: "텍스트", chipBg: "#F1EFE8", chipFg: "#5F5E5A" },
+  pdf: { icon: "picture_as_pdf", label: "PDF", chipBg: "#FCEBEB", chipFg: "#A32D2D" },
+};
+
 type Source = {
   id: string;
   name: string;
-  kind: "repo" | "doc" | "link";
+  kind: SourceKind;
   progress: number;
   status?: string;
 };
@@ -19,8 +36,9 @@ type Source = {
 const SOURCES: Source[] = [
   { id: "a", name: "team/api", kind: "repo", progress: 100 },
   { id: "b", name: "team/web", kind: "repo", progress: 41, status: "동기화중" },
-  { id: "c", name: "docs/architecture.md", kind: "doc", progress: 100 },
-  { id: "d", name: "wiki.team.dev/onboarding", kind: "link", progress: 100 },
+  { id: "c", name: "docs/architecture.md", kind: "md", progress: 100 },
+  { id: "d", name: "회의록-2026-06.txt", kind: "text", progress: 100 },
+  { id: "e", name: "보안감사_보고서.pdf", kind: "pdf", progress: 72, status: "인덱싱중" },
 ];
 
 const THREADS = ["인증 흐름 점검", "스프린트 계획", "ERD 리뷰"];
@@ -37,18 +55,6 @@ const STUDIO_TILES = [
   { icon: "checklist", label: "계획" },
   { icon: "calendar_month", label: "일정 요약" },
 ];
-
-const SOURCE_ICON: Record<Source["kind"], string> = {
-  repo: "folder_code",
-  doc: "description",
-  link: "link",
-};
-
-const SOURCE_LABEL: Record<Source["kind"], string> = {
-  repo: "GitHub 저장소",
-  doc: "파일",
-  link: "링크",
-};
 
 const SAMPLE_DOC = `# docs/architecture.md
 
@@ -85,9 +91,10 @@ function HeaderIcon({ name, label }: { name: string; label: string }) {
     <button
       type="button"
       title={label}
+      aria-label={label}
       className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
     >
-      <Icon name={name} className="text-[18px]" />
+      <Icon name={name} size={18} />
     </button>
   );
 }
@@ -95,14 +102,29 @@ function HeaderIcon({ name, label }: { name: string; label: string }) {
 function Checkbox({ checked }: { checked: boolean }) {
   return (
     <span
-      className={`grid h-4 w-4 place-items-center rounded-[4px] border transition-colors ${
+      className={`grid h-4 w-4 shrink-0 place-items-center rounded-[5px] border transition-colors ${
         checked
           ? "border-primary bg-primary text-primary-foreground"
           : "border-input text-transparent"
       }`}
     >
-      <Icon name="check" className="text-[12px]" />
+      <Icon name="check" size={11} strokeWidth={3} />
     </span>
+  );
+}
+
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <>
+      <span aria-hidden>·</span>
+      <span className="h-[3px] w-10 overflow-hidden rounded-full bg-border">
+        <span
+          className="block h-full rounded-full bg-primary"
+          style={{ width: `${value}%` }}
+        />
+      </span>
+      <span>{value}%</span>
+    </>
   );
 }
 
@@ -115,6 +137,7 @@ function SourceRow({
   checked: boolean;
   onToggle: () => void;
 }) {
+  const cfg = SOURCE_KINDS[source.kind];
   const done = source.progress >= 100;
   return (
     <button
@@ -122,25 +145,23 @@ function SourceRow({
       onClick={onToggle}
       className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary"
     >
-      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-secondary text-muted-foreground group-hover:bg-card">
-        <Icon name={SOURCE_ICON[source.kind]} className="text-[16px]" />
+      <span
+        className="grid h-7 w-7 shrink-0 place-items-center rounded-md"
+        style={{ background: cfg.chipBg, color: cfg.chipFg }}
+      >
+        <Icon name={cfg.icon} size={16} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] leading-tight">{source.name}</span>
         <span className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-          <span>{SOURCE_LABEL[source.kind]}</span>
-          {done ? null : (
+          <span>{cfg.label}</span>
+          {source.kind === "repo" ? (
             <>
               <span aria-hidden>·</span>
-              <span className="h-[3px] w-10 overflow-hidden rounded-full bg-border">
-                <span
-                  className="block h-full rounded-full bg-primary"
-                  style={{ width: `${source.progress}%` }}
-                />
-              </span>
-              <span>{source.progress}%</span>
+              <span>모든 브랜치</span>
             </>
-          )}
+          ) : null}
+          {done ? null : <ProgressBar value={source.progress} />}
         </span>
       </span>
       <Checkbox checked={checked} />
@@ -188,11 +209,11 @@ function ProposalCard() {
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-        <Icon name="auto_awesome" className="text-[16px] text-primary" />
+        <Icon name="auto_awesome" size={16} className="text-primary" />
         제안 · 관련 코드
-        <span className="ml-auto text-muted-foreground">confidence 0.86</span>
+        <span className="ml-auto">confidence 0.86</span>
       </div>
       <p className="mt-2 text-[14px] leading-relaxed">
         <code className="rounded bg-secondary px-1 py-0.5 text-[13px]">docs/auth.md</code> 가 토큰
@@ -241,7 +262,7 @@ function ProposalCard() {
               disabled={!canPublish}
               className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              <Icon name="north_east" className="text-[14px]" />
+              <Icon name="north_east" size={14} />
               {publishing ? "발행 중…" : "GitHub에 발행"}
             </button>
           </div>
@@ -253,10 +274,12 @@ function ProposalCard() {
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-[12px] text-primary underline"
               >
-                <Icon name="check_circle" className="text-[14px]" /> 발행됨 — 코멘트 열기
+                <Icon name="check_circle" size={14} /> 발행됨 — 코멘트 열기
               </a>
             ) : (
-              <p className="text-[12px] text-destructive">⚠ {result.text}</p>
+              <p className="inline-flex items-center gap-1 text-[12px] text-destructive">
+                <Icon name="north_east" size={14} /> {result.text}
+              </p>
             )
           ) : null}
         </div>
@@ -271,7 +294,7 @@ function SourcesPanel() {
   const [selected, setSelected] = useState<Record<string, boolean>>(init);
   const allOn = SOURCES.every((s) => selected[s.id]);
   return (
-    <aside className="flex w-[320px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
+    <aside className="flex w-[320px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between px-3 pt-3">
         <h2 className="text-[14px] font-semibold">소스</h2>
         <div className="flex items-center">
@@ -314,7 +337,7 @@ function SourcesPanel() {
               type="button"
               className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-secondary"
             >
-              <Icon name="chat_bubble_outline" className="text-[16px] text-muted-foreground" />
+              <Icon name="chat_bubble_outline" size={16} className="text-muted-foreground" />
               <span className="flex-1 truncate">{t}</span>
             </button>
           ))}
@@ -326,7 +349,7 @@ function SourcesPanel() {
           type="button"
           className="flex w-full items-center justify-center gap-1.5 rounded-full border border-border py-2 text-[13px] text-foreground transition-colors hover:bg-secondary"
         >
-          <Icon name="add" className="text-[18px]" /> 새 대화
+          <Icon name="add" size={18} /> 새 대화
         </button>
       </div>
     </aside>
@@ -338,7 +361,7 @@ const TABS = ["대화", "보드", "뷰어"] as const;
 function ChatPanel() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("대화");
   return (
-    <section className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card">
+    <section className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-3">
         {TABS.map((t) => (
           <button
@@ -358,9 +381,9 @@ function ChatPanel() {
 
       {tab === "뷰어" ? (
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-2xl px-5 py-6">
+          <div className="mx-auto w-full max-w-none px-5 py-6">
             <div className="mb-4 flex items-center gap-2 text-[12px] text-muted-foreground">
-              <Icon name="description" className="text-[16px] text-primary" />
+              <Icon name="description" size={16} className="text-primary" />
               docs/architecture.md
             </div>
             <article className="markdown-body border-y border-border py-5 text-[14px] leading-relaxed">
@@ -375,17 +398,16 @@ function ChatPanel() {
       ) : (
         <>
           <div className="flex-1 overflow-y-auto">
-            <div className="mx-auto w-full max-w-2xl px-5 py-6">
-              {/* 요약 카드 (NotebookLM 시그니처) */}
-              <div className="rounded-2xl border border-border bg-secondary/50 p-4">
+            <div className="mx-auto w-full max-w-none px-5 py-6">
+              <div className="rounded-2xl border border-border bg-secondary/40 p-4">
                 <div className="flex items-center gap-2.5">
                   <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary">
-                    <Icon name="hub" className="text-[20px]" />
+                    <Icon name="hub" size={20} />
                   </span>
                   <div className="min-w-0">
                     <h1 className="truncate text-[15px] font-semibold">team 워크스페이스</h1>
                     <p className="text-[11px] text-muted-foreground">
-                      소스 4개 · 모든 브랜치 인덱싱
+                      소스 5개 · 모든 브랜치 인덱싱
                     </p>
                   </div>
                 </div>
@@ -395,7 +417,6 @@ function ChatPanel() {
                 </p>
               </div>
 
-              {/* 추천 질문 */}
               <div className="mt-4 space-y-1.5">
                 {SUGGESTIONS.map((q) => (
                   <button
@@ -403,13 +424,12 @@ function ChatPanel() {
                     type="button"
                     className="flex w-full items-center gap-2.5 rounded-xl border border-border px-3 py-2 text-left text-[13px] text-foreground transition-colors hover:bg-secondary"
                   >
-                    <Icon name="add_circle" className="text-[16px] text-muted-foreground" />
+                    <Icon name="add_circle" size={16} className="text-muted-foreground" />
                     <span className="flex-1">{q}</span>
                   </button>
                 ))}
               </div>
 
-              {/* 대화 예시 */}
               <div className="mt-6 space-y-3">
                 <p className="text-[13px] leading-relaxed">
                   로그인 실패는 JWT 만료가 가장 흔한 원인입니다. 인증 미들웨어가 만료 토큰을
@@ -425,7 +445,7 @@ function ChatPanel() {
           </div>
 
           <div className="shrink-0 px-4 pb-4">
-            <div className="mx-auto flex max-w-2xl items-end gap-2 rounded-2xl border border-border bg-secondary px-3.5 py-2.5">
+            <div className="mx-auto flex max-w-none items-end gap-2 rounded-2xl border border-border bg-background px-3.5 py-2.5 shadow-sm">
               <textarea
                 rows={1}
                 placeholder="무엇이든 물어보세요"
@@ -433,12 +453,13 @@ function ChatPanel() {
               />
               <button
                 type="button"
+                aria-label="보내기"
                 className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90"
               >
-                <Icon name="arrow_upward" className="text-[18px]" />
+                <Icon name="arrow_upward" size={18} />
               </button>
             </div>
-            <p className="mx-auto mt-1.5 max-w-2xl text-center text-[11px] text-muted-foreground">
+            <p className="mx-auto mt-1.5 max-w-none text-center text-[11px] text-muted-foreground">
               RepoLM의 답변은 부정확할 수 있으니 출처를 확인하세요.
             </p>
           </div>
@@ -450,7 +471,7 @@ function ChatPanel() {
 
 function StudioPanel() {
   return (
-    <aside className="flex w-[300px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
+    <aside className="flex w-[300px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between px-3 pt-3">
         <h2 className="text-[14px] font-semibold">스튜디오</h2>
       </div>
@@ -460,9 +481,9 @@ function StudioPanel() {
             <button
               key={t.label}
               type="button"
-              className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-secondary/50 px-2 py-3 text-center transition-colors hover:border-primary"
+              className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-secondary/40 px-2 py-3 text-center transition-colors hover:border-primary hover:bg-secondary"
             >
-              <Icon name={t.icon} className="text-[20px] text-primary" />
+              <Icon name={t.icon} size={20} className="text-primary" />
               <span className="text-[11px] font-medium leading-tight">{t.label}</span>
             </button>
           ))}
@@ -474,7 +495,7 @@ function StudioPanel() {
             type="button"
             className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
-            <Icon name="add" className="text-[16px]" /> 추가
+            <Icon name="add" size={16} /> 추가
           </button>
         </div>
         <div className="mt-2 space-y-2">
@@ -482,9 +503,9 @@ function StudioPanel() {
             <button
               key={n}
               type="button"
-              className="flex w-full items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-secondary"
+              className="flex w-full items-center gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-secondary"
             >
-              <Icon name="article" className="text-[18px] text-muted-foreground" />
+              <Icon name="article" size={18} className="text-muted-foreground" />
               <span className="flex-1 truncate">{n}</span>
             </button>
           ))}
@@ -498,15 +519,15 @@ function TopBar() {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between px-4">
       <div className="flex items-center gap-2">
-        <Icon name="hub" className="text-[22px] text-primary" />
+        <Icon name="hub" size={22} className="text-primary" />
         <span className="text-[15px] font-semibold">RepoLM</span>
-        <Icon name="chevron_right" className="text-[18px] text-muted-foreground" />
+        <Icon name="chevron_right" size={18} className="text-muted-foreground" />
         <button
           type="button"
           className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[14px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           team 워크스페이스
-          <Icon name="unfold_more" className="text-[16px]" />
+          <Icon name="unfold_more" size={16} />
         </button>
       </div>
       <div className="flex items-center gap-1">
@@ -514,7 +535,7 @@ function TopBar() {
           type="button"
           className="mr-1 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-secondary"
         >
-          <Icon name="share" className="text-[16px]" /> 공유
+          <Icon name="share" size={16} /> 공유
         </button>
         <HeaderIcon name="notifications" label="알림" />
         <AuthMenu />
