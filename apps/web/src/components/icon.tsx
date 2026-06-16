@@ -16,7 +16,9 @@ import {
   ChevronsUpDown,
   CircleStop,
   CircleUserRound,
+  Clock,
   Copy,
+  Minus,
   Database,
   File,
   FileQuestion,
@@ -111,6 +113,8 @@ const ICONS: Record<string, LucideIcon> = {
   landscape_2: Image,
   keep: Pin,
   check_circle: CheckCircle2,
+  schedule: Clock, // 인덱싱 대기 상태
+  remove: Minus, // 인덱싱 건너뜀(skipped)
   account_tree: Workflow,
   flowchart: Workflow,
   schema: Database,

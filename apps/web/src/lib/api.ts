@@ -1,5 +1,6 @@
 // 백엔드 API 타입 클라이언트. 세션 쿠키를 쓰므로 모든 요청에 credentials:"include".
 import type {
+  IndexProgress,
   Notebook,
   NotebookChatMessageList,
   NotebookChatResponse,
@@ -9,6 +10,8 @@ import type {
   SourceDetail,
   TreeNode,
 } from "./types";
+
+export { API_BASE };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -117,64 +120,52 @@ export function getFile(
   return request(`/notebooks/${nid}/sources/${sid}/file?path=${encodeURIComponent(path)}`);
 }
 
-export interface RepoRagSyncJobView {
-  id: string;
-  repository_id: string | null;
-  trigger_type: string;
-  branch: string;
-  requested_commit_sha: string | null;
-  idempotency_key: string;
-  status: string;
-  error: string | null;
-  created_at: string;
-  started_at: string | null;
-  finished_at: string | null;
+// ── RAG 인덱싱 진행 ───────────────────────────────────────────────
+// 1회 조회(재접속/초기 상태 복원용).
+export function getIndexProgress(nid: string, sid: string): Promise<IndexProgress> {
+  return request(`/notebooks/${nid}/sources/${sid}/index`);
 }
 
-export interface RepoRagSyncEvent {
-  id: string;
-  job_id: string;
-  stage: string;
-  detail: string;
-  created_at: string;
-}
-
-export interface RepoRagSyncResponse {
-  job: RepoRagSyncJobView;
-  events: RepoRagSyncEvent[];
-}
-
-export interface RepoRagSyncRunResponse {
-  status: number;
-  response: RepoRagSyncResponse;
-}
-
-export interface RepoRagSyncRequest {
-  repository: string;
-  branch: string;
-  repository_url: string;
-}
-
-export async function runRepoRagSync(
-  body: RepoRagSyncRequest,
-): Promise<RepoRagSyncRunResponse> {
-  const res = await fetch(`${API_BASE}/pipeline/sync`, {
-    credentials: "include",
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+// SSE 구독. 반환값 close()로 반드시 정리(EventSource 누수 방지).
+// onProgress: data 이벤트마다 호출, onDone: status done/failed로 종료 시 1회 호출.
+export function openIndexStream(
+  nid: string,
+  sid: string,
+  onProgress: (progress: IndexProgress) => void,
+  onDone?: (progress: IndexProgress | null) => void,
+): { close: () => void } {
+  const es = new EventSource(`${API_BASE}/notebooks/${nid}/sources/${sid}/index/stream`, {
+    withCredentials: true,
   });
+  let last: IndexProgress | null = null;
+  let closed = false;
 
-  if (!res.ok) {
-    throw new Error(`요청 실패 (${res.status})`);
-  }
-
-  return {
-    status: res.status,
-    response: (await res.json()) as RepoRagSyncResponse,
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    es.close();
   };
-}
 
-export async function getRepoRagSyncJob(jobId: string): Promise<RepoRagSyncResponse> {
-  return request(`/pipeline/sync/${jobId}`);
+  es.onmessage = (event) => {
+    let progress: IndexProgress;
+    try {
+      progress = JSON.parse(event.data) as IndexProgress;
+    } catch {
+      return; // 파싱 실패 프레임은 무시.
+    }
+    last = progress;
+    onProgress(progress);
+    if (progress.status === "done" || progress.status === "failed") {
+      close();
+      onDone?.(progress);
+    }
+  };
+
+  // 네트워크 오류 등으로 끊기면 정리(브라우저 자동 재연결 대신 명시적 종료).
+  es.onerror = () => {
+    close();
+    onDone?.(last);
+  };
+
+  return { close };
 }

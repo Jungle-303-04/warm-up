@@ -2,61 +2,59 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useChatScroll } from "../hooks/use-chat-scroll";
 import { askNotebook, listNotebookChatMessages } from "../lib/api";
 import { SUGGESTIONS } from "../lib/fixtures";
 import { selectScopeCount, useWorkspace } from "../lib/store";
-import type { AgentResponse, NotebookChatMessage, NotebookChatResponse } from "../lib/types";
-import { AgentMessage } from "./agent-message";
+import type {
+  ChatMessage,
+  Citation,
+  NotebookChatCitation,
+  NotebookChatMessage,
+  NotebookChatResponse,
+} from "../lib/types";
 import { ChatEmpty } from "./chat-empty";
+import { ChatMessageView } from "./chat-message";
 import { Icon } from "./icon";
 
-interface Turn {
-  question: string;
-  response: AgentResponse;
+const makeId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+// 백엔드 인용 → UI 인용.
+function toCitations(citations: NotebookChatCitation[]): Citation[] {
+  return citations.map((c) => ({
+    sourceId: c.source_id,
+    sourceName: c.source_title,
+    path: c.path ?? undefined,
+    snippet: c.snippet,
+  }));
 }
 
-function toAgentResponse(response: NotebookChatResponse): AgentResponse {
-  if (response.citations.length === 0) {
-    return { kind: "abstain", reason: response.answer };
-  }
+// 백엔드 응답 → 어시스턴트 메시지. 인용이 없으면 보류(notice)로 본다.
+function toAssistantMessage(response: NotebookChatResponse, animate: boolean): ChatMessage {
   return {
-    kind: "answer",
-    text: response.answer,
-    citations: response.citations.map((citation) => ({
-      sourceId: citation.source_id,
-      sourceName: citation.source_title,
-      path: citation.path ?? undefined,
-      snippet: citation.snippet,
-    })),
+    id: makeId(),
+    role: "assistant",
+    content: response.answer,
+    kind: response.citations.length > 0 ? "answer" : "notice",
+    citations: toCitations(response.citations),
+    animate,
   };
 }
 
-function historyToTurns(messages: NotebookChatMessage[]): Turn[] {
-  const turns: Turn[] = [];
-  let pendingQuestion: string | null = null;
-
-  for (const message of messages) {
-    if (message.role === "user") {
-      pendingQuestion = message.content;
-      continue;
-    }
-
-    const question = pendingQuestion ?? "이전 답변";
-    turns.push({
-      question,
-      response: toAgentResponse({ answer: message.content, citations: message.citations }),
-    });
-    pendingQuestion = null;
-  }
-
-  if (pendingQuestion) {
-    turns.push({
-      question: pendingQuestion,
-      response: { kind: "abstain", reason: "이 질문의 답변 기록을 찾지 못했습니다." },
-    });
-  }
-
-  return turns;
+// 저장된 대화 기록 → 메시지 목록(복원분은 타이핑 없이 즉시 표시).
+function historyToMessages(messages: NotebookChatMessage[]): ChatMessage[] {
+  return messages.map((m) => ({
+    id: m.id || makeId(),
+    role: m.role,
+    content: m.content,
+    kind:
+      m.role === "assistant" && m.citations.length === 0 ? "notice" : "answer",
+    citations: m.role === "assistant" ? toCitations(m.citations) : [],
+    animate: false,
+  }));
 }
 
 function draftKey(notebookId: string) {
@@ -68,19 +66,22 @@ export function ChatView() {
   const sourceCount = useWorkspace((s) => s.sources.length);
   const notebookId = useWorkspace((s) => s.notebookId);
   const selectedSourceIds = useWorkspace((s) => s.selectedSourceIds);
-  const addNote = useWorkspace((s) => s.addNote);
+
   const [query, setQuery] = useState("");
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [queuedQuestions, setQueuedQuestions] = useState<string[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
   const selectedSourceIdList = useMemo(() => [...selectedSourceIds], [selectedSourceIds]);
   const allSourcesSelected = sourceCount > 0 && scopeCount === sourceCount;
   const canSend = query.trim().length > 0 && scopeCount > 0 && !!notebookId;
-  const [savedSummary, setSavedSummary] = useState(false);
+
+  // 메시지 변화/타이핑 진행/대기 상태에 맞춰 하단 고정 스크롤.
+  const { scrollRef, onScroll } = useChatScroll([messages, pendingQuestion]);
 
   // 클라이언트 로캘 기준의 세션 날짜.
   const today = new Date().toLocaleDateString("ko-KR", {
@@ -89,6 +90,7 @@ export function ChatView() {
     day: "numeric",
   });
 
+  // 대화 기록 로드.
   useEffect(() => {
     if (!notebookId) return;
     let active = true;
@@ -96,7 +98,7 @@ export function ChatView() {
     setHistoryError(null);
     listNotebookChatMessages(notebookId)
       .then((history) => {
-        if (active) setTurns(historyToTurns(history.messages));
+        if (active) setMessages(historyToMessages(history.messages));
       })
       .catch((error) => {
         if (!active) return;
@@ -110,6 +112,7 @@ export function ChatView() {
     };
   }, [notebookId]);
 
+  // 입력 초안 복원/저장.
   useEffect(() => {
     if (!notebookId) return;
     try {
@@ -139,20 +142,21 @@ export function ChatView() {
       setSending(true);
       try {
         const response = await askNotebook(notebookId, question, sourceIds, controller.signal);
-        setTurns((prev) => [...prev, { question, response: toAgentResponse(response) }]);
+        setMessages((prev) => [...prev, toAssistantMessage(response, true)]);
       } catch (error) {
         const wasAborted = controller.signal.aborted;
         const message = error instanceof Error ? error.message : "답변 요청 실패";
-        setTurns((prev) => [
+        setMessages((prev) => [
           ...prev,
           {
-            question,
-            response: {
-              kind: "abstain",
-              reason: wasAborted
-                ? "진행 중인 답변 생성을 중지했습니다."
-                : `답변을 가져오지 못했습니다. ${message}`,
-            },
+            id: makeId(),
+            role: "assistant",
+            kind: "notice",
+            citations: [],
+            animate: false,
+            content: wasAborted
+              ? "진행 중인 답변 생성을 중지했습니다."
+              : `답변을 가져오지 못했습니다. ${message}`,
           },
         ]);
       } finally {
@@ -164,6 +168,7 @@ export function ChatView() {
     [allSourcesSelected, notebookId, scopeCount, selectedSourceIdList],
   );
 
+  // 전송 중 들어온 질문은 큐로 모았다가 순차 처리.
   useEffect(() => {
     if (sending || queuedQuestions.length === 0) return;
     const [next, ...rest] = queuedQuestions;
@@ -171,30 +176,52 @@ export function ChatView() {
     void runQuestion(next);
   }, [queuedQuestions, runQuestion, sending]);
 
-  const send = async (text = query) => {
-    const question = text.trim();
-    if (!question || scopeCount === 0 || !notebookId) return;
+  const send = useCallback(
+    (text = query) => {
+      const question = text.trim();
+      if (!question || scopeCount === 0 || !notebookId) return;
 
-    setQuery("");
-    if (sending) {
-      setQueuedQuestions((prev) => [...prev, question]);
-      return;
-    }
-    await runQuestion(question);
-  };
+      setQuery("");
+      // 사용자 메시지를 즉시 목록에 추가(낙관적).
+      setMessages((prev) => [
+        ...prev,
+        { id: makeId(), role: "user", kind: "answer", citations: [], content: question },
+      ]);
+
+      if (sending) {
+        setQueuedQuestions((prev) => [...prev, question]);
+        return;
+      }
+      void runQuestion(question);
+    },
+    [notebookId, query, runQuestion, scopeCount, sending],
+  );
 
   const stopCurrent = () => {
     abortRef.current?.abort();
     setQueuedQuestions([]);
   };
 
+  // 마지막 사용자 질문으로 재생성.
+  const regenerate = () => {
+    if (sending) return;
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    if (lastUser) void send(lastUser.content);
+  };
+
+  const lastAssistantId = useMemo(
+    () => [...messages].reverse().find((m) => m.role === "assistant")?.id,
+    [messages],
+  );
+
   // 소스 0개: 빈 채팅 대신 온보딩 히어로를 보여준다.
-  if (sourceCount === 0 && turns.length === 0 && !loadingHistory) return <ChatEmpty />;
+  if (sourceCount === 0 && messages.length === 0 && !loadingHistory) return <ChatEmpty />;
 
   return (
     <>
-      <div className="scroll-thin flex-1 overflow-y-auto">
+      <div ref={scrollRef} onScroll={onScroll} className="scroll-thin flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl px-6 py-5">
+          {/* 헤더 카드 */}
           <div className="rounded-2xl border border-border bg-card p-4 shadow-elev-1">
             <div className="flex items-center gap-2.5">
               <span className="grid h-9 w-9 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-elev-1">
@@ -213,7 +240,7 @@ export function ChatView() {
             </div>
             <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
               연결된 저장소·문서를 근거로 질문에 답하고, 코드와 문서가 어긋난 부분을 찾습니다.
-              답변에는 항상 출처(파일·라인·커밋)가 따라옵니다.
+              답변에는 항상 출처(파일·라인)가 따라옵니다.
             </p>
           </div>
 
@@ -228,58 +255,8 @@ export function ChatView() {
             </div>
           ) : null}
 
-          <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-elev-1">
-            <div className="flex items-center gap-2 text-[11.5px] font-medium text-muted-foreground">
-              <Icon name="auto_awesome" size={13} className="text-primary" />
-              소스 상태
-            </div>
-            <p className="mt-2 text-[13px] leading-relaxed text-foreground">
-              현재 <strong className="font-semibold">{sourceCount}개</strong> 소스 중{" "}
-              <strong className="font-semibold">{scopeCount}개</strong>가 답변 범위에 포함되어
-              있습니다. 질문을 보내면 백엔드가 선택된 소스에서 근거를 찾아 답변합니다.
-            </p>
-            <div className="mt-3 flex items-center gap-1 border-t border-border pt-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  addNote("대화 요약", `소스 ${scopeCount}개 · 방금 전`);
-                  setSavedSummary(true);
-                }}
-                className="interactive inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <Icon name={savedSummary ? "check_circle" : "save_note"} size={14} />
-                {savedSummary ? "저장됨" : "메모에 저장"}
-              </button>
-              <span className="flex-1" />
-              <button
-                type="button"
-                aria-label="복사"
-                title="복사"
-                className="interactive grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <Icon name="copy" size={14} />
-              </button>
-              <button
-                type="button"
-                aria-label="좋아요"
-                title="좋아요"
-                className="interactive grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <Icon name="thumb_up" size={14} />
-              </button>
-              <button
-                type="button"
-                aria-label="싫어요"
-                title="싫어요"
-                className="interactive grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <Icon name="thumb_down" size={14} />
-              </button>
-            </div>
-          </div>
-
-          {/* 추천 질문: 클릭 시 입력창을 채우고, 더블클릭 시 바로 전송한다. */}
-          {turns.length === 0 ? (
+          {/* 추천 질문: 클릭 시 입력창을 채우고, 더블클릭 시 바로 전송. */}
+          {messages.length === 0 && !loadingHistory ? (
             <div className="mt-4">
               <p className="mb-2 flex items-center gap-1.5 px-1 text-[11.5px] font-medium text-muted-foreground">
                 <Icon name="lightbulb" size={13} className="text-primary" />
@@ -290,9 +267,9 @@ export function ChatView() {
                   <button
                     key={q}
                     type="button"
-                    onClick={() => setQuery(q)}
-                    onDoubleClick={() => void send(q)}
-                    className="interactive group flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-left text-[13px] text-foreground hover:border-primary/40 hover:bg-secondary hover:shadow-elev-1"
+                    onClick={() => send(q)}
+                    disabled={scopeCount === 0}
+                    className="interactive group flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-left text-[13px] text-foreground hover:border-primary/40 hover:bg-secondary hover:shadow-elev-1 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <span className="flex-1 leading-snug">{q}</span>
                     <Icon
@@ -306,55 +283,48 @@ export function ChatView() {
             </div>
           ) : null}
 
-          {/* 대화 턴 */}
+          {/* 대화 메시지 */}
           <div className="mt-6 space-y-5">
-            {turns.map((turn, i) => (
-              <div key={i} className="message-in space-y-3">
-                <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-[13px] leading-relaxed text-primary-foreground shadow-elev-1">
-                  {turn.question}
-                </div>
-                <div className="flex gap-2.5">
-                  <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
-                    <Icon name="hub" size={15} />
-                  </span>
-                  <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-border bg-card px-3.5 py-2.5 shadow-elev-1">
-                    <AgentMessage response={turn.response} />
-                  </div>
-                </div>
-              </div>
+            {messages.map((message) => (
+              <ChatMessageView
+                key={message.id}
+                message={message}
+                onRegenerate={
+                  message.role === "assistant" && message.id === lastAssistantId && !sending
+                    ? regenerate
+                    : undefined
+                }
+              />
             ))}
+
+            {/* 생각 중 표시(점 애니메이션). */}
             {sending && pendingQuestion ? (
-              <div className="message-in space-y-3">
-                <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-[13px] leading-relaxed text-primary-foreground shadow-elev-1">
-                  {pendingQuestion}
-                </div>
-                <div className="flex items-center gap-2.5 text-[12.5px] text-muted-foreground">
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
-                    <Icon name="hub" size={15} />
-                  </span>
-                  <div className="rounded-2xl border border-border bg-card px-3 py-2 shadow-elev-1">
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-1" aria-hidden>
-                        <span className="thinking-dot" />
-                        <span className="thinking-dot" />
-                        <span className="thinking-dot" />
-                      </span>
-                      <span>근거를 찾고 답변을 조립하는 중</span>
-                      <button
-                        type="button"
-                        onClick={stopCurrent}
-                        className="interactive ml-1 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                      >
-                        <Icon name="stop_circle" size={13} />
-                        중지
-                      </button>
-                    </div>
-                    {queuedQuestions.length > 0 ? (
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        다음 질문 {queuedQuestions.length}개 대기 중
-                      </p>
-                    ) : null}
+              <div className="message-in flex items-center gap-2.5 text-[12.5px] text-muted-foreground">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
+                  <Icon name="hub" size={15} />
+                </span>
+                <div className="rounded-2xl rounded-tl-md border border-border bg-card px-3 py-2 shadow-elev-1">
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1" aria-hidden>
+                      <span className="thinking-dot" />
+                      <span className="thinking-dot" />
+                      <span className="thinking-dot" />
+                    </span>
+                    <span>근거를 찾고 답변을 조립하는 중</span>
+                    <button
+                      type="button"
+                      onClick={stopCurrent}
+                      className="interactive ml-1 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      <Icon name="stop_circle" size={13} />
+                      중지
+                    </button>
                   </div>
+                  {queuedQuestions.length > 0 ? (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      다음 질문 {queuedQuestions.length}개 대기 중
+                    </p>
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -365,14 +335,6 @@ export function ChatView() {
       {/* 하단 입력바 */}
       <div className="shrink-0 px-5 pb-4">
         <div className="mx-auto flex max-w-2xl items-end gap-2 rounded-[24px] border border-border bg-card px-2.5 py-2 shadow-elev-2 focus-within:border-primary/50">
-          <button
-            type="button"
-            aria-label="첨부"
-            title="첨부"
-            className="interactive mb-0.5 grid h-8 w-8 shrink-0 place-items-center self-end rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
-          >
-            <Icon name="attach" size={17} />
-          </button>
           <textarea
             rows={1}
             value={query}
@@ -380,7 +342,7 @@ export function ChatView() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                void send();
+                send();
               }
             }}
             disabled={scopeCount === 0}
@@ -389,10 +351,10 @@ export function ChatView() {
                 ? "왼쪽에서 소스를 선택하세요"
                 : sending
                   ? "다음 질문을 입력하면 대기열에 추가됩니다"
-                  : "무엇이든 물어보세요"
+                  : "무엇이든 물어보세요 (Enter 전송 · Shift+Enter 줄바꿈)"
             }
             aria-label="메시지 입력"
-            className="max-h-32 flex-1 resize-none self-center bg-transparent py-1.5 text-[13px] leading-relaxed outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+            className="max-h-32 flex-1 resize-none self-center bg-transparent py-1.5 pl-2 text-[13px] leading-relaxed outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
           />
           <div className="flex shrink-0 items-center gap-2 self-end pb-0.5">
             <span className="hidden items-center gap-1 text-[11px] text-muted-foreground sm:inline-flex">
@@ -401,7 +363,7 @@ export function ChatView() {
             </span>
             <button
               type="button"
-              onClick={() => void send()}
+              onClick={() => send()}
               disabled={!canSend}
               aria-label="보내기"
               className="interactive grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:active:scale-100"

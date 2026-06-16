@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-import type { CenterTab, Source, SourceSyncProgress, StudioArtifact } from "./types";
+import type { CenterTab, IndexProgress, Source, StudioArtifact } from "./types";
 
 // 뷰어가 가리키는 대상: 소스 자체 또는 repo 소스 안의 특정 파일.
 export interface ViewerTarget {
@@ -16,7 +16,7 @@ export interface WorkspaceCacheSnapshot {
   viewer?: ViewerTarget | null;
   centerTab?: CenterTab;
   artifacts?: StudioArtifact[];
-  sourceSyncStatuses?: Record<string, SourceSyncProgress>;
+  indexProgress?: Record<string, IndexProgress>;
 }
 
 // 노트북 화면 전역 상태. 모든 소스는 자동으로 답변 범위에 포함된다(선택 개념 없음).
@@ -27,7 +27,8 @@ interface WorkspaceStore {
   viewer: ViewerTarget | null; // 중앙 뷰어가 여는 대상
   centerTab: CenterTab;
   artifacts: StudioArtifact[];
-  sourceSyncStatuses: Record<string, SourceSyncProgress>;
+  // 소스별 RAG 인덱싱 진행(백엔드 SSE 스냅샷). key = sourceId.
+  indexProgress: Record<string, IndexProgress>;
 
   initNotebook: (notebookId: string, sources: Source[]) => void;
   setSources: (sources: Source[]) => void;
@@ -40,7 +41,8 @@ interface WorkspaceStore {
   openSource: (id: string) => void; // 소스 본문을 뷰어에 열기 + 뷰어 탭으로 이동
   openFile: (sourceId: string, path: string) => void; // repo 파일을 뷰어에 열기
   setCenterTab: (tab: CenterTab) => void;
-  setSourceSyncStatus: (sourceId: string, status: SourceSyncProgress | null) => void;
+  setIndexProgress: (sourceId: string, progress: IndexProgress) => void;
+  clearIndexProgress: (sourceId: string) => void;
   createArtifact: (artifact: Omit<StudioArtifact, "id" | "createdAt" | "sourceCount">) => void;
   addNote: (title?: string, detail?: string) => void;
 }
@@ -85,7 +87,7 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
   viewer: null,
   centerTab: "대화",
   artifacts: [],
-  sourceSyncStatuses: {},
+  indexProgress: {},
 
   initNotebook: (notebookId, sources) =>
     set({
@@ -94,18 +96,16 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
       selectedSourceIds: new Set(sources.map((s) => s.id)),
       viewer: null,
       centerTab: "대화",
-      sourceSyncStatuses: {},
+      indexProgress: {},
       artifacts: seedArtifacts(sources.length),
     }),
   setSources: (sources) =>
     set((state) => {
       const nextSourceIds = new Set(sources.map((source) => source.id));
-      const sourceSyncStatuses: Record<string, SourceSyncProgress> = {};
-
-      for (const status of Object.values(state.sourceSyncStatuses)) {
-        if (nextSourceIds.has(status.sourceId)) {
-          sourceSyncStatuses[status.sourceId] = status;
-        }
+      // 사라진 소스의 진행 상태는 정리한다.
+      const indexProgress: Record<string, IndexProgress> = {};
+      for (const [id, progress] of Object.entries(state.indexProgress)) {
+        if (nextSourceIds.has(id)) indexProgress[id] = progress;
       }
 
       return {
@@ -115,7 +115,7 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
             .map((s) => s.id)
             .filter((id) => state.selectedSourceIds.has(id) || state.selectedSourceIds.size === 0),
         ),
-        sourceSyncStatuses,
+        indexProgress,
       };
     }),
   addSource: (source) =>
@@ -127,13 +127,13 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
     set((state) => {
       const selectedSourceIds = new Set(state.selectedSourceIds);
       selectedSourceIds.delete(id);
-      const sourceSyncStatuses = { ...state.sourceSyncStatuses };
-      delete sourceSyncStatuses[id];
+      const indexProgress = { ...state.indexProgress };
+      delete indexProgress[id];
       return {
         sources: state.sources.filter((s) => s.id !== id),
         selectedSourceIds,
         viewer: state.viewer?.sourceId === id ? null : state.viewer,
-        sourceSyncStatuses,
+        indexProgress,
       };
     }),
   toggleSourceSelected: (id) =>
@@ -156,13 +156,13 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
           : new Set(snapshot.selectedSourceIds.filter((id) => sourceIds.has(id)));
       const viewer =
         snapshot.viewer && sourceIds.has(snapshot.viewer.sourceId) ? snapshot.viewer : state.viewer;
-      const sourceSyncStatuses =
-        snapshot.sourceSyncStatuses === undefined
-          ? state.sourceSyncStatuses
+      const indexProgress =
+        snapshot.indexProgress === undefined
+          ? state.indexProgress
           : Object.fromEntries(
-              Object.entries(snapshot.sourceSyncStatuses).filter(([id, status]) => {
-                return sourceIds.has(id) && status.sourceId === id;
-              }),
+              Object.entries(snapshot.indexProgress).filter(
+                ([id, progress]) => sourceIds.has(id) && progress.source_id === id,
+              ),
             );
 
       return {
@@ -170,22 +170,22 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
         viewer,
         centerTab: snapshot.centerTab ?? state.centerTab,
         artifacts: snapshot.artifacts ?? state.artifacts,
-        sourceSyncStatuses,
+        indexProgress,
       };
     }),
 
   openSource: (id) => set({ viewer: { sourceId: id }, centerTab: "뷰어" }),
   openFile: (sourceId, path) => set({ viewer: { sourceId, path }, centerTab: "뷰어" }),
   setCenterTab: (tab) => set({ centerTab: tab }),
-  setSourceSyncStatus: (sourceId, status) =>
+  setIndexProgress: (sourceId, progress) =>
+    set((state) => ({
+      indexProgress: { ...state.indexProgress, [sourceId]: progress },
+    })),
+  clearIndexProgress: (sourceId) =>
     set((state) => {
-      const sourceSyncStatuses = { ...state.sourceSyncStatuses };
-      if (status === null) {
-        delete sourceSyncStatuses[sourceId];
-      } else {
-        sourceSyncStatuses[sourceId] = status;
-      }
-      return { sourceSyncStatuses };
+      const indexProgress = { ...state.indexProgress };
+      delete indexProgress[sourceId];
+      return { indexProgress };
     }),
   createArtifact: (artifact) =>
     set((state) => ({

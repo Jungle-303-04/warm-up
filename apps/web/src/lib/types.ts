@@ -46,14 +46,35 @@ export interface Source {
   created_at: string;
 }
 
-export interface SourceSyncProgress {
-  sourceId: string;
-  jobId: string;
-  status: "queued" | "running" | "succeeded" | "failed";
-  stageLabel: string;
-  detail: string;
-  percent: number;
-  error?: string;
+// ── RAG 인덱싱 진행(백엔드 SSE 스키마와 1:1) ──────────────────────
+// GET /notebooks/{nid}/sources/{sid}/index (1회) 및 .../index/stream(SSE) 응답.
+export type IndexStatus = "queued" | "running" | "done" | "failed";
+export type IndexFileStatus = "queued" | "indexing" | "done" | "skipped" | "failed";
+export type IndexLanguage = "python" | "markdown" | "text" | null;
+
+// 파일 단위 인덱싱 상태. supported=false면 인덱싱 대상에서 제외된다.
+export interface IndexFile {
+  path: string;
+  language: IndexLanguage;
+  supported: boolean;
+  status: IndexFileStatus;
+  chunks: number;
+}
+
+// 소스 단위 인덱싱 진행 스냅샷.
+export interface IndexProgress {
+  source_id: string;
+  notebook_id: string;
+  status: IndexStatus;
+  total_files: number;
+  processed_files: number;
+  skipped_files: number;
+  total_chunks: number;
+  indexed_chunks: number;
+  percent: number; // 0~100
+  files: IndexFile[];
+  error: string | null;
+  updated_at: string;
 }
 
 // 백엔드 SourceDetailView = SourceView + content.
@@ -84,16 +105,12 @@ export interface SourceCreate {
   branch?: string;
 }
 
-// 채팅 답변 골격(D7: lookup + locate + summarize). 백엔드 답변 그래프 출력과 1:1 대응.
-
-// 근거 인용. 답변이 참조한 소스 위치를 가리킨다.
+// 근거 인용(UI 모델). 답변이 참조한 소스 위치를 가리킨다.
 export interface Citation {
   sourceId: string; // Source.id
   sourceName: string; // 표시용 소스 이름
   path?: string; // 파일 경로(있으면)
-  lines?: [number, number]; // [시작, 끝] 줄 범위
   snippet?: string; // 인용 미리보기
-  externalUrl?: string; // 외부에서 열기
 }
 
 export interface NotebookChatCitation {
@@ -121,13 +138,17 @@ export interface NotebookChatMessageList {
   messages: NotebookChatMessage[];
 }
 
-// 답변 그래프의 판별 유니온. kind로 렌더를 분기한다.
-export type AgentResponse =
-  | { kind: "answer"; text: string; citations: Citation[] } // lookup: 본문 + 인용칩
-  | { kind: "references"; intro?: string; citations: Citation[] } // locate: 파일/위치 목록
-  | { kind: "summary"; text: string; citations?: Citation[] } // summarize: 문단 요약
-  | { kind: "abstain"; reason: string } // 근거 부족 등으로 답변 보류
-  | { kind: "clarify"; question: string }; // 추가 정보 요청
+// 채팅 UI 메시지 모델(Claude/ChatGPT풍). 화면 렌더의 단일 단위.
+// kind=answer: 본문 + 인용칩, notice: 보류/오류 안내 박스.
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  kind: "answer" | "notice";
+  citations: Citation[];
+  // 새로 도착한 어시스턴트 메시지만 타이핑 효과(기록 복원분은 즉시 표시).
+  animate?: boolean;
+}
 
 // 중앙 패널 토글: 뷰어 ⇄ 채팅.
 export type CenterTab = "대화" | "뷰어";

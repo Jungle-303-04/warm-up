@@ -49,7 +49,7 @@ export function Workspace({ notebookId }: { notebookId: string }) {
   const initNotebook = useWorkspace((s) => s.initNotebook);
   const hydrateCachedState = useWorkspace((s) => s.hydrateCachedState);
   const selectedSourceIds = useWorkspace((s) => s.selectedSourceIds);
-  const sourceSyncStatuses = useWorkspace((s) => s.sourceSyncStatuses);
+  const indexProgress = useWorkspace((s) => s.indexProgress);
   const viewer = useWorkspace((s) => s.viewer);
   const centerTab = useWorkspace((s) => s.centerTab);
   const artifacts = useWorkspace((s) => s.artifacts);
@@ -105,18 +105,18 @@ export function Workspace({ notebookId }: { notebookId: string }) {
       viewer,
       centerTab,
       artifacts,
-      sourceSyncStatuses,
+      indexProgress,
       leftCollapsed,
       rightCollapsed,
     });
   }, [
     artifacts,
     centerTab,
+    indexProgress,
     leftCollapsed,
     notebook,
     rightCollapsed,
     selectedSourceIds,
-    sourceSyncStatuses,
     viewer,
   ]);
 

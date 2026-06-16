@@ -2,63 +2,19 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import {
-  createSource,
-  getRepoRagSyncJob,
-  runRepoRagSync,
-  type RepoRagSyncEvent,
-  type RepoRagSyncJobView,
-  type RepoRagSyncResponse,
-} from "../lib/api";
+import { createSource } from "../lib/api";
 import { cn } from "../lib/cn";
 import { useWorkspace } from "../lib/store";
-import type { Source, SourceCreate, SourceSyncProgress } from "../lib/types";
+import type { Source, SourceCreate } from "../lib/types";
 import { Icon } from "./icon";
 import { Modal } from "./ui/modal";
 
 type Tab = "url" | "repo";
 
-type RepoSyncStatus = "queued" | "running" | "succeeded" | "failed";
-
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "url", label: "URL", icon: "link" },
   { id: "repo", label: "GitHub 레포", icon: "github" },
 ];
-
-const STAGE_ORDER = [
-  "job_queued",
-  "job_started",
-  "job_claimed",
-  "lock_acquired",
-  "fetch_started",
-  "fetch_completed",
-  "diff_completed",
-  "files_persisted",
-  "chunks_upserted",
-  "job_succeeded",
-  "job_failed",
-];
-
-const STAGE_LABELS: Record<string, { label: string; percent: number }> = {
-  job_queued: { label: "동기화 큐 등록", percent: 10 },
-  job_started: { label: "동기화 시작", percent: 20 },
-  job_claimed: { label: "동기화 작업 할당", percent: 30 },
-  lock_acquired: { label: "레포 락 획득", percent: 32 },
-  fetch_started: { label: "저장소 스냅샷 생성", percent: 45 },
-  fetch_completed: { label: "변경점 계산", percent: 60 },
-  diff_completed: { label: "변경 내역 분석", percent: 72 },
-  files_persisted: { label: "파일 메타 동기화", percent: 84 },
-  chunks_upserted: { label: "RAG 인덱스 반영", percent: 92 },
-  job_succeeded: { label: "RAG 등록 완료", percent: 100 },
-  job_failed: { label: "동기화 실패", percent: 100 },
-};
-
-const JOB_STATUS_TO_STAGE: Record<RepoSyncStatus, string> = {
-  queued: "job_queued",
-  running: "job_started",
-  succeeded: "job_succeeded",
-  failed: "job_failed",
-};
 
 // URL · 레포 추가 모달.
 export function SourceAddModal({
@@ -151,132 +107,6 @@ function inferRepoTitle(url: string) {
   return m ? m[1] : url;
 }
 
-function deriveRepoProgress(
-  job: RepoRagSyncJobView,
-  events: RepoRagSyncEvent[],
-): {
-  stageLabel: string;
-  detail: string;
-  percent: number;
-} {
-  const latest = events.at(-1);
-
-  if (latest) {
-    const stage = STAGE_LABELS[latest.stage];
-    if (stage) {
-      return {
-        stageLabel: stage.label,
-        detail: latest.detail || `${latest.stage}`,
-        percent: stage.percent,
-      };
-    }
-  }
-
-  const known = STAGE_LABELS[JOB_STATUS_TO_STAGE[job.status as RepoSyncStatus]];
-  if (known) {
-    return {
-      stageLabel: known.label,
-      detail: `상태: ${job.status}`,
-      percent: job.status === "succeeded" ? 100 : known.percent,
-    };
-  }
-
-  return {
-    stageLabel: "동기화 진행 중",
-    detail: `상태: ${job.status}`,
-    percent: 20,
-  };
-}
-
-function normalizeStatus(payload: RepoRagSyncResponse): RepoSyncStatus {
-  if (payload.job.status === "succeeded") return "succeeded";
-  if (payload.job.status === "failed") return "failed";
-  return "running";
-}
-
-async function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function syncRepoAfterCreate(
-  source: Source,
-  repositoryUrl: string,
-  branch: string,
-  setSourceSyncStatus: (sourceId: string, status: SourceSyncProgress | null) => void,
-): Promise<{ finalStatus: RepoSyncStatus; response: RepoRagSyncResponse }> {
-  const start = await runRepoRagSync({
-    repository: source.title,
-    branch,
-    repository_url: repositoryUrl,
-  });
-
-  let response = start.response;
-  let normalized = normalizeStatus(response);
-  let latest = deriveRepoProgress(response.job, response.events);
-
-  setSourceSyncStatus(source.id, {
-    sourceId: source.id,
-    jobId: response.job.id,
-    status: start.status === 200 ? normalized : "running",
-    stageLabel: latest.stageLabel,
-    detail: latest.detail,
-    percent: latest.percent,
-  });
-
-  if (start.status === 200 || normalized !== "running") {
-    const finalStatus = normalizeStatus(response);
-    latest = deriveRepoProgress(response.job, response.events);
-
-    setSourceSyncStatus(source.id, {
-      sourceId: source.id,
-      jobId: response.job.id,
-      status: finalStatus,
-      stageLabel: finalStatus === "failed" ? "동기화 실패" : "RAG 등록 완료",
-      detail:
-        finalStatus === "failed"
-          ? response.job.error || latest.detail
-          : "레포가 SQL RAG에 저장되어 답변에 반영됩니다.",
-      percent: finalStatus === "succeeded" ? 100 : 100,
-    });
-
-    return { finalStatus, response };
-  }
-
-  for (let attempt = 0; attempt < 180; attempt += 1) {
-    await wait(900);
-    response = await getRepoRagSyncJob(response.job.id);
-    normalized = normalizeStatus(response);
-    latest = deriveRepoProgress(response.job, response.events);
-
-    setSourceSyncStatus(source.id, {
-      sourceId: source.id,
-      jobId: response.job.id,
-      status: normalized,
-      stageLabel: latest.stageLabel,
-      detail: latest.detail,
-      percent: latest.percent,
-    });
-
-    if (normalized !== "running") {
-      break;
-    }
-  }
-
-  normalized = normalizeStatus(response);
-  latest = deriveRepoProgress(response.job, response.events);
-
-  setSourceSyncStatus(source.id, {
-    sourceId: source.id,
-    jobId: response.job.id,
-    status: normalized,
-    stageLabel: normalized === "failed" ? "동기화 실패" : latest.stageLabel,
-    detail: normalized === "failed" ? response.job.error || latest.detail : latest.detail,
-    percent: normalized === "succeeded" ? 100 : latest.percent,
-  });
-
-  return { finalStatus: normalized, response };
-}
-
 // URL 입력: kind="url".
 function UrlTab({ onSubmit, onDone }: { onSubmit: (body: SourceCreate) => Promise<Source>; onDone?: () => void }) {
   const [title, setTitle] = useState("");
@@ -315,88 +145,31 @@ function UrlTab({ onSubmit, onDone }: { onSubmit: (body: SourceCreate) => Promis
 }
 
 // GitHub 레포 등록: repository_url + branch, kind="repo".
-function RepoTab({ onSubmit, onClose }: { onSubmit: (body: SourceCreate) => Promise<Source>; onClose: () => void }) {
+// 생성은 즉시 201 반환하고 인덱싱은 백그라운드에서 진행된다.
+// 진행바는 소스 패널(SourceRow)이 SSE로 구독해 표시하므로 여기선 생성 후 닫기만 한다.
+function RepoTab({
+  onSubmit,
+  onClose,
+}: {
+  onSubmit: (body: SourceCreate) => Promise<Source>;
+  onClose: () => void;
+}) {
   const [repoUrl, setRepoUrl] = useState("");
   const [branch, setBranch] = useState("main");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [progressLabel, setProgressLabel] = useState("");
-  const [progressPercent, setProgressPercent] = useState(0);
-  const [syncing, setSyncing] = useState(false);
-
-  const setSourceSyncStatus = useWorkspace((s) => s.setSourceSyncStatus);
-
-  const run = async () => {
-    if (busy) return;
-    if (!repoUrl.trim()) return;
-
-    const normalizedRepoUrl = repoUrl.trim();
-    const normalizedBranch = branch.trim() || "main";
-    const sourceTitle = inferRepoTitle(normalizedRepoUrl);
-
-    setBusy(true);
-    setSyncing(false);
-    setError(null);
-    setProgressLabel("레포 등록을 시작합니다");
-    setProgressPercent(6);
-
-    try {
-      const source = await onSubmit({
-        kind: "repo",
-        title: sourceTitle,
-        repository_url: normalizedRepoUrl,
-        branch: normalizedBranch,
-      });
-
-      setSourceSyncStatus(source.id, {
-        sourceId: source.id,
-        jobId: "init",
-        status: "queued",
-        stageLabel: "레포 등록 완료",
-        detail: "레포 스냅샷 생성 및 SQL RAG 동기화를 시작합니다.",
-        percent: 6,
-      });
-
-      setSyncing(true);
-      setProgressLabel("레포 동기화를 실행합니다");
-      const result = await syncRepoAfterCreate(source, normalizedRepoUrl, normalizedBranch, setSourceSyncStatus);
-      const finalProgress = deriveRepoProgress(result.response.job, result.response.events);
-      const finalStatus = result.finalStatus;
-
-      setProgressLabel(
-        finalStatus === "succeeded" ? "RAG 인덱싱이 완료되었습니다" : finalProgress.stageLabel,
-      );
-      setProgressPercent(
-        finalStatus === "succeeded"
-          ? 100
-          : Math.min(100, Math.max(progressPercent, finalProgress.percent, 96)),
-      );
-
-      if (finalStatus === "succeeded") {
-        setProgressLabel("레포가 SQL RAG에 등록되었습니다");
-        setProgressPercent(100);
-        onClose();
-      }
-
-      if (finalStatus === "failed") {
-        throw new Error(result.response.job.error || finalProgress.detail || "레포 동기화에 실패했습니다");
-      }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "레포 등록 실패";
-      setError(message);
-      setProgressLabel("레포 등록 실패");
-      setProgressPercent(100);
-    } finally {
-      setBusy(false);
-      setSyncing(false);
-    }
-  };
+  const { busy, error, run } = useSubmit(onSubmit, onClose);
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        void run();
+        const normalizedUrl = repoUrl.trim();
+        if (!normalizedUrl) return;
+        run(() => ({
+          kind: "repo",
+          title: inferRepoTitle(normalizedUrl),
+          repository_url: normalizedUrl,
+          branch: branch.trim() || "main",
+        }));
       }}
       className="space-y-3"
     >
@@ -418,35 +191,13 @@ function RepoTab({ onSubmit, onClose }: { onSubmit: (body: SourceCreate) => Prom
         />
       </Field>
       <p className="text-[12px] text-muted-foreground">
-        등록하면 해당 브랜치를 인덱싱합니다. 가시성은 GitHub 접근 권한을 따릅니다.
+        등록하면 해당 브랜치를 백그라운드로 인덱싱합니다. 진행 상황은 소스 목록에서 실시간으로
+        확인할 수 있어요.
       </p>
       {error ? <ErrorText>{error}</ErrorText> : null}
       <SubmitButton disabled={!repoUrl.trim() || busy}>
         {busy ? "레포 등록 중…" : "레포 등록"}
       </SubmitButton>
-
-      {syncing || progressPercent > 0 ? (
-        <div className="rounded-xl border border-border bg-card p-2.5 text-[12px] text-muted-foreground">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 font-semibold text-foreground">
-              <Icon
-                name={busy ? "progress_activity" : "check_circle"}
-                size={14}
-                className={busy ? "animate-spin" : undefined}
-              />
-              <span>레포 인덱싱 진행</span>
-            </span>
-            <span>{Math.min(100, progressPercent)}%</span>
-          </div>
-          <div className="mb-1.5 h-1.5 w-full rounded-full bg-secondary">
-            <div
-              className="h-full rounded-full bg-primary/85 transition-all duration-300"
-              style={{ width: `${Math.min(100, progressPercent)}%` }}
-            />
-          </div>
-          <p>{progressLabel || "처리 대기 중"}</p>
-        </div>
-      ) : null}
     </form>
   );
 }
