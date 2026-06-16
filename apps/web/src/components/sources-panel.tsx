@@ -1,15 +1,20 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { createSource } from "../lib/api";
 import { cn } from "../lib/cn";
 import { fileToSourceCreate } from "../lib/file-source";
+import { SOURCE_KINDS } from "../lib/fixtures";
 import { useWorkspace } from "../lib/store";
+import type { SourceKind } from "../lib/types";
 import { Icon } from "./icon";
 import { SourceAddModal } from "./source-add-modal";
 import { SourceRow } from "./source-row";
 import { Panel } from "./ui/panel";
+
+// 그룹 표시 순서(종류별 묶음). SOURCE_KINDS에 없는 종류는 무시.
+const KIND_ORDER: SourceKind[] = ["repo", "md", "pdf", "text", "url"];
 
 export function SourcesPanel({
   notebookId,
@@ -28,6 +33,33 @@ export function SourcesPanel({
   const [dragActive, setDragActive] = useState(false);
   const [busy, setBusy] = useState(false); // 파일 처리 중
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState(""); // 소스 이름 필터
+  // 접힌 그룹 키 집합(기본 모두 펼침).
+  const [collapsed, setCollapsed] = useState<Set<SourceKind>>(new Set());
+
+  // 이름 필터 적용 → 종류별 그룹화. KIND_ORDER 순서로 정렬.
+  const groups = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    const matched = q
+      ? sources.filter((s) => s.title.toLowerCase().includes(q))
+      : sources;
+    return KIND_ORDER.map((kind) => ({
+      kind,
+      items: matched.filter((s) => s.kind === kind),
+    })).filter((g) => g.items.length > 0);
+  }, [sources, filter]);
+
+  // 종류가 한 가지뿐이면 그룹 헤더 생략.
+  const singleKind = groups.length <= 1;
+  const filteredEmpty = filter.trim().length > 0 && groups.length === 0;
+
+  const toggleGroup = (kind: SourceKind) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      return next;
+    });
 
   // 파일 목록을 순차 처리 → 각각 createSource → 스토어 반영. 실패는 모아서 표시.
   const processFiles = async (files: FileList | File[]) => {
@@ -136,6 +168,33 @@ export function SourcesPanel({
           onChange={onPick}
         />
 
+        {/* 검색/디스커버: 소스 이름 필터(실제 동작) */}
+        {sources.length > 0 ? (
+          <div className="px-4 pb-2 pt-1">
+            <div className="interactive flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3.5 py-2 focus-within:border-primary/50 focus-within:bg-card">
+              <Icon name="travel_explore" size={16} className="shrink-0 text-muted-foreground" />
+              <input
+                type="text"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="소스에서 검색…"
+                aria-label="소스 검색"
+                className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+              />
+              {filter ? (
+                <button
+                  type="button"
+                  onClick={() => setFilter("")}
+                  aria-label="검색 지우기"
+                  className="interactive grid h-5 w-5 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
+                  <Icon name="close" size={13} />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         {/* 처리 상태 / 에러 */}
         {busy ? (
           <p className="mx-4 mb-1 flex items-center gap-1.5 text-[12px] text-muted-foreground">
@@ -170,11 +229,48 @@ export function SourcesPanel({
                 <Icon name="check_circle" size={13} className="mt-0.5 shrink-0 text-primary" />
                 <span>모든 소스가 자동으로 답변 근거에 포함됩니다.</span>
               </div>
-              <div className="space-y-0.5">
-                {sources.map((s) => (
-                  <SourceRow key={s.id} source={s} notebookId={notebookId} />
-                ))}
-              </div>
+
+              {filteredEmpty ? (
+                <p className="mt-6 px-4 text-center text-[12.5px] text-muted-foreground">
+                  “{filter.trim()}”와 일치하는 소스가 없습니다.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {groups.map((g) => {
+                    const cfg = SOURCE_KINDS[g.kind];
+                    const isOpen = !collapsed.has(g.kind);
+                    return (
+                      <div key={g.kind}>
+                        {/* 그룹 헤더: 종류 라벨 + 개수 + chevron(접기/펴기). 단일 종류면 생략 */}
+                        {singleKind ? null : (
+                          <button
+                            type="button"
+                            onClick={() => toggleGroup(g.kind)}
+                            className="interactive flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[11.5px] font-medium uppercase tracking-wide text-muted-foreground hover:bg-secondary"
+                          >
+                            <Icon
+                              name="chevron_right"
+                              size={13}
+                              className={cn("shrink-0 transition-transform", isOpen && "rotate-90")}
+                            />
+                            <span className="flex-1 normal-case tracking-normal">{cfg.label}</span>
+                            <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
+                              {g.items.length}
+                            </span>
+                          </button>
+                        )}
+                        {isOpen ? (
+                          <div className={cn("space-y-0.5", singleKind ? "" : "mt-0.5")}>
+                            {g.items.map((s) => (
+                              <SourceRow key={s.id} source={s} notebookId={notebookId} />
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
         </div>

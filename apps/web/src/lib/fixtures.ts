@@ -28,18 +28,45 @@ export const DEMO_RESPONSE: AgentResponse = {
 };
 
 // 스튜디오(우측 패널) 데모 타일/메모. 모두 "준비 중".
-// hint = 카드 보조 설명(NotebookLM 스튜디오처럼 한 줄 안내).
-export const STUDIO_TILES = [
-  { icon: "account_tree", label: "UML", hint: "클래스·시퀀스" },
-  { icon: "schema", label: "ERD", hint: "데이터 모델" },
-  { icon: "checklist", label: "계획", hint: "작업 분해" },
-  { icon: "calendar_month", label: "일정 요약", hint: "타임라인" },
-  { icon: "report", label: "보고서", hint: "근거 기반 문서" },
-  { icon: "mindmap", label: "마인드맵", hint: "개념 연결도" },
+// hint = 카드 보조 설명, tint = 카드별 고유 색조(아이콘 박스 배경/글자에 사용).
+export interface StudioTile {
+  icon: string;
+  label: string;
+  hint: string;
+  tint: StudioTint;
+  beta?: boolean;
+}
+
+// 카드별 고유 색조 키. globals.css의 .studio-tint-* 클래스와 1:1.
+export type StudioTint = "blue" | "violet" | "teal" | "amber" | "rose" | "indigo" | "green" | "cyan";
+
+export const STUDIO_TILES: StudioTile[] = [
+  { icon: "account_tree", label: "UML", hint: "클래스·시퀀스 다이어그램", tint: "blue" },
+  { icon: "schema", label: "ERD", hint: "데이터 모델 관계도", tint: "violet" },
+  { icon: "code_tour", label: "코드 투어", hint: "핵심 경로 가이드", tint: "teal", beta: true },
+  { icon: "dependency", label: "의존성 그래프", hint: "모듈 의존 관계", tint: "amber" },
+  { icon: "report", label: "보고서", hint: "근거 기반 문서", tint: "rose" },
+  { icon: "mindmap", label: "마인드맵", hint: "개념 연결도", tint: "indigo" },
+  { icon: "diff", label: "변경 요약", hint: "커밋·diff 정리", tint: "green", beta: true },
+  { icon: "test_map", label: "테스트맵", hint: "커버리지 매핑", tint: "cyan" },
 ];
 
-// 메모 데모: 제목 + 종류(서브텍스트) + 아이콘.
+// 메모 데모: 제목 + 종류(서브텍스트) + 시간 + 아이콘.
 export const STUDIO_NOTES = [
-  { title: "도메인 ERD v2", kind: "ERD", icon: "schema" },
-  { title: "인증 시퀀스 UML", kind: "UML", icon: "account_tree" },
+  { title: "도메인 ERD v2", kind: "ERD", time: "2시간 전", icon: "schema" },
+  { title: "인증 시퀀스 UML", kind: "UML", time: "어제", icon: "account_tree" },
+];
+
+// 채팅 상단 요약 카드(목업). NotebookLM처럼 생성된 듯한 개요.
+// segs = 키워드 강조용 세그먼트 배열(bold=true면 굵게).
+export const CHAT_SUMMARY: { seg: string; bold?: boolean }[] = [
+  { seg: "연결된 저장소는 " },
+  { seg: "FastAPI 백엔드", bold: true },
+  { seg: "와 " },
+  { seg: "Next.js 프런트엔드", bold: true },
+  { seg: "로 구성되며, 인증은 " },
+  { seg: "JWT 미들웨어", bold: true },
+  { seg: "를 거쳐 처리됩니다. 문서에는 아키텍처 개요와 " },
+  { seg: "데이터 모델", bold: true },
+  { seg: "이 정리되어 있어 코드와 대조해 어긋난 지점을 빠르게 짚어낼 수 있습니다." },
 ];

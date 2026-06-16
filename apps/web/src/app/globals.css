@@ -134,6 +134,78 @@ textarea {
   background-color: hsl(var(--surface-raised));
 }
 
+/* ── 스튜디오 카드 색조 ──────────────────────────────────────────────
+   각 카드 아이콘 박스의 고유 색. --st-bg(배경) / --st-fg(아이콘) 두 변수로
+   라이트/다크에서 모두 충분한 대비를 유지한다. 절제된 파스텔 팔레트. */
+.studio-tint {
+  background-color: var(--st-bg);
+  color: var(--st-fg);
+}
+.studio-tint-blue {
+  --st-bg: #e6f1fb;
+  --st-fg: #185fa5;
+}
+.studio-tint-violet {
+  --st-bg: #efeafb;
+  --st-fg: #6b3fa0;
+}
+.studio-tint-teal {
+  --st-bg: #e1f5ee;
+  --st-fg: #0f6e56;
+}
+.studio-tint-amber {
+  --st-bg: #fbf0dd;
+  --st-fg: #9a6312;
+}
+.studio-tint-rose {
+  --st-bg: #fceaef;
+  --st-fg: #a8324e;
+}
+.studio-tint-indigo {
+  --st-bg: #e7e9fc;
+  --st-fg: #3f4bb0;
+}
+.studio-tint-green {
+  --st-bg: #e6f3e6;
+  --st-fg: #2c7a35;
+}
+.studio-tint-cyan {
+  --st-bg: #e0f3f5;
+  --st-fg: #0c6b75;
+}
+.dark .studio-tint-blue {
+  --st-bg: #1a2c42;
+  --st-fg: #9cc4f5;
+}
+.dark .studio-tint-violet {
+  --st-bg: #2c2542;
+  --st-fg: #c6aef0;
+}
+.dark .studio-tint-teal {
+  --st-bg: #14342b;
+  --st-fg: #8bd6bd;
+}
+.dark .studio-tint-amber {
+  --st-bg: #392c16;
+  --st-fg: #e3b266;
+}
+.dark .studio-tint-rose {
+  --st-bg: #3a1f28;
+  --st-fg: #efa3b6;
+}
+.dark .studio-tint-indigo {
+  --st-bg: #232542;
+  --st-fg: #aab2f0;
+}
+.dark .studio-tint-green {
+  --st-bg: #1a3320;
+  --st-fg: #8fd196;
+}
+.dark .studio-tint-cyan {
+  --st-bg: #123236;
+  --st-fg: #79cdd6;
+}
+
 /* 공통 상호작용 전환: 색/그림자/transform을 부드럽게. */
 .interactive {
   transition:

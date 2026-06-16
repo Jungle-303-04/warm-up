@@ -12,18 +12,22 @@ import {
   ChevronRight,
   ChevronsUpDown,
   CircleUserRound,
+  Copy,
   Database,
   File,
   FileText,
   FileType,
+  FlaskConical,
   Folder,
   FolderGit2,
+  GitCompare,
   Lightbulb,
   Link2,
   ListChecks,
   Loader2,
   LogIn,
   type LucideIcon,
+  MapPinned,
   MessageSquare,
   Monitor,
   Moon,
@@ -31,6 +35,7 @@ import {
   Network,
   NotebookText,
   NotebookPen,
+  Paperclip,
   Pencil,
   Plus,
   Search,
@@ -38,6 +43,8 @@ import {
   Sparkles,
   StickyNote,
   Sun,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
   UploadCloud,
   Workflow,
@@ -72,9 +79,19 @@ const ICONS: Record<string, LucideIcon> = {
   calendar_month: Calendar,
   report: NotebookText, // 보고서 (스튜디오)
   mindmap: Network, // 마인드맵 (스튜디오)
+  dependency: Network, // 의존성 그래프 (스튜디오)
+  code_tour: MapPinned, // 코드 투어 (스튜디오)
+  diff: GitCompare, // 변경 요약 (스튜디오)
+  test_map: FlaskConical, // 테스트맵 (스튜디오)
   article: StickyNote,
   lightbulb: Lightbulb, // 추천 질문 칩
   note_add: NotebookPen, // 메모 추가
+  // 채팅 답변 액션 줄
+  save_note: NotebookPen, // 메모에 저장
+  copy: Copy, // 복사
+  thumb_up: ThumbsUp, // 좋아요
+  thumb_down: ThumbsDown, // 싫어요
+  attach: Paperclip, // 입력바 첨부
   notebook: NotebookText, // 노트북 대표 아이콘(대시보드/탑바)
   // 소스 타입 아이콘
   folder_code: FolderGit2, // GitHub 저장소

@@ -16,7 +16,7 @@ export function StudioPanel({ style }: { style?: React.CSSProperties }) {
       </div>
 
       <div className="scroll-thin flex-1 overflow-y-auto px-4 pb-4 pt-2">
-        {/* 기능 카드 2열 그리드: 아이콘 + 라벨 + 보조설명 + 우측 chevron */}
+        {/* 기능 카드 2열 그리드: 색조 아이콘 박스 + 라벨 + 보조설명 + chevron + 베타 배지 */}
         <div className="grid grid-cols-2 gap-2.5">
           {STUDIO_TILES.map((t) => (
             <button
@@ -24,9 +24,14 @@ export function StudioPanel({ style }: { style?: React.CSSProperties }) {
               type="button"
               disabled
               title={`${t.label} · 준비 중`}
-              className="interactive group relative flex flex-col gap-2 rounded-2xl border border-border bg-card p-3 text-left disabled:cursor-not-allowed"
+              className="interactive group relative flex flex-col gap-2.5 rounded-2xl border border-border bg-card p-3 text-left hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elev-2 disabled:cursor-not-allowed"
             >
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-accent-foreground">
+              {t.beta ? (
+                <span className="absolute right-2 top-2 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  베타
+                </span>
+              ) : null}
+              <span className={`studio-tint studio-tint-${t.tint} grid h-9 w-9 place-items-center rounded-xl`}>
                 <Icon name={t.icon} size={18} />
               </span>
               <span className="min-w-0">
@@ -35,7 +40,7 @@ export function StudioPanel({ style }: { style?: React.CSSProperties }) {
                   <Icon
                     name="chevron_right"
                     size={15}
-                    className="shrink-0 text-muted-foreground/60"
+                    className="shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
                   />
                 </span>
                 <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
@@ -75,7 +80,11 @@ export function StudioPanel({ style }: { style?: React.CSSProperties }) {
                 <span className="block truncate text-[13px] font-medium leading-tight">
                   {n.title}
                 </span>
-                <span className="mt-0.5 block text-[11px] text-muted-foreground">{n.kind}</span>
+                <span className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <span>{n.kind}</span>
+                  <span aria-hidden>·</span>
+                  <span>{n.time}</span>
+                </span>
               </span>
             </button>
           ))}
