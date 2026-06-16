@@ -28,7 +28,7 @@ export function BoardCreatePanel({ isSaving, onCancel, onCreate }) {
   }
 
   return (
-    <section className="board-create-panel" aria-labelledby="board-create-title">
+    <article className="board-detail-page" aria-labelledby="board-create-title">
       <form className="board-edit-form" onSubmit={submitCreate}>
         <header className="board-create-header">
           <div>
@@ -41,7 +41,7 @@ export function BoardCreatePanel({ isSaving, onCancel, onCreate }) {
             onClick={onCancel}
             disabled={isSaving}
           >
-            닫기
+            목록으로
           </button>
         </header>
 
@@ -131,7 +131,7 @@ export function BoardCreatePanel({ isSaving, onCancel, onCreate }) {
           {isSaving ? '등록 중' : '게시글 등록'}
         </button>
       </form>
-    </section>
+    </article>
   )
 }
 

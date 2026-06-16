@@ -172,6 +172,12 @@ function App() {
         setStatus({ type: 'success', message: '깃허브 로그인이 완료되었습니다.' })
         void loadBoards(payload.user)
         const boardId = parseBoardIdFromHash()
+        if (isCreateBoardHash()) {
+          setSelectedBoard(null)
+          setIsCreatingBoard(true)
+          return
+        }
+
         if (boardId) {
           void openBoardDetail(boardId, { pushUrl: false })
         }
@@ -285,6 +291,12 @@ function App() {
     window.history.replaceState(null, '', window.location.pathname)
   }
 
+  function openBoardCreatePage() {
+    setSelectedBoard(null)
+    setIsCreatingBoard(true)
+    window.history.pushState({ boardCreate: true }, '', '#board/new')
+  }
+
   async function createBoard(formPayload) {
     setBoardAction('create')
     setStatus({ type: 'muted', message: '게시글을 등록하는 중입니다.' })
@@ -318,11 +330,12 @@ function App() {
       // Response DTO는 GET /board/{board_id}와 같은 BoardResponse이다.
       const createdBoard = await postJson(`${API_BASE_URL}/board/`, formPayload)
       setBoards((currentBoards) => [createdBoard, ...currentBoards])
+      setVisibleMonth(getBoardCalendarFocusDate(createdBoard))
       setIsCreatingBoard(false)
-      setSelectedBoard(createdBoard)
-      window.history.pushState({ boardId: createdBoard.id }, '', `#board/${createdBoard.id}`)
-      setStatus({ type: 'success', message: '게시글을 등록했습니다.' })
-      window.alert('게시글을 등록했습니다.')
+      setSelectedBoard(null)
+      window.history.replaceState(null, '', window.location.pathname)
+      setStatus({ type: 'success', message: '게시글을 캘린더에 반영했습니다.' })
+      window.alert('게시글을 캘린더에 반영했습니다.')
       return true
     } catch (error) {
       const errorMessage = toKoreanErrorMessage(error.message)
@@ -550,6 +563,12 @@ function App() {
     function handleBrowserNavigation() {
       const boardId = parseBoardIdFromHash()
 
+      if (isCreateBoardHash()) {
+        setSelectedBoard(null)
+        setIsCreatingBoard(true)
+        return
+      }
+
       if (!boardId) {
         setSelectedBoard(null)
         setIsCreatingBoard(false)
@@ -583,6 +602,12 @@ function App() {
                 onUpdate={(payload) => updateBoardDetail(selectedBoard.id, payload)}
                 onDelete={() => void deleteBoardDetail(selectedBoard.id)}
               />
+            ) : isCreatingBoard ? (
+              <BoardCreatePanel
+                isSaving={boardAction === 'create'}
+                onCancel={closeBoardDetail}
+                onCreate={createBoard}
+              />
             ) : (
               <>
                 <CalendarWorkspace
@@ -593,16 +618,9 @@ function App() {
                   onNextMonth={showNextMonth}
                   onCurrentMonth={showCurrentMonth}
                   onReloadBoards={() => void loadBoards(user, { notify: true })}
-                  onStartCreateBoard={() => setIsCreatingBoard(true)}
+                  onStartCreateBoard={openBoardCreatePage}
                   onOpenBoard={(boardId) => void openBoardDetail(boardId)}
                 />
-                {isCreatingBoard ? (
-                  <BoardCreatePanel
-                    isSaving={boardAction === 'create'}
-                    onCancel={() => setIsCreatingBoard(false)}
-                    onCreate={createBoard}
-                  />
-                ) : null}
                 <RepositoryWorkspace
                   repositoryFullName={repositoryFullName}
                   branch={branch}
@@ -632,4 +650,17 @@ export default App
 function parseBoardIdFromHash() {
   const match = window.location.hash.match(/^#board\/(\d+)$/)
   return match ? Number(match[1]) : null
+}
+
+function isCreateBoardHash() {
+  return window.location.hash === '#board/new'
+}
+
+function getBoardCalendarFocusDate(board) {
+  const calendarDate =
+    board.schedule_board_detail?.start_at
+    || board.proceedings_board_detail?.meeting_date
+    || board.created_at
+
+  return calendarDate ? new Date(calendarDate) : new Date()
 }

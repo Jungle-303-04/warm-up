@@ -731,15 +731,6 @@ h1 {
   padding: 18px;
 }
 
-.board-create-panel {
-  display: grid;
-  gap: 16px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  padding: 18px;
-}
-
 .board-create-header {
   display: flex;
   flex-wrap: wrap;
