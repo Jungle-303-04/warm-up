@@ -231,7 +231,7 @@ function Board() {
               <div className="flex items-center gap-2 text-xs text-[#d4d4d4]">
                 <time dateTime="2026-03-16">{post.date}</time>
                 <span aria-hidden="true">•</span>
-                <span className="rounded-full bg-[#d4d4d4] px-2 py-0.5 text-[10px] font-medium text-black">
+                <span className="rounded-full border border-gray-200 bg-[#F8F9FA] px-2 py-0.5 text-[10px] font-medium text-black">
                   {post.fontName}
                 </span>
               </div>
