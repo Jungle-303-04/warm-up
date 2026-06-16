@@ -130,16 +130,6 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
           />
         </label>
 
-        <label className="board-field">
-          <span>본문</span>
-          <textarea
-            value={form.content}
-            onChange={(event) => updateField('content', event.target.value)}
-            required
-            rows={5}
-          />
-        </label>
-
         <BoardCreateTypeFields
           boardType={boardType}
           form={form}
@@ -180,6 +170,18 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
               />
             </label>
           </div>
+        </section>
+
+        <section className="board-detail-section">
+          <label className="board-field">
+            <span>본문</span>
+            <textarea
+              value={form.content}
+              onChange={(event) => updateField('content', event.target.value)}
+              required
+              rows={6}
+            />
+          </label>
         </section>
 
         <div className="board-form-actions">
