@@ -70,6 +70,10 @@ def store_github_repository_rag_index(
 ) -> RagStoredIndexResponseDTO:
     """로그인 사용자의 GitHub 토큰으로 레포 파일을 수집해 RAG 저장소에 인덱싱한다."""
 
+    # TODO: 백엔드 최종 방어 지점이다.
+    # - 인증 없는 요청과 프론트 우회 요청은 반드시 여기서 거절되어야 한다.
+    # - 같은 repository_full_name + branch + commit_sha 저장은 서비스/DB 레벨에서 막아야 한다.
+    # - 동시에 같은 분석 요청이 들어와도 중복 run이나 깨진 chunk/vector 상태가 생기지 않게 해야 한다.
     try:
         account = auth_context.github_account()
         return index_service.index_repository_and_store(

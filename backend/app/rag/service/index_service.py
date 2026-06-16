@@ -82,6 +82,9 @@ class RagIndexService:
     ) -> RagStoredIndexResponseDTO:
         """같은 저장 기준이 없을 때만 SQL 기록과 벡터 검색 데이터를 새로 저장한다."""
 
+        # TODO: 프론트의 버튼 잠금은 UX 보조일 뿐이다.
+        # 실제 데이터 무결성은 repository_full_name + branch + commit_sha 고유 제약,
+        # 트랜잭션 경계, 동시 요청 재확인으로 백엔드/DB가 최종 보장해야 한다.
         existing_run = self.find_existing_run(db, request)
 
         if existing_run is not None:

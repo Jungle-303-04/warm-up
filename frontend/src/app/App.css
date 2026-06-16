@@ -667,6 +667,18 @@ h1 {
   margin: 0;
 }
 
+.run-summary-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.run-summary-panel h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .run-summary div {
   min-width: 0;
   border: 1px solid var(--line);
@@ -1812,31 +1824,80 @@ h1 {
   line-height: 1.5;
 }
 
-.chatbot-readiness {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.chatbot-basis-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  margin: 6px 0;
+  margin: 4px 0;
 }
 
-.chatbot-readiness div {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  padding: 8px;
-}
-
-.chatbot-readiness dt {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.chatbot-readiness dd {
-  margin: 2px 0 0;
+.chatbot-basis-summary > span {
+  min-width: 0;
   color: var(--heading);
   font-size: 12px;
   font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatbot-basis-summary button {
+  flex: 0 0 auto;
+  min-height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--heading);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.chatbot-basis-summary button:hover {
+  border-color: var(--line-strong);
+}
+
+.chatbot-basis-picker {
+  max-height: 132px;
+  display: grid;
+  gap: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: 6px 0;
+  padding: 8px;
+}
+
+.chatbot-basis-picker legend {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 4px;
+}
+
+.chatbot-basis-picker label {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.chatbot-basis-picker input {
+  flex: 0 0 auto;
+}
+
+.chatbot-basis-picker span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chatbot-body {
@@ -2062,6 +2123,13 @@ h1 {
   opacity: 0.66;
 }
 
+.chatbot-form-error {
+  margin: 0;
+  color: #bf4949;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .chatbot-actions {
   display: grid;
 }
@@ -2167,7 +2235,6 @@ h1 {
   .schedule-task-row,
   .repository-run-header,
   .repository-run-list button,
-  .chatbot-readiness,
   .board-detail-meta {
     grid-template-columns: 1fr;
   }

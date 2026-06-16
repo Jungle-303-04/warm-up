@@ -3,24 +3,36 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 const INITIAL_SESSION_ID = 1
 const MOCK_RESPONSE_DELAY_MS = 900
 
-export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
+export function ChatbotDrawer({ indexResult, isIndexing, repositoryRuns }) {
   const responseTimerIds = useRef(new Map())
   const sessionIdRef = useRef(INITIAL_SESSION_ID + 1)
   const messageIdRef = useRef(100)
   const [isOpen, setIsOpen] = useState(false)
   const [draft, setDraft] = useState('')
+  const [draftError, setDraftError] = useState('')
+  const [selectedRunIds, setSelectedRunIds] = useState([])
+  const [isBasisPickerOpen, setIsBasisPickerOpen] = useState(false)
   const [activeSessionId, setActiveSessionId] = useState(INITIAL_SESSION_ID)
   const [sessions, setSessions] = useState(() => [
     createChatSession(INITIAL_SESSION_ID, '새 대화'),
   ])
+  const chatBasisOptions = useMemo(
+    () => buildChatBasisOptions(repositoryRuns, indexResult),
+    [repositoryRuns, indexResult],
+  )
+  const selectedRuns = useMemo(
+    () => chatBasisOptions.filter((run) => selectedRunIds.includes(run.id)),
+    [chatBasisOptions, selectedRunIds],
+  )
 
   const chatContext = useMemo(
-    () => buildChatContext(repositoryFullName, branch, indexResult),
-    [repositoryFullName, branch, indexResult],
+    () => buildChatContext(selectedRuns, isIndexing),
+    [selectedRuns, isIndexing],
   )
   const activeSession = sessions.find((session) => session.id === activeSessionId)
     || sessions[0]
   const messages = activeSession?.messages || []
+  const isChatInputDisabled = activeSession.isGenerating
 
   useEffect(() => () => {
     responseTimerIds.current.forEach((timerId) => window.clearTimeout(timerId))
@@ -41,6 +53,7 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
     setSessions((currentSessions) => [nextSession, ...currentSessions])
     setActiveSessionId(nextSession.id)
     setDraft('')
+    setDraftError('')
   }
 
   function deleteSession(sessionId) {
@@ -56,6 +69,7 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
       setSessions([nextSession])
       setActiveSessionId(nextSession.id)
       setDraft('')
+      setDraftError('')
       return
     }
 
@@ -65,6 +79,7 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
     if (sessionId === activeSessionId) {
       setActiveSessionId(nextSessions[0].id)
       setDraft('')
+      setDraftError('')
     }
   }
 
@@ -73,9 +88,22 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
     sendMockMessage()
   }
 
+  function toggleSelectedRun(runId) {
+    setSelectedRunIds((currentRunIds) => (
+      currentRunIds.includes(runId)
+        ? currentRunIds.filter((currentRunId) => currentRunId !== runId)
+        : [...currentRunIds, runId]
+    ))
+  }
+
   function sendMockMessage() {
     const nextQuestion = draft.trim()
-    if (!nextQuestion || activeSession.isGenerating) {
+    if (!nextQuestion) {
+      setDraftError('질문을 입력한 뒤 보내기를 눌러 주세요.')
+      return
+    }
+
+    if (isChatInputDisabled) {
       return
     }
 
@@ -85,11 +113,20 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
     // {
     //   session_id: number | string,
     //   question: string,
-    //   repository_full_name: string,
-    //   branch?: string | null,
-    //   commit_sha?: string | null,
+    //   selected_runs?: Array<{
+    //     run_id: number,
+    //     repository_full_name: string,
+    //     branch?: string | null,
+    //     commit_sha?: string
+    //   }>,
     //   limit: number
     // }
+    // Backend에서 받아야 하는 정보:
+    // - 사용자의 질문과 대화 맥락에서 레포를 추론한 뒤 가장 최신 완료 run을 찾는 결과
+    // - 사용자가 선택한 레포가 있으면 여러 selected_runs를 기준으로 검색하는 기능
+    // - 선택된 레포가 없으면 질문에 나온 레포명으로 최신 pulling/run_id를 찾는 기능
+    // - 새 분석이 진행 중인지 여부와 진행 중인 요청의 repository_full_name/branch
+    // 현재는 App이 가진 repositoryRuns/indexResult와 isIndexing으로 더미처럼 동작하게 만든다.
     // Current implementation is a frontend mock, so session/message state stays in React only.
     // Real backend connection should keep the loading state until the API response arrives.
     const userMessage = {
@@ -101,9 +138,7 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
     const assistantMessage = {
       id: messageIdRef.current,
       sender: 'assistant',
-      text: chatContext.repositoryName
-        ? `${chatContext.repositoryName} 기준으로 답변이 생성될 예정입니다. 실제 연결 시 저장된 RAG 근거와 함께 LLM으로 전달됩니다.`
-        : '먼저 레포지토리를 분석하거나 분석된 레포를 선택하면, 그 결과를 기준으로 답변이 생성될 예정입니다.',
+      text: buildMockAssistantText(chatContext),
     }
     messageIdRef.current += 1
 
@@ -126,6 +161,7 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
       }),
     )
     setDraft('')
+    setDraftError('')
     scheduleMockResponse(activeSession.id, assistantMessage)
   }
 
@@ -206,18 +242,48 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
           </header>
 
           <section className="chatbot-context" aria-label="현재 질문 기준">
-            <strong>{chatContext.repositoryName || '분석 기준 없음'}</strong>
+            <strong>
+              {chatContext.title}
+            </strong>
             <span>{chatContext.detail}</span>
-            <dl className="chatbot-readiness">
-              <div>
-                <dt>분석 기준</dt>
-                <dd>{chatContext.repositoryName ? '선택됨' : '필요함'}</dd>
-              </div>
-              <div>
-                <dt>답변 상태</dt>
-                <dd>목업 응답</dd>
-              </div>
-            </dl>
+            <p className="chatbot-context-note">
+              대화 중 다른 레포를 말하면 기준을 추가하거나 전환할 수 있습니다.
+            </p>
+            {chatContext.warning ? (
+              <p className="chatbot-context-warning">{chatContext.warning}</p>
+            ) : null}
+            <div className="chatbot-basis-summary">
+              <span>{chatContext.modeLabel}</span>
+              <button
+                type="button"
+                onClick={() => setIsBasisPickerOpen((current) => !current)}
+              >
+                {isBasisPickerOpen ? '닫기' : '기준 변경'}
+              </button>
+            </div>
+            {isBasisPickerOpen ? (
+              <fieldset className="chatbot-basis-picker">
+                <legend>분석 기준 선택</legend>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selectedRunIds.length === 0}
+                    onChange={() => setSelectedRunIds([])}
+                  />
+                  <span>대화로 선택</span>
+                </label>
+                {chatBasisOptions.map((run) => (
+                  <label key={run.id}>
+                    <input
+                      type="checkbox"
+                      checked={selectedRunIds.includes(run.id)}
+                      onChange={() => toggleSelectedRun(run.id)}
+                    />
+                    <span>{formatRunOptionLabel(run)}</span>
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
             <p>
               아직 실제 LLM API와 연결되지 않았습니다. 현재 대화는 화면 흐름을 확인하기 위한
               목업 응답입니다.
@@ -243,6 +309,7 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
                         onClick={() => {
                           setActiveSessionId(session.id)
                           setDraft('')
+                          setDraftError('')
                         }}
                       >
                         <strong>{session.title}</strong>
@@ -289,17 +356,31 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
             <textarea
               id="chatbot-question"
               value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => {
+                setDraft(event.target.value)
+                if (draftError) {
+                  setDraftError('')
+                }
+              }}
               onKeyDown={submitOnEnter}
-              placeholder="이 레포 기준으로 다음 구현 계획을 제안해줘"
+              placeholder={chatContext.hasSelectedRuns
+                ? '이 레포 기준으로 다음 구현 계획을 제안해줘'
+                : '어떤 레포를 읽고 답변할지 물어보세요'}
               rows="4"
-              disabled={activeSession.isGenerating}
+              disabled={isChatInputDisabled}
+              aria-invalid={Boolean(draftError)}
+              aria-describedby={draftError ? 'chatbot-question-error' : undefined}
             />
+            {draftError ? (
+              <p className="chatbot-form-error" id="chatbot-question-error">
+                {draftError}
+              </p>
+            ) : null}
             <div className="chatbot-actions">
               <button
                 type="submit"
                 className="primary-action"
-                disabled={activeSession.isGenerating}
+                disabled={isChatInputDisabled}
               >
                 {activeSession.isGenerating ? '생성 중' : '보내기'}
               </button>
@@ -342,25 +423,82 @@ function formatSessionTime(value) {
   }).format(new Date(value))
 }
 
-function buildChatContext(repositoryFullName, branch, indexResult) {
-  const repositoryName = indexResult?.repository_full_name || repositoryFullName.trim()
-  const branchName = indexResult?.branch || branch.trim()
-  const commitSha = indexResult?.commit_sha || indexResult?.pipeline_result?.commit_sha
-
-  if (!repositoryName) {
+function buildChatContext(selectedRuns, isIndexing) {
+  if (!selectedRuns.length) {
     return {
-      repositoryName: '',
-      detail: '레포지토리 분석 후 질문 기준이 자동으로 잡힙니다.',
+      title: '시작 기준: 대화로 선택',
+      modeLabel: '대화로 선택',
+      hasSelectedRuns: false,
+      detail: isIndexing
+        ? '새 분석이 진행 중입니다. 질문은 가능하고, 완료되면 분석 기준이 자동으로 잡힙니다.'
+        : '질문과 대화 맥락에서 필요한 레포를 찾습니다.',
+      warning: '',
     }
   }
 
-  const parts = [branchName || '기본 브랜치']
-  if (commitSha) {
-    parts.push(`commit ${commitSha.slice(0, 7)}`)
+  if (selectedRuns.length === 1) {
+    const run = selectedRuns[0]
+    const shortCommitSha = run.commit_sha ? run.commit_sha.slice(0, 7) : ''
+    const detail = shortCommitSha
+      ? `${run.branch || '기본 브랜치'} · commit ${shortCommitSha}`
+      : `${run.branch || '기본 브랜치'} · run #${run.id}`
+
+    return {
+      title: `시작 기준: ${run.repository_full_name}`,
+      modeLabel: '선택한 레포',
+      hasSelectedRuns: true,
+      detail,
+      warning: isIndexing
+        ? '새 분석이 진행 중입니다. 완료 전까지는 선택한 완료 분석 기준으로 답변합니다.'
+        : '',
+    }
   }
 
   return {
-    repositoryName,
-    detail: parts.join(' · '),
+    title: `시작 기준: ${selectedRuns.length}개 레포`,
+    modeLabel: '여러 레포 선택',
+    hasSelectedRuns: true,
+    detail: selectedRuns.map((run) => run.repository_full_name).join(', '),
+    warning: isIndexing
+      ? '새 분석이 진행 중입니다. 완료 전까지는 선택한 완료 분석 기준으로 답변합니다.'
+      : '',
   }
+}
+
+function buildMockAssistantText(chatContext) {
+  if (!chatContext.hasSelectedRuns) {
+    return '현재 고정된 분석 기준은 없습니다. 실제 연결 시에는 사용자의 질문과 대화 맥락에서 레포를 파악하고, 해당 레포의 가장 최신 완료 분석 기준으로 답변합니다.'
+  }
+
+  return `${chatContext.title.replace('시작 기준: ', '')} / ${chatContext.detail} 기준으로 답변이 생성될 예정입니다. 실제 연결 시 선택된 RAG 근거와 대화 중 추가된 레포 맥락을 함께 사용합니다.`
+}
+
+function buildChatBasisOptions(repositoryRuns, indexResult) {
+  const optionsById = new Map()
+
+  for (const run of repositoryRuns || []) {
+    if (run.id && run.repository_full_name) {
+      optionsById.set(run.id, run)
+    }
+  }
+
+  if (indexResult?.run_id && indexResult.repository_full_name) {
+    optionsById.set(indexResult.run_id, {
+      id: indexResult.run_id,
+      repository_full_name: indexResult.repository_full_name,
+      branch: indexResult.branch,
+      commit_sha: indexResult.commit_sha || indexResult.pipeline_result?.commit_sha,
+      indexed_at: indexResult.indexed_at,
+    })
+  }
+
+  return Array.from(optionsById.values()).sort(
+    (left, right) => new Date(right.indexed_at || 0) - new Date(left.indexed_at || 0),
+  )
+}
+
+function formatRunOptionLabel(run) {
+  const branch = run.branch || '기본 브랜치'
+  const commit = run.commit_sha ? ` · ${run.commit_sha.slice(0, 7)}` : ''
+  return `${run.repository_full_name} / ${branch}${commit}`
 }

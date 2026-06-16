@@ -646,6 +646,10 @@ function App() {
   async function indexRepository(event) {
     event.preventDefault()
 
+    if (isIndexing) {
+      return
+    }
+
     const repositoryName = normalizeRepositoryInput(repositoryFullName)
     if (!repositoryName) {
       const errorMessage = '잘못된 입력 형식입니다.'
@@ -697,12 +701,10 @@ function App() {
 
   function updateRepositoryFullName(value) {
     setRepositoryFullName(value)
-    setIndexResult(null)
   }
 
   function updateBranch(value) {
     setBranch(value)
-    setIndexResult(null)
   }
 
   function selectRepositoryRun(run) {
@@ -889,9 +891,9 @@ function App() {
               />
             )}
             <ChatbotDrawer
-              repositoryFullName={repositoryFullName}
-              branch={branch}
               indexResult={indexResult}
+              isIndexing={isIndexing}
+              repositoryRuns={repositoryRuns}
             />
           </>
         ) : null}

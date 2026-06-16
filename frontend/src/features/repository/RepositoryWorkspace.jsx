@@ -217,25 +217,29 @@ function RunSummary({ indexResult }) {
   // Response DTO인 RagStoredIndexResponseDTO를 사용자용으로 줄여 보여준다.
   // 화면에는 내부 저장 개수(sql_chunk_count/vector_chunk_count)보다
   // repository_full_name, branch, indexed_at 중심으로 표시한다.
+  // 이 영역은 현재 입력칸 값이 아니라 채팅/질문에 쓰이는 마지막 완료 분석 기준이다.
   const repositoryName = indexResult.repository_full_name || '-'
   const branch = indexResult.branch || '기본 브랜치'
   const indexedAt = indexResult.indexed_at
 
   return (
-    <dl className="run-summary" aria-label="최근 분석 결과">
-      <div>
-        <dt>레포지토리</dt>
-        <dd>{repositoryName}</dd>
-      </div>
-      <div>
-        <dt>브랜치</dt>
-        <dd>{branch}</dd>
-      </div>
-      <div>
-        <dt>마지막 분석</dt>
-        <dd>{formatDateTime(indexedAt)}</dd>
-      </div>
-    </dl>
+    <section className="run-summary-panel" aria-labelledby="run-summary-title">
+      <h3 id="run-summary-title">마지막 완료 분석 기준</h3>
+      <dl className="run-summary">
+        <div>
+          <dt>레포지토리</dt>
+          <dd>{repositoryName}</dd>
+        </div>
+        <div>
+          <dt>브랜치</dt>
+          <dd>{branch}</dd>
+        </div>
+        <div>
+          <dt>마지막 분석</dt>
+          <dd>{formatDateTime(indexedAt)}</dd>
+        </div>
+      </dl>
+    </section>
   )
 }
 
