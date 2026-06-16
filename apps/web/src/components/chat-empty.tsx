@@ -7,7 +7,7 @@ import { Icon } from "./icon";
 // 빠른 시작 카드 3개는 공용 소스 추가 흐름(컨텍스트)을 그대로 호출한다.
 interface QuickCard {
   icon: string;
-  tint: string; // .studio-tint-* 키
+  tintCls: string; // Tailwind bg & text 클래스
   title: string;
   desc: string;
 }
@@ -16,19 +16,19 @@ interface QuickCard {
 const CARDS: QuickCard[] = [
   {
     icon: "github",
-    tint: "teal",
+    tintCls: "bg-teal-500/10 text-teal-600 dark:bg-teal-500/20 dark:text-teal-400",
     title: "GitHub 저장소 연결",
     desc: "URL을 붙여넣으면 브랜치를 인식해 코드 근거로 답합니다.",
   },
   {
     icon: "description",
-    tint: "blue",
+    tintCls: "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400",
     title: "문서 · PDF 업로드",
     desc: "PDF · Markdown · 텍스트를 끌어다 놓거나 선택하세요.",
   },
   {
     icon: "link",
-    tint: "violet",
+    tintCls: "bg-violet-500/10 text-violet-600 dark:bg-violet-500/20 dark:text-violet-400",
     title: "링크 추가",
     desc: "문서 페이지·위키 링크나 GitHub 주소를 소스로 등록합니다.",
   },
@@ -38,10 +38,10 @@ export function ChatEmpty() {
   const { openAddSource } = useSourceActions();
 
   return (
-    <div className="scroll-thin flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto">
       <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col items-center justify-center px-6 py-10">
         {/* 히어로: 큰 아이콘 + 헤드라인 + 설명 */}
-        <span className="grid h-14 w-14 place-items-center rounded-3xl bg-accent text-accent-foreground shadow-elev-2">
+        <span className="grid h-14 w-14 place-items-center rounded-3xl bg-accent text-accent-foreground shadow">
           <Icon name="hub" size={28} />
         </span>
         <h1 className="mt-4 text-center text-[19px] font-semibold leading-tight">
@@ -59,10 +59,10 @@ export function ChatEmpty() {
               key={c.title}
               type="button"
               onClick={openAddSource}
-              className="interactive group flex flex-col items-start gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-left hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2 active:scale-[0.99]"
+              className="transition-all duration-200 ease-in-out group flex flex-col items-start gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-left hover:-translate-y-0.5 hover:border-primary/40 hover:shadow active:scale-[0.99]"
             >
               <span
-                className={`studio-tint studio-tint-${c.tint} grid h-10 w-10 place-items-center rounded-2xl`}
+                className={`${c.tintCls} grid h-10 w-10 place-items-center rounded-2xl`}
               >
                 <Icon name={c.icon} size={18} />
               </span>

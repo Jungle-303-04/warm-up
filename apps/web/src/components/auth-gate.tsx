@@ -15,7 +15,7 @@ export function LoginScreen() {
         <ThemeToggle />
       </div>
       <div className="flex w-full max-w-sm flex-col items-center text-center">
-        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-elev-1">
+        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-sm">
           <Icon name="hub" size={28} />
         </span>
         <h1 className="mt-5 text-[22px] font-semibold tracking-tight">RepoLM</h1>
@@ -26,7 +26,7 @@ export function LoginScreen() {
         </p>
         <a
           href={loginUrl()}
-          className="interactive mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[13px] font-semibold text-primary-foreground shadow-elev-1 hover:opacity-90 hover:shadow-elev-2 active:scale-[0.98]"
+          className="transition-all duration-200 ease-in-out mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90 hover:shadow-md active:scale-[0.98]"
         >
           <Icon name="github" size={17} /> GitHub로 로그인
         </a>

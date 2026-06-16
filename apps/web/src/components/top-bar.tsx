@@ -63,7 +63,7 @@ export function TopBar({
       <div className="flex min-w-0 items-center gap-1">
         <Link
           href="/"
-          className="interactive flex items-center gap-2 rounded-full px-2 py-1 hover:bg-secondary"
+          className="transition-all duration-200 ease-in-out flex items-center gap-2 rounded-full px-2 py-1 hover:bg-secondary"
           title="대시보드로"
         >
           <span className="grid h-6 w-6 place-items-center rounded-lg bg-accent text-accent-foreground">
@@ -95,7 +95,7 @@ export function TopBar({
             type="button"
             onClick={startEdit}
             title="제목 편집"
-            className="interactive group flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-0.5 hover:bg-secondary"
+            className="transition-all duration-200 ease-in-out group flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-0.5 hover:bg-secondary"
           >
             <span className="truncate text-[12px] font-medium">{title}</span>
             {saving ? (
