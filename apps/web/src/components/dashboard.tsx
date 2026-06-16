@@ -22,7 +22,7 @@ export function Dashboard() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<Notebook | null>(null);
 
   useEffect(() => {
@@ -32,11 +32,18 @@ export function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleCreate = async (title: string) => {
-    const nb = await createNotebook({ title });
-    setNotebooks((prev) => [nb, ...prev]);
-    setCreateOpen(false);
-    router.push(`/notebooks/${nb.id}`);
+  // 생성 즉시 더미 제목으로 노트북을 만들고 바로 노트북 페이지로 진입한다.
+  // (제목은 노트북 안에서 또는 카드 메뉴 "이름 변경"으로 수정)
+  const handleCreate = async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const nb = await createNotebook({ title: "제목 없는 노트북" });
+      router.push(`/notebooks/${nb.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "생성 실패");
+      setCreating(false);
+    }
   };
 
   const handleRename = async (id: string, title: string) => {
@@ -73,10 +80,11 @@ export function Dashboard() {
           </div>
           <button
             type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            onClick={handleCreate}
+            disabled={creating}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            <Icon name="add" size={18} /> 새 노트북 만들기
+            <Icon name="add" size={18} /> {creating ? "만드는 중…" : "새 노트북 만들기"}
           </button>
         </div>
 
@@ -87,7 +95,7 @@ export function Dashboard() {
         ) : error ? (
           <p className="mt-16 text-center text-[13px] text-destructive">{error}</p>
         ) : notebooks.length === 0 ? (
-          <EmptyState onCreate={() => setCreateOpen(true)} />
+          <EmptyState onCreate={handleCreate} />
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {notebooks.map((nb) => (
@@ -103,7 +111,6 @@ export function Dashboard() {
         )}
       </main>
 
-      <CreateModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
       <RenameModal
         notebook={renaming}
         onClose={() => setRenaming(null)}
@@ -230,60 +237,6 @@ function MenuItem({
       <Icon name={icon} size={15} />
       {label}
     </button>
-  );
-}
-
-function CreateModal({
-  open,
-  onClose,
-  onCreate,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onCreate: (title: string) => Promise<void>;
-}) {
-  const [title, setTitle] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await onCreate(title.trim());
-      setTitle("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "생성 실패");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Modal open={open} onClose={onClose} title="새 노트북">
-      <form onSubmit={submit} className="space-y-3">
-        <label className="block space-y-1.5">
-          <span className="text-[13px] font-medium">제목</span>
-          <input
-            autoFocus
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="예: 인증 서비스 리서치"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] outline-none placeholder:text-muted-foreground focus:border-ring"
-          />
-        </label>
-        {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
-        <button
-          type="submit"
-          disabled={!title.trim() || busy}
-          className="w-full rounded-full bg-primary py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {busy ? "만드는 중…" : "만들기"}
-        </button>
-      </form>
-    </Modal>
   );
 }
 

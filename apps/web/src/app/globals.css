@@ -22,54 +22,58 @@
 }
 
 @theme {
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  /* NotebookLM 폰트: Google Sans(설치 시) → Roboto 폴백 */
+  --font-sans: "Google Sans Text", "Google Sans", Roboto, "Helvetica Neue", Arial,
+    ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* NotebookLM Material 3 팔레트.
+   라이트: 블루-그레이 배경 #f0f4f9 + 화이트 카드 + 블루 액센트 #0b57d0.
+   다크: #1b1b1b 배경 + #282a2c 표면 + 라이트블루 액센트 #a8c7fa. */
 :root {
-  --background: 210 20% 98%;
-  --foreground: 200 24% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 200 24% 12%;
-  --primary: 176 77% 26%;
+  --background: 213 39% 96%; /* #f0f4f9 */
+  --foreground: 0 0% 12%; /* #1f1f1f */
+  --card: 0 0% 100%; /* #ffffff */
+  --card-foreground: 0 0% 12%;
+  --primary: 217 90% 43%; /* #0b57d0 */
   --primary-foreground: 0 0% 100%;
-  --secondary: 205 23% 92%;
-  --secondary-foreground: 200 24% 12%;
-  --muted: 205 23% 92%;
-  --muted-foreground: 205 10% 44%;
-  --accent: 176 32% 92%;
-  --accent-foreground: 176 77% 22%;
-  --destructive: 4 78% 40%;
+  --secondary: 214 38% 94%; /* #e9eef6 */
+  --secondary-foreground: 0 0% 12%;
+  --muted: 214 38% 94%;
+  --muted-foreground: 213 6% 39%; /* #5f6368 */
+  --accent: 217 91% 91%; /* #d3e3fd */
+  --accent-foreground: 217 90% 33%; /* #0842a0 */
+  --destructive: 3 71% 41%; /* #b3261e */
   --destructive-foreground: 0 0% 100%;
-  --border: 207 19% 88%;
-  --input: 207 19% 82%;
-  --ring: 176 77% 26%;
-  --code-bg: 200 24% 12%;
-  --code-fg: 210 20% 98%;
+  --border: 214 25% 89%; /* #dde3ea */
+  --input: 214 20% 84%;
+  --ring: 217 90% 43%;
+  --code-bg: 0 0% 12%;
+  --code-fg: 213 39% 96%;
   color-scheme: light;
 }
 
-/* 진짜 NotebookLM 다크 톤 */
 .dark {
-  --background: 220 6% 10%;
-  --foreground: 210 12% 90%;
-  --card: 220 6% 13%;
-  --card-foreground: 210 12% 90%;
-  --primary: 176 55% 47%;
-  --primary-foreground: 220 8% 8%;
-  --secondary: 220 5% 18%;
-  --secondary-foreground: 210 12% 90%;
-  --muted: 220 5% 18%;
-  --muted-foreground: 215 10% 62%;
-  --accent: 176 38% 22%;
-  --accent-foreground: 176 60% 82%;
-  --destructive: 0 62% 58%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 220 6% 22%;
-  --input: 220 6% 26%;
-  --ring: 176 55% 47%;
-  --code-bg: 220 8% 6%;
-  --code-fg: 210 12% 90%;
+  --background: 0 0% 11%; /* #1b1b1b */
+  --foreground: 0 0% 89%; /* #e3e3e3 */
+  --card: 210 5% 16%; /* #282a2c */
+  --card-foreground: 0 0% 89%;
+  --primary: 217 89% 82%; /* #a8c7fa */
+  --primary-foreground: 217 84% 20%; /* #062e6f */
+  --secondary: 210 4% 18%; /* #2d2f31 */
+  --secondary-foreground: 0 0% 89%;
+  --muted: 210 4% 18%;
+  --muted-foreground: 214 8% 75%; /* #bdc1c6 */
+  --accent: 217 45% 24%; /* 다크 secondary container */
+  --accent-foreground: 217 91% 91%; /* #d3e3fd */
+  --destructive: 2 76% 70%; /* #f2b8b5 */
+  --destructive-foreground: 0 0% 10%;
+  --border: 213 7% 24%; /* #3c4043 */
+  --input: 213 7% 28%;
+  --ring: 217 89% 82%;
+  --code-bg: 0 0% 5%;
+  --code-fg: 0 0% 89%;
   color-scheme: dark;
 }
 
