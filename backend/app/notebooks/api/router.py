@@ -408,8 +408,12 @@ def reindex_source(
 
     def run() -> IndexProgressView:
         record = service.get_source(notebook_id, source_id)
+        # 진행 레지스트리를 queued로 리셋(정지/실패한 인덱싱도 이 경로로 복구).
         indexing.register(record)
-        background_tasks.add_task(indexing.index_source, notebook_id, source_id)
+        # repo 소스면 재클론으로 최신 스냅샷 갱신 후 재인덱싱(resync_repo=True).
+        background_tasks.add_task(
+            indexing.index_source, notebook_id, source_id, resync_repo=True
+        )
         view = registry.get(source_id)
         assert view is not None  # register 직후이므로 항상 존재
         return IndexProgressView.from_view(view)

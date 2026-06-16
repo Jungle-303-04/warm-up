@@ -89,11 +89,15 @@ def get_indexing_service(
     embedder: EmbeddingClient = Depends(get_embedding_client),
     registry: IndexProgressRegistry = Depends(get_progress_registry_dep),
 ) -> IndexingService:
+    # repo 재풀링(reindex 최신화)을 위해 RepoSyncService를 주입한다.
+    from app.repository_source.infrastructure.repo_sync import RepoSyncService
+
     return IndexingService(
         store=store,
         chunk_store=chunk_store,
         embedder=embedder,
         registry=registry,
+        repo_sync=RepoSyncService(),
     )
 
 

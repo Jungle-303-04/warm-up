@@ -155,6 +155,118 @@ def test_url_source_done_with_zero_files() -> None:
     assert chunk_store.count_by_source(source.id) == 0
 
 
+class _FakeRepoSync:
+    """주입형 가짜 RepoSyncService. 실제 clone 없이 정한 스냅샷을 돌려준다."""
+
+    def __init__(self, snapshot=None, raises: bool = False) -> None:
+        self._snapshot = snapshot
+        self._raises = raises
+        self.calls = 0
+
+    def sync(self, request):  # PipelineRequest를 받지만 내용은 무시.
+        self.calls += 1
+        if self._raises:
+            raise ValueError("clone failed")
+        return self._snapshot
+
+
+def _make_snapshot(files: list[tuple[str, str]], branch: str = "main"):
+    from app.pipeline.api.schemas import RepoFile, RepoSnapshot
+
+    return RepoSnapshot(
+        repository="team/api",
+        branch=branch,
+        commit_sha="abcdef123456",
+        files=[RepoFile(path=path, content=content) for path, content in files],
+    )
+
+
+def test_reindex_repo_repulls_and_updates_snapshot() -> None:
+    notebook_service, _indexing, chunk_store, registry = _build()
+    store = notebook_service.store
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    repo = SourceRecord(
+        id="repo-1",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[{"path": "app/old.py", "content": "x = 1\n"}],
+        created_at=FIXED_NOW,
+    )
+    store.add_source(repo)
+
+    # 재풀링 시 새 파일이 담긴 스냅샷을 반환하는 가짜 repo_sync 주입.
+    fake_sync = _FakeRepoSync(
+        snapshot=_make_snapshot([("app/new.py", "def f():\n    return 2\n")])
+    )
+    indexing = IndexingService(
+        store=store,
+        chunk_store=chunk_store,
+        embedder=DeterministicEmbeddingClient(dimension=64),
+        registry=registry,
+        clock=lambda: FIXED_NOW,
+        id_factory=lambda: "chunk-x",
+        repo_sync=fake_sync,
+    )
+
+    indexing.reindex_source(notebook.id, repo.id)
+
+    assert fake_sync.calls == 1
+    # 저장소 스냅샷이 최신 파일로 갱신됨.
+    updated = store.get_source(notebook.id, repo.id)
+    paths = {entry["path"] for entry in updated.repo_snapshot}
+    assert paths == {"app/new.py"}
+
+    view = registry.get(repo.id)
+    assert view["status"] == "done"
+    assert view["last_synced_at"] is not None
+    # 최신 파일 기준으로 인덱싱됨.
+    statuses = {file["path"]: file["status"] for file in view["files"]}
+    assert statuses["app/new.py"] == "done"
+
+
+def test_reindex_repo_falls_back_when_resync_fails() -> None:
+    notebook_service, _indexing, chunk_store, registry = _build()
+    store = notebook_service.store
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    repo = SourceRecord(
+        id="repo-2",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[{"path": "app/keep.py", "content": "def g():\n    return 3\n"}],
+        created_at=FIXED_NOW,
+    )
+    store.add_source(repo)
+
+    fake_sync = _FakeRepoSync(raises=True)
+    indexing = IndexingService(
+        store=store,
+        chunk_store=chunk_store,
+        embedder=DeterministicEmbeddingClient(dimension=64),
+        registry=registry,
+        clock=lambda: FIXED_NOW,
+        id_factory=lambda: "chunk-y",
+        repo_sync=fake_sync,
+    )
+
+    indexing.reindex_source(notebook.id, repo.id)
+
+    # 재클론 실패 → 기존 스냅샷 유지, 인덱싱은 done, error에 사유 기록.
+    updated = store.get_source(notebook.id, repo.id)
+    paths = {entry["path"] for entry in updated.repo_snapshot}
+    assert paths == {"app/keep.py"}
+
+    view = registry.get(repo.id)
+    assert view["status"] == "done"
+    assert view["error"] is not None
+    assert "재동기화" in view["error"]
+
+
 def test_cleanup_removes_chunks_and_progress() -> None:
     notebook_service, indexing, chunk_store, registry = _build()
     notebook = notebook_service.create_notebook(title="RepoLM")

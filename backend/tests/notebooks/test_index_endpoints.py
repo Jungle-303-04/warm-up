@@ -119,6 +119,49 @@ def test_chat_endpoint_after_indexing_returns_file_path_field() -> None:
     assert "file_path" in citation
 
 
+def test_index_done_reports_last_synced_at() -> None:
+    notebook_id = _create_notebook()
+    created = client.post(
+        f"/notebooks/{notebook_id}/sources",
+        json={"kind": "md", "title": "a.md", "content": "# t\n\n본문 내용"},
+    )
+    source_id = created.json()["id"]
+
+    body = client.get(f"/notebooks/{notebook_id}/sources/{source_id}/index").json()
+    assert body["status"] == "done"
+    # done으로 끝났으면 last_synced_at이 채워져 있어야 한다(SSE/GET 응답 노출).
+    assert body["last_synced_at"] is not None
+
+
+def test_reindex_resets_progress_and_completes() -> None:
+    notebook_id = _create_notebook()
+    created = client.post(
+        f"/notebooks/{notebook_id}/sources",
+        json={"kind": "md", "title": "a.md", "content": "# t\n\n본문 내용"},
+    )
+    source_id = created.json()["id"]
+
+    # 최초 인덱싱 완료.
+    first = client.get(f"/notebooks/{notebook_id}/sources/{source_id}/index").json()
+    assert first["status"] == "done"
+
+    # reindex 호출: 응답 시점에는 queued로 리셋되어 있어야 한다(register 직후 스냅샷).
+    reindex = client.post(f"/notebooks/{notebook_id}/sources/{source_id}/reindex")
+    assert reindex.status_code == 200
+    assert reindex.json()["status"] == "queued"
+
+    # TestClient는 BackgroundTasks를 응답 후 동기 실행하므로 재인덱싱이 끝나 있다.
+    after = client.get(f"/notebooks/{notebook_id}/sources/{source_id}/index").json()
+    assert after["status"] == "done"
+    assert after["last_synced_at"] is not None
+
+
+def test_reindex_unknown_source_returns_404() -> None:
+    notebook_id = _create_notebook()
+    response = client.post(f"/notebooks/{notebook_id}/sources/nope/reindex")
+    assert response.status_code == 404
+
+
 def test_delete_source_cleans_up_progress() -> None:
     notebook_id = _create_notebook()
     created = client.post(

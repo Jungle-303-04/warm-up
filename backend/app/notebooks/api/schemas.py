@@ -244,6 +244,8 @@ class IndexProgressView(BaseModel):
     files: list[IndexFileView]
     error: str | None = None
     updated_at: str
+    # 마지막으로 SQL/벡터DB를 최신화한 시각(ISO8601). 한 번도 완료 전이면 null.
+    last_synced_at: str | None = None
 
     @classmethod
     def from_view(cls, view: dict) -> "IndexProgressView":
@@ -260,4 +262,5 @@ class IndexProgressView(BaseModel):
             files=[IndexFileView(**file) for file in view["files"]],
             error=view["error"],
             updated_at=view["updated_at"],
+            last_synced_at=view.get("last_synced_at"),
         )

@@ -12,6 +12,7 @@ md/text/pdf 소스는 각각 마크다운 청커/텍스트 분할기로 처리�
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from app.notebooks.domain.chunk_records import NotebookChunk
@@ -23,6 +24,9 @@ from app.notebooks.domain.indexing_progress import (
 from app.notebooks.domain.ports import ChunkStore, NotebookStore
 from app.notebooks.domain.records import SourceRecord
 from app.repo_rag.domain.ports import EmbeddingClient
+
+if TYPE_CHECKING:
+    from app.repository_source.infrastructure.repo_sync import RepoSyncService
 
 
 def _utcnow() -> datetime:
@@ -51,18 +55,32 @@ class IndexingService:
     registry: IndexProgressRegistry
     clock: Callable[[], datetime] = _utcnow
     id_factory: Callable[[], str] = _new_id
+    # repo 재풀링(재클론)용. None이면 재풀링 없이 기존 스냅샷으로 인덱싱한다.
+    # 헥사고날 경계: NotebookService와 동일한 RepoSyncService 포트를 주입받는다.
+    repo_sync: "RepoSyncService | None" = None
 
     def register(self, source: SourceRecord) -> None:
         """소스 생성 직후 큐 등록(BackgroundTasks 실행 전 호출)."""
         self.registry.register(source.id, source.notebook_id)
 
-    def index_source(self, notebook_id: str, source_id: str) -> None:
-        """소스를 실제로 인덱싱한다(BackgroundTasks/스레드에서 호출)."""
+    def index_source(
+        self, notebook_id: str, source_id: str, *, resync_repo: bool = False
+    ) -> None:
+        """소스를 실제로 인덱싱한다(BackgroundTasks/스레드에서 호출).
+
+        resync_repo=True이고 repo 소스이면, 인덱싱 전에 저장소를 재클론하여
+        repo_snapshot을 최신 스냅샷으로 갱신한다(= "최신화"). 재클론 실패 시
+        기존 스냅샷으로 폴백하고 progress.error에 사유를 남긴다.
+        """
         try:
             source = self.store.get_source(notebook_id, source_id)
         except KeyError:
             self.registry.update(source_id, _fail("소스를 찾을 수 없습니다"))
             return
+
+        resync_error: str | None = None
+        if resync_repo and source.kind == "repo":
+            source, resync_error = self._resync_repo(source)
 
         # 재인덱싱 대비: 기존 청크 정리.
         self.chunk_store.delete_by_source(source_id)
@@ -77,7 +95,7 @@ class IndexingService:
 
         if not file_chunks:
             # url 소스 등: 인덱싱 대상 없음 → 즉시 done.
-            self.registry.update(source_id, _finish())
+            self.registry.update(source_id, _finish(self.clock()))
             return
 
         created_at = self.clock()
@@ -94,7 +112,45 @@ class IndexingService:
                 return
             self.registry.update(source_id, _mark_file_done(file.path, len(chunks)))
 
-        self.registry.update(source_id, _finish())
+        self.registry.update(source_id, _finish(self.clock()))
+        # 재풀링은 실패해도 기존 스냅샷으로 인덱싱은 완료(done)시키되, 사유는 남긴다.
+        if resync_error is not None:
+            self.registry.update(source_id, _set_error(resync_error))
+
+    def _resync_repo(self, source: SourceRecord) -> tuple[SourceRecord, str | None]:
+        """repo 소스를 재클론하여 최신 스냅샷으로 갱신한다.
+
+        성공: 갱신된 SourceRecord와 None을 돌려준다(저장소에도 영속).
+        실패: 기존 SourceRecord와 에러 메시지를 돌려준다(폴백).
+        repo_sync가 주입되지 않았거나 repository_url이 없으면 재풀링을 건너뛴다.
+        """
+        if self.repo_sync is None or not source.repository_url:
+            return source, None
+
+        # 무거운 의존성은 함수 내 지연 import.
+        from subprocess import CalledProcessError
+
+        from app.pipeline.api.schemas import DEFAULT_BRANCH, PipelineRequest
+
+        try:
+            snapshot = self.repo_sync.sync(
+                PipelineRequest(
+                    repository=source.title,
+                    repository_url=source.repository_url,
+                    branch=source.branch or DEFAULT_BRANCH,
+                )
+            )
+        except (ValueError, CalledProcessError) as exc:
+            # 재클론 실패: 기존 스냅샷으로 폴백.
+            return source, f"저장소 재동기화에 실패해 기존 스냅샷을 사용합니다: {exc}"
+
+        source.repo_snapshot = [
+            {"path": file.path, "content": file.content} for file in snapshot.files
+        ]
+        source.branch = snapshot.branch or source.branch
+        # 최신 스냅샷을 저장소에 영속(merge upsert).
+        self.store.add_source(source)
+        return source, None
 
     def reindex_source(self, notebook_id: str, source_id: str) -> None:
         try:
@@ -102,7 +158,8 @@ class IndexingService:
         except KeyError:
             return
         self.register(source)
-        self.index_source(notebook_id, source_id)
+        # repo 소스면 재풀링(최신화) 포함.
+        self.index_source(notebook_id, source_id, resync_repo=True)
 
     def cleanup_source(self, source_id: str) -> None:
         """소스 삭제 시 청크와 진행 상태를 정리한다."""
@@ -280,9 +337,11 @@ def _mark_file_skipped(path: str):
     return mutate
 
 
-def _finish():
+def _finish(synced_at: datetime):
     def mutate(progress: IndexProgress) -> None:
         progress.status = "done"
+        # 인덱싱이 done으로 끝난 순간 = 마지막으로 DB를 최신화한 시각.
+        progress.last_synced_at = synced_at
 
     return mutate
 
@@ -290,6 +349,15 @@ def _finish():
 def _fail(error: str):
     def mutate(progress: IndexProgress) -> None:
         progress.status = "failed"
+        progress.error = error
+
+    return mutate
+
+
+def _set_error(error: str):
+    """상태는 그대로 두고 error 사유만 기록(예: 재풀링 실패 후 폴백 완료)."""
+
+    def mutate(progress: IndexProgress) -> None:
         progress.error = error
 
     return mutate

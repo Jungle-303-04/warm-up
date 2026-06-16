@@ -50,6 +50,9 @@ class IndexProgress:
     error: str | None = None
     files: list[FileProgress] = field(default_factory=list)
     updated_at: datetime = field(default_factory=_utcnow)
+    # 마지막으로 SQL/벡터DB를 최신화(인덱싱 done 또는 repo 재풀링 완료)한 순간.
+    # updated_at(진행 갱신 시각)과 별개로, "최신화 완료 시각"만 기록한다.
+    last_synced_at: datetime | None = None
 
     @property
     def percent(self) -> int:
@@ -74,6 +77,9 @@ class IndexProgress:
             "files": [file.to_view() for file in self.files],
             "error": self.error,
             "updated_at": self.updated_at.isoformat(),
+            "last_synced_at": (
+                self.last_synced_at.isoformat() if self.last_synced_at is not None else None
+            ),
         }
 
 
@@ -86,11 +92,16 @@ class IndexProgressRegistry:
 
     def register(self, source_id: str, notebook_id: str) -> None:
         with self._lock:
+            # 재등록(reindex)일 때도 이전 "마지막 동기화 시각"은 유지한다.
+            # queued로 리셋되는 것은 진행 상태일 뿐, 마지막 최신화 순간은 보존.
+            previous = self._entries.get(source_id)
+            last_synced_at = previous.last_synced_at if previous is not None else None
             self._entries[source_id] = IndexProgress(
                 source_id=source_id,
                 notebook_id=notebook_id,
                 status="queued",
                 updated_at=_utcnow(),
+                last_synced_at=last_synced_at,
             )
 
     def get(self, source_id: str) -> dict | None:
