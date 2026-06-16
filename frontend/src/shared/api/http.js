@@ -26,6 +26,22 @@ export async function postJson(url, body) {
   })
 }
 
+export async function putJson(url, body) {
+  return fetchJson(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteJson(url) {
+  return fetchJson(url, {
+    method: 'DELETE',
+  })
+}
+
 export function toKoreanErrorMessage(message) {
   if (message.includes('GITHUB_OAUTH_CLIENT_ID')) {
     return '깃허브 OAuth Client ID가 설정되지 않았습니다.'

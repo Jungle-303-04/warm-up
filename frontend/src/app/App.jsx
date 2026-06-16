@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { AuthSection } from '../features/auth/AuthSection'
+import { BoardCreatePanel } from '../features/board/BoardCreatePanel'
 import { BoardDetailPage } from '../features/board/BoardDetailPage'
 import { CalendarWorkspace } from '../features/calendar/CalendarWorkspace'
 import { RepositoryWorkspace } from '../features/repository/RepositoryWorkspace'
-import { fetchJson, postJson, toKoreanErrorMessage } from '../shared/api/http'
+import {
+  deleteJson,
+  fetchJson,
+  postJson,
+  putJson,
+  toKoreanErrorMessage,
+} from '../shared/api/http'
 import {
   clearCallbackUrl,
   clearSession,
@@ -28,8 +35,10 @@ function App() {
   const [answerResult, setAnswerResult] = useState(null)
   const [boards, setBoards] = useState([])
   const [selectedBoard, setSelectedBoard] = useState(null)
+  const [isCreatingBoard, setIsCreatingBoard] = useState(false)
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const [isLoadingBoards, setIsLoadingBoards] = useState(false)
+  const [boardAction, setBoardAction] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [activeAction, setActiveAction] = useState('')
 
@@ -77,6 +86,7 @@ function App() {
   const loadBoards = useCallback(async (currentUser, options = {}) => {
     if (!currentUser?.user_id) {
       setBoards([])
+      setIsCreatingBoard(false)
       return
     }
 
@@ -174,6 +184,7 @@ function App() {
         setUser(null)
         setBoards([])
         setSelectedBoard(null)
+        setIsCreatingBoard(false)
       }
     })
   }, [loadBoards, runAction])
@@ -193,6 +204,7 @@ function App() {
       setAnswerResult(null)
       setBoards([])
       setSelectedBoard(null)
+      setIsCreatingBoard(false)
       window.history.replaceState(null, '', window.location.pathname)
       setStatus({ type: 'muted', message: '로그아웃되었습니다.' })
     })
@@ -269,7 +281,140 @@ function App() {
 
   function closeBoardDetail() {
     setSelectedBoard(null)
+    setIsCreatingBoard(false)
     window.history.replaceState(null, '', window.location.pathname)
+  }
+
+  async function createBoard(formPayload) {
+    setBoardAction('create')
+    setStatus({ type: 'muted', message: '게시글을 등록하는 중입니다.' })
+
+    try {
+      // Backend: POST /board/
+      // Request DTO:
+      // {
+      //   board_type: 1 | 2 | 3,
+      //   title: string,
+      //   content: string,
+      //   tag?: string | null,
+      //   assignee_user_ids: number[],
+      //   participant_user_ids: number[],
+      //   carbon_copy_user_ids: number[],
+      //   schedule_board_detail?: {
+      //     start_at: string,
+      //     end_at: string,
+      //     importance: number
+      //   } | null,
+      //   schedule_board_tasks: Array<{
+      //     task_name: string,
+      //     task_status: 1 | 2 | 3 | 4
+      //   }>,
+      //   proceedings_board_detail?: {
+      //     meeting_date: string
+      //   } | null
+      // }
+      // Logged-in browser requests do not send user_id.
+      // The backend resolves board.user_id from the auth cookie's internal DB user id.
+      // Response DTO는 GET /board/{board_id}와 같은 BoardResponse이다.
+      const createdBoard = await postJson(`${API_BASE_URL}/board/`, formPayload)
+      setBoards((currentBoards) => [createdBoard, ...currentBoards])
+      setIsCreatingBoard(false)
+      setSelectedBoard(createdBoard)
+      window.history.pushState({ boardId: createdBoard.id }, '', `#board/${createdBoard.id}`)
+      setStatus({ type: 'success', message: '게시글을 등록했습니다.' })
+      window.alert('게시글을 등록했습니다.')
+      return true
+    } catch (error) {
+      const errorMessage = toKoreanErrorMessage(error.message)
+      setStatus({ type: 'error', message: errorMessage })
+      window.alert(errorMessage)
+      return false
+    } finally {
+      setBoardAction('')
+    }
+  }
+
+  async function updateBoardDetail(boardId, formPayload) {
+    setBoardAction('update')
+    setStatus({ type: 'muted', message: '게시글을 수정하는 중입니다.' })
+
+    try {
+      // Backend: PUT /board/{board_id}
+      // Expected path:
+      // {
+      //   board_id: number
+      // }
+      // Request DTO:
+      // {
+      //   board_type: 1 | 2 | 3,
+      //   title: string,
+      //   content: string,
+      //   tag?: string | null,
+      //   assignee_user_ids: number[],
+      //   participant_user_ids: number[],
+      //   carbon_copy_user_ids: number[],
+      //   schedule_board_detail?: {
+      //     start_at: string,
+      //     end_at: string,
+      //     importance: number
+      //   } | null,
+      //   schedule_board_tasks: Array<{
+      //     task_name: string,
+      //     task_status: 1 | 2 | 3 | 4
+      //   }>,
+      //   proceedings_board_detail?: {
+      //     meeting_date: string
+      //   } | null
+      // }
+      // Logged-in browser requests do not send user_id.
+      // The backend resolves board.user_id from the auth cookie's internal DB user id.
+      // Response DTO는 GET /board/{board_id}와 같은 BoardResponse이다.
+      const updatedBoard = await putJson(`${API_BASE_URL}/board/${boardId}`, formPayload)
+      setSelectedBoard(updatedBoard)
+      setBoards((currentBoards) =>
+        currentBoards.map((board) => (
+          board.id === updatedBoard.id ? updatedBoard : board
+        )),
+      )
+      setStatus({ type: 'success', message: '게시글을 수정했습니다.' })
+      window.alert('게시글을 수정했습니다.')
+      return true
+    } catch (error) {
+      const errorMessage = toKoreanErrorMessage(error.message)
+      setStatus({ type: 'error', message: errorMessage })
+      window.alert(errorMessage)
+      return false
+    } finally {
+      setBoardAction('')
+    }
+  }
+
+  async function deleteBoardDetail(boardId) {
+    setBoardAction('delete')
+    setStatus({ type: 'muted', message: '게시글을 삭제하는 중입니다.' })
+
+    try {
+      // Backend: DELETE /board/{board_id}
+      // Expected path:
+      // {
+      //   board_id: number
+      // }
+      // Request body 없음.
+      // Logged-in browser requests do not send user_id.
+      // The backend checks ownership from the auth cookie's internal DB user id.
+      // Response body 없음. 성공하면 HTTP 204.
+      await deleteJson(`${API_BASE_URL}/board/${boardId}`)
+      setBoards((currentBoards) => currentBoards.filter((board) => board.id !== boardId))
+      closeBoardDetail()
+      setStatus({ type: 'success', message: '게시글을 삭제했습니다.' })
+      window.alert('게시글을 삭제했습니다.')
+    } catch (error) {
+      const errorMessage = toKoreanErrorMessage(error.message)
+      setStatus({ type: 'error', message: errorMessage })
+      window.alert(errorMessage)
+    } finally {
+      setBoardAction('')
+    }
   }
 
   async function indexRepository(event) {
@@ -407,6 +552,7 @@ function App() {
 
       if (!boardId) {
         setSelectedBoard(null)
+        setIsCreatingBoard(false)
         return
       }
 
@@ -429,7 +575,14 @@ function App() {
         {user ? (
           <>
             {selectedBoard ? (
-              <BoardDetailPage board={selectedBoard} onBack={closeBoardDetail} />
+              <BoardDetailPage
+                key={`${selectedBoard.id}-${selectedBoard.updated_at}`}
+                board={selectedBoard}
+                isSaving={Boolean(boardAction)}
+                onBack={closeBoardDetail}
+                onUpdate={(payload) => updateBoardDetail(selectedBoard.id, payload)}
+                onDelete={() => void deleteBoardDetail(selectedBoard.id)}
+              />
             ) : (
               <>
                 <CalendarWorkspace
@@ -440,8 +593,16 @@ function App() {
                   onNextMonth={showNextMonth}
                   onCurrentMonth={showCurrentMonth}
                   onReloadBoards={() => void loadBoards(user, { notify: true })}
+                  onStartCreateBoard={() => setIsCreatingBoard(true)}
                   onOpenBoard={(boardId) => void openBoardDetail(boardId)}
                 />
+                {isCreatingBoard ? (
+                  <BoardCreatePanel
+                    isSaving={boardAction === 'create'}
+                    onCancel={() => setIsCreatingBoard(false)}
+                    onCreate={createBoard}
+                  />
+                ) : null}
                 <RepositoryWorkspace
                   repositoryFullName={repositoryFullName}
                   branch={branch}

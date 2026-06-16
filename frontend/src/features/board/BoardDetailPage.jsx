@@ -1,6 +1,16 @@
-const BASIC_BOARD_TYPE = 1
-const SCHEDULE_BOARD_TYPE = 2
-const PROCEEDINGS_BOARD_TYPE = 3
+import { useState } from 'react'
+
+import {
+  BASIC_BOARD_TYPE,
+  PROCEEDINGS_BOARD_TYPE,
+  SCHEDULE_BOARD_TYPE,
+  buildBoardForm,
+  buildUpdatePayload,
+  formatDateTime,
+  formatIds,
+  getBoardTypeLabel,
+  getTaskStatusLabel,
+} from './boardForm'
 
 // Backend: GET /board/{board_id}
 // BoardDetailPage는 App.openBoardDetail()이 받은 BoardResponse DTO를 그대로 렌더링한다.
@@ -13,6 +23,7 @@ const PROCEEDINGS_BOARD_TYPE = 3
 //   tag?: string | null,
 //   user_id: number,
 //   created_at: string,
+//   updated_at: string,
 //   assignee_user_ids: number[],
 //   participant_user_ids: number[],
 //   carbon_copy_user_ids: number[],
@@ -30,8 +41,41 @@ const PROCEEDINGS_BOARD_TYPE = 3
 //     meeting_date: string
 //   } | null
 // }
-export function BoardDetailPage({ board, onBack }) {
+export function BoardDetailPage({ board, isSaving, onBack, onUpdate, onDelete }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [form, setForm] = useState(() => buildBoardForm(board))
   const boardTypeLabel = getBoardTypeLabel(board.board_type)
+
+  function startEditing() {
+    setForm(buildBoardForm(board))
+    setIsEditing(true)
+  }
+
+  function cancelEditing() {
+    setForm(buildBoardForm(board))
+    setIsEditing(false)
+  }
+
+  function updateField(fieldName, value) {
+    setForm((current) => ({
+      ...current,
+      [fieldName]: value,
+    }))
+  }
+
+  async function submitUpdate(event) {
+    event.preventDefault()
+    const didUpdate = await onUpdate(buildUpdatePayload(board, form))
+    if (didUpdate) {
+      setIsEditing(false)
+    }
+  }
+
+  function confirmDelete() {
+    if (window.confirm('이 게시글을 삭제할까요?')) {
+      onDelete()
+    }
+  }
 
   return (
     <article className="board-detail-page" aria-labelledby="board-detail-title">
@@ -39,9 +83,55 @@ export function BoardDetailPage({ board, onBack }) {
         <button type="button" className="secondary-button compact" onClick={onBack}>
           목록으로
         </button>
-        <span>{boardTypeLabel}</span>
+        <div className="board-detail-actions" aria-label="게시글 작업">
+          <span>{boardTypeLabel}</span>
+          {isEditing ? (
+            <button
+              type="button"
+              className="secondary-button compact"
+              onClick={cancelEditing}
+              disabled={isSaving}
+            >
+              취소
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="secondary-button compact"
+              onClick={startEditing}
+            >
+              수정
+            </button>
+          )}
+          <button
+            type="button"
+            className="danger-button compact"
+            onClick={confirmDelete}
+            disabled={isSaving}
+          >
+            삭제
+          </button>
+        </div>
       </div>
 
+      {isEditing ? (
+        <BoardEditForm
+          board={board}
+          form={form}
+          isSaving={isSaving}
+          onChange={updateField}
+          onSubmit={submitUpdate}
+        />
+      ) : (
+        <BoardReadView board={board} />
+      )}
+    </article>
+  )
+}
+
+function BoardReadView({ board }) {
+  return (
+    <>
       <header className="board-detail-header">
         <p className="eyebrow">게시글 상세</p>
         <h2 id="board-detail-title">{board.title}</h2>
@@ -89,8 +179,156 @@ export function BoardDetailPage({ board, onBack }) {
           </div>
         </dl>
       </section>
-    </article>
+    </>
   )
+}
+
+function BoardEditForm({ board, form, isSaving, onChange, onSubmit }) {
+  return (
+    <form className="board-edit-form" onSubmit={onSubmit}>
+      <header className="board-detail-header">
+        <p className="eyebrow">게시글 수정</p>
+        <label className="board-field">
+          <span>제목</span>
+          <input
+            type="text"
+            value={form.title}
+            onChange={(event) => onChange('title', event.target.value)}
+            required
+          />
+        </label>
+        <label className="board-field">
+          <span>태그</span>
+          <input
+            type="text"
+            value={form.tag}
+            onChange={(event) => onChange('tag', event.target.value)}
+            placeholder="태그 없음"
+          />
+        </label>
+      </header>
+
+      <section className="board-detail-section">
+        <label className="board-field">
+          <span>본문</span>
+          <textarea
+            value={form.content}
+            onChange={(event) => onChange('content', event.target.value)}
+            required
+            rows={6}
+          />
+        </label>
+      </section>
+
+      <BoardTypeEditFields board={board} form={form} onChange={onChange} />
+
+      <section className="board-detail-section">
+        <h3>관련 사용자</h3>
+        <div className="board-field-grid">
+          <label className="board-field">
+            <span>담당자 ID</span>
+            <input
+              type="text"
+              value={form.assigneeUserIds}
+              onChange={(event) => onChange('assigneeUserIds', event.target.value)}
+              placeholder="1, 2"
+            />
+          </label>
+          <label className="board-field">
+            <span>참여자 ID</span>
+            <input
+              type="text"
+              value={form.participantUserIds}
+              onChange={(event) => onChange('participantUserIds', event.target.value)}
+              placeholder="1, 2"
+            />
+          </label>
+          <label className="board-field">
+            <span>참조자 ID</span>
+            <input
+              type="text"
+              value={form.carbonCopyUserIds}
+              onChange={(event) => onChange('carbonCopyUserIds', event.target.value)}
+              placeholder="1, 2"
+            />
+          </label>
+        </div>
+      </section>
+
+      <button type="submit" className="primary-action board-save-button" disabled={isSaving}>
+        {isSaving ? '저장 중' : '저장'}
+      </button>
+    </form>
+  )
+}
+
+function BoardTypeEditFields({ board, form, onChange }) {
+  if (board.board_type === SCHEDULE_BOARD_TYPE) {
+    return (
+      <section className="board-detail-section">
+        <h3>일정 정보</h3>
+        <div className="board-field-grid">
+          <label className="board-field">
+            <span>시작</span>
+            <input
+              type="datetime-local"
+              value={form.scheduleStartAt}
+              onChange={(event) => onChange('scheduleStartAt', event.target.value)}
+              required
+            />
+          </label>
+          <label className="board-field">
+            <span>종료</span>
+            <input
+              type="datetime-local"
+              value={form.scheduleEndAt}
+              onChange={(event) => onChange('scheduleEndAt', event.target.value)}
+              required
+            />
+          </label>
+          <label className="board-field">
+            <span>중요도</span>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={form.importance}
+              onChange={(event) => onChange('importance', event.target.value)}
+              required
+            />
+          </label>
+        </div>
+        <label className="board-field">
+          <span>작업 목록</span>
+          <textarea
+            value={form.scheduleTasks}
+            onChange={(event) => onChange('scheduleTasks', event.target.value)}
+            placeholder={'작업명|상태번호\n캘린더 이벤트 매핑|2'}
+            rows={4}
+          />
+        </label>
+      </section>
+    )
+  }
+
+  if (board.board_type === PROCEEDINGS_BOARD_TYPE) {
+    return (
+      <section className="board-detail-section">
+        <h3>회의 정보</h3>
+        <label className="board-field">
+          <span>회의일</span>
+          <input
+            type="datetime-local"
+            value={form.meetingDate}
+            onChange={(event) => onChange('meetingDate', event.target.value)}
+            required
+          />
+        </label>
+      </section>
+    )
+  }
+
+  return null
 }
 
 function BoardTypeDetail({ board }) {
@@ -145,42 +383,4 @@ function BoardTypeDetail({ board }) {
   }
 
   return null
-}
-
-function getBoardTypeLabel(boardType) {
-  if (boardType === SCHEDULE_BOARD_TYPE) {
-    return '일정 게시글'
-  }
-
-  if (boardType === PROCEEDINGS_BOARD_TYPE) {
-    return '회의록 게시글'
-  }
-
-  return '일반 게시글'
-}
-
-function getTaskStatusLabel(status) {
-  const labels = {
-    1: '대기',
-    2: '진행',
-    3: '완료',
-    4: '보류',
-  }
-
-  return labels[status] || `상태 ${status}`
-}
-
-function formatDateTime(value) {
-  if (!value) {
-    return '-'
-  }
-
-  return new Intl.DateTimeFormat('ko-KR', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
-}
-
-function formatIds(ids) {
-  return ids?.length ? ids.join(', ') : '-'
 }

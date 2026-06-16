@@ -281,6 +281,32 @@ h1 {
   opacity: 0.62;
 }
 
+.danger-button {
+  min-height: 42px;
+  border: 1px solid rgba(191, 73, 73, 0.34);
+  border-radius: 6px;
+  background: rgba(191, 73, 73, 0.1);
+  color: #b23b3b;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.danger-button.compact {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: rgba(191, 73, 73, 0.16);
+}
+
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .workspace-panel {
   display: grid;
   gap: 16px;
@@ -520,8 +546,18 @@ h1 {
   padding: 0 10px;
 }
 
+.calendar-actions .primary-calendar-action {
+  border-color: #1f7658;
+  background: #1f7658;
+  color: #fff;
+}
+
 .calendar-actions button:hover:not(:disabled) {
   background: var(--field);
+}
+
+.calendar-actions .primary-calendar-action:hover:not(:disabled) {
+  background: #256f58;
 }
 
 .calendar-actions button:disabled {
@@ -695,6 +731,29 @@ h1 {
   padding: 18px;
 }
 
+.board-create-panel {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 18px;
+}
+
+.board-create-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.board-create-header h2 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 18px;
+}
+
 .board-detail-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -711,6 +770,14 @@ h1 {
   font-size: 12px;
   font-weight: 900;
   padding: 6px 10px;
+}
+
+.board-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .board-detail-header {
@@ -747,6 +814,50 @@ h1 {
   font-size: 14px;
   line-height: 1.7;
   white-space: pre-wrap;
+}
+
+.board-edit-form {
+  display: grid;
+  gap: 16px;
+}
+
+.board-field-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.board-field {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.board-field input,
+.board-field textarea,
+.board-field select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--heading);
+  font: inherit;
+  font-size: 14px;
+  padding: 11px 12px;
+}
+
+.board-field textarea {
+  min-height: 104px;
+  resize: vertical;
+}
+
+.board-save-button {
+  justify-self: start;
+  width: auto;
+  min-width: 120px;
+  padding: 0 16px;
 }
 
 .board-detail-meta {
@@ -828,6 +939,7 @@ h1 {
   .form-grid,
   .run-summary,
   .calendar-summary,
+  .board-field-grid,
   .board-detail-meta {
     grid-template-columns: 1fr;
   }

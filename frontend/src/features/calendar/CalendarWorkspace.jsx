@@ -10,6 +10,7 @@ export function CalendarWorkspace({
   onNextMonth,
   onCurrentMonth,
   onReloadBoards,
+  onStartCreateBoard,
   onOpenBoard,
 }) {
   const calendarEvents = boards.flatMap(mapBoardToCalendarEvents)
@@ -44,6 +45,9 @@ export function CalendarWorkspace({
           </button>
           <button type="button" onClick={onReloadBoards} disabled={isLoadingBoards}>
             {isLoadingBoards ? '불러오는 중' : '새로고침'}
+          </button>
+          <button type="button" className="primary-calendar-action" onClick={onStartCreateBoard}>
+            게시글 추가
           </button>
         </div>
       </div>
