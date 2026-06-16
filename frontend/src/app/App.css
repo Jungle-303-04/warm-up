@@ -26,8 +26,17 @@
   margin-block: auto;
 }
 
+.app-content {
+  --sidebar-offset: 72px;
+  width: min(1180px, calc(100% - var(--sidebar-offset)));
+  display: grid;
+  gap: 14px;
+  margin-left: var(--sidebar-offset);
+  transition: margin-left 160ms ease, width 160ms ease;
+}
+
 .app-header {
-  width: min(1180px, 100%);
+  width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
   align-items: center;
@@ -47,7 +56,7 @@
 }
 
 .dashboard-main {
-  width: min(1180px, 100%);
+  width: 100%;
   display: grid;
   gap: 18px;
 }
@@ -83,15 +92,8 @@
   width: 254px;
 }
 
-.app-sidebar ~ .app-header,
-.app-sidebar ~ .dashboard-main {
-  margin-left: 72px;
-  transition: margin-left 160ms ease, width 160ms ease;
-}
-
-.app-sidebar.expanded ~ .app-header,
-.app-sidebar.expanded ~ .dashboard-main {
-  margin-left: 268px;
+.app-sidebar.expanded ~ .app-content {
+  --sidebar-offset: 268px;
 }
 
 .sidebar-toggle,
@@ -102,6 +104,8 @@
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
+  justify-items: start;
+  column-gap: 0;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -115,10 +119,20 @@
 }
 
 .sidebar-toggle {
+  width: 38px;
+  min-height: 38px;
   grid-template-columns: 36px;
   justify-content: center;
+  justify-self: center;
   border-color: var(--line);
   background: var(--field);
+}
+
+.app-sidebar.expanded .sidebar-toggle {
+  width: 32px;
+  min-height: 32px;
+  grid-template-columns: 30px;
+  justify-self: end;
 }
 
 .sidebar-nav {
@@ -161,6 +175,7 @@
 .sidebar-toggle svg {
   width: 18px;
   height: 18px;
+  align-self: center;
   justify-self: center;
   fill: none;
   stroke: currentColor;
@@ -170,6 +185,8 @@
 }
 
 .sidebar-nav span {
+  align-self: center;
+  justify-self: start;
   overflow: hidden;
   opacity: 0;
   white-space: nowrap;
@@ -987,10 +1004,33 @@ h1 {
 .calendar-day {
   min-width: 0;
   border-right: 1px solid var(--line);
+  padding: 0;
+}
+
+.calendar-day-button {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  border: 0;
+  background: transparent;
   color: var(--heading);
+  cursor: pointer;
+  font: inherit;
   font-size: 12px;
   font-weight: 800;
   padding: 8px;
+}
+
+.calendar-day-button:hover {
+  background: color-mix(in srgb, var(--field) 72%, transparent);
+}
+
+.calendar-day-button:focus-visible {
+  outline: 2px solid var(--line-strong);
+  outline-offset: -2px;
 }
 
 .calendar-day:nth-child(7) {
@@ -999,6 +1039,10 @@ h1 {
 
 .calendar-day.outside-month {
   background: color-mix(in srgb, var(--field) 62%, transparent);
+  color: var(--muted);
+}
+
+.calendar-day.outside-month .calendar-day-button {
   color: var(--muted);
 }
 
@@ -1752,10 +1796,8 @@ h1 {
     width: auto;
   }
 
-  .app-sidebar ~ .app-header,
-  .app-sidebar ~ .dashboard-main,
-  .app-sidebar.expanded ~ .app-header,
-  .app-sidebar.expanded ~ .dashboard-main {
+  .app-content,
+  .app-sidebar.expanded ~ .app-content {
     width: min(1180px, 100%);
     margin-left: 0;
   }

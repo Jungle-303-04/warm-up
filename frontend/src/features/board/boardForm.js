@@ -18,9 +18,13 @@ export function buildBoardForm(board) {
   }
 }
 
-export function buildCreateForm() {
-  const start = new Date()
-  start.setMinutes(0, 0, 0)
+export function buildCreateForm(initialStartDate = null) {
+  const start = initialStartDate ? new Date(initialStartDate) : new Date()
+  if (initialStartDate) {
+    start.setHours(9, 0, 0, 0)
+  } else {
+    start.setMinutes(0, 0, 0)
+  }
   const end = new Date(start)
   end.setHours(start.getHours() + 1)
 

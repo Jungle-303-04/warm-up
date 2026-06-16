@@ -41,6 +41,7 @@ function App() {
   const [boards, setBoards] = useState([])
   const [selectedBoard, setSelectedBoard] = useState(null)
   const [isCreatingBoard, setIsCreatingBoard] = useState(false)
+  const [boardCreateInitialDate, setBoardCreateInitialDate] = useState(null)
   const [boardSearchFilters, setBoardSearchFilters] = useState(null)
   const [boardDetailBackFilters, setBoardDetailBackFilters] = useState(null)
   const [isRepositoryPageOpen, setIsRepositoryPageOpen] = useState(false)
@@ -142,6 +143,7 @@ function App() {
     if (!currentUser?.user_id) {
       setBoards([])
       setIsCreatingBoard(false)
+      setBoardCreateInitialDate(null)
       setBoardSearchFilters(null)
       setBoardDetailBackFilters(null)
       setIsRepositoryPageOpen(false)
@@ -237,6 +239,7 @@ function App() {
         if (isCreateBoardHash()) {
           setSelectedBoard(null)
           setIsCreatingBoard(true)
+          setBoardCreateInitialDate(null)
           setBoardSearchFilters(null)
           setBoardDetailBackFilters(null)
           setIsRepositoryPageOpen(false)
@@ -292,6 +295,7 @@ function App() {
         setRepositoryRuns([])
         setSelectedBoard(null)
         setIsCreatingBoard(false)
+        setBoardCreateInitialDate(null)
         setBoardSearchFilters(null)
         setBoardDetailBackFilters(null)
         setIsRepositoryPageOpen(false)
@@ -316,6 +320,7 @@ function App() {
       setRepositoryRuns([])
       setSelectedBoard(null)
       setIsCreatingBoard(false)
+      setBoardCreateInitialDate(null)
       setBoardSearchFilters(null)
       setBoardDetailBackFilters(null)
       setIsRepositoryPageOpen(false)
@@ -386,6 +391,7 @@ function App() {
       const board = await fetchJson(`${API_BASE_URL}/board/${boardId}`)
       setSelectedBoard(board)
       setIsCreatingBoard(false)
+      setBoardCreateInitialDate(null)
       setBoardDetailBackFilters(options.backToSearchFilters || null)
       setBoardSearchFilters(null)
       setIsRepositoryPageOpen(false)
@@ -402,6 +408,7 @@ function App() {
   function closeBoardDetail() {
     setSelectedBoard(null)
     setIsCreatingBoard(false)
+    setBoardCreateInitialDate(null)
     setIsRepositoryPageOpen(false)
     setIsRepositoryRunsPageOpen(false)
     if (boardDetailBackFilters) {
@@ -419,6 +426,7 @@ function App() {
   function returnToMainPage() {
     setSelectedBoard(null)
     setIsCreatingBoard(false)
+    setBoardCreateInitialDate(null)
     setBoardSearchFilters(null)
     setBoardDetailBackFilters(null)
     setIsRepositoryPageOpen(false)
@@ -426,9 +434,10 @@ function App() {
     window.history.replaceState(null, '', window.location.pathname)
   }
 
-  function openBoardCreatePage() {
+  function openBoardCreatePage(initialDate = null) {
     setSelectedBoard(null)
     setIsCreatingBoard(true)
+    setBoardCreateInitialDate(toValidDateOrNull(initialDate))
     setBoardSearchFilters(null)
     setBoardDetailBackFilters(null)
     setIsRepositoryPageOpen(false)
@@ -439,6 +448,7 @@ function App() {
   function openBoardSearchPage(filters = DEFAULT_BOARD_SEARCH_FILTERS) {
     setSelectedBoard(null)
     setIsCreatingBoard(false)
+    setBoardCreateInitialDate(null)
     setBoardDetailBackFilters(null)
     setIsRepositoryPageOpen(false)
     setIsRepositoryRunsPageOpen(false)
@@ -452,6 +462,7 @@ function App() {
   function openRepositoryAnalysis() {
     setSelectedBoard(null)
     setIsCreatingBoard(false)
+    setBoardCreateInitialDate(null)
     setBoardSearchFilters(null)
     setBoardDetailBackFilters(null)
     setIsRepositoryPageOpen(true)
@@ -462,6 +473,7 @@ function App() {
   function openRepositoryRunsPage() {
     setSelectedBoard(null)
     setIsCreatingBoard(false)
+    setBoardCreateInitialDate(null)
     setBoardSearchFilters(null)
     setBoardDetailBackFilters(null)
     setIsRepositoryPageOpen(false)
@@ -473,6 +485,7 @@ function App() {
     selectRepositoryRun(run)
     setSelectedBoard(null)
     setIsCreatingBoard(false)
+    setBoardCreateInitialDate(null)
     setBoardSearchFilters(null)
     setBoardDetailBackFilters(null)
     setIsRepositoryPageOpen(true)
@@ -515,6 +528,7 @@ function App() {
       setBoards((currentBoards) => [createdBoard, ...currentBoards])
       setVisibleMonth(getBoardCalendarFocusDate(createdBoard))
       setIsCreatingBoard(false)
+      setBoardCreateInitialDate(null)
       setSelectedBoard(null)
       setBoardSearchFilters(null)
       setBoardDetailBackFilters(null)
@@ -620,16 +634,15 @@ function App() {
   async function indexRepository(event) {
     event.preventDefault()
 
-    const repositoryName = repositoryFullName.trim()
-    if (!repositoryName.includes('/')) {
-      setStatus({
-        type: 'error',
-        message: '레포지토리는 owner/repo 형식으로 입력해 주세요.',
-      })
+    const repositoryName = normalizeRepositoryInput(repositoryFullName)
+    if (!repositoryName) {
+      const errorMessage = '잘못된 입력 형식입니다.'
+      setStatus({ type: 'error', message: errorMessage })
+      window.alert(errorMessage)
       return
     }
 
-    await runAction('index', '레포지토리를 분석하고 DB에 저장하는 중입니다.', async () => {
+    await runAction('index', '레포지토리를 등록하는 중입니다.', async () => {
       // Backend: POST /rag/github/repository/index/store
       // Request DTO:
       // {
@@ -660,8 +673,8 @@ function App() {
       const latestRun = findRepositoryRunByIndexResult(latestRuns, payload)
       setIndexResult(buildIndexResultForUi(payload, latestRun))
       const statusMessage = payload.reused
-        ? '이미 분석된 레포지토리 정보를 재사용했습니다.'
-        : '레포지토리 분석 정보를 저장했습니다.'
+        ? '이미 등록된 레포지토리입니다.'
+        : '레포지토리를 등록했습니다.'
       setStatus({
         type: 'success',
         message: statusMessage,
@@ -722,6 +735,7 @@ function App() {
       if (isCreateBoardHash()) {
         setSelectedBoard(null)
         setIsCreatingBoard(true)
+        setBoardCreateInitialDate(null)
         setBoardSearchFilters(null)
         setBoardDetailBackFilters(null)
         setIsRepositoryPageOpen(false)
@@ -732,6 +746,7 @@ function App() {
       if (isBoardSearchHash()) {
         setSelectedBoard(null)
         setIsCreatingBoard(false)
+        setBoardCreateInitialDate(null)
         setBoardSearchFilters(DEFAULT_BOARD_SEARCH_FILTERS)
         setBoardDetailBackFilters(null)
         setIsRepositoryPageOpen(false)
@@ -742,6 +757,7 @@ function App() {
       if (isRepositoryHash()) {
         setSelectedBoard(null)
         setIsCreatingBoard(false)
+        setBoardCreateInitialDate(null)
         setBoardSearchFilters(null)
         setBoardDetailBackFilters(null)
         setIsRepositoryPageOpen(true)
@@ -752,6 +768,7 @@ function App() {
       if (isRepositoryRunsHash()) {
         setSelectedBoard(null)
         setIsCreatingBoard(false)
+        setBoardCreateInitialDate(null)
         setBoardSearchFilters(null)
         setBoardDetailBackFilters(null)
         setIsRepositoryPageOpen(false)
@@ -762,6 +779,7 @@ function App() {
       if (!boardId) {
         setSelectedBoard(null)
         setIsCreatingBoard(false)
+        setBoardCreateInitialDate(null)
         setBoardSearchFilters(null)
         setBoardDetailBackFilters(null)
         setIsRepositoryPageOpen(false)
@@ -770,6 +788,7 @@ function App() {
       }
 
       setBoardSearchFilters(null)
+      setBoardCreateInitialDate(null)
       setBoardDetailBackFilters(null)
       setIsRepositoryPageOpen(false)
       setIsRepositoryRunsPageOpen(false)
@@ -807,6 +826,8 @@ function App() {
               />
             ) : isCreatingBoard ? (
               <BoardCreatePanel
+                key={boardCreateInitialDate?.toISOString() || 'default-create-board'}
+                initialStartDate={boardCreateInitialDate}
                 isSaving={boardAction === 'create'}
                 onCancel={closeBoardDetail}
                 onCreate={createBoard}
@@ -930,4 +951,52 @@ function buildIndexResultForUi(indexResult, latestRun) {
     ...indexResult,
     indexed_at: latestRun?.indexed_at || null,
   }
+}
+
+function toValidDateOrNull(value) {
+  if (!(value instanceof Date)) {
+    return null
+  }
+
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function normalizeRepositoryInput(value) {
+  const repository = value.trim()
+  let normalizedRepository = repository
+
+  if (!repository) {
+    return ''
+  }
+
+  if (repository.startsWith('git@github.com:')) {
+    normalizedRepository = repository.replace('git@github.com:', '')
+  } else if (repository.startsWith('http://') || repository.startsWith('https://')) {
+    try {
+      const url = new URL(repository)
+      if (url.hostname !== 'github.com') {
+        return ''
+      }
+      normalizedRepository = url.pathname.replace(/^\/+|\/+$/g, '')
+    } catch {
+      return ''
+    }
+  }
+
+  if (normalizedRepository.endsWith('.git')) {
+    normalizedRepository = normalizedRepository.slice(0, -4)
+  }
+
+  const parts = normalizedRepository.split('/')
+  if (parts.length !== 2) {
+    return ''
+  }
+
+  const [owner, repo] = parts
+  if (!owner || !repo || /\s/.test(owner) || /\s/.test(repo)) {
+    return ''
+  }
+
+  return `${owner}/${repo}`
 }

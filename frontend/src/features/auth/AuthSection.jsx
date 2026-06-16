@@ -64,30 +64,32 @@ export function AuthSection({
           </nav>
         </aside>
 
-        <header className="app-header">
-          <button type="button" className="brand-row brand-button" onClick={onHome}>
-            <span className="brand-mark" aria-hidden="true">
-              <svg>
-                <use href="/icons.svg#github-icon" />
-              </svg>
-            </span>
-            <span>Code-Trust Kanban</span>
-          </button>
-
-          <div className="dashboard-account">
-            <UserProfile user={user} />
-            <button
-              type="button"
-              className="secondary-button compact"
-              onClick={onLogout}
-              disabled={isLoading}
-            >
-              로그아웃
+        <div className="app-content">
+          <header className="app-header">
+            <button type="button" className="brand-row brand-button" onClick={onHome}>
+              <span className="brand-mark" aria-hidden="true">
+                <svg>
+                  <use href="/icons.svg#github-icon" />
+                </svg>
+              </span>
+              <span>Code-Trust Kanban</span>
             </button>
-          </div>
-        </header>
 
-        <main className="dashboard-main">{children}</main>
+            <div className="dashboard-account">
+              <UserProfile user={user} />
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={onLogout}
+                disabled={isLoading}
+              >
+                로그아웃
+              </button>
+            </div>
+          </header>
+
+          <main className="dashboard-main">{children}</main>
+        </div>
       </>
     )
   }

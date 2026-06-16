@@ -134,6 +134,7 @@ export function CalendarWorkspace({
             week={week}
             segments={weekSegments[weekIndex]}
             visibleMonth={visibleMonth}
+            onStartCreateBoard={onStartCreateBoard}
             onOpenBoard={onOpenBoard}
           />
         ))}
@@ -148,7 +149,7 @@ export function CalendarWorkspace({
   )
 }
 
-function CalendarWeek({ week, segments, visibleMonth, onOpenBoard }) {
+function CalendarWeek({ week, segments, visibleMonth, onStartCreateBoard, onOpenBoard }) {
   return (
     <div className="calendar-week" role="row">
       {week.map((day) => (
@@ -159,7 +160,14 @@ function CalendarWeek({ week, segments, visibleMonth, onOpenBoard }) {
           key={day.dateKey}
           role="gridcell"
         >
-          <span>{day.date.getDate()}</span>
+          <button
+            type="button"
+            className="calendar-day-button"
+            onClick={() => onStartCreateBoard(day.date)}
+            aria-label={`${formatDateLabel(day.date)} 게시글 작성`}
+          >
+            <span>{day.date.getDate()}</span>
+          </button>
         </div>
       ))}
 
@@ -332,6 +340,10 @@ function findAvailableRow(usedRows, segment) {
 
 function formatMonthLabel(date) {
   return `${date.getFullYear()}년 ${date.getMonth() + 1}월`
+}
+
+function formatDateLabel(date) {
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
 }
 
 function startOfDay(date) {

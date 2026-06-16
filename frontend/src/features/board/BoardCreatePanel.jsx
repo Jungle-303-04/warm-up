@@ -8,8 +8,8 @@ import {
   buildCreatePayload,
 } from './boardForm'
 
-export function BoardCreatePanel({ isSaving, onCancel, onCreate }) {
-  const [form, setForm] = useState(() => buildCreateForm())
+export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreate }) {
+  const [form, setForm] = useState(() => buildCreateForm(initialStartDate))
   const boardType = Number(form.boardType)
 
   function updateField(fieldName, value) {
