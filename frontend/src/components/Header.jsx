@@ -9,7 +9,7 @@ function Header({ onLoginClick, user }) {
     {
       isActive: isPostDetailPage || location.pathname === "/write",
       label: isPostDetailPage ? "글보기" : "글쓰기",
-      path: isPostDetailPage ? location.pathname : "/write",
+      path: isPostDetailPage ? location.pathname : user ? "/write" : "/login",
     },
   ];
 

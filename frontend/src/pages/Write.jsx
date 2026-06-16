@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import FontInfoPopover from "../components/FontInfoPopover";
 
 const waitingMessages = [
@@ -58,6 +59,7 @@ function TypingWaitingMessage({ lines }) {
 }
 
 function Write() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("write");
   const [content, setContent] = useState("");
   const [isRecommending, setIsRecommending] = useState(false);
@@ -75,6 +77,10 @@ function Write() {
       setRecommendation(recommendedFont);
       setIsRecommending(false);
     }, 1800);
+  };
+
+  const handleSubmitPost = () => {
+    navigate("/posts/1");
   };
 
   const isPreviewDisabled = !recommendation && !isRecommending;
@@ -215,6 +221,7 @@ function Write() {
                     <div className="mt-6 flex justify-end">
                       <button
                         className="cursor-pointer rounded-md border border-gray-300 px-5 py-2 text-sm text-black transition-colors hover:bg-black hover:text-white"
+                        onClick={handleSubmitPost}
                         type="button"
                       >
                         등록 하기
