@@ -548,6 +548,7 @@ h1 {
 }
 
 .workspace-form input,
+.workspace-form select,
 .workspace-form textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -560,6 +561,7 @@ h1 {
 }
 
 .workspace-form input:disabled,
+.workspace-form select:disabled,
 .workspace-form textarea:disabled {
   cursor: not-allowed;
   opacity: 0.62;

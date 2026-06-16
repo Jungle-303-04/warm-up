@@ -165,6 +165,7 @@ function RepositoryIndexForm({
   onSubmit,
 }) {
   const hasBranchOptions = branchOptions.length > 0
+  const branchSelectOptions = buildBranchSelectOptions(branchOptions, branch)
 
   return (
     <form className="workspace-form" onSubmit={onSubmit}>
@@ -183,24 +184,31 @@ function RepositoryIndexForm({
       <div className="repository-form-actions">
         <label>
           <span>브랜치</span>
-          <input
-            type="text"
-            value={branch}
-            onChange={(event) => onBranchChange(event.target.value)}
-            placeholder={isLoadingBranches ? '브랜치 목록 확인 중' : '비워두면 기본 브랜치 전체 분석'}
-            autoComplete="off"
-            list={hasBranchOptions ? 'repository-branch-options' : undefined}
-            disabled={isLoading}
-          />
           {hasBranchOptions ? (
-            <datalist id="repository-branch-options">
-              {branchOptions.map((branchOption) => (
+            <select
+              value={branch}
+              onChange={(event) => onBranchChange(event.target.value)}
+              disabled={isLoading}
+            >
+              {!branch ? (
+                <option value="">기본 브랜치 자동 선택</option>
+              ) : null}
+              {branchSelectOptions.map((branchOption) => (
                 <option key={branchOption.name} value={branchOption.name}>
-                  {buildBranchOptionLabel(branchOption)}
+                  {buildBranchSelectLabel(branchOption)}
                 </option>
               ))}
-            </datalist>
-          ) : null}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={branch}
+              onChange={(event) => onBranchChange(event.target.value)}
+              placeholder={isLoadingBranches ? '브랜치 목록 확인 중' : '비워두면 기본 브랜치 전체 분석'}
+              autoComplete="off"
+              disabled={isLoading}
+            />
+          )}
           {branchLookupMessage ? (
             <p className="repository-branch-message">
               {branchLookupMessage}
@@ -224,18 +232,40 @@ function RepositoryIndexForm({
   )
 }
 
+function buildBranchSelectOptions(branchOptions, branch) {
+  const hasCurrentBranch = branchOptions.some((branchOption) => branchOption.name === branch)
+  if (!branch || hasCurrentBranch) {
+    return branchOptions
+  }
+
+  return [
+    {
+      name: branch,
+      commit_sha: '',
+      protected: false,
+      is_default: false,
+    },
+    ...branchOptions,
+  ]
+}
+
+function buildBranchSelectLabel(branchOption) {
+  const optionLabel = buildBranchOptionLabel(branchOption)
+  return optionLabel ? `${branchOption.name} ${optionLabel}` : branchOption.name
+}
+
 function buildBranchOptionLabel(branchOption) {
   if (branchOption.is_default) {
-    return '기본 브랜치'
+    return '(기본 브랜치)'
   }
 
   if (branchOption.protected) {
-    return '보호된 브랜치'
+    return '(보호된 브랜치)'
   }
 
   return branchOption.commit_sha
-    ? `코드 버전 ${branchOption.commit_sha.slice(0, 7)}`
-    : branchOption.name
+    ? `(코드 버전 ${branchOption.commit_sha.slice(0, 7)})`
+    : ''
 }
 
 function ProgressPanel({ message }) {
