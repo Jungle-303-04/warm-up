@@ -8,6 +8,18 @@ export const TASK_STATUS_OPTIONS = [
   { value: '4', label: '보류' },
 ]
 
+export function getDefaultBoardEventColor(boardType) {
+  if (Number(boardType) === PROCEEDINGS_BOARD_TYPE) {
+    return '#315F9C'
+  }
+
+  if (Number(boardType) === BASIC_BOARD_TYPE) {
+    return '#747D88'
+  }
+
+  return '#2FBF71'
+}
+
 export function buildBoardForm(board) {
   return {
     title: board.title || '',
@@ -16,6 +28,7 @@ export function buildBoardForm(board) {
     assigneeUserIds: formatIdsForInput(board.assignee_user_ids),
     participantUserIds: formatIdsForInput(board.participant_user_ids),
     carbonCopyUserIds: formatIdsForInput(board.carbon_copy_user_ids),
+    eventColor: board.ui_event_color || getDefaultBoardEventColor(board.board_type),
     scheduleStartAt: toDateTimeInputValue(board.schedule_board_detail?.start_at),
     scheduleEndAt: toDateTimeInputValue(board.schedule_board_detail?.end_at),
     importance: String(board.schedule_board_detail?.importance || 5),
@@ -42,6 +55,7 @@ export function buildCreateForm(initialStartDate = null) {
     assigneeUserIds: '',
     participantUserIds: '',
     carbonCopyUserIds: '',
+    eventColor: getDefaultBoardEventColor(SCHEDULE_BOARD_TYPE),
     scheduleStartAt: toDateTimeInputValue(start.toISOString()),
     scheduleEndAt: toDateTimeInputValue(end.toISOString()),
     importance: '5',

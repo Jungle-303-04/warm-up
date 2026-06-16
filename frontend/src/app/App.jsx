@@ -32,6 +32,7 @@ import {
 import './App.css'
 
 const THEME_STORAGE_KEY = 'warm-up-theme'
+const BOARD_EVENT_COLOR_STORAGE_KEY = 'warm-up-board-event-colors'
 
 function App() {
   const [status, setStatus] = useState(INITIAL_STATUS)
@@ -203,7 +204,7 @@ function App() {
         size: '100',
       })
       const payload = await fetchJson(`${API_BASE_URL}/board/?${params}`)
-      setBoards(payload.items || [])
+      setBoards(attachBoardEventColors(payload.items || []))
       const successMessage = `게시글 ${payload.items?.length || 0}개를 캘린더에 반영했습니다.`
       setStatus({ type: 'success', message: successMessage })
 
@@ -399,7 +400,7 @@ function App() {
       //     meeting_date: string
       //   } | null
       // }
-      const board = await fetchJson(`${API_BASE_URL}/board/${boardId}`)
+      const board = attachBoardEventColor(await fetchJson(`${API_BASE_URL}/board/${boardId}`))
       setSelectedBoard(board)
       setIsCreatingBoard(false)
       setBoardCreateInitialDate(null)
@@ -508,7 +509,7 @@ function App() {
     window.history.pushState({ repositoryPage: true }, '', '#repository/register')
   }
 
-  async function createBoard(formPayload) {
+  async function createBoard(formPayload, uiOptions = {}) {
     setBoardAction('create')
     setStatus({ type: 'muted', message: '게시글을 등록하는 중입니다.' })
 
@@ -536,10 +537,16 @@ function App() {
       //     meeting_date: string
       //   } | null
       // }
+      // eventColor는 현재 백엔드 DTO에 없는 프론트 전용 표시 값이다.
+      // TODO(backend): board.event_color 컬럼을 추가하면 이 값을 API body에 포함해 DB에 저장한다.
       // Logged-in browser requests do not send user_id.
       // The backend resolves board.user_id from the auth cookie's internal DB user id.
       // Response DTO는 GET /board/{board_id}와 같은 BoardResponse이다.
-      const createdBoard = await postJson(`${API_BASE_URL}/board/`, formPayload)
+      const createdBoard = attachBoardEventColor(
+        await postJson(`${API_BASE_URL}/board/`, formPayload),
+        uiOptions.eventColor,
+      )
+      saveBoardEventColor(createdBoard.id, createdBoard.ui_event_color)
       setBoards((currentBoards) => [createdBoard, ...currentBoards])
       setVisibleMonth(getBoardCalendarFocusDate(createdBoard))
       setIsCreatingBoard(false)
@@ -563,7 +570,7 @@ function App() {
     }
   }
 
-  async function updateBoardDetail(boardId, formPayload) {
+  async function updateBoardDetail(boardId, formPayload, uiOptions = {}) {
     setBoardAction('update')
     setStatus({ type: 'muted', message: '게시글을 수정하는 중입니다.' })
 
@@ -595,10 +602,16 @@ function App() {
       //     meeting_date: string
       //   } | null
       // }
+      // eventColor는 현재 백엔드 DTO에 없는 프론트 전용 표시 값이다.
+      // TODO(backend): board.event_color 컬럼을 추가하면 이 값을 API body에 포함해 DB에 저장한다.
       // Logged-in browser requests do not send user_id.
       // The backend resolves board.user_id from the auth cookie's internal DB user id.
       // Response DTO는 GET /board/{board_id}와 같은 BoardResponse이다.
-      const updatedBoard = await putJson(`${API_BASE_URL}/board/${boardId}`, formPayload)
+      const updatedBoard = attachBoardEventColor(
+        await putJson(`${API_BASE_URL}/board/${boardId}`, formPayload),
+        uiOptions.eventColor,
+      )
+      saveBoardEventColor(updatedBoard.id, updatedBoard.ui_event_color)
       setSelectedBoard(updatedBoard)
       setBoards((currentBoards) =>
         currentBoards.map((board) => (
@@ -633,6 +646,7 @@ function App() {
       // The backend checks ownership from the auth cookie's internal DB user id.
       // Response body 없음. 성공하면 HTTP 204.
       await deleteJson(`${API_BASE_URL}/board/${boardId}`)
+      deleteBoardEventColor(boardId)
       setBoards((currentBoards) => currentBoards.filter((board) => board.id !== boardId))
       closeBoardDetail()
       setStatus({ type: 'success', message: '게시글을 삭제했습니다.' })
@@ -844,7 +858,8 @@ function App() {
                 board={selectedBoard}
                 isSaving={Boolean(boardAction)}
                 onBack={closeBoardDetail}
-                onUpdate={(payload) => updateBoardDetail(selectedBoard.id, payload)}
+                onUpdate={(payload, uiOptions) =>
+                  updateBoardDetail(selectedBoard.id, payload, uiOptions)}
                 onDelete={() => void deleteBoardDetail(selectedBoard.id)}
               />
             ) : isCreatingBoard ? (
@@ -944,6 +959,57 @@ function getBoardCalendarFocusDate(board) {
     || board.created_at
 
   return calendarDate ? new Date(calendarDate) : new Date()
+}
+
+function attachBoardEventColors(boards) {
+  return boards.map((board) => attachBoardEventColor(board))
+}
+
+function attachBoardEventColor(board, preferredColor = null) {
+  const eventColor = normalizeHexColor(preferredColor)
+    || readBoardEventColors()[String(board.id)]
+    || null
+
+  return {
+    ...board,
+    ui_event_color: eventColor,
+  }
+}
+
+function saveBoardEventColor(boardId, color) {
+  const normalizedColor = normalizeHexColor(color)
+  if (!normalizedColor) {
+    return
+  }
+
+  const colors = readBoardEventColors()
+  colors[String(boardId)] = normalizedColor
+  localStorage.setItem(BOARD_EVENT_COLOR_STORAGE_KEY, JSON.stringify(colors))
+}
+
+function deleteBoardEventColor(boardId) {
+  const colors = readBoardEventColors()
+  delete colors[String(boardId)]
+  localStorage.setItem(BOARD_EVENT_COLOR_STORAGE_KEY, JSON.stringify(colors))
+}
+
+function readBoardEventColors() {
+  try {
+    const parsedValue = JSON.parse(
+      localStorage.getItem(BOARD_EVENT_COLOR_STORAGE_KEY) || '{}',
+    )
+    return Object.fromEntries(
+      Object.entries(parsedValue).filter(([, color]) => normalizeHexColor(color)),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function normalizeHexColor(color) {
+  return typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color)
+    ? color.toUpperCase()
+    : ''
 }
 
 function buildLatestRepositoryRuns(runs) {

@@ -8,6 +8,7 @@ import {
   buildEmptyScheduleTask,
   buildCreateForm,
   buildCreatePayload,
+  getDefaultBoardEventColor,
 } from './boardForm'
 
 export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreate }) {
@@ -18,6 +19,14 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
     setForm((current) => ({
       ...current,
       [fieldName]: value,
+    }))
+  }
+
+  function updateBoardType(value) {
+    setForm((current) => ({
+      ...current,
+      boardType: value,
+      eventColor: getDefaultBoardEventColor(value),
     }))
   }
 
@@ -51,6 +60,9 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
     event.preventDefault()
     // Backend: POST /board/
     // buildCreatePayload(form)은 CreateBoard DTO 모양으로 값을 변환한다.
+    // eventColor는 현재 백엔드 CreateBoard DTO에 없어서 API body로 보내지 않는다.
+    // TODO(backend): BoardResponse/CreateBoard/UpdateBoard에 event_color 같은 컬럼이 생기면
+    // localStorage 대신 DB 저장 값으로 캘린더 색을 복원한다.
     // {
     //   board_type: 1 | 2 | 3,
     //   title: string,
@@ -73,7 +85,9 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
     //   } | null
     // }
     // 로그인 사용자는 user_id를 직접 보내지 않고, 백엔드가 auth cookie로 해석한다.
-    const didCreate = await onCreate(buildCreatePayload(form))
+    const didCreate = await onCreate(buildCreatePayload(form), {
+      eventColor: form.eventColor,
+    })
     if (didCreate) {
       setForm(buildCreateForm())
     }
@@ -102,7 +116,7 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
             <span>게시글 종류</span>
             <select
               value={form.boardType}
-              onChange={(event) => updateField('boardType', event.target.value)}
+              onChange={(event) => updateBoardType(event.target.value)}
             >
               <option value={SCHEDULE_BOARD_TYPE}>일정 게시글</option>
               <option value={PROCEEDINGS_BOARD_TYPE}>회의록 게시글</option>
@@ -116,6 +130,15 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
               value={form.tag}
               onChange={(event) => updateField('tag', event.target.value)}
               placeholder="calendar"
+            />
+          </label>
+          <label className="board-field board-color-field">
+            <span>캘린더 색상</span>
+            <input
+              type="color"
+              value={form.eventColor}
+              onChange={(event) => updateField('eventColor', event.target.value)}
+              aria-label="캘린더에 표시할 게시글 색상"
             />
           </label>
         </div>

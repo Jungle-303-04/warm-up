@@ -44,6 +44,7 @@ import {
 //   proceedings_board_detail?: {
 //     meeting_date: string
 //   } | null
+//   ui_event_color?: string // 프론트 localStorage에서 붙이는 캘린더 표시 색상이다.
 // }
 export function BoardDetailPage({ board, isSaving, onBack, onUpdate, onDelete }) {
   const [isEditing, setIsEditing] = useState(false)
@@ -95,7 +96,11 @@ export function BoardDetailPage({ board, isSaving, onBack, onUpdate, onDelete })
 
   async function submitUpdate(event) {
     event.preventDefault()
-    const didUpdate = await onUpdate(buildUpdatePayload(board, form))
+    // eventColor는 아직 백엔드 UpdateBoard DTO에 없어서 API body로 보내지 않는다.
+    // TODO(backend): board.event_color 컬럼이 생기면 buildUpdatePayload에 포함해 DB에 저장한다.
+    const didUpdate = await onUpdate(buildUpdatePayload(board, form), {
+      eventColor: form.eventColor,
+    })
     if (didUpdate) {
       setIsEditing(false)
     }
@@ -241,6 +246,15 @@ function BoardEditForm({
             value={form.tag}
             onChange={(event) => onChange('tag', event.target.value)}
             placeholder="태그 없음"
+          />
+        </label>
+        <label className="board-field board-color-field">
+          <span>캘린더 색상</span>
+          <input
+            type="color"
+            value={form.eventColor}
+            onChange={(event) => onChange('eventColor', event.target.value)}
+            aria-label="캘린더에 표시할 게시글 색상"
           />
         </label>
       </header>

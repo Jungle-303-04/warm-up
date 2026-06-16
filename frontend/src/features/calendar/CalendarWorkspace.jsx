@@ -1,11 +1,21 @@
 import { useMemo, useState } from 'react'
 
 import { BOARD_TYPE_FILTERS, filterBoards } from '../board/boardFilters'
-import { calculateScheduleTaskProgress } from '../board/boardForm'
+import {
+  BASIC_BOARD_TYPE,
+  PROCEEDINGS_BOARD_TYPE,
+  SCHEDULE_BOARD_TYPE,
+  calculateScheduleTaskProgress,
+  formatDateTime,
+  getBoardTypeLabel,
+} from '../board/boardForm'
 
-const SCHEDULE_BOARD_TYPE = 2
-const PROCEEDINGS_BOARD_TYPE = 3
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
+const CALENDAR_WEEK_BASE_HEIGHT = 116
+const CALENDAR_WEEK_HEADER_SPACE = 44
+const CALENDAR_WEEK_BLOCK_SPACE = 16
+const CALENDAR_EVENT_ROW_HEIGHT = 22
+const CALENDAR_EVENT_ROW_GAP = 4
 
 export function CalendarWorkspace({
   boards,
@@ -33,6 +43,7 @@ export function CalendarWorkspace({
   const monthEvents = calendarEvents.filter((event) =>
     isEventVisibleInMonth(event, visibleMonth),
   )
+  const visibleBoardCards = buildVisibleBoardCards(filteredBoards)
   const scheduleCount = monthEvents.filter((event) => event.type === 'schedule').length
   const meetingCount = monthEvents.filter((event) => event.type === 'meeting').length
 
@@ -108,16 +119,15 @@ export function CalendarWorkspace({
             </label>
           ))}
         </fieldset>
-      </div>
 
-      <div className="calendar-search-panel" aria-label="게시글 검색">
-        <label>
-          <span>검색</span>
+        <label className="board-search-box calendar-search-box">
+          <span className="visually-hidden">게시글 검색</span>
+          <IconSearch />
           <input
             type="search"
             value={searchKeyword}
             onChange={(event) => setSearchKeyword(event.target.value)}
-            placeholder="제목, 내용, 태그 입력"
+            placeholder="제목, 내용, 태그"
           />
         </label>
       </div>
@@ -146,13 +156,101 @@ export function CalendarWorkspace({
           이번 달 달력에 표시할 일정이나 회의록이 없습니다.
         </p>
       ) : null}
+
+      <section className="calendar-board-card-section" aria-labelledby="calendar-board-card-title">
+        <div className="calendar-board-card-header">
+          <div>
+            <p className="eyebrow">게시글 보기</p>
+            <h3 id="calendar-board-card-title">게시글 카드</h3>
+          </div>
+          <span>{filteredBoards.length}개</span>
+        </div>
+
+        {visibleBoardCards.length ? (
+          <ul className="calendar-board-card-list">
+            {visibleBoardCards.map((board) => (
+              <li key={board.id}>
+                <button type="button" onClick={() => onOpenBoard(board.id)}>
+                  <span className="board-search-type">
+                    {getBoardTypeLabel(board.board_type)}
+                  </span>
+                  <strong>{board.title}</strong>
+                  <p>{buildBoardExcerpt(board.content)}</p>
+                  <dl className="board-search-meta" aria-label={`${board.title} 게시글 정보`}>
+                    <div>
+                      <dt>작성일</dt>
+                      <dd>{formatDateTime(board.created_at)}</dd>
+                    </div>
+                    <div>
+                      <dt>태그</dt>
+                      <dd>{board.tag ? `#${board.tag}` : '-'}</dd>
+                    </div>
+                    {board.board_type === SCHEDULE_BOARD_TYPE ? (
+                      <div>
+                        <dt>진행률</dt>
+                        <dd>
+                          {formatProgress(calculateScheduleTaskProgress(
+                            board.schedule_board_tasks,
+                          ))}
+                        </dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="calendar-empty">조건에 맞는 게시글 카드가 없습니다.</p>
+        )}
+      </section>
     </section>
   )
 }
 
+function buildVisibleBoardCards(boards) {
+  return [...boards]
+    .sort((left, right) => {
+      const leftTime = new Date(left.created_at).getTime() || 0
+      const rightTime = new Date(right.created_at).getTime() || 0
+      return rightTime - leftTime
+    })
+    .slice(0, 6)
+}
+
+function buildBoardExcerpt(content) {
+  const normalizedContent = String(content || '').trim().replace(/\s+/g, ' ')
+
+  if (normalizedContent.length <= 90) {
+    return normalizedContent || '본문 없음'
+  }
+
+  return `${normalizedContent.slice(0, 90)}...`
+}
+
+function formatProgress(progressPercent) {
+  return Number.isInteger(progressPercent) ? `${progressPercent}%` : '-'
+}
+
 function CalendarWeek({ week, segments, visibleMonth, onStartCreateBoard, onOpenBoard }) {
+  const eventRowCount = Math.max(1, ...segments.map((segment) => segment.row))
+  const weekMinHeight = Math.max(
+    CALENDAR_WEEK_BASE_HEIGHT,
+    CALENDAR_WEEK_HEADER_SPACE
+      + CALENDAR_WEEK_BLOCK_SPACE
+      + (eventRowCount * CALENDAR_EVENT_ROW_HEIGHT)
+      + ((eventRowCount - 1) * CALENDAR_EVENT_ROW_GAP),
+  )
+
   return (
-    <div className="calendar-week" role="row">
+    <div
+      className="calendar-week"
+      role="row"
+      style={{
+        '--calendar-week-min-height': `${weekMinHeight}px`,
+        '--calendar-event-row-count': eventRowCount,
+      }}
+    >
       {week.map((day) => (
         <div
           className={`calendar-day ${
@@ -181,6 +279,8 @@ function CalendarWeek({ week, segments, visibleMonth, onStartCreateBoard, onOpen
             style={{
               gridColumn: `${segment.startColumn} / span ${segment.span}`,
               gridRow: segment.row,
+              '--calendar-event-bg': segment.event.color.background,
+              '--calendar-event-border': segment.event.color.border,
             }}
             onClick={() => onOpenBoard(segment.event.boardId)}
           >
@@ -196,6 +296,10 @@ function CalendarWeek({ week, segments, visibleMonth, onStartCreateBoard, onOpen
 }
 
 function mapBoardToCalendarEvents(board) {
+  if (board.board_type === BASIC_BOARD_TYPE) {
+    return [mapBasicBoardToCalendarEvent(board)]
+  }
+
   if (board.board_type === SCHEDULE_BOARD_TYPE && board.schedule_board_detail) {
     return [mapScheduleBoardToCalendarEvent(board)]
   }
@@ -205,6 +309,23 @@ function mapBoardToCalendarEvents(board) {
   }
 
   return []
+}
+
+// Backend: GET /board/
+// Response item 중 일반 게시글은 별도 일정 날짜가 없으므로 created_at 하루에 표시한다.
+// 캘린더의 "일반" 필터와 범례가 실제 화면 결과와 어긋나지 않게 하기 위한 매핑이다.
+function mapBasicBoardToCalendarEvent(board) {
+  return {
+    id: `basic-${board.id}`,
+    boardId: board.id,
+    type: 'basic',
+    color: getBoardEventColor('basic', board),
+    title: board.title,
+    content: board.content,
+    tag: board.tag,
+    startAt: board.created_at,
+    endAt: board.created_at,
+  }
 }
 
 // Backend: GET /board/
@@ -236,6 +357,7 @@ function mapScheduleBoardToCalendarEvent(board) {
     id: `schedule-${board.id}`,
     boardId: board.id,
     type: 'schedule',
+    color: getBoardEventColor('schedule', board),
     title: board.title,
     content: board.content,
     tag: board.tag,
@@ -266,6 +388,7 @@ function mapProceedingsBoardToCalendarEvent(board) {
     id: `meeting-${board.id}`,
     boardId: board.id,
     type: 'meeting',
+    color: getBoardEventColor('meeting', board),
     title: board.title,
     content: board.content,
     tag: board.tag,
@@ -327,8 +450,74 @@ function buildWeekSegment(weekStart, weekEnd, event) {
     weekStartKey: toDateKey(weekStart),
     startColumn,
     span,
-    label: event.type === 'meeting' ? `회의 ${event.title}` : event.title,
+    label: formatEventLabel(event),
   }
+}
+
+function formatEventLabel(event) {
+  if (event.type === 'meeting') {
+    return `회의 ${event.title}`
+  }
+
+  if (event.type === 'basic') {
+    return `일반 ${event.title}`
+  }
+
+  return event.title
+}
+
+const EVENT_COLOR_PALETTES = {
+  schedule: [
+    { background: '#2FBF71', border: '#1F8F55' },
+    { background: '#249E63', border: '#19794B' },
+    { background: '#58C98C', border: '#2B9A62' },
+    { background: '#1F7F5C', border: '#176246' },
+    { background: '#39AC6E', border: '#247C50' },
+  ],
+  meeting: [
+    { background: '#315F9C', border: '#214878' },
+    { background: '#3E78B2', border: '#285C8C' },
+    { background: '#254F85', border: '#1B3B66' },
+    { background: '#4D8AC7', border: '#32699D' },
+    { background: '#2D6F91', border: '#20536E' },
+  ],
+  basic: [
+    { background: '#747D88', border: '#59636F' },
+    { background: '#5F6B78', border: '#48525E' },
+    { background: '#8A7E70', border: '#6D6256' },
+    { background: '#66727C', border: '#4D5964' },
+    { background: '#7C7485', border: '#615A6A' },
+  ],
+}
+
+function getEventColor(type, boardId) {
+  const palette = EVENT_COLOR_PALETTES[type] || EVENT_COLOR_PALETTES.basic
+  const colorIndex = Math.abs(Number(boardId) || 0) % palette.length
+  return palette[colorIndex]
+}
+
+function getBoardEventColor(type, board) {
+  if (board.ui_event_color) {
+    return {
+      background: board.ui_event_color,
+      border: darkenHexColor(board.ui_event_color),
+    }
+  }
+
+  return getEventColor(type, board.id)
+}
+
+function darkenHexColor(hexColor) {
+  const color = hexColor.replace('#', '')
+  const red = Math.max(0, Math.round(parseInt(color.slice(0, 2), 16) * 0.72))
+  const green = Math.max(0, Math.round(parseInt(color.slice(2, 4), 16) * 0.72))
+  const blue = Math.max(0, Math.round(parseInt(color.slice(4, 6), 16) * 0.72))
+
+  return `#${toHexPair(red)}${toHexPair(green)}${toHexPair(blue)}`
+}
+
+function toHexPair(value) {
+  return value.toString(16).padStart(2, '0')
 }
 
 function isEventVisibleInMonth(event, visibleMonth) {
@@ -371,4 +560,13 @@ function toDateKey(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function IconSearch() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="6" />
+      <path d="m16 16 4 4" />
+    </svg>
+  )
 }
