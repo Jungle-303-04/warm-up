@@ -59,7 +59,7 @@ export function Workspace({ notebookId }: { notebookId: string }) {
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
       <TopBar notebookTitle={notebook.title} />
-      <main className="flex flex-1 gap-3 overflow-hidden px-3 pb-3">
+      <main className="flex flex-1 gap-3 overflow-hidden px-3 pb-3 pt-0.5">
         <SourcesPanel notebookId={notebook.id} />
         <CenterPanel />
         <StudioPanel />

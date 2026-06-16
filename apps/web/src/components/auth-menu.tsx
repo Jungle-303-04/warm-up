@@ -30,13 +30,13 @@ export function AuthMenu() {
     return (
       <span
         title={`GitHub: ${me.login}`}
-        className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[13px] text-foreground"
+        className="inline-flex items-center gap-2 rounded-full border border-border bg-card py-1 pl-1 pr-3 text-[13px] font-medium text-foreground shadow-elev-1"
       >
         <img
           src={`https://avatars.githubusercontent.com/u/${me.user_id}`}
           alt={me.login}
-          width={18}
-          height={18}
+          width={22}
+          height={22}
           className="rounded-full"
         />
         {me.login}
@@ -47,9 +47,9 @@ export function AuthMenu() {
   return (
     <a
       href={loginUrl()}
-      className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+      className="interactive inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground shadow-elev-1 hover:opacity-90 hover:shadow-elev-2 active:scale-[0.98]"
     >
-      <Icon name="login" size={16} /> GitHub로 로그인
+      <Icon name="github" size={16} /> GitHub로 로그인
     </a>
   );
 }

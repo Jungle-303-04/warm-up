@@ -29,61 +29,80 @@ export function ChatView() {
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-2xl px-5 py-6">
-          <div className="rounded-2xl border border-border bg-secondary/40 p-4">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary">
-                <Icon name="hub" size={20} />
+      <div className="scroll-thin flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-2xl px-6 py-7">
+          {/* 환영 카드 */}
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-elev-1">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-accent text-accent-foreground">
+                <Icon name="hub" size={22} />
               </span>
-              <div className="min-w-0">
-                <h1 className="truncate text-[15px] font-semibold">RepoLM 대화</h1>
-                <p className="text-[11px] text-muted-foreground">소스 {sourceCount}개</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="truncate text-[16px] font-semibold tracking-tight">RepoLM 대화</h1>
+                <p className="mt-0.5 text-[12px] text-muted-foreground">소스 {sourceCount}개 연결됨</p>
               </div>
-              <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">
-                <Icon name="check_circle" size={12} />
-                {scopeCount}개 소스 기준
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground">
+                <Icon name="check_circle" size={13} />
+                {scopeCount}개 기준
               </span>
             </div>
-            <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mt-3.5 text-[13.5px] leading-relaxed text-muted-foreground">
               연결된 저장소·문서를 근거로 질문에 답하고, 코드와 문서가 어긋난 부분을 찾습니다.
               답변에는 항상 출처(파일·라인·커밋)가 따라옵니다.
             </p>
           </div>
 
-          {/* 추천 질문: 클릭 시 입력창을 채운다 */}
+          {/* 추천 질문: 둥근 카드 칩. 클릭 시 입력창을 채운다 */}
           {turns.length === 0 ? (
-            <div className="mt-4 space-y-1.5">
-              {SUGGESTIONS.map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => setQuery(q)}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-border px-3 py-2 text-left text-[13px] text-foreground transition-colors hover:bg-secondary"
-                >
-                  <Icon name="add_circle" size={16} className="text-muted-foreground" />
-                  <span className="flex-1">{q}</span>
-                </button>
-              ))}
+            <div className="mt-5">
+              <p className="mb-2.5 flex items-center gap-1.5 px-1 text-[12px] font-medium text-muted-foreground">
+                <Icon name="lightbulb" size={14} className="text-primary" />
+                추천 질문
+              </p>
+              <div className="space-y-2">
+                {SUGGESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setQuery(q)}
+                    className="interactive group flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left text-[13.5px] text-foreground hover:border-primary/40 hover:bg-secondary hover:shadow-elev-1"
+                  >
+                    <span className="flex-1 leading-snug">{q}</span>
+                    <Icon
+                      name="north_east"
+                      size={15}
+                      className="shrink-0 text-muted-foreground/60 transition-colors group-hover:text-primary"
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
 
           {/* 대화 턴(목업) */}
-          <div className="mt-6 space-y-5">
+          <div className="mt-7 space-y-6">
             {turns.map((turn, i) => (
-              <div key={i} className="space-y-3">
-                <div className="ml-auto w-fit max-w-[85%] rounded-2xl bg-primary px-3.5 py-2 text-[13px] text-primary-foreground">
+              <div key={i} className="space-y-3.5">
+                <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-[13.5px] leading-relaxed text-primary-foreground shadow-elev-1">
                   {turn.question}
                 </div>
-                <AgentMessage response={turn.response} />
+                <div className="flex gap-2.5">
+                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
+                    <Icon name="hub" size={16} />
+                  </span>
+                  <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-border bg-card px-4 py-3 shadow-elev-1">
+                    <AgentMessage response={turn.response} />
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="shrink-0 px-4 pb-4">
-        <div className="mx-auto flex max-w-2xl items-end gap-2 rounded-2xl border border-border bg-background px-3.5 py-2.5 shadow-sm">
+      {/* 하단 입력바 */}
+      <div className="shrink-0 px-5 pb-5">
+        <div className="mx-auto flex max-w-2xl items-end gap-2 rounded-[26px] border border-border bg-card px-4 py-2.5 shadow-elev-2 focus-within:border-primary/50">
           <textarea
             rows={1}
             value={query}
@@ -96,19 +115,25 @@ export function ChatView() {
             }}
             placeholder="무엇이든 물어보세요"
             aria-label="메시지 입력"
-            className="max-h-28 flex-1 resize-none bg-transparent text-[13px] leading-relaxed outline-none placeholder:text-muted-foreground"
+            className="max-h-32 flex-1 resize-none self-center bg-transparent py-1.5 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground"
           />
-          <button
-            type="button"
-            onClick={send}
-            disabled={!canSend}
-            aria-label="보내기"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-          >
-            <Icon name="arrow_upward" size={18} />
-          </button>
+          <div className="flex shrink-0 items-center gap-2 self-end pb-0.5">
+            <span className="hidden items-center gap-1 text-[11px] text-muted-foreground sm:inline-flex">
+              <Icon name="description" size={12} />
+              소스 {sourceCount}개
+            </span>
+            <button
+              type="button"
+              onClick={send}
+              disabled={!canSend}
+              aria-label="보내기"
+              className="interactive grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
+            >
+              <Icon name="arrow_upward" size={18} />
+            </button>
+          </div>
         </div>
-        <p className="mx-auto mt-1.5 max-w-2xl text-center text-[11px] text-muted-foreground">
+        <p className="mx-auto mt-2 max-w-2xl text-center text-[11px] text-muted-foreground">
           RepoLM의 답변은 부정확할 수 있으니 출처를 확인하세요.
         </p>
       </div>

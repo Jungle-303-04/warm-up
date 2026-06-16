@@ -101,6 +101,68 @@ textarea {
   font: inherit;
 }
 
+/* ── Material 3풍 elevation/모션 토큰 ───────────────────────────────
+   surface(카드 기본)부터 raised(hover)까지 단계적 그림자.
+   다크에서는 그림자 대신 표면 톤(card→#2d2f31)으로 elevation을 표현한다. */
+:root {
+  --elev-1: 0 1px 2px 0 rgb(60 64 67 / 0.08), 0 1px 3px 1px rgb(60 64 67 / 0.06);
+  --elev-2: 0 1px 3px 0 rgb(60 64 67 / 0.12), 0 4px 8px 3px rgb(60 64 67 / 0.08);
+  --elev-3: 0 4px 8px 0 rgb(60 64 67 / 0.12), 0 8px 16px 6px rgb(60 64 67 / 0.1);
+  /* 더 높은 표면 톤(스튜디오 카드 등). 라이트는 흰 카드 유지. */
+  --surface-raised: 0 0% 100%;
+}
+
+.dark {
+  --elev-1: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+  --elev-2: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 4px 8px 3px rgb(0 0 0 / 0.18);
+  --elev-3: 0 4px 8px 0 rgb(0 0 0 / 0.45), 0 8px 16px 6px rgb(0 0 0 / 0.22);
+  --surface-raised: 210 4% 18%; /* #2d2f31 — card보다 한 단계 높은 표면 */
+}
+
+.shadow-elev-1 {
+  box-shadow: var(--elev-1);
+}
+.shadow-elev-2 {
+  box-shadow: var(--elev-2);
+}
+.shadow-elev-3 {
+  box-shadow: var(--elev-3);
+}
+
+/* 한 단계 높은 표면(다크에서 카드 위 카드 구분). */
+.bg-surface-raised {
+  background-color: hsl(var(--surface-raised));
+}
+
+/* 공통 상호작용 전환: 색/그림자/transform을 부드럽게. */
+.interactive {
+  transition:
+    background-color 150ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 150ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 200ms cubic-bezier(0.2, 0, 0, 1),
+    color 150ms cubic-bezier(0.2, 0, 0, 1),
+    transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* 커스텀 스크롤바: NotebookLM처럼 얇고 은은하게. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
+}
+
 /* board-simple의 마크다운 타이포그래피를 그대로 채택. */
 .markdown-body {
   overflow-wrap: anywhere;

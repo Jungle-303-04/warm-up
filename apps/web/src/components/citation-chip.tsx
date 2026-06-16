@@ -3,12 +3,12 @@ export function CitationChip({ index, label }: { index: number; label: string })
     <button
       type="button"
       title={label}
-      className="inline-flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+      className="interactive inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-secondary py-1 pl-1 pr-2.5 text-[11.5px] text-muted-foreground hover:border-primary/40 hover:text-foreground"
     >
-      <span className="grid h-4 w-4 place-items-center rounded bg-primary/10 text-[10px] font-medium text-primary">
+      <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
         {index}
       </span>
-      {label}
+      <span className="truncate font-mono">{label}</span>
     </button>
   );
 }

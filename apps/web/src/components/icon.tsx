@@ -18,6 +18,7 @@ import {
   FileType,
   Folder,
   FolderGit2,
+  Lightbulb,
   Link2,
   ListChecks,
   Loader2,
@@ -29,6 +30,7 @@ import {
   MoreVertical,
   Network,
   NotebookText,
+  NotebookPen,
   Pencil,
   Plus,
   Search,
@@ -70,6 +72,9 @@ const ICONS: Record<string, LucideIcon> = {
   report: NotebookText, // 보고서 (스튜디오)
   mindmap: Network, // 마인드맵 (스튜디오)
   article: StickyNote,
+  lightbulb: Lightbulb, // 추천 질문 칩
+  note_add: NotebookPen, // 메모 추가
+  notebook: NotebookText, // 노트북 대표 아이콘(대시보드/탑바)
   // 소스 타입 아이콘
   folder_code: FolderGit2, // GitHub 저장소
   description: FileText, // Markdown

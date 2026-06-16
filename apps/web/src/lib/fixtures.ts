@@ -28,13 +28,18 @@ export const DEMO_RESPONSE: AgentResponse = {
 };
 
 // 스튜디오(우측 패널) 데모 타일/메모. 모두 "준비 중".
+// hint = 카드 보조 설명(NotebookLM 스튜디오처럼 한 줄 안내).
 export const STUDIO_TILES = [
-  { icon: "account_tree", label: "UML" },
-  { icon: "schema", label: "ERD" },
-  { icon: "checklist", label: "계획" },
-  { icon: "calendar_month", label: "일정 요약" },
-  { icon: "report", label: "보고서" },
-  { icon: "mindmap", label: "마인드맵" },
+  { icon: "account_tree", label: "UML", hint: "클래스·시퀀스" },
+  { icon: "schema", label: "ERD", hint: "데이터 모델" },
+  { icon: "checklist", label: "계획", hint: "작업 분해" },
+  { icon: "calendar_month", label: "일정 요약", hint: "타임라인" },
+  { icon: "report", label: "보고서", hint: "근거 기반 문서" },
+  { icon: "mindmap", label: "마인드맵", hint: "개념 연결도" },
 ];
 
-export const STUDIO_NOTES = ["도메인 ERD v2", "인증 시퀀스 UML"];
+// 메모 데모: 제목 + 종류(서브텍스트) + 아이콘.
+export const STUDIO_NOTES = [
+  { title: "도메인 ERD v2", kind: "ERD", icon: "schema" },
+  { title: "인증 시퀀스 UML", kind: "UML", icon: "account_tree" },
+];

@@ -61,14 +61,14 @@ function TreeItem({
           type="button"
           onClick={() => setOpen((o) => !o)}
           style={pad}
-          className="flex w-full items-center gap-1 rounded-md py-1 pr-1 text-left text-[12px] transition-colors hover:bg-secondary"
+          className="interactive flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-[12.5px] hover:bg-secondary"
         >
           <Icon
             name="chevron_right"
             size={13}
             className={cn("shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
           />
-          <Icon name="folder" size={13} className="shrink-0 text-muted-foreground" />
+          <Icon name="folder" size={14} className="shrink-0 text-muted-foreground" />
           <span className="truncate">{node.name}</span>
         </button>
         {open && node.children ? (
@@ -90,12 +90,18 @@ function TreeItem({
         onClick={() => openFile(sourceId, node.path)}
         style={pad}
         className={cn(
-          "flex w-full items-center gap-1 rounded-md py-1 pr-1 text-left text-[12px] transition-colors",
-          focused ? "bg-secondary font-medium" : "hover:bg-secondary",
+          "interactive flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-[12.5px]",
+          focused
+            ? "bg-accent font-medium text-accent-foreground"
+            : "hover:bg-secondary",
         )}
       >
         <span className="w-[13px] shrink-0" />
-        <Icon name="file" size={13} className="shrink-0 text-muted-foreground" />
+        <Icon
+          name="file"
+          size={14}
+          className={cn("shrink-0", focused ? "text-accent-foreground" : "text-muted-foreground")}
+        />
         <span className="truncate">{node.name}</span>
       </button>
     </li>
@@ -150,8 +156,8 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
     <div>
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-lg pl-2 pr-1 transition-colors",
-          focused ? "bg-secondary" : "hover:bg-secondary",
+          "group interactive flex items-center gap-1 rounded-xl pl-2 pr-1",
+          focused ? "bg-accent" : "hover:bg-secondary",
         )}
       >
         <button
@@ -159,17 +165,29 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           onClick={() => (isRepo ? toggleExpand() : openSource(source.id))}
           aria-current={focused ? "true" : undefined}
           title={isRepo ? `${source.title} 파일 트리` : `${source.title} 열기`}
-          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-1.5 pr-1 text-left"
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-2 pr-1 text-left"
         >
           <span
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-md"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
             style={{ background: cfg.chipBg, color: cfg.chipFg }}
           >
             <Icon name={cfg.icon} size={16} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] leading-tight">{source.title}</span>
-            <span className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+            <span
+              className={cn(
+                "block truncate text-[13px] font-medium leading-tight",
+                focused && "text-accent-foreground",
+              )}
+            >
+              {source.title}
+            </span>
+            <span
+              className={cn(
+                "mt-0.5 flex items-center gap-1 text-[11px]",
+                focused ? "text-accent-foreground/80" : "text-muted-foreground",
+              )}
+            >
               <span>{cfg.label}</span>
               {isRepo && source.branch ? (
                 <>
@@ -182,9 +200,10 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           {isRepo ? (
             <Icon
               name="chevron_right"
-              size={15}
+              size={16}
               className={cn(
-                "shrink-0 text-muted-foreground transition-transform",
+                "shrink-0 transition-transform",
+                focused ? "text-accent-foreground" : "text-muted-foreground",
                 expanded && "rotate-90",
               )}
             />
@@ -196,22 +215,25 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           onClick={handleDelete}
           aria-label={`${source.title} 삭제`}
           title="소스 삭제"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+          className="interactive grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
         >
           <Icon name="delete" size={15} />
         </button>
       </div>
 
       {isRepo && expanded ? (
-        <div className="ml-9 mt-0.5 border-l border-border pl-1">
+        <div className="ml-[18px] mt-0.5 border-l border-border pl-1.5">
           {treeLoading ? (
-            <p className="px-2 py-1 text-[11px] text-muted-foreground">불러오는 중…</p>
+            <p className="flex items-center gap-1.5 px-2 py-1.5 text-[11.5px] text-muted-foreground">
+              <Icon name="progress_activity" size={13} className="animate-spin" />
+              불러오는 중…
+            </p>
           ) : treeError ? (
-            <p className="px-2 py-1 text-[11px] text-destructive">{treeError}</p>
+            <p className="px-2 py-1.5 text-[11.5px] text-destructive">{treeError}</p>
           ) : tree && tree.length > 0 ? (
             <TreeView nodes={tree} notebookId={notebookId} sourceId={source.id} />
           ) : (
-            <p className="px-2 py-1 text-[11px] text-muted-foreground">파일이 없습니다</p>
+            <p className="px-2 py-1.5 text-[11.5px] text-muted-foreground">파일이 없습니다</p>
           )}
         </div>
       ) : null}

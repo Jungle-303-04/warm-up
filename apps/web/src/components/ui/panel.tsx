@@ -16,7 +16,7 @@ export function Panel({
   return (
     <Tag
       className={cn(
-        "flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm",
+        "flex flex-col overflow-hidden rounded-[16px] border border-border bg-card shadow-elev-1",
         className,
       )}
     >

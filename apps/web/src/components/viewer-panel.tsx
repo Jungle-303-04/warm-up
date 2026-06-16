@@ -13,13 +13,13 @@ function EmptyState() {
   return (
     <div className="grid flex-1 place-items-center px-6 text-center">
       <div className="max-w-xs">
-        <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">
-          <Icon name="description" size={22} />
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-accent text-accent-foreground">
+          <Icon name="description" size={24} />
         </span>
-        <p className="mt-3 text-[14px] font-semibold">열어 볼 소스를 선택하세요</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+        <p className="mt-4 text-[14px] font-semibold">열어 볼 소스를 선택하세요</p>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
           왼쪽 소스 목록에서 항목을 클릭하면 여기서 원문을 확인할 수 있습니다. 레포는 펼쳐
-          파일을 선택하세요. 체크박스는 대화 답변의 범위를 정합니다.
+          파일을 선택하세요.
         </p>
       </div>
     </div>
@@ -93,9 +93,9 @@ export function ViewerPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-border px-4 py-3">
         <span
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-md"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
           style={{ background: cfg.chipBg, color: cfg.chipFg }}
         >
           <Icon name={filePath ? "file" : cfg.icon} size={16} />
@@ -109,14 +109,14 @@ export function ViewerPanel() {
             href={externalUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-secondary"
+            className="interactive inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-[12px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <Icon name="north_east" size={14} /> 열기
           </a>
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl px-5 py-6">
           {loading ? (
             <div className="grid place-items-center py-12 text-muted-foreground">

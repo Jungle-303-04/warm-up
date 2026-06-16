@@ -21,8 +21,8 @@ function CitationChips({ citations }: { citations: Citation[] }) {
 // 보류/추가요청 등 안내 박스.
 function Notice({ icon, children }: { icon: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2 rounded-xl border border-border bg-secondary/40 p-3 text-[13px] leading-relaxed text-muted-foreground">
-      <Icon name={icon} size={16} className="mt-0.5 shrink-0" />
+    <div className="flex items-start gap-2.5 rounded-xl border border-border bg-secondary px-3.5 py-3 text-[13px] leading-relaxed text-muted-foreground">
+      <Icon name={icon} size={16} className="mt-0.5 shrink-0 text-primary" />
       <span>{children}</span>
     </div>
   );
@@ -45,14 +45,14 @@ export function AgentMessage({ response }: { response: AgentResponse }) {
           {response.intro ? (
             <p className="text-[13px] leading-relaxed text-muted-foreground">{response.intro}</p>
           ) : null}
-          <ul className="space-y-1">
+          <ul className="space-y-1.5">
             {response.citations.map((c, i) => (
               <li
                 key={`${c.sourceId}-${i}`}
-                className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-[12px]"
+                className="interactive flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-[12.5px] hover:border-primary/40"
               >
                 <Icon name="description" size={14} className="shrink-0 text-muted-foreground" />
-                <span className="truncate">{citationLabel(c)}</span>
+                <span className="truncate font-mono">{citationLabel(c)}</span>
               </li>
             ))}
           </ul>

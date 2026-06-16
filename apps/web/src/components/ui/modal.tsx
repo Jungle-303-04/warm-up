@@ -42,15 +42,15 @@ export function Modal({
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-xl",
+          "flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-card text-card-foreground shadow-elev-3",
           className,
         )}
       >
-        <header className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-[14px] font-semibold">{title}</h2>
+        <header className="flex items-center justify-between border-b border-border px-5 py-3.5">
+          <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
           <IconButton name="close" label="닫기" size={16} onClick={onClose} />
         </header>
-        <div className="overflow-y-auto p-5">{children}</div>
+        <div className="scroll-thin overflow-y-auto p-5">{children}</div>
       </div>
     </div>
   );

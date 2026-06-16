@@ -45,7 +45,7 @@ export function SourceAddModal({
       <div
         role="tablist"
         aria-label="소스 추가 방식"
-        className="mb-4 flex gap-1 rounded-lg bg-secondary p-1"
+        className="mb-4 flex gap-1 rounded-full bg-secondary p-1"
       >
         {TABS.map((t) => (
           <button
@@ -55,9 +55,9 @@ export function SourceAddModal({
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] transition-colors",
+              "interactive flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-[12px]",
               tab === t.id
-                ? "bg-card font-medium text-foreground shadow-sm"
+                ? "bg-card font-semibold text-foreground shadow-elev-1"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -163,8 +163,10 @@ function PdfTab({ onSubmit }: { onSubmit: (body: SourceCreate) => Promise<void> 
       }}
       className="space-y-3"
     >
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border py-8 text-center transition-colors hover:bg-secondary">
-        <Icon name="picture_as_pdf" size={24} className="text-muted-foreground" />
+      <label className="interactive flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center hover:border-primary/40 hover:bg-secondary">
+        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-accent text-accent-foreground">
+          <Icon name="picture_as_pdf" size={22} />
+        </span>
         <span className="text-[13px]">{file?.name ?? "PDF 파일을 선택하세요"}</span>
         <span className="text-[12px] text-muted-foreground">
           텍스트를 브라우저에서 추출해 인덱싱합니다
@@ -277,7 +279,7 @@ function RepoTab({ onSubmit }: { onSubmit: (body: SourceCreate) => Promise<void>
 }
 
 const inputCls =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] outline-none placeholder:text-muted-foreground focus:border-ring";
+  "interactive w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[13px] outline-none placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -303,7 +305,7 @@ function SubmitButton({
     <button
       type="submit"
       disabled={disabled}
-      className="w-full rounded-full bg-primary py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+      className="interactive w-full rounded-full bg-primary py-2.5 text-[13px] font-medium text-primary-foreground hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
     >
       {children}
     </button>
