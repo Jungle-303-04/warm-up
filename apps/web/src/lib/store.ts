@@ -2,20 +2,35 @@
 
 import { create } from "zustand";
 
-import type { CenterTab, IndexProgress, Source, StudioArtifact } from "./types";
+import {
+  createArtifact as apiCreateArtifact,
+  createNote as apiCreateNote,
+  deleteArtifact as apiDeleteArtifact,
+  listArtifacts as apiListArtifacts,
+  updateArtifact as apiUpdateArtifact,
+} from "./api";
+import type {
+  Artifact,
+  CenterTab,
+  GeneratableArtifactType,
+  IndexProgress,
+  Source,
+} from "./types";
 
-// 뷰어가 가리키는 대상: 소스 자체 또는 repo 소스 안의 특정 파일.
+// 뷰어가 가리키는 대상: 소스 자체, repo 소스 안의 특정 파일, 또는 산출물.
+// artifactId 가 있으면 산출물 뷰어, 없으면 (sourceId 기반) 소스/파일 뷰어.
 export interface ViewerTarget {
-  sourceId: string;
+  sourceId?: string;
   // path 가 있으면 repo 파일, 없으면 소스 본문.
   path?: string;
+  // 산출물 뷰어 대상(다이어그램/메모). 지정 시 소스/파일 필드는 무시.
+  artifactId?: string;
 }
 
 export interface WorkspaceCacheSnapshot {
   selectedSourceIds?: string[];
   viewer?: ViewerTarget | null;
   centerTab?: CenterTab;
-  artifacts?: StudioArtifact[];
   indexProgress?: Record<string, IndexProgress>;
   // repo 소스별 선택된 파일 경로(답변 범위). 직렬화를 위해 배열로 저장.
   selectedFilePaths?: Record<string, string[]>;
@@ -28,7 +43,11 @@ interface WorkspaceStore {
   selectedSourceIds: Set<string>;
   viewer: ViewerTarget | null; // 중앙 뷰어가 여는 대상
   centerTab: CenterTab;
-  artifacts: StudioArtifact[];
+  // 백엔드 산출물 목록(아티팩트/메모). 노트북 진입 시 GET 으로 로드.
+  artifacts: Artifact[];
+  artifactsLoading: boolean; // 산출물 목록 로딩 중
+  artifactsError: string | null; // 산출물 목록/조작 에러
+  generatingType: GeneratableArtifactType | null; // 다이어그램 생성 중인 타입(로딩 표시)
   // 소스별 RAG 인덱싱 진행(백엔드 SSE 스냅샷). key = sourceId.
   indexProgress: Record<string, IndexProgress>;
   // repo 소스별 답변 범위에 포함된 파일 경로 집합. key = sourceId.
@@ -51,55 +70,32 @@ interface WorkspaceStore {
 
   openSource: (id: string) => void; // 소스 본문을 뷰어에 열기 + 뷰어 탭으로 이동
   openFile: (sourceId: string, path: string) => void; // repo 파일을 뷰어에 열기
+  openArtifact: (id: string) => void; // 산출물을 뷰어에 열기 + 뷰어 탭으로 이동
   setCenterTab: (tab: CenterTab) => void;
   setIndexProgress: (sourceId: string, progress: IndexProgress) => void;
   clearIndexProgress: (sourceId: string) => void;
-  createArtifact: (artifact: Omit<StudioArtifact, "id" | "createdAt" | "sourceCount">) => void;
-  // 메모 생성. body(본문)를 주면 대화 답변 등 긴 내용을 함께 저장한다.
-  addNote: (input?: { title?: string; detail?: string; body?: string }) => void;
-  removeArtifact: (id: string) => void;
+
+  // ── 산출물(백엔드 연동) ──────────────────────────────────────────
+  loadArtifacts: (notebookId: string) => Promise<void>; // GET 목록 로드
+  // 다이어그램/요약 생성(POST). 성공 시 목록 맨 앞에 추가하고 뷰어로 열며 생성된 산출물을 반환.
+  generateArtifact: (type: GeneratableArtifactType, sourceIds: string[]) => Promise<Artifact | null>;
+  // 메모 생성(POST note). body(본문)를 content 로 저장.
+  addNote: (input?: { title?: string; content?: string }) => Promise<Artifact | null>;
+  // 산출물 수정(PATCH). 성공 시 목록·뷰어 반영.
+  updateArtifact: (id: string, patch: { title?: string; content?: string }) => Promise<Artifact | null>;
+  removeArtifact: (id: string) => Promise<void>; // 삭제(DELETE)
 }
 
-const makeId = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-const seedArtifacts = (sourceCount: number): StudioArtifact[] =>
-  sourceCount === 0
-    ? []
-    : [
-        {
-          id: makeId(),
-          kind: "artifact",
-          title: "의존성 그래프",
-          typeLabel: "그래프",
-          detail: `소스 ${Math.min(sourceCount, 3)}개 · 방금 전`,
-          icon: "dependency",
-          tint: "teal",
-          createdAt: Date.now() - 60_000,
-          sourceCount,
-        },
-        {
-          id: makeId(),
-          kind: "artifact",
-          title: "변경 요약",
-          typeLabel: "Diff",
-          detail: `소스 ${Math.min(sourceCount, 3)}개 · 방금 전`,
-          icon: "diff",
-          tint: "amber",
-          createdAt: Date.now() - 30_000,
-          sourceCount,
-        },
-      ];
-
-export const useWorkspace = create<WorkspaceStore>((set) => ({
+export const useWorkspace = create<WorkspaceStore>((set, get) => ({
   notebookId: null,
   sources: [],
   selectedSourceIds: new Set(),
   viewer: null,
   centerTab: "대화",
   artifacts: [],
+  artifactsLoading: false,
+  artifactsError: null,
+  generatingType: null,
   indexProgress: {},
   selectedFilePaths: {},
 
@@ -112,7 +108,11 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
       centerTab: "대화",
       indexProgress: {},
       selectedFilePaths: {},
-      artifacts: seedArtifacts(sources.length),
+      // 산출물은 loadArtifacts(백엔드 GET)로 채운다. 진입 시 초기화.
+      artifacts: [],
+      artifactsLoading: false,
+      artifactsError: null,
+      generatingType: null,
     }),
   setSources: (sources) =>
     set((state) => {
@@ -206,8 +206,15 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
         snapshot.selectedSourceIds === undefined
           ? state.selectedSourceIds
           : new Set(snapshot.selectedSourceIds.filter((id) => sourceIds.has(id)));
-      const viewer =
-        snapshot.viewer && sourceIds.has(snapshot.viewer.sourceId) ? snapshot.viewer : state.viewer;
+      // 캐시된 뷰어 대상 복원: 산출물 뷰어는 그대로, 소스/파일 뷰어는 소스 존재 시에만.
+      const cachedViewer = snapshot.viewer;
+      const viewer = cachedViewer
+        ? cachedViewer.artifactId
+          ? cachedViewer
+          : cachedViewer.sourceId && sourceIds.has(cachedViewer.sourceId)
+            ? cachedViewer
+            : state.viewer
+        : state.viewer;
       const indexProgress =
         snapshot.indexProgress === undefined
           ? state.indexProgress
@@ -230,7 +237,6 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
         selectedSourceIds,
         viewer,
         centerTab: snapshot.centerTab ?? state.centerTab,
-        artifacts: snapshot.artifacts ?? state.artifacts,
         indexProgress,
         selectedFilePaths,
       };
@@ -238,6 +244,7 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
 
   openSource: (id) => set({ viewer: { sourceId: id }, centerTab: "뷰어" }),
   openFile: (sourceId, path) => set({ viewer: { sourceId, path }, centerTab: "뷰어" }),
+  openArtifact: (id) => set({ viewer: { artifactId: id }, centerTab: "뷰어" }),
   setCenterTab: (tab) => set({ centerTab: tab }),
   setIndexProgress: (sourceId, progress) =>
     set((state) => ({
@@ -249,40 +256,104 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
       delete indexProgress[sourceId];
       return { indexProgress };
     }),
-  createArtifact: (artifact) =>
-    set((state) => ({
-      artifacts: [
-        {
-          ...artifact,
-          id: makeId(),
-          createdAt: Date.now(),
-          sourceCount: state.selectedSourceIds.size || state.sources.length,
-        },
-        ...state.artifacts,
-      ],
-    })),
-  addNote: (input) =>
-    set((state) => ({
-      artifacts: [
-        {
-          id: makeId(),
-          kind: "note",
-          title: input?.title ?? "새 메모",
-          typeLabel: "메모",
-          detail: input?.detail ?? "방금 전",
-          icon: "sticky_note_2",
-          tint: "grey",
-          createdAt: Date.now(),
-          sourceCount: state.selectedSourceIds.size || state.sources.length,
-          body: input?.body,
-        },
-        ...state.artifacts,
-      ],
-    })),
-  removeArtifact: (id) =>
+  // ── 산출물(백엔드 연동) ──────────────────────────────────────────
+  loadArtifacts: async (notebookId) => {
+    set({ artifactsLoading: true, artifactsError: null });
+    try {
+      const { artifacts } = await apiListArtifacts(notebookId);
+      // 진입한 노트북이 그대로일 때만 반영(경합 방지).
+      if (get().notebookId !== notebookId) return;
+      set({ artifacts, artifactsLoading: false });
+    } catch (error) {
+      if (get().notebookId !== notebookId) return;
+      set({
+        artifactsLoading: false,
+        artifactsError: error instanceof Error ? error.message : "산출물을 불러오지 못했습니다",
+      });
+    }
+  },
+
+  generateArtifact: async (type, sourceIds) => {
+    const { notebookId } = get();
+    if (!notebookId) return null;
+    set({ generatingType: type, artifactsError: null });
+    try {
+      // source_ids 가 비어 있으면 생략해 백엔드 전체 소스 기본값을 쓴다.
+      const created = await apiCreateArtifact(notebookId, {
+        type,
+        source_ids: sourceIds.length > 0 ? sourceIds : undefined,
+      });
+      set((state) => ({
+        artifacts: [created, ...state.artifacts],
+        generatingType: null,
+        viewer: { artifactId: created.id },
+        centerTab: "뷰어",
+      }));
+      return created;
+    } catch (error) {
+      set({
+        generatingType: null,
+        artifactsError: error instanceof Error ? error.message : "산출물 생성 실패",
+      });
+      return null;
+    }
+  },
+
+  addNote: async (input) => {
+    const { notebookId } = get();
+    if (!notebookId) return null;
+    try {
+      const created = await apiCreateNote(notebookId, {
+        title: input?.title,
+        content: input?.content ?? "",
+      });
+      set((state) => ({ artifacts: [created, ...state.artifacts], artifactsError: null }));
+      return created;
+    } catch (error) {
+      set({
+        artifactsError: error instanceof Error ? error.message : "메모 생성 실패",
+      });
+      return null;
+    }
+  },
+
+  updateArtifact: async (id, patch) => {
+    const { notebookId } = get();
+    if (!notebookId) return null;
+    try {
+      const updated = await apiUpdateArtifact(notebookId, id, patch);
+      set((state) => ({
+        artifacts: state.artifacts.map((a) => (a.id === id ? updated : a)),
+        artifactsError: null,
+      }));
+      return updated;
+    } catch (error) {
+      set({
+        artifactsError: error instanceof Error ? error.message : "산출물 수정 실패",
+      });
+      return null;
+    }
+  },
+
+  removeArtifact: async (id) => {
+    const { notebookId } = get();
+    if (!notebookId) return;
+    // 낙관적 제거 + 뷰어가 해당 산출물을 보고 있으면 닫는다.
+    const prev = get().artifacts;
     set((state) => ({
       artifacts: state.artifacts.filter((a) => a.id !== id),
-    })),
+      viewer: state.viewer?.artifactId === id ? null : state.viewer,
+    }));
+    try {
+      await apiDeleteArtifact(notebookId, id);
+    } catch (error) {
+      // 실패 시 롤백.
+      set({
+        artifacts: prev,
+        artifactsError: error instanceof Error ? error.message : "산출물 삭제 실패",
+      });
+    }
+  },
 }));
 
 // 파생 셀렉터: 답변 범위 소스 개수.

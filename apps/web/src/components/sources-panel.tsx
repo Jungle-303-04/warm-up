@@ -132,9 +132,9 @@ export function SourcesPanel({
           <button
             type="button"
             onClick={openAddSource}
-            className="interactive flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground hover:opacity-90 hover:shadow-elev-1 active:scale-[0.99]"
+            className="interactive flex w-full items-center justify-center gap-1 rounded-full bg-primary px-3 py-1 text-[11.5px] font-semibold text-primary-foreground hover:opacity-90 hover:shadow-elev-1 active:scale-[0.99]"
           >
-            <Icon name="add" size={14} />
+            <Icon name="add" size={13} />
             소스 추가
           </button>
         </div>

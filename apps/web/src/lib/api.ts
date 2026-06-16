@@ -1,5 +1,8 @@
 // 백엔드 API 타입 클라이언트. 세션 쿠키를 쓰므로 모든 요청에 credentials:"include".
 import type {
+  Artifact,
+  ArtifactType,
+  GeneratableArtifactType,
   IndexProgress,
   LinkMetadata,
   Notebook,
@@ -21,7 +24,27 @@ export interface Me {
   login: string;
 }
 
-// 공통 JSON fetch 헬퍼. 세션 쿠키 포함, 실패 시 throw.
+// HTTP 상태 코드를 보존하는 API 에러. 호출부가 401(로그인 필요) 등을 분기할 수 있게 한다.
+export class ApiError extends Error {
+  readonly status: number;
+  constructor(status: number, message?: string) {
+    super(message ?? `요청 실패 (${status})`);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+// 에러가 특정 HTTP 상태인지 판정하는 헬퍼.
+export function isApiStatus(error: unknown, status: number): boolean {
+  return error instanceof ApiError && error.status === status;
+}
+
+// 인증 실패(401)인지 판정. 로그인 안내 분기에 사용.
+export function isUnauthorized(error: unknown): boolean {
+  return isApiStatus(error, 401);
+}
+
+// 공통 JSON fetch 헬퍼. 세션 쿠키 포함, 실패 시 status 보존한 ApiError throw.
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: "include",
@@ -29,7 +52,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: init?.body ? { "Content-Type": "application/json" } : undefined,
     ...init,
   });
-  if (!res.ok) throw new Error(`요청 실패 (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -107,6 +130,69 @@ export function getSource(nid: string, sid: string): Promise<SourceDetail> {
 
 export function deleteSource(nid: string, sid: string): Promise<void> {
   return request(`/notebooks/${nid}/sources/${sid}`, { method: "DELETE" });
+}
+
+// ── 산출물(아티팩트/메모) ─────────────────────────────────────────
+// 다이어그램/요약 산출물 생성. source_ids 미지정 시 백엔드가 노트북 전체 소스를 사용.
+export function createArtifact(
+  nid: string,
+  body: { type: GeneratableArtifactType; source_ids?: string[] },
+): Promise<Artifact> {
+  return request(`/notebooks/${nid}/artifacts`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+// 메모(type:"note") 생성. content 는 빈 문자열도 허용.
+export function createNote(
+  nid: string,
+  body: { title?: string; content: string },
+): Promise<Artifact> {
+  return request(`/notebooks/${nid}/artifacts/note`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function listArtifacts(nid: string): Promise<{ artifacts: Artifact[] }> {
+  return request(`/notebooks/${nid}/artifacts`);
+}
+
+export function getArtifact(nid: string, aid: string): Promise<Artifact> {
+  return request(`/notebooks/${nid}/artifacts/${aid}`);
+}
+
+export function updateArtifact(
+  nid: string,
+  aid: string,
+  body: { title?: string; content?: string },
+): Promise<Artifact> {
+  return request(`/notebooks/${nid}/artifacts/${aid}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteArtifact(nid: string, aid: string): Promise<void> {
+  return request(`/notebooks/${nid}/artifacts/${aid}`, { method: "DELETE" });
+}
+
+// 산출물 타입 별 표시 메타(레이블/아이콘/색조)의 단일 소스. UI 전역에서 재사용.
+export const ARTIFACT_META: Record<
+  ArtifactType,
+  { label: string; icon: string; tint: string }
+> = {
+  uml: { label: "UML", icon: "account_tree", tint: "blue" },
+  erd: { label: "ERD", icon: "schema", tint: "violet" },
+  dependency: { label: "의존성 그래프", icon: "dependency", tint: "teal" },
+  change_summary: { label: "변경 요약", icon: "diff", tint: "amber" },
+  note: { label: "메모", icon: "sticky_note_2", tint: "grey" },
+};
+
+// 산출물이 Mermaid 다이어그램인지(렌더 분기용).
+export function isMermaidArtifact(type: ArtifactType): boolean {
+  return type === "uml" || type === "erd" || type === "dependency";
 }
 
 // ── repo 소스: 파일 트리 / 단일 파일 ───────────────────────────────

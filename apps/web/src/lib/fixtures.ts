@@ -1,5 +1,5 @@
 // UI 셸용 공통 표시 데이터.
-import type { SourceKind, SourceKindConfig } from "./types";
+import type { GeneratableArtifactType, SourceKind, SourceKindConfig } from "./types";
 
 // 새 소스 종류는 여기에 한 줄만 추가하면 UI 전체에 반영된다.
 export const SOURCE_KINDS: Record<SourceKind, SourceKindConfig> = {
@@ -20,6 +20,8 @@ export const SUGGESTIONS = [
 // 스튜디오(우측 패널) 타일. RepoLM 산출물만 남긴다.
 // hint = 카드 보조 설명, tint = 카드별 고유 색조(아이콘 박스 배경/글자에 사용).
 export interface StudioTile {
+  // 생성할 백엔드 산출물 종류(POST /artifacts {type}). note 제외.
+  type: GeneratableArtifactType;
   icon: string;
   label: string;
   typeLabel: string;
@@ -32,10 +34,10 @@ export interface StudioTile {
 export type StudioTint = "blue" | "violet" | "teal" | "amber" | "rose" | "indigo" | "green" | "cyan";
 
 export const STUDIO_TILES: StudioTile[] = [
-  { icon: "account_tree", label: "UML", typeLabel: "UML", hint: "클래스·시퀀스 구조", tint: "blue" },
-  { icon: "schema", label: "ERD", typeLabel: "ERD", hint: "데이터 모델 관계", tint: "violet" },
-  { icon: "dependency", label: "의존성 그래프", typeLabel: "Graph", hint: "모듈 연결과 영향권", tint: "teal" },
-  { icon: "diff", label: "변경 요약", typeLabel: "Diff", hint: "커밋·파일 변화 압축", tint: "amber" },
+  { type: "uml", icon: "account_tree", label: "UML", typeLabel: "UML", hint: "클래스·시퀀스 구조", tint: "blue" },
+  { type: "erd", icon: "schema", label: "ERD", typeLabel: "ERD", hint: "데이터 모델 관계", tint: "violet" },
+  { type: "dependency", icon: "dependency", label: "의존성 그래프", typeLabel: "Graph", hint: "모듈 연결과 영향권", tint: "teal" },
+  { type: "change_summary", icon: "diff", label: "변경 요약", typeLabel: "Diff", hint: "커밋·파일 변화 압축", tint: "amber" },
 ];
 
 export const RECOMMENDED_NOTEBOOKS = [

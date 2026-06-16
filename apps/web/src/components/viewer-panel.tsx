@@ -4,14 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 
 import { cn } from "../lib/cn";
 
-import { getFile, getSource } from "../lib/api";
+import { ARTIFACT_META, getArtifact, getFile, getSource, isMermaidArtifact } from "../lib/api";
 import { SOURCE_KINDS } from "../lib/fixtures";
 import { classifyLink } from "../lib/links";
 import { useWorkspace } from "../lib/store";
-import type { Source } from "../lib/types";
+import type { Artifact, Source } from "../lib/types";
 import { CodeView } from "./code-view";
 import { Icon } from "./icon";
 import { MarkdownView } from "./markdown-view";
+import { MermaidRender } from "./mermaid-render";
 import { SourceIcon } from "./source-icon";
 
 // 코드 뷰어로 강조해 보여줄 확장자. 마크다운/PDF는 제외(별도 분기).
@@ -273,17 +274,21 @@ export function ViewerPanel() {
     [filePath, sourceKind, sourceId, openFile],
   );
 
-  // viewer 대상이 바뀌면 내용을 로드한다.
+  // 산출물 뷰어 대상이면 소스/파일 로딩을 건너뛴다(아래 ArtifactViewer가 담당).
+  const artifactId = viewer?.artifactId;
+
+  // viewer 대상이 바뀌면 내용을 로드한다(소스/파일 뷰어 전용).
   useEffect(() => {
-    if (!viewer || !notebookId) return;
+    // 산출물 뷰어이거나 소스 식별자가 없으면 소스 로딩을 하지 않는다.
+    if (!notebookId || artifactId || !sourceId) return;
     let active = true;
     setLoading(true);
     setError(null);
     setContent("");
 
     const load = filePath
-      ? getFile(notebookId, viewer.sourceId, filePath).then((r) => r.content)
-      : getSource(notebookId, viewer.sourceId).then((r) => r.content ?? "");
+      ? getFile(notebookId, sourceId, filePath).then((r) => r.content)
+      : getSource(notebookId, sourceId).then((r) => r.content ?? "");
 
     load
       .then((c) => active && setContent(c))
@@ -292,7 +297,10 @@ export function ViewerPanel() {
     return () => {
       active = false;
     };
-  }, [viewer, notebookId, filePath]);
+  }, [notebookId, artifactId, sourceId, filePath]);
+
+  // 산출물 뷰어 대상이면 전용 컴포넌트로 렌더(Mermaid/마크다운 + 편집).
+  if (artifactId) return <ArtifactViewer artifactId={artifactId} />;
 
   if (!viewer || !source) return <EmptyState />;
 
@@ -358,6 +366,179 @@ export function ViewerPanel() {
               onLinkClick={handleLinkClick}
             />
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 산출물(아티팩트/메모) 뷰어 ──────────────────────────────────────
+// 가운데 패널에 산출물을 열어 보여주고 편집한다.
+// - uml/erd/dependency: Mermaid 렌더 + 소스 편집(재렌더/저장)
+// - change_summary/note: 마크다운 렌더 + 편집(저장)
+function ArtifactViewer({ artifactId }: { artifactId: string }) {
+  const notebookId = useWorkspace((s) => s.notebookId);
+  const storeArtifacts = useWorkspace((s) => s.artifacts);
+  const updateArtifact = useWorkspace((s) => s.updateArtifact);
+
+  const [artifact, setArtifact] = useState<Artifact | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 편집 중인 소스(content) 와 렌더에 반영된 소스(draft 와 분리해 "재렌더" 가능).
+  const [draft, setDraft] = useState("");
+  const [rendered, setRendered] = useState("");
+  const [showEditor, setShowEditor] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // 산출물 로드: 스토어 목록에 있으면 우선 사용하고, 없으면 단건 GET.
+  useEffect(() => {
+    if (!notebookId) return;
+    const cached = storeArtifacts.find((a) => a.id === artifactId) ?? null;
+    if (cached) {
+      setArtifact(cached);
+      setDraft(cached.content);
+      setRendered(cached.content);
+      setError(null);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    setError(null);
+    getArtifact(notebookId, artifactId)
+      .then((a) => {
+        if (!active) return;
+        setArtifact(a);
+        setDraft(a.content);
+        setRendered(a.content);
+      })
+      .catch((e) => active && setError(e instanceof Error ? e.message : "산출물을 불러오지 못했습니다"))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+    // storeArtifacts 변동 시 캐시 동기화는 별도 effect로 처리(여기선 id 기준 1회 로드).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notebookId, artifactId]);
+
+  const isMermaid = artifact ? isMermaidArtifact(artifact.type) : false;
+  const meta = artifact ? ARTIFACT_META[artifact.type] : null;
+
+  const rerender = () => setRendered(draft);
+
+  const save = async () => {
+    if (!artifact) return;
+    setSaving(true);
+    const updated = await updateArtifact(artifact.id, { content: draft });
+    setSaving(false);
+    if (updated) {
+      setArtifact(updated);
+      setRendered(updated.content);
+      setDraft(updated.content);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="grid flex-1 place-items-center text-muted-foreground">
+        <Icon name="progress_activity" size={22} className="animate-spin" />
+      </div>
+    );
+  }
+  if (error || !artifact || !meta) {
+    return (
+      <div className="grid flex-1 place-items-center px-6 text-center text-muted-foreground">
+        <p className="text-[13px] text-destructive">{error ?? "산출물을 찾을 수 없습니다."}</p>
+      </div>
+    );
+  }
+
+  const dirty = draft !== artifact.content;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* 헤더: 아이콘·제목·종류 + 편집 토글 */}
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-border px-3 py-2">
+        <span
+          className={cn(
+            "grid h-7 w-7 shrink-0 place-items-center rounded-lg",
+            meta.tint === "grey"
+              ? "bg-secondary text-muted-foreground"
+              : `studio-tint studio-tint-${meta.tint}`,
+          )}
+        >
+          <Icon name={meta.icon} size={15} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[12px] font-semibold leading-tight">{artifact.title}</p>
+          <p className="truncate text-[11px] text-muted-foreground">{meta.label}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowEditor((v) => !v)}
+          title={showEditor ? "편집 닫기" : "소스 편집"}
+          aria-pressed={showEditor}
+          className={cn(
+            "interactive inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11.5px] font-medium",
+            showEditor
+              ? "border-primary/50 bg-primary/10 text-primary"
+              : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground",
+          )}
+        >
+          <Icon name="edit" size={13} /> 편집
+        </button>
+      </div>
+
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+        <div className="w-full px-4 py-4">
+          {/* 본문 렌더: Mermaid 다이어그램 또는 마크다운 */}
+          {isMermaid ? (
+            <MermaidRender source={rendered} />
+          ) : (
+            <article className="markdown-body text-[13.5px] leading-relaxed">
+              <MarkdownView source={rendered} />
+            </article>
+          )}
+
+          {/* 편집 영역: content 수정 → 재렌더(다이어그램만)/저장 */}
+          {showEditor ? (
+            <div className="mt-4 border-t border-border pt-3">
+              <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                {isMermaid ? "Mermaid 소스" : "본문(Markdown)"}
+              </label>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                spellCheck={false}
+                className="scroll-thin h-56 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground outline-none focus:border-primary/50"
+              />
+              <div className="mt-2 flex items-center justify-end gap-2">
+                {isMermaid ? (
+                  <button
+                    type="button"
+                    onClick={rerender}
+                    title="재렌더"
+                    className="interactive inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  >
+                    <Icon name="refresh" size={13} /> 재렌더
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => void save()}
+                  disabled={saving || !dirty}
+                  title="저장"
+                  className="interactive inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-[11.5px] font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Icon name={saving ? "progress_activity" : saved ? "check" : "save_note"} size={13} className={saving ? "animate-spin" : ""} />
+                  {saving ? "저장 중…" : saved ? "저장됨" : "저장"}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

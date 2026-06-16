@@ -10,20 +10,23 @@ export interface SourceKindConfig {
   chipFg: string;
 }
 
-export type StudioArtifactKind = "artifact" | "note";
+// 백엔드 ArtifactView.type 과 1:1. 생성 가능한 산출물 종류 + note.
+// uml/erd/dependency = Mermaid 다이어그램, change_summary = 마크다운, note = 자유 메모.
+export type ArtifactType = "uml" | "erd" | "dependency" | "change_summary" | "note";
 
-export interface StudioArtifact {
+// 기능 카드로 생성하는 다이어그램/요약 산출물 종류(note 제외).
+export type GeneratableArtifactType = Exclude<ArtifactType, "note">;
+
+// 백엔드 ArtifactView. content 는 type 에 따라 Mermaid 소스 또는 마크다운/텍스트.
+export interface Artifact {
   id: string;
-  kind: StudioArtifactKind;
+  notebook_id: string;
+  type: ArtifactType;
   title: string;
-  typeLabel: string;
-  detail: string;
-  icon: string;
-  tint: string;
-  createdAt: number;
-  sourceCount: number;
-  // 메모 본문(대화 답변을 메모로 저장할 때 사용). 없으면 메타 전용 항목.
-  body?: string;
+  content: string;
+  source_ids: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 // 백엔드 NotebookView.

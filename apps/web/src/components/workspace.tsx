@@ -53,7 +53,7 @@ export function Workspace({ notebookId }: { notebookId: string }) {
   const selectedFilePaths = useWorkspace((s) => s.selectedFilePaths);
   const viewer = useWorkspace((s) => s.viewer);
   const centerTab = useWorkspace((s) => s.centerTab);
-  const artifacts = useWorkspace((s) => s.artifacts);
+  const loadArtifacts = useWorkspace((s) => s.loadArtifacts);
 
   // 3패널 리사이즈: 좌/우 px 너비 상태 + 드래그/키보드 조절.
   const { sizes, setLeft, setRight } = usePanelSizes();
@@ -82,6 +82,8 @@ export function Workspace({ notebookId }: { notebookId: string }) {
         if (!active) return;
         const cache = readWorkspaceCache(detail.id);
         initNotebook(detail.id, detail.sources);
+        // 산출물은 캐시 대신 백엔드 GET 으로 매번 로드(소스 오브 트루스).
+        void loadArtifacts(detail.id);
         if (cache) {
           hydrateCachedState(cache);
           setLeftCollapsed(Boolean(cache.leftCollapsed));
@@ -97,7 +99,7 @@ export function Workspace({ notebookId }: { notebookId: string }) {
     return () => {
       active = false;
     };
-  }, [hydrateCachedState, initNotebook, notebookId]);
+  }, [hydrateCachedState, initNotebook, loadArtifacts, notebookId]);
 
   useEffect(() => {
     if (!notebook) return;
@@ -105,7 +107,6 @@ export function Workspace({ notebookId }: { notebookId: string }) {
       selectedSourceIds: [...selectedSourceIds],
       viewer,
       centerTab,
-      artifacts,
       indexProgress,
       // Set은 JSON 직렬화가 안 되므로 배열로 변환해 저장한다.
       selectedFilePaths: Object.fromEntries(
@@ -115,7 +116,6 @@ export function Workspace({ notebookId }: { notebookId: string }) {
       rightCollapsed,
     });
   }, [
-    artifacts,
     centerTab,
     indexProgress,
     leftCollapsed,
