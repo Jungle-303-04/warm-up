@@ -68,7 +68,7 @@ function MiniCheckbox({
 }) {
   return (
     <label
-      className="interactive grid h-5 w-5 shrink-0 cursor-pointer place-items-center rounded-md"
+      className="transition-all duration-200 ease-in-out grid h-5 w-5 shrink-0 cursor-pointer place-items-center rounded-md"
       title={title}
       onClick={(e) => e.stopPropagation()}
     >
@@ -195,7 +195,7 @@ function TreeItem({
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="interactive flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px] hover:bg-secondary"
+            className="transition-all duration-200 ease-in-out flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px] hover:bg-secondary"
           >
             <Icon
               name="chevron_right"
@@ -252,7 +252,7 @@ function TreeItem({
           onClick={() => openFile(sourceId, node.path)}
           title={supported ? node.path : `${node.path} · 인덱싱 미지원`}
           className={cn(
-            "interactive flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px]",
+            "transition-all duration-200 ease-in-out flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px]",
             focused
               ? "bg-accent font-medium text-accent-foreground"
               : "hover:bg-secondary",
@@ -478,7 +478,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
       {/* 한 줄: 체크박스 · kind 아이콘 · 제목(truncate, 하단 인라인 진행바) · (repo) chevron · hover 삭제 */}
       <div
         className={cn(
-          "group interactive flex items-center gap-1 rounded-lg pl-1.5 pr-1",
+          "group transition-all duration-200 ease-in-out flex items-center gap-1 rounded-lg pl-1.5 pr-1",
           focused ? "bg-accent" : "hover:bg-secondary",
           // 인덱싱 중에는 살짝 dim(처리 중 느낌). 완료/실패면 또렷하게.
           !selected && !indexing && "opacity-65",
@@ -486,7 +486,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
         )}
       >
         <label
-          className="interactive grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-card/70"
+          className="transition-all duration-200 ease-in-out grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-card/70"
           title={
             isRepo
               ? repoState === "checked"
@@ -610,7 +610,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
             aria-label={`${source.title} 재분석`}
             title={reindexing ? "재분석 중…" : "재분석"}
             className={cn(
-              "interactive grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed",
+              "transition-all duration-200 ease-in-out grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed",
               failed ? "text-destructive hover:bg-destructive/10" : "",
             )}
           >
@@ -627,7 +627,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           onClick={handleDelete}
           aria-label={`${source.title} 삭제`}
           title="소스 삭제"
-          className="interactive grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+          className="transition-all duration-200 ease-in-out grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
         >
           <Icon name="delete" size={14} />
         </button>

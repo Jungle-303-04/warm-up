@@ -120,7 +120,7 @@ export function SourcesPanel({
                 onClick={onCollapse}
                 title="소스 패널 접기"
                 aria-label="소스 패널 접기"
-                className="interactive grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="transition-all duration-200 ease-in-out grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <Icon name="dock_to_left" size={15} />
               </button>
@@ -145,7 +145,7 @@ export function SourcesPanel({
         <div className="px-3 pb-2">
           <div
             className={cn(
-              "interactive flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1",
+              "transition-all duration-200 ease-in-out flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1",
               empty
                 ? "bg-secondary/40 opacity-60"
                 : "bg-secondary/60 focus-within:border-primary/50 focus-within:bg-card",
@@ -166,7 +166,7 @@ export function SourcesPanel({
                 type="button"
                 onClick={() => setFilter("")}
                 aria-label="검색 지우기"
-                className="interactive grid h-4 w-4 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="transition-all duration-200 ease-in-out grid h-4 w-4 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <Icon name="close" size={12} />
               </button>
@@ -185,10 +185,10 @@ export function SourcesPanel({
           <p className="mx-3 mb-1 text-[11.5px] text-destructive">{error}</p>
         </Collapse>
 
-        <div className="scroll-thin flex-1 overflow-y-auto px-2 pb-3 pt-1">
+        <div className="flex-1 overflow-y-auto px-2 pb-3 pt-1">
           {empty ? (
             <div className="mt-7 px-4 text-center">
-              <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-elev-1">
+              <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-sm">
                 <Icon name="upload_file" size={24} />
               </span>
               <p className="mt-3.5 text-[13px] font-semibold">아직 소스가 없어요</p>
@@ -201,7 +201,7 @@ export function SourcesPanel({
               <button
                 type="button"
                 onClick={openAddSource}
-                className="interactive mt-3.5 flex w-full flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-border px-4 py-4 text-muted-foreground hover:border-primary/40 hover:bg-secondary/50 hover:text-foreground"
+                className="transition-all duration-200 ease-in-out mt-3.5 flex w-full flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-border px-4 py-4 text-muted-foreground hover:border-primary/40 hover:bg-secondary/50 hover:text-foreground"
               >
                 <Icon name="add" size={18} className="text-primary" />
                 <span className="text-[12px] font-medium">파일 · URL · GitHub 추가</span>
@@ -209,7 +209,7 @@ export function SourcesPanel({
             </div>
           ) : (
             <>
-              <label className="interactive mx-1 mb-1 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-secondary">
+              <label className="transition-all duration-200 ease-in-out mx-1 mb-1 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-secondary">
                 <span className="relative grid h-4 w-4 place-items-center rounded-[4px] border border-input bg-card">
                   <input
                     type="checkbox"
@@ -249,7 +249,7 @@ export function SourcesPanel({
                           <button
                             type="button"
                             onClick={() => toggleGroup(g.kind)}
-                            className="interactive flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-normal text-muted-foreground hover:bg-secondary"
+                            className="transition-all duration-200 ease-in-out flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-normal text-muted-foreground hover:bg-secondary"
                           >
                             <Icon
                               name="chevron_right"

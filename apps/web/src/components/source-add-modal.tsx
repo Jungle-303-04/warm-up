@@ -128,7 +128,7 @@ function FileDropzone({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={cn(
-          "interactive flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-4 py-6 text-center",
+          "transition-all duration-200 ease-in-out flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-4 py-6 text-center",
           dragActive
             ? "border-primary bg-accent/70 text-accent-foreground"
             : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/40 hover:bg-secondary/60 hover:text-foreground",
@@ -494,7 +494,7 @@ function BranchDropdown({
       </button>
       {/* 입력란 바로 아래에서 height/opacity로 부드럽게 펼침. */}
       <Collapse open={open} className="absolute left-0 right-0 top-full z-20 mt-1">
-        <div className="scroll-thin max-h-52 overflow-y-auto rounded-xl border border-border bg-card py-1 shadow-elev-2">
+        <div className="max-h-52 overflow-y-auto rounded-xl border border-border bg-card py-1 shadow">
           {branches.map((b) => (
             <button
               key={b}
@@ -506,7 +506,7 @@ function BranchDropdown({
                 setOpen(false);
               }}
               className={cn(
-                "interactive flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[12px] hover:bg-secondary",
+                "transition-all duration-200 ease-in-out flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[12px] hover:bg-secondary",
                 b === value ? "font-semibold text-foreground" : "text-muted-foreground",
               )}
             >
@@ -526,7 +526,7 @@ function BranchDropdown({
 // 입력 텍스트는 공용 입력 규격(h-8 px-3 text-[12px])과 일관되게 통일.
 // BranchDropdown 트리거도 이 클래스를 공유하므로 flex 정렬은 호출부에서 덧붙인다.
 const inputCls =
-  "interactive h-8 w-full rounded-lg border border-border bg-background px-3 text-[12px] font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15";
+  "transition-all duration-200 ease-in-out h-8 w-full rounded-lg border border-border bg-background px-3 text-[12px] font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
