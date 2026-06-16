@@ -7,6 +7,11 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
 
+# repo 소스 동기화(RepoSyncService)가 git clone을 쓰므로 git 설치
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml uv.lock ./
