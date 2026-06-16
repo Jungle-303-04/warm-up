@@ -175,117 +175,121 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
         className="chatbot-launcher"
         onClick={() => setIsOpen(true)}
         aria-label="챗봇 열기"
+        aria-controls="rag-chatbot-drawer"
+        aria-expanded={isOpen}
       >
         챗봇
       </button>
 
-      <aside
-        className={`chatbot-drawer${isOpen ? ' open' : ''}`}
-        aria-label="RAG 챗봇 목업"
-        aria-hidden={!isOpen}
-      >
-        <header className="chatbot-header">
-          <div>
-            <p className="eyebrow">RAG Chat</p>
-            <h2>레포지토리 질문</h2>
-          </div>
-          <button
-            type="button"
-            className="chatbot-close"
-            onClick={() => setIsOpen(false)}
-            aria-label="챗봇 닫기"
-          >
-            닫기
-          </button>
-        </header>
-
-        <section className="chatbot-context" aria-label="현재 질문 기준">
-          <strong>{chatContext.repositoryName || '분석 기준 없음'}</strong>
-          <span>{chatContext.detail}</span>
-        </section>
-
-        <div className="chatbot-body">
-          <nav className="chatbot-session-panel" aria-label="챗봇 대화 세션">
+      {isOpen ? (
+        <aside
+          id="rag-chatbot-drawer"
+          className="chatbot-drawer open"
+          aria-label="RAG 챗봇 목업"
+        >
+          <header className="chatbot-header">
+            <div>
+              <p className="eyebrow">RAG Chat</p>
+              <h2>레포지토리 질문</h2>
+            </div>
             <button
               type="button"
-              className="secondary-button compact"
-              onClick={createNewSession}
+              className="chatbot-close"
+              onClick={() => setIsOpen(false)}
+              aria-label="챗봇 닫기"
             >
-              새 대화
+              닫기
             </button>
-            <ul className="chatbot-session-list">
-              {sessions.map((session) => (
-                <li key={session.id}>
-                  <div className="chatbot-session-item">
-                    <button
-                      type="button"
-                      className={session.id === activeSession.id ? 'active' : ''}
-                      onClick={() => {
-                        setActiveSessionId(session.id)
-                        setDraft('')
-                      }}
-                    >
-                      <strong>{session.title}</strong>
-                      <span>{formatSessionTime(session.updatedAt)}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="chatbot-session-delete"
-                      onClick={() => deleteSession(session.id)}
-                      aria-label={`${session.title} 채팅방 삭제`}
-                    >
-                      <span aria-hidden="true" />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          </header>
 
-          <div className="chatbot-messages" aria-live="polite">
-            {messages.map((message) => (
-              <article
-                key={message.id}
-                className={`chatbot-message ${message.sender}`}
+          <section className="chatbot-context" aria-label="현재 질문 기준">
+            <strong>{chatContext.repositoryName || '분석 기준 없음'}</strong>
+            <span>{chatContext.detail}</span>
+          </section>
+
+          <div className="chatbot-body">
+            <nav className="chatbot-session-panel" aria-label="챗봇 대화 세션">
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={createNewSession}
               >
-                <span>{message.sender === 'user' ? '나' : 'LLM'}</span>
-                <p>{message.text}</p>
-              </article>
-            ))}
+                새 대화
+              </button>
+              <ul className="chatbot-session-list">
+                {sessions.map((session) => (
+                  <li key={session.id}>
+                    <div className="chatbot-session-item">
+                      <button
+                        type="button"
+                        className={session.id === activeSession.id ? 'active' : ''}
+                        onClick={() => {
+                          setActiveSessionId(session.id)
+                          setDraft('')
+                        }}
+                      >
+                        <strong>{session.title}</strong>
+                        <span>{formatSessionTime(session.updatedAt)}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="chatbot-session-delete"
+                        onClick={() => deleteSession(session.id)}
+                        aria-label={`${session.title} 채팅방 삭제`}
+                      >
+                        <span aria-hidden="true" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </nav>
 
-            {activeSession.isGenerating ? (
-              <div className="chatbot-loading" role="status">
-                <span>답변 생성 중</span>
-                <div className="chatbot-loading-track" aria-hidden="true">
-                  <i />
+            <div className="chatbot-messages" aria-live="polite">
+              {messages.map((message) => (
+                <article
+                  key={message.id}
+                  className={`chatbot-message ${message.sender}`}
+                >
+                  <span>{message.sender === 'user' ? '나' : 'LLM'}</span>
+                  <p>{message.text}</p>
+                </article>
+              ))}
+
+              {activeSession.isGenerating ? (
+                <div className="chatbot-loading" role="status">
+                  <span>답변 생성 중</span>
+                  <div className="chatbot-loading-track" aria-hidden="true">
+                    <i />
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
-        </div>
 
-        <form className="chatbot-form" onSubmit={submitMockMessage}>
-          <label htmlFor="chatbot-question">질문</label>
-          <textarea
-            id="chatbot-question"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={submitOnEnter}
-            placeholder="이 레포 기준으로 다음 구현 계획을 제안해줘"
-            rows="4"
-            disabled={activeSession.isGenerating}
-          />
-          <div className="chatbot-actions">
-            <button
-              type="submit"
-              className="primary-action"
+          <form className="chatbot-form" onSubmit={submitMockMessage}>
+            <label htmlFor="chatbot-question">질문</label>
+            <textarea
+              id="chatbot-question"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={submitOnEnter}
+              placeholder="이 레포 기준으로 다음 구현 계획을 제안해줘"
+              rows="4"
               disabled={activeSession.isGenerating}
-            >
-              {activeSession.isGenerating ? '생성 중' : '보내기'}
-            </button>
-          </div>
-        </form>
-      </aside>
+            />
+            <div className="chatbot-actions">
+              <button
+                type="submit"
+                className="primary-action"
+                disabled={activeSession.isGenerating}
+              >
+                {activeSession.isGenerating ? '생성 중' : '보내기'}
+              </button>
+            </div>
+          </form>
+        </aside>
+      ) : null}
     </>
   )
 }

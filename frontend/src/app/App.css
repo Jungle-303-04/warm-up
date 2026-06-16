@@ -1887,6 +1887,10 @@ h1 {
 }
 
 @media (max-width: 560px) {
+  .auth-shell {
+    padding-bottom: 104px;
+  }
+
   .login-panel {
     padding: 22px;
   }
@@ -1899,6 +1903,8 @@ h1 {
     width: auto;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
+    gap: 8px;
+    padding: 8px;
   }
 
   .app-sidebar.expanded {
@@ -1913,14 +1919,15 @@ h1 {
 
   .sidebar-nav {
     grid-auto-flow: column;
-    grid-auto-columns: minmax(38px, 1fr);
+    grid-auto-columns: max-content;
     align-items: center;
     overflow-x: auto;
+    gap: 8px;
   }
 
   .sidebar-section {
     grid-auto-flow: column;
-    grid-auto-columns: 38px;
+    grid-auto-columns: max-content;
   }
 
   .sidebar-section h2,
@@ -1930,16 +1937,29 @@ h1 {
 
   .sidebar-nav button,
   .sidebar-nav a {
-    grid-template-columns: 36px;
+    min-width: 66px;
+    min-height: 52px;
+    grid-template-columns: 1fr;
+    grid-template-rows: 22px auto;
+    justify-items: center;
+    gap: 2px;
+    padding: 4px 8px;
   }
 
   .sidebar-nav span,
   .app-sidebar.expanded .sidebar-nav span {
-    position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
+    position: static;
+    inline-size: auto;
+    block-size: auto;
+    max-width: 72px;
     overflow: hidden;
-    opacity: 0;
+    opacity: 1;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .app-header,
@@ -1985,7 +2005,7 @@ h1 {
 
   .chatbot-launcher {
     right: 16px;
-    bottom: 16px;
+    bottom: 96px;
   }
 
   .chatbot-drawer {
