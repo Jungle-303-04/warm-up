@@ -38,12 +38,14 @@ import {
   Grid2X2,
   Image,
   Layers,
+  LibraryBig,
   Lightbulb,
   Link2,
   List,
   ListChecks,
   Loader2,
   LogIn,
+  LogOut,
   type LucideIcon,
   MapPinned,
   MessageSquare,
@@ -97,6 +99,9 @@ const ICONS: Record<string, LucideIcon> = {
   notifications: Bell,
   account_circle: CircleUserRound,
   login: LogIn,
+  logout: LogOut, // 로그아웃(프로필 메뉴)
+  expand_more: ChevronDown, // 펼침 표시(프로필 메뉴 토글)
+  library_add: LibraryBig, // 소스로 추가
   progress_activity: Loader2,
   refresh: RefreshCw, // 재분석(reindex)
   stop_circle: CircleStop,
