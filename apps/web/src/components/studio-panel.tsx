@@ -8,6 +8,7 @@ import { STUDIO_TILES, type StudioTile } from "../lib/fixtures";
 import { selectScopeCount, useWorkspace } from "../lib/store";
 import type { Artifact } from "../lib/types";
 import { Icon } from "./icon";
+import { Button } from "./ui/button";
 import { Panel } from "./ui/panel";
 
 // 산출물 메타(레이블/아이콘/색조)의 tint → studio-tint 키 매핑.
@@ -154,14 +155,9 @@ export function StudioPanel({
               // 빈 상태일 때만 단일 생성 안내(점선 중복 버튼 제거).
               <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-3 py-5 text-center">
                 <p className="text-[12px] text-muted-foreground">아직 항목이 없습니다.</p>
-                <button
-                  type="button"
-                  onClick={createNote}
-                  title="메모 추가"
-                  className="interactive inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-                >
-                  <Icon name="note_add" size={12} /> 메모 추가
-                </button>
+                <Button variant="outline" size="xs" icon="note_add" onClick={createNote} title="메모 추가">
+                  메모 추가
+                </Button>
               </div>
             )}
           </div>
@@ -195,16 +191,17 @@ function CreateMenu({
 
   return (
     <div ref={ref} className="relative">
-      <button
-        type="button"
+      <Button
+        variant="outline"
+        size="xs"
+        icon="add"
         onClick={() => setOpen(!open)}
         title="추가"
         aria-haspopup="menu"
         aria-expanded={open}
-        className="interactive inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
       >
-        <Icon name="add" size={12} /> 추가
-      </button>
+        추가
+      </Button>
       {open ? (
         <div
           role="menu"

@@ -15,6 +15,7 @@ import type { LinkMetadata, Source, SourceCreate } from "../lib/types";
 import { Collapse } from "./ui/collapse";
 import { Icon } from "./icon";
 import { SourceIcon } from "./source-icon";
+import { Button } from "./ui/button";
 import { Modal } from "./ui/modal";
 
 // 통합 소스 추가 모달.
@@ -522,9 +523,10 @@ function BranchDropdown({
   );
 }
 
-// 입력 텍스트는 다른 버튼/필과 일관되게 12px medium으로 통일.
+// 입력 텍스트는 공용 입력 규격(h-8 px-3 text-[12px])과 일관되게 통일.
+// BranchDropdown 트리거도 이 클래스를 공유하므로 flex 정렬은 호출부에서 덧붙인다.
 const inputCls =
-  "interactive w-full rounded-xl border border-border bg-background px-3.5 py-2 text-[12px] font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15";
+  "interactive h-8 w-full rounded-lg border border-border bg-background px-3 text-[12px] font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -542,13 +544,10 @@ function SubmitButton({
   disabled: boolean;
   children: React.ReactNode;
 }) {
+  // 공용 primary 알약(전폭). 모달 제출 일관화.
   return (
-    <button
-      type="submit"
-      disabled={disabled}
-      className="interactive w-full rounded-full bg-primary py-2 text-[12px] font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
-    >
+    <Button type="submit" variant="primary" size="sm" disabled={disabled} className="w-full">
       {children}
-    </button>
+    </Button>
   );
 }

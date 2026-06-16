@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { cn } from "../lib/cn";
 
 import { ARTIFACT_META, getArtifact, getFile, getSource, isMermaidArtifact } from "../lib/api";
-import { SOURCE_KINDS } from "../lib/fixtures";
+import { fileIconForPath, SOURCE_KINDS } from "../lib/fixtures";
 import { classifyLink } from "../lib/links";
 import { useWorkspace } from "../lib/store";
 import type { Artifact, Source } from "../lib/types";
@@ -14,6 +14,7 @@ import { Icon } from "./icon";
 import { MarkdownView } from "./markdown-view";
 import { MermaidRender } from "./mermaid-render";
 import { SourceIcon } from "./source-icon";
+import { Button } from "./ui/button";
 
 // 코드 뷰어로 강조해 보여줄 확장자. 마크다운/PDF는 제외(별도 분기).
 const CODE_EXTENSIONS = new Set([
@@ -127,8 +128,8 @@ function UrlPreview({ source }: { source: Source }) {
         <a
           href={url}
           target="_blank"
-          rel="noreferrer"
-          className="interactive inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[12px] font-medium text-primary-foreground hover:opacity-90"
+          rel="noopener noreferrer"
+          className="interactive inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-primary px-3 text-[12px] font-medium text-primary-foreground hover:opacity-90"
         >
           <Icon name="north_east" size={13} /> 새 탭에서 열기
         </a>
@@ -142,8 +143,8 @@ function UrlPreview({ source }: { source: Source }) {
           <a
             href={url}
             target="_blank"
-            rel="noreferrer"
-            className="interactive inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[12px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+            rel="noopener noreferrer"
+            className="interactive inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-[12px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <Icon name="north_east" size={13} /> 새 탭에서 열기
           </a>
@@ -250,8 +251,9 @@ export function ViewerPanel() {
     (href: string) => {
       const resolved = classifyLink(href, filePath);
       if (resolved.type === "external") {
-        // 외부 절대 URL → 새 탭. 앱 네비게이션은 발생하지 않는다.
-        window.open(resolved.href, "_blank", "noreferrer");
+        // 외부 절대 URL(http/https, github blob 등) → 새 탭으로 실제 링크 열기.
+        // noopener,noreferrer로 opener 탈취 방지. 앱 네비게이션은 발생하지 않는다.
+        window.open(resolved.href, "_blank", "noopener,noreferrer");
         return;
       }
       if (resolved.type === "anchor") {
@@ -323,7 +325,8 @@ export function ViewerPanel() {
           style={{ background: cfg.chipBg, color: cfg.chipFg }}
         >
           {filePath ? (
-            <Icon name="file" size={15} />
+            // 파일은 확장자별 또렷한 아이콘(py=코드, json=설정 등).
+            <Icon name={fileIconForPath(filePath)} size={15} />
           ) : (
             <SourceIcon
               iconName={cfg.icon}
@@ -338,11 +341,12 @@ export function ViewerPanel() {
           <p className="truncate text-[11px] text-muted-foreground">{headerSub}</p>
         </div>
         {externalUrl ? (
+          // 외부 열기 링크. 공용 sm/outline 알약과 동일한 크기·톤으로 통일.
           <a
             href={externalUrl}
             target="_blank"
-            rel="noreferrer"
-            className="interactive inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+            rel="noopener noreferrer"
+            className="interactive inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-[12px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <Icon name="north_east" size={13} /> 열기
           </a>
@@ -427,6 +431,22 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
 
   const rerender = () => setRendered(draft);
 
+  // 산출물 본문 링크: 절대 URL은 새 탭, 앵커는 페이지 내 스크롤, 그 외(상대 repo 경로 등)는
+  // 매핑 대상이 없으므로 무시(산출물 뷰어엔 repo 컨텍스트가 없다).
+  const handleArtifactLink = (href: string) => {
+    const resolved = classifyLink(href, undefined);
+    if (resolved.type === "external") {
+      window.open(resolved.href, "_blank", "noopener,noreferrer");
+    } else if (resolved.type === "anchor") {
+      const id = decodeURIComponent(resolved.hash.slice(1));
+      if (!id) return;
+      const el =
+        document.getElementById(id) ?? document.querySelector(`[name="${CSS.escape(id)}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    // repo-file/ignore: 무시.
+  };
+
   const save = async () => {
     if (!artifact) return;
     setSaving(true);
@@ -476,20 +496,17 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
           <p className="truncate text-[12px] font-semibold leading-tight">{artifact.title}</p>
           <p className="truncate text-[11px] text-muted-foreground">{meta.label}</p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
+          icon="edit"
           onClick={() => setShowEditor((v) => !v)}
           title={showEditor ? "편집 닫기" : "소스 편집"}
           aria-pressed={showEditor}
-          className={cn(
-            "interactive inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11.5px] font-medium",
-            showEditor
-              ? "border-primary/50 bg-primary/10 text-primary"
-              : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground",
-          )}
+          className={cn(showEditor && "border-primary/50 bg-primary/10 text-primary")}
         >
-          <Icon name="edit" size={13} /> 편집
-        </button>
+          편집
+        </Button>
       </div>
 
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
@@ -499,7 +516,8 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
             <MermaidRender source={rendered} />
           ) : (
             <article className="markdown-body text-[13.5px] leading-relaxed">
-              <MarkdownView source={rendered} />
+              {/* 산출물 마크다운(변경 요약/메모)의 절대 링크는 새 탭으로 실제 이동. */}
+              <MarkdownView source={rendered} onLinkClick={handleArtifactLink} />
             </article>
           )}
 
@@ -517,25 +535,21 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
               />
               <div className="mt-2 flex items-center justify-end gap-2">
                 {isMermaid ? (
-                  <button
-                    type="button"
-                    onClick={rerender}
-                    title="재렌더"
-                    className="interactive inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  >
-                    <Icon name="refresh" size={13} /> 재렌더
-                  </button>
+                  <Button variant="outline" size="sm" icon="refresh" onClick={rerender} title="재렌더">
+                    재렌더
+                  </Button>
                 ) : null}
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={saved ? "check" : "save_note"}
+                  loading={saving}
                   onClick={() => void save()}
                   disabled={saving || !dirty}
                   title="저장"
-                  className="interactive inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-[11.5px] font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Icon name={saving ? "progress_activity" : saved ? "check" : "save_note"} size={13} className={saving ? "animate-spin" : ""} />
                   {saving ? "저장 중…" : saved ? "저장됨" : "저장"}
-                </button>
+                </Button>
               </div>
             </div>
           ) : null}

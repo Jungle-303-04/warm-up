@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { updateNotebook } from "../lib/api";
+import { cn } from "../lib/cn";
 import { AuthMenu } from "./auth-menu";
 import { Icon } from "./icon";
 import { ThemeToggle } from "./theme-toggle";
+import { Button } from "./ui/button";
 import { IconButton } from "./ui/icon-button";
+import { TEXT_INPUT_CLS } from "./ui/text-input";
 
 export function TopBar({
   notebookId,
@@ -85,7 +88,7 @@ export function TopBar({
               }
             }}
             aria-label="노트북 제목"
-            className="min-w-0 max-w-[40ch] rounded-lg border border-primary/50 bg-card px-2 py-0.5 text-[12px] font-medium outline-none ring-2 ring-primary/15"
+            className={cn(TEXT_INPUT_CLS, "max-w-[40ch]")}
           />
         ) : (
           <button
@@ -109,14 +112,16 @@ export function TopBar({
       </div>
 
       <div className="flex items-center gap-1">
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
+          icon="share"
           disabled
           title="공유 · 준비 중"
-          className="interactive mr-1 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[12px] font-medium text-muted-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
+          className="mr-1"
         >
-          <Icon name="share" size={15} /> 공유
-        </button>
+          공유
+        </Button>
         <IconButton name="settings" label="설정" size={17} preparing />
         <ThemeToggle />
         <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />

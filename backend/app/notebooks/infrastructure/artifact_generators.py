@@ -152,18 +152,31 @@ def _skeleton(artifact_type: ArtifactType) -> str:
 
 # --- dependency: 파이썬 import 파싱 → Mermaid flowchart(결정론) ---
 
+# 가독성을 위한 노드 수 상한. 초과 시 상위 패키지 단위로 묶어 평면화한다.
+MAX_DEPENDENCY_NODES = 60
+
 
 def build_dependency_mermaid(contexts: list[ArtifactContext]) -> str:
     """파이썬 파일들의 import 문을 파싱해 모듈 의존 그래프를 Mermaid flowchart로 만든다.
 
+    가독성 개선:
+    - 엣지(의존)가 있는 모듈 위주로 그린다. 고립 노드(들어오고 나가는 엣지가 모두
+      없는 모듈)는 제외해 거대한 평면 나열을 막는다.
+    - 노드 수가 상한(MAX_DEPENDENCY_NODES)을 넘으면 모듈을 상위 패키지 단위로 묶어
+      축소한다(패키지 간 의존만 남긴다).
+    - 상위 패키지별 subgraph로 그룹화하고, 노드 라벨은 경로의 마지막 1~2 세그먼트로
+      축약한다(노드 식별자는 전체 모듈 경로 기반이라 정보는 유지).
+    - 모두 결정론(정렬)이라 외부 키가 필요 없다.
+
+    동작 규칙:
     - 각 컨텍스트의 path를 모듈명으로 변환(.py 제거, '/'→'.')하고, import 대상 중
       이 그래프에 존재하는 모듈(내부 의존)만 엣지로 그린다.
     - 외부 의존(표준/서드파티)은 노드가 없으므로 자연히 제외된다.
-    - import가 전혀 없으면 노드만 나열한 그래프를 돌려준다(에러 아님).
+    - 의존 엣지가 하나도 없으면 안내 그래프를 돌려준다(에러 아님).
     """
 
     # path가 있는 파이썬 파일만 대상으로 모듈 목록을 만든다.
-    modules: dict[str, str] = {}  # module_name -> node_id
+    modules: set[str] = set()
     file_modules: list[tuple[str, str]] = []  # (module_name, source_text)
     for ctx in contexts:
         path = ctx.path
@@ -172,17 +185,18 @@ def build_dependency_mermaid(contexts: list[ArtifactContext]) -> str:
         module = _path_to_module(path)
         if not module:
             continue
-        modules.setdefault(module, _node_id(module))
+        modules.add(module)
         file_modules.append((module, ctx.text))
 
     if not modules:
         return (
-            "flowchart TD\n"
+            "flowchart LR\n"
             "    %% 의존 그래프를 만들 파이썬 소스를 찾지 못했습니다. "
             "(.py 파일 소스를 선택해 주세요.)\n"
             "    none[no python sources]\n"
         )
 
+    # 내부 의존 엣지 수집(자기참조 제외).
     edges: set[tuple[str, str]] = set()
     for module, text in file_modules:
         for imported in _extract_imports(text, current_module=module):
@@ -190,15 +204,78 @@ def build_dependency_mermaid(contexts: list[ArtifactContext]) -> str:
             if target is not None and target != module:
                 edges.add((module, target))
 
-    lines = ["flowchart TD"]
-    # 노드 선언(결정론을 위해 정렬).
-    for module in sorted(modules):
-        node = modules[module]
-        lines.append(f'    {node}["{module}"]')
+    if not edges:
+        return (
+            "flowchart LR\n"
+            "    %% 모듈 간 내부 의존(import)을 찾지 못했습니다. "
+            "(서로 import 하는 .py 소스를 함께 선택해 주세요.)\n"
+            "    none[no internal dependencies]\n"
+        )
+
+    # 노드 수가 상한을 넘으면 상위 패키지 단위로 묶어 축소한다.
+    connected = {src for src, _ in edges} | {dst for _, dst in edges}
+    if len(connected) > MAX_DEPENDENCY_NODES:
+        edges = _collapse_to_packages(edges)
+        connected = {src for src, _ in edges} | {dst for _, dst in edges}
+
+    return _render_flowchart(connected, edges)
+
+
+def _collapse_to_packages(edges: set[tuple[str, str]]) -> set[tuple[str, str]]:
+    """노드가 너무 많을 때 모듈을 상위 패키지(앞 2세그먼트)로 묶는다.
+
+    예: app.notebooks.application.chat_service → app.notebooks. 패키지 내부로만
+    향하던 의존(self-loop)은 제거해 그룹 간 의존만 남긴다.
+    """
+
+    collapsed: set[tuple[str, str]] = set()
+    for src, dst in edges:
+        psrc = _package_prefix(src)
+        pdst = _package_prefix(dst)
+        if psrc != pdst:
+            collapsed.add((psrc, pdst))
+    return collapsed
+
+
+def _package_prefix(module: str, depth: int = 2) -> str:
+    parts = module.split(".")
+    return ".".join(parts[:depth]) if len(parts) > depth else module
+
+
+def _render_flowchart(modules: set[str], edges: set[tuple[str, str]]) -> str:
+    """연결된 모듈을 상위 패키지별 subgraph로 그룹화한 flowchart LR을 만든다."""
+
+    node_ids = {module: _node_id(module) for module in modules}
+
+    # 상위 패키지(앞 2세그먼트) 기준 그룹화.
+    groups: dict[str, list[str]] = {}
+    for module in modules:
+        groups.setdefault(_package_prefix(module), []).append(module)
+
+    lines = ["flowchart LR"]
+    # subgraph 그룹(결정론을 위해 정렬). 단일 그룹뿐이면 subgraph 없이 평면 선언.
+    if len(groups) > 1:
+        for group in sorted(groups):
+            group_id = "grp_" + _node_id(group)
+            lines.append(f'    subgraph {group_id}["{group}"]')
+            for module in sorted(groups[group]):
+                lines.append(f'        {node_ids[module]}["{_short_label(module)}"]')
+            lines.append("    end")
+    else:
+        for module in sorted(modules):
+            lines.append(f'    {node_ids[module]}["{_short_label(module)}"]')
+
     # 엣지(정렬).
     for src, dst in sorted(edges):
-        lines.append(f"    {modules[src]} --> {modules[dst]}")
+        lines.append(f"    {node_ids[src]} --> {node_ids[dst]}")
     return "\n".join(lines) + "\n"
+
+
+def _short_label(module: str) -> str:
+    """모듈 경로의 마지막 1~2 세그먼트로 라벨을 축약한다(노드 식별자는 전체 경로 유지)."""
+
+    parts = module.split(".")
+    return ".".join(parts[-2:]) if len(parts) >= 2 else module
 
 
 def _path_to_module(path: str) -> str:
@@ -259,7 +336,7 @@ def _extract_imports_regex(source_text: str) -> list[str]:
     return imports
 
 
-def _resolve_internal(imported: str, modules: dict[str, str]) -> str | None:
+def _resolve_internal(imported: str, modules: set[str]) -> str | None:
     """import 대상이 그래프 내부 모듈이면 그 모듈명을, 아니면 None을 돌려준다.
 
     정확 일치 우선, 없으면 imported의 접두 부분과 일치하는 가장 긴 내부 모듈을 찾는다

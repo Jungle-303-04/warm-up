@@ -21,8 +21,13 @@ import {
   Minus,
   Database,
   File,
+  FileCode2,
+  FileImage,
+  FileJson2,
   FileQuestion,
+  FileSpreadsheet,
   FileStack,
+  FileTerminal,
   FileText,
   FileType,
   FlaskConical,
@@ -159,7 +164,13 @@ const ICONS: Record<string, LucideIcon> = {
   edit: Pencil, // 이름 변경
   delete: Trash2, // 삭제
   folder: Folder, // 트리 디렉터리
-  file: File, // 트리 파일
+  file: File, // 트리 파일(일반)
+  // 파일 유형별 또렷한 아이콘(NotebookLM풍). 확장자 기반 매핑에서 사용.
+  file_code: FileCode2, // 코드 파일(py/ts/go 등)
+  file_json: FileJson2, // json/yaml 설정
+  file_terminal: FileTerminal, // 셸 스크립트(sh/bash)
+  file_image: FileImage, // 이미지(svg/png 등)
+  file_spreadsheet: FileSpreadsheet, // csv/표 데이터
   layers: Layers,
   chevron_down: ChevronDown, // 트리 펼침
   arrow_back: ArrowLeft, // 대시보드로

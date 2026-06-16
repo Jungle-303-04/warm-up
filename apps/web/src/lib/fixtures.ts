@@ -10,6 +10,63 @@ export const SOURCE_KINDS: Record<SourceKind, SourceKindConfig> = {
   url: { icon: "link", label: "URL", chipBg: "#EFEAFB", chipFg: "#6B3FA0" },
 };
 
+// 파일 경로/확장자 → 또렷한 Icon name. NotebookLM처럼 유형이 한눈에 보이게.
+// 소스 행·인용칩·뷰어 헤더가 공유한다(중복 매핑 제거의 단일 출처).
+const EXT_ICON_MAP: Record<string, string> = {
+  // 문서
+  md: "description",
+  markdown: "description",
+  mdx: "description",
+  txt: "text_snippet",
+  rst: "text_snippet",
+  pdf: "picture_as_pdf",
+  // 설정/데이터(json/yaml은 중괄호 톤)
+  json: "file_json",
+  jsonc: "file_json",
+  yml: "file_json",
+  yaml: "file_json",
+  toml: "file_json",
+  ini: "file_json",
+  cfg: "file_json",
+  env: "file_json",
+  csv: "file_spreadsheet",
+  tsv: "file_spreadsheet",
+  // 셸 스크립트
+  sh: "file_terminal",
+  bash: "file_terminal",
+  zsh: "file_terminal",
+  // 이미지/벡터
+  svg: "file_image",
+  png: "file_image",
+  jpg: "file_image",
+  jpeg: "file_image",
+  gif: "file_image",
+  webp: "file_image",
+};
+
+// 코드로 취급해 file_code 아이콘을 줄 확장자(py 등). EXT_ICON_MAP에 없을 때만 적용.
+const CODE_EXTS = new Set([
+  "py", "pyi", "ipynb",
+  "js", "jsx", "mjs", "cjs", "ts", "tsx",
+  "go", "rs", "java", "kt", "kts", "c", "h", "cpp", "cc", "hpp", "cs",
+  "rb", "php", "swift", "scala", "dart", "lua", "r", "sql", "html", "htm",
+  "xml", "css", "scss", "less", "vue", "svelte",
+]);
+
+// 파일 경로 → 표시 아이콘 이름. 확장자 우선, 코드 확장자는 file_code, 그 외 일반 file.
+// 확장자 없는 Dockerfile/Makefile 등도 코드 아이콘으로 또렷하게.
+export function fileIconForPath(path?: string | null): string {
+  if (!path) return "file";
+  const name = path.toLowerCase().split("/").pop() ?? "";
+  if (name === "dockerfile" || name === "makefile" || name.endsWith(".dockerfile")) {
+    return "file_code";
+  }
+  const ext = name.includes(".") ? name.split(".").pop()! : "";
+  if (ext in EXT_ICON_MAP) return EXT_ICON_MAP[ext];
+  if (CODE_EXTS.has(ext)) return "file_code";
+  return "file";
+}
+
 // 채팅 추천 질문(목업).
 export const SUGGESTIONS = [
   "이 소스들의 인증 흐름을 요약해줘",

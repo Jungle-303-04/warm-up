@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { SOURCE_KINDS } from "../lib/fixtures";
+import { fileIconForPath, SOURCE_KINDS } from "../lib/fixtures";
 import { useTypewriter } from "../hooks/use-typewriter";
 import { useWorkspace } from "../lib/store";
 import type { ChatMessage, Citation } from "../lib/types";
@@ -16,25 +16,10 @@ function citationLabel(c: Citation): string {
   return c.sourceName;
 }
 
-// 확장자 → 표시 아이콘. 코드/문서/이미지 등 파일 유형을 작은 아이콘으로 구분.
-const EXT_ICON: Record<string, string> = {
-  md: "description",
-  markdown: "description",
-  pdf: "picture_as_pdf",
-  txt: "text_snippet",
-  json: "file",
-  yml: "file",
-  yaml: "file",
-};
-
-// 인용 칩 아이콘: 경로가 있으면 확장자 기반(코드는 file), 없으면 소스 종류 아이콘.
+// 인용 칩 아이콘: 경로가 있으면 확장자 기반 또렷한 아이콘(공용 fileIconForPath),
+// 없으면 링크(소스 종류 아이콘은 호출부에서 store로 보정).
 function citationIcon(c: Citation): string {
-  if (c.path) {
-    const name = c.path.toLowerCase().split("/").pop() ?? "";
-    const ext = name.includes(".") ? name.split(".").pop()! : "";
-    return EXT_ICON[ext] ?? "file";
-  }
-  // 경로가 없는 소스 인용: 소스 종류를 store에서 찾아 아이콘 매핑(없으면 링크).
+  if (c.path) return fileIconForPath(c.path);
   return "link";
 }
 

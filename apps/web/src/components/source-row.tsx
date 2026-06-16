@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useIndexProgress } from "../hooks/use-index-progress";
 import { deleteSource, getTree, reindexSource } from "../lib/api";
 import { cn } from "../lib/cn";
-import { SOURCE_KINDS } from "../lib/fixtures";
+import { fileIconForPath, SOURCE_KINDS } from "../lib/fixtures";
 import {
   indexFilesByPath,
   isIndexActive,
@@ -260,7 +260,7 @@ function TreeItem({
           )}
         >
           <Icon
-            name="file"
+            name={fileIconForPath(node.path)}
             size={13}
             className={cn(
               "shrink-0",

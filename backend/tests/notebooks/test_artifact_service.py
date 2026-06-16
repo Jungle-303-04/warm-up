@@ -84,7 +84,7 @@ def test_generate_dependency_from_repo_imports() -> None:
     record = service.generate(nb_id, type="dependency", source_ids=["src-1"])
 
     assert record.type == "dependency"
-    assert record.content.startswith("flowchart TD")
+    assert record.content.startswith("flowchart LR")
     assert "app.main" in record.content and "app.core" in record.content
     assert record.content.count("-->") == 1  # main -> core
     assert record.source_ids == ["src-1"]

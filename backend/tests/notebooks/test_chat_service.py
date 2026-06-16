@@ -206,6 +206,151 @@ def test_chat_no_sources_returns_grounding_gap_not_error() -> None:
     assert [message.role for message in messages] == ["user", "assistant"]
 
 
+def test_chat_uses_injected_answerer_for_answer_body() -> None:
+    """answerer가 주입되면 ChatService가 그 답변을 본문으로 쓴다(LLM 호출 없이 검증).
+
+    가짜 answerer는 (question, chunks)를 받아 결정론 문자열을 돌려준다. citation은
+    여전히 검색된 chunks에서 만들어진다(answerer가 만들지 않음).
+    """
+    notebook_service, indexing, _chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    auth = notebook_service.add_source(
+        notebook.id,
+        kind="md",
+        title="auth.md",
+        content="# 인증\n\nFastAPI 세션 토큰은 쿠키로 저장되고 만료 시간을 검증한다.",
+    )
+    for source in notebook_service.list_sources(notebook.id):
+        indexing.index_source(notebook.id, source.id)
+
+    captured: dict[str, object] = {}
+
+    def fake_answerer(question, chunks):
+        captured["question"] = question
+        captured["chunk_count"] = len(chunks)
+        # chunks는 TextChunk라 path/source_title 등에 접근 가능해야 한다.
+        captured["first_title"] = chunks[0].source_title
+        return "LLM이 생성한 답변 본문"
+
+    chat = ChatService(
+        store=notebook_service.store,
+        chunk_store=indexing.chunk_store,
+        embedder=indexing.embedder,
+        answerer=fake_answerer,
+    )
+
+    result = chat.ask(notebook.id, question="세션 토큰 만료 검증", source_ids=[auth.id])
+
+    # 답변 본문은 answerer가 만든 문자열.
+    assert result.answer == "LLM이 생성한 답변 본문"
+    assert captured["question"] == "세션 토큰 만료 검증"
+    assert captured["chunk_count"] >= 1
+    assert captured["first_title"] == "auth.md"
+    # citation은 answerer가 아니라 검색된 chunks에서 생성된다.
+    assert result.citations
+    assert result.citations[0].source_id == auth.id
+
+
+def test_chat_falls_back_to_deterministic_when_no_answerer() -> None:
+    """answerer가 None이면 결정론 폴백(검색 근거 나열) 답변을 쓴다."""
+    notebook_service, indexing, chat = _build()  # 기본 answerer=None
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    auth = notebook_service.add_source(
+        notebook.id,
+        kind="md",
+        title="auth.md",
+        content="# 인증\n\nFastAPI 세션 토큰은 쿠키로 저장되고 만료 시간을 검증한다.",
+    )
+    for source in notebook_service.list_sources(notebook.id):
+        indexing.index_source(notebook.id, source.id)
+
+    result = chat.ask(notebook.id, question="세션 토큰 만료 검증", source_ids=[auth.id])
+
+    # 결정론 폴백 고정 문구.
+    assert "검색된 근거를 기준으로 답변하면" in result.answer
+    assert result.citations
+
+
+def test_chat_falls_back_when_answerer_returns_empty() -> None:
+    """answerer가 빈 문자열/예외를 내면 결정론 폴백으로 안전 전환한다(LLM 호출 없이)."""
+    notebook_service, indexing, _chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    auth = notebook_service.add_source(
+        notebook.id,
+        kind="md",
+        title="auth.md",
+        content="# 인증\n\nFastAPI 세션 토큰은 만료 시간을 검증한다.",
+    )
+    for source in notebook_service.list_sources(notebook.id):
+        indexing.index_source(notebook.id, source.id)
+
+    def empty_answerer(question, chunks):
+        return "   "  # 공백만 → 폴백되어야 한다.
+
+    chat = ChatService(
+        store=notebook_service.store,
+        chunk_store=indexing.chunk_store,
+        embedder=indexing.embedder,
+        answerer=empty_answerer,
+    )
+
+    result = chat.ask(notebook.id, question="세션 토큰 만료 검증", source_ids=[auth.id])
+    assert "검색된 근거를 기준으로 답변하면" in result.answer
+
+
+def test_chat_openai_answerer_formats_context_without_network() -> None:
+    """ChatOpenAIAnswerer가 가짜 chat_model로 [출처 i] 컨텍스트를 구성하는지 검증.
+
+    네트워크/실제 LLM 호출 없이, invoke에 넘어간 메시지만 캡처해 확인한다.
+    """
+    from app.notebooks.application.chat_service import TextChunk
+    from app.notebooks.infrastructure.chat_answerers import ChatOpenAIAnswerer
+
+    class _FakeResponse:
+        content = "근거 기반 답변"
+
+    class _FakeModel:
+        def __init__(self):
+            self.last_messages = None
+
+        def invoke(self, messages):
+            self.last_messages = messages
+            return _FakeResponse()
+
+    model = _FakeModel()
+    answerer = ChatOpenAIAnswerer(model)
+    chunks = [
+        TextChunk(
+            source_id="s1",
+            source_title="auth.md",
+            text="세션 토큰 만료 검증",
+            path="app/auth/session.py",
+        )
+    ]
+
+    answer = answerer("만료 검증은 어디서?", chunks)
+
+    assert answer == "근거 기반 답변"
+    # system + human 메시지 구조.
+    roles = [role for role, _ in model.last_messages]
+    assert roles == ["system", "human"]
+    human_content = model.last_messages[1][1]
+    assert "[출처 1] app/auth/session.py" in human_content
+    assert "만료 검증은 어디서?" in human_content
+
+
+def test_chat_openai_answerer_returns_empty_on_failure() -> None:
+    """chat_model.invoke가 예외를 던지면 빈 문자열로 흡수한다(상위에서 폴백)."""
+    from app.notebooks.infrastructure.chat_answerers import ChatOpenAIAnswerer
+
+    class _BoomModel:
+        def invoke(self, messages):
+            raise RuntimeError("network down")
+
+    answerer = ChatOpenAIAnswerer(_BoomModel())
+    assert answerer("질문", []) == ""
+
+
 def test_chat_no_matching_chunk_returns_grounding_gap() -> None:
     notebook_service, indexing, chat = _build()
     notebook = notebook_service.create_notebook(title="RepoLM")

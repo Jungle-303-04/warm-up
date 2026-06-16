@@ -56,7 +56,7 @@ def test_generate_dependency_returns_mermaid_flowchart() -> None:
     assert response.status_code == 201
     body = response.json()
     assert body["type"] == "dependency"
-    assert body["content"].startswith("flowchart TD")
+    assert body["content"].startswith("flowchart LR")
     # ArtifactView 필드 전부 존재
     for key in (
         "id",

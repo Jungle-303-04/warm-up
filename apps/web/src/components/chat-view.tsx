@@ -17,6 +17,7 @@ import type {
 import { ChatEmpty } from "./chat-empty";
 import { ChatMessageView } from "./chat-message";
 import { Icon } from "./icon";
+import { Button } from "./ui/button";
 
 const makeId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -79,6 +80,9 @@ export function ChatView() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // 단일 비행(single-flight) 가드: 한 번에 한 질문만 처리되도록 보장한다.
+  // sending 상태는 비동기로 갱신돼 효과/직접호출이 겹칠 수 있으므로 ref로 즉시 잠근다.
+  const runningRef = useRef(false);
 
   const selectedSourceIdList = useMemo(() => [...selectedSourceIds], [selectedSourceIds]);
   const allSourcesSelected = sourceCount > 0 && scopeCount === sourceCount;
@@ -146,6 +150,9 @@ export function ChatView() {
   const runQuestion = useCallback(
     async (question: string) => {
       if (!question || scopeCount === 0 || !notebookId) return;
+      // 이미 처리 중이면 중복 실행 금지(직접 호출/큐 효과 중복 방지).
+      if (runningRef.current) return;
+      runningRef.current = true;
 
       const sourceIds = allSourcesSelected ? null : selectedSourceIdList;
       // repo 파일 부분 선택이 있을 때만 file_paths를 보내 답변 범위를 좁힌다.
@@ -183,6 +190,7 @@ export function ChatView() {
         if (abortRef.current === controller) abortRef.current = null;
         setPendingQuestion(null);
         setSending(false);
+        runningRef.current = false; // 잠금 해제 → 큐의 다음 질문 처리 가능.
       }
     },
     [
@@ -196,11 +204,15 @@ export function ChatView() {
     ],
   );
 
-  // 전송 중 들어온 질문은 큐로 모았다가 순차 처리.
+  // 큐 단일 드레인: 모든 질문은 큐에 쌓이고 여기서 한 번에 하나씩만 꺼내 처리한다.
+  // - sending=false(앞 질문 완료)일 때만 다음 질문을 시작 → 완료 후 자동으로 다음 항목 처리.
+  // - runningRef는 sending 상태 갱신 지연/효과 중복으로 인한 동시 실행을 막는 하드 가드.
+  // 직접 호출 경로를 없애 "한 질문당 답변 1개"를 보장한다.
   useEffect(() => {
-    if (sending || queuedQuestions.length === 0) return;
-    const [next, ...rest] = queuedQuestions;
-    setQueuedQuestions(rest);
+    if (sending || runningRef.current || queuedQuestions.length === 0) return;
+    const next = queuedQuestions[0];
+    // 먼저 큐에서 제거한 뒤 실행(같은 질문 재진입 방지).
+    setQueuedQuestions((prev) => prev.slice(1));
     void runQuestion(next);
   }, [queuedQuestions, runQuestion, sending]);
 
@@ -215,14 +227,10 @@ export function ChatView() {
         ...prev,
         { id: makeId(), role: "user", kind: "answer", citations: [], content: question },
       ]);
-
-      if (sending) {
-        setQueuedQuestions((prev) => [...prev, question]);
-        return;
-      }
-      void runQuestion(question);
+      // 항상 큐에 넣고, 위의 단일 드레인 효과가 순차 처리한다(직접 실행 금지).
+      setQueuedQuestions((prev) => [...prev, question]);
     },
-    [notebookId, query, runQuestion, scopeCount, sending],
+    [notebookId, query, scopeCount],
   );
 
   const stopCurrent = () => {
@@ -284,17 +292,17 @@ export function ChatView() {
                 {scopeCount}개 기준
               </span>
               {/* 대화 초기화: 현재 노트북의 화면 메시지와 입력 초안을 비운다. */}
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="xs"
+                icon="delete"
                 onClick={resetConversation}
                 disabled={messages.length === 0 && query.trim().length === 0}
                 title="대화 초기화"
                 aria-label="대화 초기화"
-                className="interactive inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Icon name="delete" size={13} />
                 초기화
-              </button>
+              </Button>
             </div>
             <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
               연결된 저장소·문서를 근거로 질문에 답하고, 코드와 문서가 어긋난 부분을 찾습니다.
@@ -369,14 +377,15 @@ export function ChatView() {
                       <span className="thinking-dot" />
                     </span>
                     <span>근거를 찾고 답변을 조립하는 중</span>
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      icon="stop_circle"
                       onClick={stopCurrent}
-                      className="interactive ml-1 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                      className="ml-1 bg-secondary"
                     >
-                      <Icon name="stop_circle" size={13} />
                       중지
-                    </button>
+                    </Button>
                   </div>
                   {queuedQuestions.length > 0 ? (
                     <p className="mt-1 text-[11px] text-muted-foreground">

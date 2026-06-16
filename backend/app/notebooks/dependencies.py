@@ -12,7 +12,7 @@ from fastapi import Depends
 
 from app.config import Settings, get_settings
 from app.notebooks.application.artifact_service import ArtifactService
-from app.notebooks.application.chat_service import ChatAnswerer, ChatService, TextChunk
+from app.notebooks.application.chat_service import ChatAnswerer, ChatService
 from app.notebooks.application.indexing_service import IndexingService
 from app.notebooks.application.service import NotebookService
 from app.notebooks.domain.artifact_ports import ArtifactStore, LlmArtifactGenerator
@@ -170,39 +170,25 @@ def get_indexing_service(
 
 
 def _build_llm_answerer(settings: Settings) -> ChatAnswerer | None:
-    if settings.llm_provider == "none" or not settings.openai_api_key:
-        return None
+    """채팅 답변기 선택.
 
-    if settings.llm_provider != "openai":
-        return None
+    llm_provider="openai"이고 키가 있으면 LangChain ChatOpenAI 답변기를 주입하고,
+    아니면 None(결정론 폴백)을 돌려준다. _build_artifact_generator와 동일한 분기·
+    빌드 패턴을 따른다(지연 import, 키/모델 주입).
+    """
 
-    from app.pipeline.infrastructure.chat_models import build_chat_model
-
-    model = build_chat_model(
-        settings.llm_provider,
-        settings.llm_model,
-        settings.openai_api_key,
-        temperature=0.0,
-    )
-
-    def answer(question: str, evidence: list[TextChunk]) -> str:
-        context = "\n\n".join(
-            f"[{index}] {chunk.path or chunk.source_title}\n{chunk.text}"
-            for index, chunk in enumerate(evidence, start=1)
+    if settings.llm_provider == "openai" and settings.openai_api_key:
+        from app.notebooks.infrastructure.chat_answerers import (
+            build_chat_openai_answerer,
         )
-        response = model.invoke(
-            "다음 근거만 사용해 한국어로 간결하게 답하세요. "
-            "근거에 없는 내용은 추측하지 마세요.\n\n"
-            f"질문: {question}\n\n근거:\n{context}"
-        )
-        content = getattr(response, "content", response)
-        if isinstance(content, str):
-            return content
-        if isinstance(content, list):
-            return "\n".join(str(part) for part in content)
-        return str(content)
 
-    return answer
+        return build_chat_openai_answerer(
+            settings.llm_provider,
+            settings.llm_model,
+            settings.openai_api_key,
+            temperature=0.0,
+        )
+    return None
 
 
 def get_notebook_chat_service(

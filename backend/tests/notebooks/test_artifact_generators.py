@@ -27,17 +27,18 @@ def test_dependency_builds_import_based_flowchart() -> None:
         GenerationRequest(type="dependency", contexts=contexts)
     )
 
-    # Mermaid flowchart 골격
-    assert content.startswith("flowchart TD")
-    # 내부 모듈 의존 엣지(외부 import os 는 제외)
-    assert "app.main" in content
-    assert "app.service" in content
-    assert "app.util" in content
+    # Mermaid flowchart 골격(가독성 위해 LR)
+    assert content.startswith("flowchart LR")
+    # 라벨은 마지막 1~2 세그먼트로 축약되지만, 노드 식별자(n_app_main 등)에
+    # 전체 모듈 경로가 남는다.
+    assert "n_app_main" in content
+    assert "n_app_service" in content
+    assert "n_app_util" in content
     assert "-->" in content
     # main -> service, service -> util 두 엣지가 있어야 한다.
     assert content.count("-->") == 2
     # 외부 모듈(os)은 노드/엣지로 등장하지 않는다.
-    assert '"os"' not in content
+    assert "n_os" not in content
 
 
 def test_dependency_with_no_python_returns_graph_without_error() -> None:
@@ -48,8 +49,96 @@ def test_dependency_with_no_python_returns_graph_without_error() -> None:
 
     content = gen.generate(GenerationRequest(type="dependency", contexts=contexts))
 
-    assert content.startswith("flowchart TD")
+    assert content.startswith("flowchart LR")
     assert "no python sources" in content
+
+
+def test_dependency_excludes_isolated_nodes() -> None:
+    """import 엣지가 전혀 없는 고립 모듈은 그래프에서 제외된다."""
+    gen = DeterministicArtifactGenerator()
+    contexts = [
+        _ctx("app/main.py", "from app.service import run\n"),
+        _ctx("app/service.py", "x = 1\n"),
+        # lonely는 아무도 import하지 않고 내부 import도 없는 고립 모듈.
+        _ctx("app/lonely.py", "import os\n"),
+    ]
+
+    content = gen.generate(GenerationRequest(type="dependency", contexts=contexts))
+
+    assert content.startswith("flowchart LR")
+    # 연결된 main/service는 남고,
+    assert "n_app_main" in content
+    assert "n_app_service" in content
+    # 고립 노드 lonely는 빠진다.
+    assert "n_app_lonely" not in content
+    assert content.count("-->") == 1
+
+
+def test_dependency_groups_packages_into_subgraphs() -> None:
+    """서로 다른 상위 패키지 모듈은 subgraph로 그룹화되고 라벨은 축약된다."""
+    gen = DeterministicArtifactGenerator()
+    contexts = [
+        _ctx(
+            "app/notebooks/chat.py",
+            "from app.repo_rag.client import Embed\n",
+        ),
+        _ctx("app/repo_rag/client.py", "x = 1\n"),
+    ]
+
+    content = gen.generate(GenerationRequest(type="dependency", contexts=contexts))
+
+    assert content.startswith("flowchart LR")
+    # 상위 패키지(app.notebooks, app.repo_rag)별 subgraph.
+    assert "subgraph" in content
+    assert '["app.notebooks"]' in content
+    assert '["app.repo_rag"]' in content
+    # 라벨은 마지막 2세그먼트로 축약(전체경로 아님).
+    assert '["notebooks.chat"]' in content
+    assert '["repo_rag.client"]' in content
+    # 패키지 간 의존 엣지.
+    assert content.count("-->") == 1
+
+
+def test_dependency_collapses_to_packages_when_over_node_cap() -> None:
+    """노드 수가 상한을 넘으면 상위 패키지 단위로 묶어 축소한다."""
+    from app.notebooks.infrastructure.artifact_generators import (
+        MAX_DEPENDENCY_NODES,
+    )
+
+    gen = DeterministicArtifactGenerator()
+    # 두 패키지(pkg_a, pkg_b)에 상한을 넘는 수의 모듈을 만들고, 각 a_i가 b_i를 import.
+    half = MAX_DEPENDENCY_NODES  # 두 패키지 합쳐 2*half > 상한
+    contexts = []
+    for i in range(half):
+        contexts.append(
+            _ctx(f"app/pkg_a/mod{i}.py", f"from app.pkg_b.mod{i} import thing\n")
+        )
+        contexts.append(_ctx(f"app/pkg_b/mod{i}.py", "thing = 1\n"))
+
+    content = gen.generate(GenerationRequest(type="dependency", contexts=contexts))
+
+    assert content.startswith("flowchart LR")
+    # 축소 후에는 패키지 노드(app.pkg_a → app.pkg_b) 한 쌍만 남는다.
+    assert "n_app_pkg_a" in content
+    assert "n_app_pkg_b" in content
+    # 개별 모듈 노드는 사라진다.
+    assert "n_app_pkg_a_mod0" not in content
+    # 그룹 간 엣지는 단 하나로 축약된다.
+    assert content.count("-->") == 1
+
+
+def test_dependency_no_internal_edges_returns_notice() -> None:
+    """파이썬 소스는 있으나 서로 import하지 않으면 안내 그래프를 돌려준다(에러 아님)."""
+    gen = DeterministicArtifactGenerator()
+    contexts = [
+        _ctx("app/a.py", "import os\n"),
+        _ctx("app/b.py", "import sys\n"),
+    ]
+
+    content = gen.generate(GenerationRequest(type="dependency", contexts=contexts))
+
+    assert content.startswith("flowchart LR")
+    assert "no internal dependencies" in content
 
 
 def test_uml_fallback_returns_skeleton_without_error() -> None:

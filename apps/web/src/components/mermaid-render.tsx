@@ -2,14 +2,144 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
+import { cn } from "../lib/cn";
+import { Button } from "./ui/button";
+
+// svg-pan-zoom은 `export = svgPanZoom`(Instance 타입의 const)이라 기본 import 값의
+// 타입이 곧 인스턴스 타입이다. 런타임에선 이 값이 팩토리 함수로도 동작하므로
+// 호출 시 팩토리 시그니처로 캐스팅해 사용한다.
+type PanZoomInstance = typeof import("svg-pan-zoom");
+type PanZoomFactory = (svg: SVGElement, options?: Record<string, unknown>) => PanZoomInstance;
+
 // 현재 문서 테마(.dark 클래스)에 따라 mermaid 테마를 고른다.
 function isDarkTheme(): boolean {
   if (typeof document === "undefined") return false;
   return document.documentElement.classList.contains("dark");
 }
 
+// 렌더된 Mermaid SVG에 줌·팬을 입히는 캔버스. svg-pan-zoom을 동적 import 해
+// 클라이언트에서만 적용한다(SSR 안전). svg가 바뀌면 인스턴스를 재생성한다.
+function PanZoomCanvas({ svg }: { svg: string }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const instanceRef = useRef<PanZoomInstance | null>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || !svg) return;
+    let disposed = false;
+
+    // 주입된 SVG 요소를 찾아 pan-zoom을 적용한다.
+    (async () => {
+      // mermaid SVG는 보통 max-width 인라인 스타일을 갖는데, 이는 캔버스 채움을 막는다.
+      const svgEl = host.querySelector("svg");
+      if (!svgEl) return;
+      // 컨테이너를 가득 채우도록 크기/스타일 보정.
+      svgEl.setAttribute("width", "100%");
+      svgEl.setAttribute("height", "100%");
+      svgEl.style.maxWidth = "100%";
+      svgEl.style.maxHeight = "100%";
+      svgEl.style.display = "block";
+
+      // 동적 import: 클라이언트에서만 svg-pan-zoom 로드(esModuleInterop → default).
+      const mod = await import("svg-pan-zoom");
+      const svgPanZoom = (mod.default ?? (mod as unknown)) as PanZoomFactory;
+      if (disposed) return;
+
+      try {
+        instanceRef.current = svgPanZoom(svgEl, {
+          zoomEnabled: true,
+          panEnabled: true,
+          controlIconsEnabled: false, // 자체 컨트롤 버튼 사용.
+          dblClickZoomEnabled: true,
+          mouseWheelZoomEnabled: true,
+          preventMouseEventsDefault: true,
+          fit: true,
+          center: true,
+          minZoom: 0.2,
+          maxZoom: 12,
+          zoomScaleSensitivity: 0.3,
+        });
+      } catch {
+        // pan-zoom 적용 실패해도 정적 SVG는 그대로 보인다(폴백).
+        instanceRef.current = null;
+      }
+    })();
+
+    return () => {
+      disposed = true;
+      try {
+        instanceRef.current?.destroy();
+      } catch {
+        // 이미 제거된 경우 무시.
+      }
+      instanceRef.current = null;
+    };
+  }, [svg]);
+
+  // 컨트롤 버튼 동작. 인스턴스가 없으면(폴백) 무시.
+  const zoomIn = () => instanceRef.current?.zoomIn();
+  const zoomOut = () => instanceRef.current?.zoomOut();
+  const reset = () => {
+    const inst = instanceRef.current;
+    if (!inst) return;
+    inst.resetZoom();
+    inst.center();
+    inst.fit();
+  };
+
+  return (
+    <div
+      className={cn(
+        "relative w-full overflow-hidden rounded-xl border border-border bg-surface-raised",
+        "h-[64vh]",
+      )}
+    >
+      {/* 줌·팬 대상 SVG 호스트. svg는 신뢰된 mermaid 출력. */}
+      <div
+        ref={hostRef}
+        className="mermaid-render h-full w-full cursor-grab active:cursor-grabbing"
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+      {/* 작은 컨트롤 버튼(확대/축소/리셋). 우하단 고정. */}
+      <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full border border-border bg-card/90 p-1 shadow-elev-1 backdrop-blur">
+        <Button
+          variant="ghost"
+          size="xs"
+          pill={false}
+          icon="add"
+          onClick={zoomIn}
+          aria-label="확대"
+          title="확대"
+          className="h-6 w-6 px-0"
+        />
+        <Button
+          variant="ghost"
+          size="xs"
+          pill={false}
+          icon="remove"
+          onClick={zoomOut}
+          aria-label="축소"
+          title="축소"
+          className="h-6 w-6 px-0"
+        />
+        <Button
+          variant="ghost"
+          size="xs"
+          pill={false}
+          icon="refresh"
+          onClick={reset}
+          aria-label="맞춤(리셋)"
+          title="화면에 맞춤"
+          className="h-6 w-6 px-0"
+        />
+      </div>
+    </div>
+  );
+}
+
 // Mermaid 다이어그램을 동적 import 로 렌더한다(SSR 안전).
-// 렌더 실패 시 onError 로 에러를 위임해 호출부가 원본 소스를 노출하게 한다.
+// 렌더 성공 시 줌·팬 캔버스로 보여주고, 실패 시 onError 로 에러를 위임해
+// 호출부가 원본 소스를 노출하게 한다.
 export function MermaidRender({
   source,
   onError,
@@ -18,7 +148,6 @@ export function MermaidRender({
   // 렌더 성공/실패를 호출부에 알린다(null = 성공).
   onError?: (message: string | null) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const reactId = useId();
   // mermaid id 는 CSS 식별자라야 하므로 콜론을 제거한다.
   const renderId = `mmd-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
@@ -92,12 +221,8 @@ export function MermaidRender({
     );
   }
 
-  return (
-    <div
-      ref={containerRef}
-      className="mermaid-render grid w-full place-items-center overflow-x-auto"
-      // 렌더된 SVG 를 직접 주입(mermaid 출력은 신뢰된 라이브러리 산출물).
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
-  );
+  if (!svg) return null;
+
+  // svg가 바뀌면 캔버스를 새로 마운트(key)해 pan-zoom 인스턴스를 깔끔히 재생성.
+  return <PanZoomCanvas key={svg} svg={svg} />;
 }

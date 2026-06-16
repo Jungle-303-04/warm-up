@@ -9,6 +9,7 @@ import { useWorkspace } from "../lib/store";
 import type { SourceKind } from "../lib/types";
 import { Icon } from "./icon";
 import { SourceRow } from "./source-row";
+import { Button } from "./ui/button";
 import { Collapse } from "./ui/collapse";
 import { Panel } from "./ui/panel";
 
@@ -127,16 +128,17 @@ export function SourcesPanel({
           </div>
         </div>
 
-        {/* 액션: 단일 "소스 추가" 진입점(통합 모달 → 파일·URL·GitHub). 단정한 크기. */}
+        {/* 액션: 단일 "소스 추가" 진입점(통합 모달 → 파일·URL·GitHub). 공용 sm 알약. */}
         <div className="px-3 pb-2 pt-2.5">
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
+            icon="add"
             onClick={openAddSource}
-            className="interactive flex w-full items-center justify-center gap-1 rounded-full bg-primary px-3 py-1 text-[11.5px] font-semibold text-primary-foreground hover:opacity-90 hover:shadow-elev-1 active:scale-[0.99]"
+            className="w-full"
           >
-            <Icon name="add" size={13} />
             소스 추가
-          </button>
+          </Button>
         </div>
 
         {/* 검색: 소스 이름 필터(소스 0개면 비활성 placeholder). 밀도에 맞춰 단정하게 축소. */}
