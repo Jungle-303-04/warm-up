@@ -104,7 +104,7 @@ export function CodeView({ content, filePath }: { content: string; filePath?: st
 
   return (
     // 외곽 카드/테두리 없이 패널에 직접 평면 렌더(줄번호 거터 + 코드만, 패널 폭 전체 사용).
-    <div className="scroll-thin flex overflow-x-auto">
+    <div className="flex overflow-x-auto">
       {/* 줄 번호 거터: user-select:none으로 복사 시 번호 제외. sticky로 가로 스크롤 시 고정. */}
       <pre
         aria-hidden

@@ -101,7 +101,7 @@ function PanZoomCanvas({ svg }: { svg: string }) {
         dangerouslySetInnerHTML={{ __html: svg }}
       />
       {/* 작은 컨트롤 버튼(확대/축소/리셋). 우하단 고정. */}
-      <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full border border-border bg-card/90 p-1 shadow-elev-1 backdrop-blur">
+      <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full border border-border bg-card/90 p-1 shadow-sm backdrop-blur">
         <Button
           variant="ghost"
           size="xs"
@@ -214,7 +214,7 @@ export function MermaidRender({
           <p className="font-medium">다이어그램 렌더 실패</p>
           <p className="mt-1 whitespace-pre-wrap break-words text-[11.5px] opacity-90">{error}</p>
         </div>
-        <pre className="scroll-thin max-h-72 overflow-auto rounded-lg border border-border bg-card px-3 py-2 font-mono text-[11.5px] leading-relaxed text-muted-foreground">
+        <pre className="max-h-72 overflow-auto rounded-lg border border-border bg-card px-3 py-2 font-mono text-[11.5px] leading-relaxed text-muted-foreground">
           {source}
         </pre>
       </div>

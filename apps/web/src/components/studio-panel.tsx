@@ -11,6 +11,22 @@ import { Icon } from "./icon";
 import { Button } from "./ui/button";
 import { Panel } from "./ui/panel";
 
+function getTintCls(tint: string) {
+  switch (tint) {
+    case "teal":
+      return "bg-teal-500/10 text-teal-600 dark:bg-teal-500/20 dark:text-teal-400";
+    case "blue":
+      return "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400";
+    case "violet":
+      return "bg-violet-500/10 text-violet-600 dark:bg-violet-500/20 dark:text-violet-400";
+    case "amber":
+      return "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-500";
+    case "grey":
+    default:
+      return "bg-secondary text-muted-foreground";
+  }
+}
+
 // 산출물 메타(레이블/아이콘/색조)의 tint → studio-tint 키 매핑.
 // ARTIFACT_META.tint 는 "grey" 를 포함하므로 그대로 studio-tint-* 와 맞춘다.
 function artifactMeta(artifact: Artifact) {
@@ -63,7 +79,7 @@ export function StudioPanel({
       <div className="flex h-11 items-center justify-between border-b border-border px-3">
         <div className="flex items-center gap-1.5">
           <Icon name="auto_awesome" size={15} className="text-primary" />
-          <h2 className="t-title">스튜디오</h2>
+          <h2 className="text-[13px] font-semibold text-foreground">스튜디오</h2>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
@@ -75,7 +91,7 @@ export function StudioPanel({
               onClick={onCollapse}
               title="스튜디오 패널 접기"
               aria-label="스튜디오 패널 접기"
-              className="interactive grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="transition-all duration-200 ease-in-out grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <Icon name="dock_to_right" size={15} />
             </button>
@@ -83,7 +99,7 @@ export function StudioPanel({
         </div>
       </div>
 
-      <div className="scroll-thin relative flex-1 overflow-y-auto px-3 pb-3 pt-1">
+      <div className="relative flex-1 overflow-y-auto px-3 pb-3 pt-1">
         <div>
           {/* 기능 카드 그리드(히어로/안내 문구는 제거하고 카드만 남긴다). */}
           <div className="mt-2.5 grid grid-cols-2 gap-2">
@@ -91,12 +107,12 @@ export function StudioPanel({
               const loading = generatingType === t.type;
               return (
                 <button
-                  key={t.type}
-                  type="button"
-                  disabled={!canCreate || busy}
-                  onClick={() => create(t)}
-                  title={t.label}
-                  className="interactive group relative flex min-h-[104px] flex-col gap-2 rounded-xl border border-border bg-card p-3 text-left hover:-translate-y-0.5 hover:border-primary/35 hover:bg-surface-raised hover:shadow-elev-2 disabled:cursor-not-allowed disabled:opacity-55"
+                   key={t.type}
+                   type="button"
+                   disabled={!canCreate || busy}
+                   onClick={() => create(t)}
+                   title={t.label}
+                   className="transition-all duration-200 ease-in-out group relative flex min-h-[104px] flex-col gap-2 rounded-xl border border-border bg-card p-3 text-left hover:-translate-y-0.5 hover:border-primary/35 hover:bg-surface-raised hover:shadow disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   {t.beta ? (
                     <span className="absolute right-2 top-2 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-normal text-muted-foreground">
@@ -104,7 +120,7 @@ export function StudioPanel({
                     </span>
                   ) : null}
                   <span
-                    className={`studio-tint studio-tint-${t.tint} grid h-9 w-9 place-items-center rounded-lg`}
+                    className={`${getTintCls(t.tint)} grid h-9 w-9 place-items-center rounded-lg`}
                   >
                     {loading ? (
                       <Icon name="progress_activity" size={18} className="animate-spin" />
@@ -205,7 +221,7 @@ function CreateMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-elev-2"
+          className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-border bg-card py-1 shadow"
         >
           <button
             type="button"
@@ -214,7 +230,7 @@ function CreateMenu({
               onAddNote();
               setOpen(false);
             }}
-            className="interactive flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-foreground hover:bg-secondary"
+            className="transition-all duration-200 ease-in-out flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-foreground hover:bg-secondary"
           >
             <Icon name="note_add" size={14} className="text-muted-foreground" /> 메모 추가
           </button>
@@ -228,28 +244,40 @@ function CreateMenu({
 function ArtifactItem({ artifact }: { artifact: Artifact }) {
   const openArtifact = useWorkspace((s) => s.openArtifact);
   const removeArtifact = useWorkspace((s) => s.removeArtifact);
+  const addArtifactAsSource = useWorkspace((s) => s.addArtifactAsSource);
   const activeArtifactId = useWorkspace((s) => s.viewer?.artifactId);
   const meta = artifactMeta(artifact);
   const active = activeArtifactId === artifact.id;
+  // 소스로 추가 진행/완료 표시(짧게).
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
+
+  const addAsSource = async () => {
+    setAdding(true);
+    const source = await addArtifactAsSource(artifact);
+    setAdding(false);
+    if (source) {
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1800);
+    }
+  };
   return (
     <div
       title={artifact.title}
       className={cn(
-        "interactive group flex w-full items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-left hover:shadow-elev-1",
+        "group flex w-full items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-left hover:shadow-sm",
         active ? "border-primary/50 ring-1 ring-primary/30" : "border-border hover:border-primary/30",
       )}
     >
       <button
         type="button"
         onClick={() => openArtifact(artifact.id)}
-        className="interactive flex min-w-0 flex-1 items-center gap-2 text-left"
+        className="transition-all duration-200 ease-in-out flex min-w-0 flex-1 items-center gap-2 text-left"
       >
         <span
           className={cn(
             "grid h-6 w-6 shrink-0 place-items-center rounded-md",
-            meta.tint === "grey"
-              ? "bg-secondary text-muted-foreground"
-              : `studio-tint studio-tint-${meta.tint}`,
+            getTintCls(meta.tint)
           )}
         >
           <Icon name={meta.icon} size={13} />
@@ -267,10 +295,24 @@ function ArtifactItem({ artifact }: { artifact: Artifact }) {
       </button>
       <button
         type="button"
+        onClick={() => void addAsSource()}
+        disabled={adding}
+        title="소스로 추가"
+        aria-label={`${artifact.title} 소스로 추가`}
+        className="transition-all duration-200 ease-in-out grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground/60 opacity-0 transition-opacity hover:bg-secondary hover:text-primary group-hover:opacity-100 disabled:opacity-40"
+      >
+        <Icon
+          name={adding ? "progress_activity" : added ? "check" : "library_add"}
+          size={13}
+          className={adding ? "animate-spin" : ""}
+        />
+      </button>
+      <button
+        type="button"
         onClick={() => void removeArtifact(artifact.id)}
         title="삭제"
         aria-label={`${artifact.title} 삭제`}
-        className="interactive grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground/60 opacity-0 transition-opacity hover:bg-secondary hover:text-destructive group-hover:opacity-100"
+        className="transition-all duration-200 ease-in-out grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground/60 opacity-0 transition-opacity hover:bg-secondary hover:text-destructive group-hover:opacity-100"
       >
         <Icon name="delete" size={13} />
       </button>

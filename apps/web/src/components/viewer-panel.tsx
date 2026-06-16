@@ -346,14 +346,14 @@ export function ViewerPanel() {
             href={externalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="interactive inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-[12px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+            className="transition-all duration-200 ease-in-out inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-[12px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <Icon name="north_east" size={13} /> 열기
           </a>
         ) : null}
       </div>
 
-      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {/* 본문을 패널 폭 전체로 사용(중앙 정렬·max-width 제거, 종류별 좌우 패딩만). */}
         <div className={cn("w-full", bodyPadding)}>
           {loading ? (
@@ -384,6 +384,7 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
   const notebookId = useWorkspace((s) => s.notebookId);
   const storeArtifacts = useWorkspace((s) => s.artifacts);
   const updateArtifact = useWorkspace((s) => s.updateArtifact);
+  const addArtifactAsSource = useWorkspace((s) => s.addArtifactAsSource);
 
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [loading, setLoading] = useState(false);
@@ -395,6 +396,11 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
   const [showEditor, setShowEditor] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // 제목 인라인 편집 상태(편집 패널이 열려 있을 때만 입력 노출).
+  const [titleDraft, setTitleDraft] = useState("");
+  // 소스로 추가 진행/완료 표시.
+  const [addingSource, setAddingSource] = useState(false);
+  const [addedSource, setAddedSource] = useState(false);
 
   // 산출물 로드: 스토어 목록에 있으면 우선 사용하고, 없으면 단건 GET.
   useEffect(() => {
@@ -404,6 +410,7 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
       setArtifact(cached);
       setDraft(cached.content);
       setRendered(cached.content);
+      setTitleDraft(cached.title);
       setError(null);
       return;
     }
@@ -416,6 +423,7 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
         setArtifact(a);
         setDraft(a.content);
         setRendered(a.content);
+        setTitleDraft(a.title);
       })
       .catch((e) => active && setError(e instanceof Error ? e.message : "산출물을 불러오지 못했습니다"))
       .finally(() => active && setLoading(false));
@@ -450,14 +458,32 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
   const save = async () => {
     if (!artifact) return;
     setSaving(true);
-    const updated = await updateArtifact(artifact.id, { content: draft });
+    // 제목과 본문을 함께 저장(바뀐 항목만 PATCH).
+    const patch: { title?: string; content?: string } = {};
+    if (draft !== artifact.content) patch.content = draft;
+    const nextTitle = titleDraft.trim();
+    if (nextTitle && nextTitle !== artifact.title) patch.title = nextTitle;
+    const updated = await updateArtifact(artifact.id, patch);
     setSaving(false);
     if (updated) {
       setArtifact(updated);
       setRendered(updated.content);
       setDraft(updated.content);
+      setTitleDraft(updated.title);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
+    }
+  };
+
+  // 산출물 content 로 새 소스를 만든다(좌측 소스 목록에 추가 + 자동 인덱싱).
+  const addAsSource = async () => {
+    if (!artifact) return;
+    setAddingSource(true);
+    const source = await addArtifactAsSource(artifact);
+    setAddingSource(false);
+    if (source) {
+      setAddedSource(true);
+      setTimeout(() => setAddedSource(false), 1800);
     }
   };
 
@@ -476,7 +502,10 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
     );
   }
 
-  const dirty = draft !== artifact.content;
+  // 제목 또는 본문이 바뀌었으면 저장 활성화.
+  const dirty =
+    draft !== artifact.content ||
+    (titleDraft.trim() !== "" && titleDraft.trim() !== artifact.title);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -496,6 +525,18 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
           <p className="truncate text-[12px] font-semibold leading-tight">{artifact.title}</p>
           <p className="truncate text-[11px] text-muted-foreground">{meta.label}</p>
         </div>
+        {/* 산출물 content 로 새 소스를 만든다(RAG 컨텍스트로 사용 가능). */}
+        <Button
+          variant="outline"
+          size="sm"
+          icon={addedSource ? "check" : "library_add"}
+          loading={addingSource}
+          onClick={() => void addAsSource()}
+          disabled={addingSource}
+          title="이 산출물을 소스로 추가"
+        >
+          {addingSource ? "추가 중…" : addedSource ? "추가됨" : "소스로 추가"}
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -509,7 +550,7 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
         </Button>
       </div>
 
-      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="w-full px-4 py-4">
           {/* 본문 렌더: Mermaid 다이어그램 또는 마크다운 */}
           {isMermaid ? (
@@ -524,6 +565,16 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
           {/* 편집 영역: content 수정 → 재렌더(다이어그램만)/저장 */}
           {showEditor ? (
             <div className="mt-4 border-t border-border pt-3">
+              {/* 제목 편집(모든 산출물 공통). */}
+              <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                제목
+              </label>
+              <input
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                placeholder="제목"
+                className="mb-3 h-8 w-full rounded-lg border border-border bg-card px-3 text-[12.5px] font-medium text-foreground outline-none focus:border-primary/50"
+              />
               <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
                 {isMermaid ? "Mermaid 소스" : "본문(Markdown)"}
               </label>
@@ -531,7 +582,7 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 spellCheck={false}
-                className="scroll-thin h-56 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground outline-none focus:border-primary/50"
+                className="h-56 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground outline-none focus:border-primary/50"
               />
               <div className="mt-2 flex items-center justify-end gap-2">
                 {isMermaid ? (
