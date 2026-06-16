@@ -86,6 +86,33 @@
   font-weight: 800;
 }
 
+.brand-button {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--heading);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.brand-button:hover {
+  background: transparent;
+  color: #1f7658;
+}
+
+.brand-button:active {
+  background: transparent;
+}
+
+.brand-button:focus-visible {
+  outline: 3px solid rgba(54, 119, 203, 0.28);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
 .brand-mark {
   display: grid;
   width: 34px;

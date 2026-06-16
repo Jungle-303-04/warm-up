@@ -291,6 +291,12 @@ function App() {
     window.history.replaceState(null, '', window.location.pathname)
   }
 
+  function returnToMainPage() {
+    setSelectedBoard(null)
+    setIsCreatingBoard(false)
+    window.history.replaceState(null, '', window.location.pathname)
+  }
+
   function openBoardCreatePage() {
     setSelectedBoard(null)
     setIsCreatingBoard(true)
@@ -590,6 +596,7 @@ function App() {
         isLoading={isLoading}
         onLogin={startGithubLogin}
         onLogout={logout}
+        onHome={returnToMainPage}
       >
         {user ? (
           <>

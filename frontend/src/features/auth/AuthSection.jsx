@@ -4,20 +4,21 @@ export function AuthSection({
   isLoading,
   onLogin,
   onLogout,
+  onHome,
   children,
 }) {
   if (user) {
     return (
       <>
         <header className="app-header">
-          <div className="brand-row">
+          <button type="button" className="brand-row brand-button" onClick={onHome}>
             <span className="brand-mark" aria-hidden="true">
               <svg>
                 <use href="/icons.svg#github-icon" />
               </svg>
             </span>
             <span>Code-Trust Kanban</span>
-          </div>
+          </button>
 
           <nav className="dashboard-nav" aria-label="주요 화면">
             <a href="#calendar-title">캘린더</a>
