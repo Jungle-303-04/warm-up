@@ -12,9 +12,11 @@ from sqlalchemy import (
     Computed,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
@@ -104,6 +106,27 @@ class ChunkModel(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# 특수 인덱스 정의 (GIN, HNSW)
+Index(
+    "ix_source_chunks_content_tsv",
+    ChunkModel.content_tsv,
+    postgresql_using="gin",
+)
+
+Index(
+    "ix_source_chunks_embedding_hnsw",
+    ChunkModel.embedding,
+    postgresql_using="hnsw",
+    postgresql_ops={"embedding": "vector_cosine_ops"},
+)
+
+Index(
+    "ix_source_chunks_active",
+    ChunkModel.repository_id,
+    postgresql_where=ChunkModel.is_active.is_(True),
+)
 
 
 class JobModel(Base):
