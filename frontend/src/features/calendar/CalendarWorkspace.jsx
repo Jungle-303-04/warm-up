@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { BOARD_TYPE_FILTERS, filterBoards } from '../board/boardFilters'
+import { calculateScheduleTaskProgress } from '../board/boardForm'
 
 const SCHEDULE_BOARD_TYPE = 2
 const PROCEEDINGS_BOARD_TYPE = 3
@@ -183,7 +184,10 @@ function CalendarWeek({ week, segments, visibleMonth, onStartCreateBoard, onOpen
             }}
             onClick={() => onOpenBoard(segment.event.boardId)}
           >
-            {segment.label}
+            <span>{segment.label}</span>
+            {Number.isInteger(segment.event.progressPercent) ? (
+              <strong>{segment.event.progressPercent}%</strong>
+            ) : null}
           </button>
         ))}
       </div>
@@ -216,11 +220,18 @@ function mapBoardToCalendarEvents(board) {
 //     start_at: string,
 //     end_at: string,
 //     importance: number
-//   }
+//   },
+//   schedule_board_tasks?: Array<{
+//     task_name: string,
+//     task_status: 1 | 2 | 3 | 4
+//   }>
 // }
 // 화면에서는 start_at부터 end_at까지 이어지는 일정 막대로 표시한다.
+// schedule_board_tasks가 있으면 완료=100%, 진행=50%, 대기/보류=0% 기준으로 진행률을 함께 표시한다.
 // 사용자가 막대를 클릭하면 board.id를 GET /board/{board_id} 상세 조회에 넘긴다.
 function mapScheduleBoardToCalendarEvent(board) {
+  const progressPercent = calculateScheduleTaskProgress(board.schedule_board_tasks)
+
   return {
     id: `schedule-${board.id}`,
     boardId: board.id,
@@ -231,6 +242,7 @@ function mapScheduleBoardToCalendarEvent(board) {
     startAt: board.schedule_board_detail.start_at,
     endAt: board.schedule_board_detail.end_at,
     importance: board.schedule_board_detail.importance,
+    progressPercent,
   }
 }
 

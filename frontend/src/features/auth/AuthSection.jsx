@@ -15,7 +15,7 @@ export function AuthSection({
   onToggleTheme,
   children,
 }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   if (user) {
     return (

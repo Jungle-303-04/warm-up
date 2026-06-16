@@ -178,7 +178,10 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
         aria-controls="rag-chatbot-drawer"
         aria-expanded={isOpen}
       >
-        챗봇
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 6.5A3.5 3.5 0 0 1 8.5 3h7A3.5 3.5 0 0 1 19 6.5v5A3.5 3.5 0 0 1 15.5 15H11l-4.5 4v-4.2A3.5 3.5 0 0 1 5 11.5z" />
+          <path d="M9 9h.01M12 9h.01M15 9h.01" />
+        </svg>
       </button>
 
       {isOpen ? (
@@ -205,6 +208,20 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
           <section className="chatbot-context" aria-label="현재 질문 기준">
             <strong>{chatContext.repositoryName || '분석 기준 없음'}</strong>
             <span>{chatContext.detail}</span>
+            <dl className="chatbot-readiness">
+              <div>
+                <dt>분석 기준</dt>
+                <dd>{chatContext.repositoryName ? '선택됨' : '필요함'}</dd>
+              </div>
+              <div>
+                <dt>답변 상태</dt>
+                <dd>목업 응답</dd>
+              </div>
+            </dl>
+            <p>
+              아직 실제 LLM API와 연결되지 않았습니다. 현재 대화는 화면 흐름을 확인하기 위한
+              목업 응답입니다.
+            </p>
           </section>
 
           <div className="chatbot-body">

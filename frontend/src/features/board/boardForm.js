@@ -81,6 +81,25 @@ export function getTaskStatusLabel(status) {
   return labels[status] || `상태 ${status}`
 }
 
+export function calculateScheduleTaskProgress(tasks) {
+  if (!tasks?.length) {
+    return null
+  }
+
+  const statusWeights = {
+    1: 0,
+    2: 0.5,
+    3: 1,
+    4: 0,
+  }
+  const totalWeight = tasks.reduce(
+    (sum, task) => sum + (statusWeights[Number(task.task_status)] ?? 0),
+    0,
+  )
+
+  return Math.round((totalWeight / tasks.length) * 100)
+}
+
 export function formatDateTime(value) {
   if (!value) {
     return '-'

@@ -102,33 +102,41 @@ export function RepositoryRunsPage({
         </button>
         <div className="repository-pagination" aria-label="등록된 레포지토리 페이지 이동">
           <button type="button" onClick={showPreviousPage} disabled={currentPage === 0}>
-            &lt;
+            이전
           </button>
-          <span>{currentPage + 1} / {pageCount}</span>
+          <span>{currentPage + 1} / {pageCount} 페이지</span>
           <button
             type="button"
             onClick={showNextPage}
             disabled={currentPage >= pageCount - 1}
           >
-            &gt;
+            다음
           </button>
         </div>
       </div>
 
       {visibleRuns.length ? (
-        <ul className="repository-run-list repository-run-list-page">
-          {visibleRuns.map((run) => (
-            <li key={`${run.repository_full_name}-${run.branch || ''}`}>
-              <button type="button" onClick={() => onSelectRepositoryRun(run)}>
-                <span>
-                  <strong>{run.repository_full_name}</strong>
-                  <small>{run.branch || '기본 브랜치'}</small>
-                </span>
-                <time dateTime={run.indexed_at}>{formatDateTime(run.indexed_at)}</time>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="repository-run-table">
+          <div className="repository-run-header" aria-hidden="true">
+            <span>레포지토리</span>
+            <span>마지막 분석</span>
+          </div>
+          <ul className="repository-run-list repository-run-list-page">
+            {visibleRuns.map((run) => (
+              <li key={`${run.repository_full_name}-${run.branch || ''}`}>
+                <button type="button" onClick={() => onSelectRepositoryRun(run)}>
+                  <span>
+                    <strong>{run.repository_full_name}</strong>
+                    <small>{run.branch || '기본 브랜치'}</small>
+                  </span>
+                  <span className="repository-run-time">
+                    <time dateTime={run.indexed_at}>{formatDateTime(run.indexed_at)}</time>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : (
         <p className="repository-run-empty">
           아직 분석된 레포지토리가 없습니다.
@@ -149,7 +157,7 @@ function RepositoryIndexForm({
 }) {
   return (
     <form className="workspace-form" onSubmit={onSubmit}>
-      <label>
+      <label className="repository-field-full">
         <span>레포지토리</span>
         <input
           type="text"
@@ -161,21 +169,27 @@ function RepositoryIndexForm({
         />
       </label>
 
-      <label>
-        <span>브랜치</span>
-        <input
-          type="text"
-          value={branch}
-          onChange={(event) => onBranchChange(event.target.value)}
-          placeholder="비워두면 기본 브랜치 전체 분석"
-          autoComplete="off"
-          disabled={isLoading}
-        />
-      </label>
+      <div className="repository-form-actions">
+        <label>
+          <span>브랜치</span>
+          <input
+            type="text"
+            value={branch}
+            onChange={(event) => onBranchChange(event.target.value)}
+            placeholder="비워두면 기본 브랜치 전체 분석"
+            autoComplete="off"
+            disabled={isLoading}
+          />
+        </label>
 
-      <button type="submit" className="primary-action" disabled={isLoading}>
-        {isIndexing ? '분석 중' : '분석 시작'}
-      </button>
+        <button
+          type="submit"
+          className="primary-action repository-index-button"
+          disabled={isLoading}
+        >
+          {isIndexing ? '분석 중' : '분석 시작'}
+        </button>
+      </div>
 
       {isIndexing ? (
         <ProgressPanel message="레포지토리 전체 파일을 검사하고 있습니다." />

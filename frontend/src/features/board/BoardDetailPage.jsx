@@ -9,6 +9,7 @@ import {
   buildEmptyScheduleTask,
   buildBoardForm,
   buildUpdatePayload,
+  calculateScheduleTaskProgress,
   formatDateTime,
   formatIds,
   getBoardTypeLabel,
@@ -159,7 +160,7 @@ function BoardReadView({ board }) {
       <header className="board-detail-header">
         <p className="eyebrow">게시글 상세</p>
         <h2 id="board-detail-title">{board.title}</h2>
-        <dl className="board-detail-meta" aria-label="게시글 기본 정보">
+        <dl className="board-detail-meta board-detail-meta-inline" aria-label="게시글 기본 정보">
           <div>
             <dt>게시글 ID</dt>
             <dd>{board.id}</dd>
@@ -179,13 +180,6 @@ function BoardReadView({ board }) {
         </dl>
       </header>
 
-      <section className="board-detail-section" aria-labelledby="board-content-title">
-        <h3 id="board-content-title">본문</h3>
-        <div className="markdown-viewer">
-          <ReactMarkdown>{board.content}</ReactMarkdown>
-        </div>
-      </section>
-
       <BoardTypeDetail board={board} />
 
       <section className="board-detail-section" aria-labelledby="board-relation-title">
@@ -204,6 +198,13 @@ function BoardReadView({ board }) {
             <dd>{formatIds(board.carbon_copy_user_ids)}</dd>
           </div>
         </dl>
+      </section>
+
+      <section className="board-detail-section" aria-labelledby="board-content-title">
+        <h3 id="board-content-title">본문</h3>
+        <div className="markdown-viewer">
+          <ReactMarkdown>{board.content}</ReactMarkdown>
+        </div>
       </section>
     </>
   )
@@ -243,18 +244,6 @@ function BoardEditForm({
           />
         </label>
       </header>
-
-      <section className="board-detail-section">
-        <label className="board-field">
-          <span>본문</span>
-          <textarea
-            value={form.content}
-            onChange={(event) => onChange('content', event.target.value)}
-            required
-            rows={6}
-          />
-        </label>
-      </section>
 
       <BoardTypeEditFields
         board={board}
@@ -296,6 +285,18 @@ function BoardEditForm({
             />
           </label>
         </div>
+      </section>
+
+      <section className="board-detail-section">
+        <label className="board-field">
+          <span>본문</span>
+          <textarea
+            value={form.content}
+            onChange={(event) => onChange('content', event.target.value)}
+            required
+            rows={6}
+          />
+        </label>
       </section>
 
       <div className="board-form-actions">
@@ -440,6 +441,8 @@ function ScheduleTaskRows({ tasks, onAdd, onUpdate, onRemove }) {
 
 function BoardTypeDetail({ board }) {
   if (board.board_type === SCHEDULE_BOARD_TYPE && board.schedule_board_detail) {
+    const progressPercent = calculateScheduleTaskProgress(board.schedule_board_tasks)
+
     return (
       <section className="board-detail-section" aria-labelledby="schedule-detail-title">
         <h3 id="schedule-detail-title">일정 정보</h3>
@@ -456,16 +459,23 @@ function BoardTypeDetail({ board }) {
             <dt>중요도</dt>
             <dd>{board.schedule_board_detail.importance}</dd>
           </div>
+          <div>
+            <dt>진행률</dt>
+            <dd>{progressPercent === null ? '-' : `${progressPercent}%`}</dd>
+          </div>
         </dl>
         {board.schedule_board_tasks?.length ? (
-          <ul className="board-task-list" aria-label="일정 작업 목록">
-            {board.schedule_board_tasks.map((task) => (
-              <li key={task.id}>
-                <span>{task.task_name}</span>
-                <strong>{getTaskStatusLabel(task.task_status)}</strong>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ScheduleProgressSummary progressPercent={progressPercent} />
+            <ul className="board-task-list" aria-label="일정 작업 목록">
+              {board.schedule_board_tasks.map((task) => (
+                <li key={task.id}>
+                  <span>{task.task_name}</span>
+                  <strong>{getTaskStatusLabel(task.task_status)}</strong>
+                </li>
+              ))}
+            </ul>
+          </>
         ) : null}
       </section>
     )
@@ -490,4 +500,25 @@ function BoardTypeDetail({ board }) {
   }
 
   return null
+}
+
+function ScheduleProgressSummary({ progressPercent }) {
+  return (
+    <div className="schedule-progress-summary">
+      <div className="schedule-progress-label">
+        <span>작업 소화율</span>
+        <strong>{progressPercent}%</strong>
+      </div>
+      <div
+        className="board-task-progress"
+        role="progressbar"
+        aria-label="일정 작업 진행률"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow={progressPercent}
+      >
+        <span style={{ width: `${progressPercent}%` }} />
+      </div>
+    </div>
+  )
 }

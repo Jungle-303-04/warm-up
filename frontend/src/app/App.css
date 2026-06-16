@@ -29,7 +29,9 @@
 .app-content {
   --sidebar-offset: 72px;
   width: min(1180px, calc(100% - var(--sidebar-offset)));
+  min-height: calc(100svh - 64px);
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
   margin-left: var(--sidebar-offset);
   transition: margin-left 160ms ease, width 160ms ease;
@@ -58,7 +60,12 @@
 .dashboard-main {
   width: 100%;
   display: grid;
+  min-height: 0;
   gap: 18px;
+}
+
+.dashboard-main > .workspace-panel:only-child {
+  min-height: 100%;
 }
 
 .visually-hidden {
@@ -73,8 +80,8 @@
 .app-sidebar {
   position: fixed;
   z-index: 30;
-  top: 16px;
-  bottom: 16px;
+  top: 32px;
+  bottom: 32px;
   left: 16px;
   width: 58px;
   display: grid;
@@ -99,6 +106,7 @@
 .sidebar-toggle,
 .sidebar-nav button,
 .sidebar-nav a {
+  width: 100%;
   min-width: 0;
   min-height: 38px;
   display: grid;
@@ -133,6 +141,28 @@
   min-height: 32px;
   grid-template-columns: 30px;
   justify-self: end;
+}
+
+.app-sidebar:not(.expanded) .sidebar-nav button,
+.app-sidebar:not(.expanded) .sidebar-nav a {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  grid-template-columns: 1fr;
+  align-items: center;
+  justify-self: center;
+  justify-items: center;
+  place-items: center;
+  padding: 0;
+}
+
+.app-sidebar:not(.expanded) .sidebar-nav span {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar-nav {
@@ -495,8 +525,7 @@ h1 {
 .workspace-form {
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(180px, 1.35fr) minmax(150px, 0.8fr) 120px;
-  align-items: end;
+  grid-template-columns: 1fr;
 }
 
 .workspace-form label {
@@ -530,6 +559,17 @@ h1 {
   resize: vertical;
 }
 
+.repository-field-full {
+  width: 100%;
+}
+
+.repository-form-actions {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.42fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
 .form-grid {
   display: grid;
   gap: 12px;
@@ -556,6 +596,14 @@ h1 {
 .primary-action:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.primary-action.repository-index-button {
+  width: auto;
+  min-width: 96px;
+  min-height: 38px;
+  justify-self: end;
+  padding: 0 14px;
 }
 
 .progress-panel {
@@ -661,16 +709,17 @@ h1 {
 }
 
 .repository-pagination button {
-  min-width: 34px;
+  min-width: 60px;
   min-height: 32px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--field);
   color: var(--heading);
   font: inherit;
-  font-size: 16px;
+  font-size: 12px;
   font-weight: 900;
   cursor: pointer;
+  padding: 0 12px;
 }
 
 .repository-pagination button:hover:not(:disabled) {
@@ -694,6 +743,21 @@ h1 {
   list-style: none;
 }
 
+.repository-run-table {
+  display: grid;
+  gap: 8px;
+}
+
+.repository-run-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 12px;
+}
+
 .repository-run-list-page {
   gap: 10px;
   overflow-y: visible;
@@ -704,7 +768,7 @@ h1 {
   width: 100%;
   min-height: 54px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
   align-items: center;
   gap: 12px;
   border: 1px solid var(--line);
@@ -748,6 +812,12 @@ h1 {
   font-size: 13px;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.repository-run-time {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
 }
 
 .repository-run-empty {
@@ -1059,6 +1129,10 @@ h1 {
 .calendar-event {
   min-width: 0;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   border: 0;
   border-radius: 4px;
   color: #fff;
@@ -1071,6 +1145,18 @@ h1 {
   cursor: pointer;
   pointer-events: auto;
   padding: 0 8px;
+}
+
+.calendar-event span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-event strong {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 900;
 }
 
 .calendar-event-schedule {
@@ -1496,7 +1582,7 @@ h1 {
 .board-detail-meta {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   margin: 0;
 }
 
@@ -1523,12 +1609,69 @@ h1 {
   font-weight: 800;
 }
 
+.board-detail-meta-inline div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 2px 0;
+}
+
+.board-detail-meta-inline dt {
+  flex: 0 0 auto;
+}
+
+.board-detail-meta-inline dd {
+  margin: 0;
+}
+
 .board-task-list {
   display: grid;
   gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.board-task-progress {
+  position: relative;
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(31, 118, 88, 0.14);
+}
+
+.board-task-progress span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: #1f7658;
+}
+
+.schedule-progress-summary {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+  padding: 10px;
+}
+
+.schedule-progress-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.schedule-progress-label strong {
+  color: var(--heading);
+  font-size: 16px;
 }
 
 .board-task-list li {
@@ -1556,22 +1699,31 @@ h1 {
   right: 24px;
   bottom: 24px;
   z-index: 40;
-  min-width: 72px;
-  min-height: 48px;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
   border: 1px solid #101820;
   border-radius: 999px;
   background: #101820;
   color: #fff;
   box-shadow: 0 16px 34px rgba(22, 32, 47, 0.24);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 900;
   cursor: pointer;
-  padding: 0 18px;
+  padding: 0;
 }
 
 .chatbot-launcher:hover {
   background: #1b2733;
+}
+
+.chatbot-launcher svg {
+  width: 25px;
+  height: 25px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .chatbot-launcher:focus-visible,
@@ -1651,6 +1803,40 @@ h1 {
   font-size: 12px;
   font-weight: 800;
   overflow-wrap: anywhere;
+}
+
+.chatbot-context p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chatbot-readiness {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.chatbot-readiness div {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 8px;
+}
+
+.chatbot-readiness dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.chatbot-readiness dd {
+  margin: 2px 0 0;
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .chatbot-body {
@@ -1973,17 +2159,25 @@ h1 {
 
   .form-grid,
   .workspace-form,
+  .repository-form-actions,
   .calendar-search-panel,
   .run-summary,
   .calendar-summary,
   .board-field-grid,
   .schedule-task-row,
+  .repository-run-header,
+  .repository-run-list button,
+  .chatbot-readiness,
   .board-detail-meta {
     grid-template-columns: 1fr;
   }
 
-  .repository-run-list button {
-    grid-template-columns: 1fr;
+  .repository-run-header {
+    display: none;
+  }
+
+  .repository-run-time {
+    justify-items: start;
   }
 
   .repository-run-list time {
