@@ -1,11 +1,18 @@
-function Header() {
+import { Link } from "react-router-dom";
+
+function Header({ onLoginClick, user }) {
+  const accountLabel = user?.nickname ?? "로그인";
+
   return (
     <header className="relative rounded-t-md bg-white px-6 py-5 shadow-[0_4px_4px_-4px_rgba(15,23,42,0.18)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-7">
-          <span className="font-['Zodiak'] text-[40pt] font-extrabold italic leading-none text-black">
+          <Link
+            className="font-['Zodiak'] text-[40pt] font-extrabold italic leading-none text-black no-underline [text-shadow:0_2px_4px_rgba(0,0,0,0.18)]"
+            to="/"
+          >
             f
-          </span>
+          </Link>
           <span className="text-[30px] font-normal leading-none text-black">
             Board
           </span>
@@ -13,13 +20,17 @@ function Header() {
 
         <div className="flex items-center gap-5">
           <button
-            className="h-11 rounded-md border border-gray-200 px-8 text-sm font-normal text-black"
+            className="h-11 cursor-pointer rounded-md border border-gray-200 px-8 text-sm font-normal text-black transition-colors hover:bg-[#d4d4d4]"
             type="button"
           >
             글쓰기
           </button>
-          <button className="text-[10px] font-semibold text-black" type="button">
-            관리자
+          <button
+            className="cursor-pointer text-[10px] font-semibold text-black transition-colors hover:text-[#d4d4d4]"
+            onClick={onLoginClick}
+            type="button"
+          >
+            {accountLabel}
           </button>
         </div>
       </div>
