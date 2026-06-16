@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { AuthSection } from '../features/auth/AuthSection'
+import { CalendarWorkspace } from '../features/calendar/CalendarWorkspace'
 import { RepositoryWorkspace } from '../features/repository/RepositoryWorkspace'
 import { fetchJson, postJson, toKoreanErrorMessage } from '../shared/api/http'
 import {
@@ -27,6 +28,10 @@ function App() {
   const [indexResult, setIndexResult] = useState(null)
   const [question, setQuestion] = useState('')
   const [answerResult, setAnswerResult] = useState(null)
+  const [boards, setBoards] = useState([])
+  const [selectedCalendarEvent, setSelectedCalendarEvent] = useState(null)
+  const [visibleMonth, setVisibleMonth] = useState(() => new Date())
+  const [isLoadingBoards, setIsLoadingBoards] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [activeAction, setActiveAction] = useState('')
 
@@ -58,12 +63,74 @@ function App() {
     })
   }
 
+  const loadBoards = useCallback(async (currentUser) => {
+    if (!currentUser?.user_id) {
+      setBoards([])
+      setSelectedCalendarEvent(null)
+      return
+    }
+
+    setIsLoadingBoards(true)
+    setStatus({ type: 'muted', message: '게시글 일정 데이터를 불러오는 중입니다.' })
+
+    try {
+      // Backend: GET /board/
+      // Expected query:
+      // {
+      //   user_id?: number,
+      //   title?: string | null,
+      //   tag?: string | null,
+      //   page: number,
+      //   size: number
+      // }
+      // Response:
+      // {
+      //   items: Array<{
+      //     id: number,
+      //     board_type: 1 | 2 | 3,
+      //     title: string,
+      //     content: string,
+      //     tag?: string | null,
+      //     user_id: number,
+      //     schedule_board_detail?: {
+      //       start_at: string,
+      //       end_at: string,
+      //       importance: number
+      //     } | null,
+      //     proceedings_board_detail?: {
+      //       meeting_date: string
+      //     } | null
+      //   }>,
+      //   total: number,
+      //   page: number,
+      //   size: number
+      // }
+      const params = new URLSearchParams({
+        user_id: String(currentUser.user_id),
+        page: '1',
+        size: '100',
+      })
+      const payload = await fetchJson(`${API_BASE_URL}/board/?${params}`)
+      setBoards(payload.items || [])
+      setSelectedCalendarEvent(null)
+      setStatus({
+        type: 'success',
+        message: `게시글 ${payload.items?.length || 0}개를 캘린더에 반영했습니다.`,
+      })
+    } catch (error) {
+      setStatus({ type: 'error', message: toKoreanErrorMessage(error.message) })
+    } finally {
+      setIsLoadingBoards(false)
+    }
+  }, [])
+
   const loadAuthenticatedUser = useCallback(async (message, options = {}) => {
     await runAction('auth', message, async () => {
       try {
         const payload = await fetchJson(`${API_BASE_URL}/auth/me`)
         setUser(payload.user)
         setStatus({ type: 'success', message: '깃허브 로그인이 완료되었습니다.' })
+        void loadBoards(payload.user)
       } catch (error) {
         if (options.silentUnauthenticated) {
           setStatus(INITIAL_STATUS)
@@ -71,9 +138,11 @@ function App() {
           setStatus({ type: 'error', message: toKoreanErrorMessage(error.message) })
         }
         setUser(null)
+        setBoards([])
+        setSelectedCalendarEvent(null)
       }
     })
-  }, [runAction])
+  }, [loadBoards, runAction])
 
   async function logout() {
     await runAction('logout', '로그아웃하는 중입니다.', async () => {
@@ -87,8 +156,72 @@ function App() {
       setOauthState('')
       setIndexResult(null)
       setAnswerResult(null)
+      setBoards([])
+      setSelectedCalendarEvent(null)
       setStatus({ type: 'muted', message: '로그아웃되었습니다.' })
     })
+  }
+
+  function showPreviousMonth() {
+    setVisibleMonth((current) => {
+      const next = new Date(current)
+      next.setMonth(current.getMonth() - 1)
+      return next
+    })
+  }
+
+  function showNextMonth() {
+    setVisibleMonth((current) => {
+      const next = new Date(current)
+      next.setMonth(current.getMonth() + 1)
+      return next
+    })
+  }
+
+  function showCurrentMonth() {
+    setVisibleMonth(new Date())
+  }
+
+  async function openBoardDetail(boardId) {
+    setStatus({ type: 'muted', message: '게시글 상세를 불러오는 중입니다.' })
+
+    try {
+      // Backend: GET /board/{board_id}
+      // Expected path:
+      // {
+      //   board_id: number
+      // }
+      // Response:
+      // {
+      //   id: number,
+      //   board_type: 1 | 2 | 3,
+      //   title: string,
+      //   content: string,
+      //   tag?: string | null,
+      //   schedule_board_detail?: {
+      //     start_at: string,
+      //     end_at: string,
+      //     importance: number
+      //   } | null,
+      //   proceedings_board_detail?: {
+      //     meeting_date: string
+      //   } | null
+      // }
+      const board = await fetchJson(`${API_BASE_URL}/board/${boardId}`)
+      setSelectedCalendarEvent((current) =>
+        current
+          ? {
+              ...current,
+              title: board.title,
+              content: board.content,
+              tag: board.tag,
+            }
+          : null,
+      )
+      setStatus({ type: 'success', message: '게시글 상세를 열었습니다.' })
+    } catch (error) {
+      setStatus({ type: 'error', message: toKoreanErrorMessage(error.message) })
+    }
   }
 
   async function indexRepository(event) {
@@ -176,7 +309,7 @@ function App() {
   }, [loadAuthenticatedUser])
 
   return (
-    <main className="auth-shell">
+    <div className="auth-shell">
       <AuthSection
         user={user}
         status={status}
@@ -186,24 +319,38 @@ function App() {
         onLogout={logout}
       >
         {user ? (
-          <RepositoryWorkspace
-            repositoryFullName={repositoryFullName}
-            branch={branch}
-            indexResult={indexResult}
-            question={question}
-            answerResult={answerResult}
-            isLoading={isLoading}
-            isIndexing={isIndexing}
-            isAsking={isAsking}
-            onRepositoryChange={updateRepositoryFullName}
-            onBranchChange={updateBranch}
-            onQuestionChange={setQuestion}
-            onIndexRepository={indexRepository}
-            onAskRepository={askRepository}
-          />
+          <>
+            <CalendarWorkspace
+              boards={boards}
+              selectedEvent={selectedCalendarEvent}
+              visibleMonth={visibleMonth}
+              isLoadingBoards={isLoadingBoards}
+              onPreviousMonth={showPreviousMonth}
+              onNextMonth={showNextMonth}
+              onCurrentMonth={showCurrentMonth}
+              onReloadBoards={() => void loadBoards(user)}
+              onSelectEvent={setSelectedCalendarEvent}
+              onOpenBoard={(boardId) => void openBoardDetail(boardId)}
+            />
+            <RepositoryWorkspace
+              repositoryFullName={repositoryFullName}
+              branch={branch}
+              indexResult={indexResult}
+              question={question}
+              answerResult={answerResult}
+              isLoading={isLoading}
+              isIndexing={isIndexing}
+              isAsking={isAsking}
+              onRepositoryChange={updateRepositoryFullName}
+              onBranchChange={updateBranch}
+              onQuestionChange={setQuestion}
+              onIndexRepository={indexRepository}
+              onAskRepository={askRepository}
+            />
+          </>
         ) : null}
       </AuthSection>
-    </main>
+    </div>
   )
 }
 

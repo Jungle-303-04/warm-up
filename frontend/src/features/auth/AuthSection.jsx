@@ -9,8 +9,51 @@ export function AuthSection({
   onLogout,
   children,
 }) {
+  if (user) {
+    return (
+      <section className="login-panel dashboard-panel" aria-label="대시보드">
+        <header className="app-header">
+          <div className="brand-row">
+            <span className="brand-mark" aria-hidden="true">
+              <svg>
+                <use href="/icons.svg#github-icon" />
+              </svg>
+            </span>
+            <span>Code-Trust Kanban</span>
+          </div>
+
+          <nav className="dashboard-nav" aria-label="주요 화면">
+            <a href="#calendar-title">캘린더</a>
+            <a href="#workspace-title">레포지토리 분석</a>
+          </nav>
+
+          <div className="dashboard-account">
+            <UserProfile user={user} />
+            <button
+              type="button"
+              className="secondary-button compact"
+              onClick={onLogout}
+              disabled={isLoading}
+            >
+              로그아웃
+            </button>
+          </div>
+        </header>
+
+        <div className="dashboard-meta">
+          <div className={`status-box ${status.type}`} role="status">
+            {status.message}
+          </div>
+          <ConnectionStatus user={user} oauthState={oauthState} />
+        </div>
+
+        <main className="dashboard-main">{children}</main>
+      </section>
+    )
+  }
+
   return (
-    <section className="login-panel" aria-labelledby="login-title">
+    <main className="login-panel" aria-labelledby="login-title">
       <div className="brand-row">
         <span className="brand-mark" aria-hidden="true">
           <svg>
@@ -22,51 +65,30 @@ export function AuthSection({
 
       <div className="headline">
         <p className="eyebrow">깃허브 계정 연결</p>
-        <h1 id="login-title">
-          {user ? '로그인 완료' : '깃허브로 로그인하세요'}
-        </h1>
+        <h1 id="login-title">깃허브로 로그인하세요</h1>
         <p>
-          {user
-            ? '이제 연결된 깃허브 권한으로 레포지토리 분석을 시작할 수 있습니다.'
-            : '레포지토리 코드와 보드 계획을 비교하려면 먼저 깃허브 권한이 필요합니다.'}
+          레포지토리 코드와 보드 계획을 비교하려면 먼저 깃허브 권한이 필요합니다.
         </p>
       </div>
 
-      {user ? (
-        <UserProfile user={user} />
-      ) : (
-        <button
-          type="button"
-          className="github-login-button"
-          onClick={onLogin}
-          disabled={isLoading}
-        >
-          <svg aria-hidden="true">
-            <use href="/icons.svg#github-icon" />
-          </svg>
-          {isLoading ? '로그인 준비 중' : '깃허브로 로그인'}
-        </button>
-      )}
+      <button
+        type="button"
+        className="github-login-button"
+        onClick={onLogin}
+        disabled={isLoading}
+      >
+        <svg aria-hidden="true">
+          <use href="/icons.svg#github-icon" />
+        </svg>
+        {isLoading ? '로그인 준비 중' : '깃허브로 로그인'}
+      </button>
 
       <div className={`status-box ${status.type}`} role="status">
         {status.message}
       </div>
 
       <ConnectionStatus user={user} oauthState={oauthState} />
-
-      {user ? (
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={onLogout}
-          disabled={isLoading}
-        >
-          로그아웃
-        </button>
-      ) : null}
-
-      {children}
-    </section>
+    </main>
   )
 }
 
