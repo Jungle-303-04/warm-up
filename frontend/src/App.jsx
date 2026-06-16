@@ -8,7 +8,9 @@ import Write from "./pages/Write";
 
 function App() {
   const navigate = useNavigate();
-  const user = null;
+  const mockUser = {
+    nickname: "font_maker",
+  };
 
   const handleLoginClick = () => {
     navigate("/login");
@@ -16,12 +18,12 @@ function App() {
 
   return (
     <div className="min-h-screen w-full max-w-[1024px] rounded-[10px] bg-white">
-      <Header onLoginClick={handleLoginClick} user={user} />
+      <Header onLoginClick={handleLoginClick} user={mockUser} />
       <Routes>
         <Route element={<Board />} path="/" />
         <Route element={<PostDetail />} path="/posts/:postId" />
         <Route
-          element={user ? <Write /> : <Navigate replace to="/login" />}
+          element={mockUser ? <Write /> : <Navigate replace to="/login" />}
           path="/write"
         />
         <Route element={<Login />} path="/login" />
