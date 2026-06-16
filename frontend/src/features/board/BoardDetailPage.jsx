@@ -328,7 +328,7 @@ function BoardTypeEditFields({
     return (
       <section className="board-detail-section">
         <h3>일정 정보</h3>
-        <div className="board-field-grid">
+        <div className="board-field-grid schedule-field-grid">
           <label className="board-field">
             <span>시작</span>
             <input
@@ -347,7 +347,7 @@ function BoardTypeEditFields({
               required
             />
           </label>
-          <label className="board-field">
+          <label className="board-field board-field-compact">
             <span>중요도</span>
             <input
               type="number"

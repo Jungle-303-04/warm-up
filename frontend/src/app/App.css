@@ -1416,6 +1416,7 @@ h1 {
 }
 
 .board-detail-section {
+  container-type: inline-size;
   display: grid;
   gap: 10px;
   border: 1px solid var(--line);
@@ -1517,6 +1518,10 @@ h1 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.schedule-field-grid {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(84px, 0.42fr);
+}
+
 .schedule-task-editor {
   display: grid;
   gap: 10px;
@@ -1554,6 +1559,7 @@ h1 {
 }
 
 .board-field {
+  min-width: 0;
   display: grid;
   gap: 7px;
   color: var(--muted);
@@ -1564,6 +1570,7 @@ h1 {
 .board-field input,
 .board-field textarea,
 .board-field select {
+  min-width: 0;
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1572,6 +1579,30 @@ h1 {
   font: inherit;
   font-size: 14px;
   padding: 11px 12px;
+}
+
+.board-field-compact {
+  min-width: 84px;
+}
+
+@container (max-width: 520px) {
+  .schedule-field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .schedule-field-grid .board-field-compact {
+    max-width: 140px;
+  }
+}
+
+@container (max-width: 380px) {
+  .schedule-field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-field-grid .board-field-compact {
+    max-width: none;
+  }
 }
 
 .board-field textarea {
