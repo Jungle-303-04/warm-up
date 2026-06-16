@@ -3,9 +3,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { AuthSection } from '../features/auth/AuthSection'
 import { BoardCreatePanel } from '../features/board/BoardCreatePanel'
 import { BoardDetailPage } from '../features/board/BoardDetailPage'
+import { BoardSearchPage } from '../features/board/BoardSearchPage'
+import { DEFAULT_BOARD_SEARCH_FILTERS } from '../features/board/boardFilters'
 import { CalendarWorkspace } from '../features/calendar/CalendarWorkspace'
 import { ChatbotDrawer } from '../features/chatbot/ChatbotDrawer'
-import { RepositoryWorkspace } from '../features/repository/RepositoryWorkspace'
+import {
+  RepositoryRunsPage,
+  RepositoryWorkspace,
+} from '../features/repository/RepositoryWorkspace'
 import {
   deleteJson,
   fetchJson,
@@ -36,6 +41,10 @@ function App() {
   const [boards, setBoards] = useState([])
   const [selectedBoard, setSelectedBoard] = useState(null)
   const [isCreatingBoard, setIsCreatingBoard] = useState(false)
+  const [boardSearchFilters, setBoardSearchFilters] = useState(null)
+  const [boardDetailBackFilters, setBoardDetailBackFilters] = useState(null)
+  const [isRepositoryPageOpen, setIsRepositoryPageOpen] = useState(false)
+  const [isRepositoryRunsPageOpen, setIsRepositoryRunsPageOpen] = useState(false)
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const [isLoadingBoards, setIsLoadingBoards] = useState(false)
   const [isLoadingRepositoryRuns, setIsLoadingRepositoryRuns] = useState(false)
@@ -133,6 +142,10 @@ function App() {
     if (!currentUser?.user_id) {
       setBoards([])
       setIsCreatingBoard(false)
+      setBoardSearchFilters(null)
+      setBoardDetailBackFilters(null)
+      setIsRepositoryPageOpen(false)
+      setIsRepositoryRunsPageOpen(false)
       return
     }
 
@@ -159,6 +172,8 @@ function App() {
       //     content: string,
       //     tag?: string | null,
       //     user_id: number,
+      //     created_at: string,
+      //     updated_at: string,
       //     schedule_board_detail?: {
       //       start_at: string,
       //       end_at: string,
@@ -222,10 +237,48 @@ function App() {
         if (isCreateBoardHash()) {
           setSelectedBoard(null)
           setIsCreatingBoard(true)
+          setBoardSearchFilters(null)
+          setBoardDetailBackFilters(null)
+          setIsRepositoryPageOpen(false)
+          setIsRepositoryRunsPageOpen(false)
+          return
+        }
+
+        if (isBoardSearchHash()) {
+          setSelectedBoard(null)
+          setIsCreatingBoard(false)
+          setBoardSearchFilters(DEFAULT_BOARD_SEARCH_FILTERS)
+          setBoardDetailBackFilters(null)
+          setIsRepositoryPageOpen(false)
+          setIsRepositoryRunsPageOpen(false)
+          return
+        }
+
+        if (isRepositoryHash()) {
+          setSelectedBoard(null)
+          setIsCreatingBoard(false)
+          setBoardSearchFilters(null)
+          setBoardDetailBackFilters(null)
+          setIsRepositoryPageOpen(true)
+          setIsRepositoryRunsPageOpen(false)
+          return
+        }
+
+        if (isRepositoryRunsHash()) {
+          setSelectedBoard(null)
+          setIsCreatingBoard(false)
+          setBoardSearchFilters(null)
+          setBoardDetailBackFilters(null)
+          setIsRepositoryPageOpen(false)
+          setIsRepositoryRunsPageOpen(true)
           return
         }
 
         if (boardId) {
+          setBoardSearchFilters(null)
+          setBoardDetailBackFilters(null)
+          setIsRepositoryPageOpen(false)
+          setIsRepositoryRunsPageOpen(false)
           void openBoardDetail(boardId, { pushUrl: false })
         }
       } catch (error) {
@@ -239,6 +292,10 @@ function App() {
         setRepositoryRuns([])
         setSelectedBoard(null)
         setIsCreatingBoard(false)
+        setBoardSearchFilters(null)
+        setBoardDetailBackFilters(null)
+        setIsRepositoryPageOpen(false)
+        setIsRepositoryRunsPageOpen(false)
       }
     })
   }, [loadBoards, loadRepositoryRuns, runAction])
@@ -259,6 +316,10 @@ function App() {
       setRepositoryRuns([])
       setSelectedBoard(null)
       setIsCreatingBoard(false)
+      setBoardSearchFilters(null)
+      setBoardDetailBackFilters(null)
+      setIsRepositoryPageOpen(false)
+      setIsRepositoryRunsPageOpen(false)
       window.history.replaceState(null, '', window.location.pathname)
       setStatus({ type: 'muted', message: '로그아웃되었습니다.' })
     })
@@ -324,6 +385,11 @@ function App() {
       // }
       const board = await fetchJson(`${API_BASE_URL}/board/${boardId}`)
       setSelectedBoard(board)
+      setIsCreatingBoard(false)
+      setBoardDetailBackFilters(options.backToSearchFilters || null)
+      setBoardSearchFilters(null)
+      setIsRepositoryPageOpen(false)
+      setIsRepositoryRunsPageOpen(false)
       if (shouldPushUrl) {
         window.history.pushState({ boardId }, '', `#board/${boardId}`)
       }
@@ -336,19 +402,82 @@ function App() {
   function closeBoardDetail() {
     setSelectedBoard(null)
     setIsCreatingBoard(false)
+    setIsRepositoryPageOpen(false)
+    setIsRepositoryRunsPageOpen(false)
+    if (boardDetailBackFilters) {
+      setBoardSearchFilters(boardDetailBackFilters)
+      setBoardDetailBackFilters(null)
+      window.history.replaceState({ boardSearch: true }, '', '#board/search')
+      return
+    }
+
+    setBoardSearchFilters(null)
+    setBoardDetailBackFilters(null)
     window.history.replaceState(null, '', window.location.pathname)
   }
 
   function returnToMainPage() {
     setSelectedBoard(null)
     setIsCreatingBoard(false)
+    setBoardSearchFilters(null)
+    setBoardDetailBackFilters(null)
+    setIsRepositoryPageOpen(false)
+    setIsRepositoryRunsPageOpen(false)
     window.history.replaceState(null, '', window.location.pathname)
   }
 
   function openBoardCreatePage() {
     setSelectedBoard(null)
     setIsCreatingBoard(true)
+    setBoardSearchFilters(null)
+    setBoardDetailBackFilters(null)
+    setIsRepositoryPageOpen(false)
+    setIsRepositoryRunsPageOpen(false)
     window.history.pushState({ boardCreate: true }, '', '#board/new')
+  }
+
+  function openBoardSearchPage(filters = DEFAULT_BOARD_SEARCH_FILTERS) {
+    setSelectedBoard(null)
+    setIsCreatingBoard(false)
+    setBoardDetailBackFilters(null)
+    setIsRepositoryPageOpen(false)
+    setIsRepositoryRunsPageOpen(false)
+    setBoardSearchFilters({
+      ...DEFAULT_BOARD_SEARCH_FILTERS,
+      ...filters,
+    })
+    window.history.pushState({ boardSearch: true }, '', '#board/search')
+  }
+
+  function openRepositoryAnalysis() {
+    setSelectedBoard(null)
+    setIsCreatingBoard(false)
+    setBoardSearchFilters(null)
+    setBoardDetailBackFilters(null)
+    setIsRepositoryPageOpen(true)
+    setIsRepositoryRunsPageOpen(false)
+    window.history.pushState({ repositoryPage: true }, '', '#repository/register')
+  }
+
+  function openRepositoryRunsPage() {
+    setSelectedBoard(null)
+    setIsCreatingBoard(false)
+    setBoardSearchFilters(null)
+    setBoardDetailBackFilters(null)
+    setIsRepositoryPageOpen(false)
+    setIsRepositoryRunsPageOpen(true)
+    window.history.pushState({ repositoryRunsPage: true }, '', '#repository/runs')
+  }
+
+  function selectRepositoryRunFromList(run) {
+    selectRepositoryRun(run)
+    setSelectedBoard(null)
+    setIsCreatingBoard(false)
+    setBoardSearchFilters(null)
+    setBoardDetailBackFilters(null)
+    setIsRepositoryPageOpen(true)
+    setIsRepositoryRunsPageOpen(false)
+    window.history.pushState({ repositoryPage: true }, '', '#repository/register')
   }
 
   async function createBoard(formPayload) {
@@ -387,6 +516,10 @@ function App() {
       setVisibleMonth(getBoardCalendarFocusDate(createdBoard))
       setIsCreatingBoard(false)
       setSelectedBoard(null)
+      setBoardSearchFilters(null)
+      setBoardDetailBackFilters(null)
+      setIsRepositoryPageOpen(false)
+      setIsRepositoryRunsPageOpen(false)
       window.history.replaceState(null, '', window.location.pathname)
       setStatus({ type: 'success', message: '게시글을 캘린더에 반영했습니다.' })
       window.alert('게시글을 캘린더에 반영했습니다.')
@@ -589,15 +722,57 @@ function App() {
       if (isCreateBoardHash()) {
         setSelectedBoard(null)
         setIsCreatingBoard(true)
+        setBoardSearchFilters(null)
+        setBoardDetailBackFilters(null)
+        setIsRepositoryPageOpen(false)
+        setIsRepositoryRunsPageOpen(false)
+        return
+      }
+
+      if (isBoardSearchHash()) {
+        setSelectedBoard(null)
+        setIsCreatingBoard(false)
+        setBoardSearchFilters(DEFAULT_BOARD_SEARCH_FILTERS)
+        setBoardDetailBackFilters(null)
+        setIsRepositoryPageOpen(false)
+        setIsRepositoryRunsPageOpen(false)
+        return
+      }
+
+      if (isRepositoryHash()) {
+        setSelectedBoard(null)
+        setIsCreatingBoard(false)
+        setBoardSearchFilters(null)
+        setBoardDetailBackFilters(null)
+        setIsRepositoryPageOpen(true)
+        setIsRepositoryRunsPageOpen(false)
+        return
+      }
+
+      if (isRepositoryRunsHash()) {
+        setSelectedBoard(null)
+        setIsCreatingBoard(false)
+        setBoardSearchFilters(null)
+        setBoardDetailBackFilters(null)
+        setIsRepositoryPageOpen(false)
+        setIsRepositoryRunsPageOpen(true)
         return
       }
 
       if (!boardId) {
         setSelectedBoard(null)
         setIsCreatingBoard(false)
+        setBoardSearchFilters(null)
+        setBoardDetailBackFilters(null)
+        setIsRepositoryPageOpen(false)
+        setIsRepositoryRunsPageOpen(false)
         return
       }
 
+      setBoardSearchFilters(null)
+      setBoardDetailBackFilters(null)
+      setIsRepositoryPageOpen(false)
+      setIsRepositoryRunsPageOpen(false)
       void openBoardDetail(boardId, { pushUrl: false })
     }
 
@@ -614,6 +789,10 @@ function App() {
         onLogin={startGithubLogin}
         onLogout={logout}
         onHome={returnToMainPage}
+        onStartCreateBoard={openBoardCreatePage}
+        onOpenBoardSearch={() => openBoardSearchPage()}
+        onOpenRepositoryAnalysis={openRepositoryAnalysis}
+        onOpenRepositoryRuns={openRepositoryRunsPage}
       >
         {user ? (
           <>
@@ -632,34 +811,47 @@ function App() {
                 onCancel={closeBoardDetail}
                 onCreate={createBoard}
               />
+            ) : boardSearchFilters ? (
+              <BoardSearchPage
+                key={JSON.stringify(boardSearchFilters)}
+                boards={boards}
+                initialFilters={boardSearchFilters}
+                onBack={returnToMainPage}
+                onOpenBoard={(boardId) =>
+                  void openBoardDetail(boardId, {
+                    backToSearchFilters: boardSearchFilters,
+                  })}
+              />
+            ) : isRepositoryPageOpen ? (
+              <RepositoryWorkspace
+                repositoryFullName={repositoryFullName}
+                branch={branch}
+                indexResult={indexResult}
+                isLoading={isLoading}
+                isIndexing={isIndexing}
+                onRepositoryChange={updateRepositoryFullName}
+                onBranchChange={updateBranch}
+                onIndexRepository={indexRepository}
+              />
+            ) : isRepositoryRunsPageOpen ? (
+              <RepositoryRunsPage
+                repositoryRuns={repositoryRuns}
+                isLoadingRepositoryRuns={isLoadingRepositoryRuns}
+                onReload={() => void loadRepositoryRuns({ notify: true })}
+                onSelectRepositoryRun={selectRepositoryRunFromList}
+              />
             ) : (
-              <>
-                <CalendarWorkspace
-                  boards={boards}
-                  visibleMonth={visibleMonth}
-                  isLoadingBoards={isLoadingBoards}
-                  onPreviousMonth={showPreviousMonth}
-                  onNextMonth={showNextMonth}
-                  onCurrentMonth={showCurrentMonth}
-                  onReloadBoards={() => void loadBoards(user, { notify: true })}
-                  onStartCreateBoard={openBoardCreatePage}
-                  onOpenBoard={(boardId) => void openBoardDetail(boardId)}
-                />
-                <RepositoryWorkspace
-                  repositoryFullName={repositoryFullName}
-                  branch={branch}
-                  indexResult={indexResult}
-                  repositoryRuns={repositoryRuns}
-                  isLoading={isLoading}
-                  isIndexing={isIndexing}
-                  isLoadingRepositoryRuns={isLoadingRepositoryRuns}
-                  onRepositoryChange={updateRepositoryFullName}
-                  onBranchChange={updateBranch}
-                  onIndexRepository={indexRepository}
-                  onReloadRepositoryRuns={() => void loadRepositoryRuns({ notify: true })}
-                  onSelectRepositoryRun={selectRepositoryRun}
-                />
-              </>
+              <CalendarWorkspace
+                boards={boards}
+                visibleMonth={visibleMonth}
+                isLoadingBoards={isLoadingBoards}
+                onPreviousMonth={showPreviousMonth}
+                onNextMonth={showNextMonth}
+                onCurrentMonth={showCurrentMonth}
+                onReloadBoards={() => void loadBoards(user, { notify: true })}
+                onStartCreateBoard={openBoardCreatePage}
+                onOpenBoard={(boardId) => void openBoardDetail(boardId)}
+              />
             )}
             <ChatbotDrawer
               repositoryFullName={repositoryFullName}
@@ -682,6 +874,21 @@ function parseBoardIdFromHash() {
 
 function isCreateBoardHash() {
   return window.location.hash === '#board/new'
+}
+
+function isBoardSearchHash() {
+  return window.location.hash === '#board/search'
+}
+
+function isRepositoryHash() {
+  return (
+    window.location.hash === '#repository'
+    || window.location.hash === '#repository/register'
+  )
+}
+
+function isRepositoryRunsHash() {
+  return window.location.hash === '#repository/runs'
 }
 
 function getBoardCalendarFocusDate(board) {

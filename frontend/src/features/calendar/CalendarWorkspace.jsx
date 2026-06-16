@@ -1,15 +1,10 @@
 import { useMemo, useState } from 'react'
 
-const BASIC_BOARD_TYPE = 1
+import { BOARD_TYPE_FILTERS, filterBoards } from '../board/boardFilters'
+
 const SCHEDULE_BOARD_TYPE = 2
 const PROCEEDINGS_BOARD_TYPE = 3
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
-const BOARD_TYPE_FILTERS = [
-  { value: 'all', label: '전체' },
-  { value: 'meeting', label: '회의록' },
-  { value: 'schedule', label: '일정' },
-  { value: 'basic', label: '일반' },
-]
 
 export function CalendarWorkspace({
   boards,
@@ -24,10 +19,9 @@ export function CalendarWorkspace({
 }) {
   const [boardTypeFilter, setBoardTypeFilter] = useState('all')
   const [searchKeyword, setSearchKeyword] = useState('')
-  const [tagKeyword, setTagKeyword] = useState('')
   const filteredBoards = useMemo(
-    () => filterBoards(boards, boardTypeFilter, searchKeyword, tagKeyword),
-    [boards, boardTypeFilter, searchKeyword, tagKeyword],
+    () => filterBoards(boards, boardTypeFilter, searchKeyword),
+    [boards, boardTypeFilter, searchKeyword],
   )
   const calendarEvents = filteredBoards.flatMap(mapBoardToCalendarEvents)
   const monthLabel = formatMonthLabel(visibleMonth)
@@ -40,7 +34,6 @@ export function CalendarWorkspace({
   )
   const scheduleCount = monthEvents.filter((event) => event.type === 'schedule').length
   const meetingCount = monthEvents.filter((event) => event.type === 'meeting').length
-  const basicCount = filteredBoards.filter((board) => board.board_type === BASIC_BOARD_TYPE).length
 
   return (
     <section className="calendar-panel" aria-labelledby="calendar-title">
@@ -123,16 +116,7 @@ export function CalendarWorkspace({
             type="search"
             value={searchKeyword}
             onChange={(event) => setSearchKeyword(event.target.value)}
-            placeholder="제목 또는 내용 입력"
-          />
-        </label>
-        <label>
-          <span>태그</span>
-          <input
-            type="search"
-            value={tagKeyword}
-            onChange={(event) => setTagKeyword(event.target.value)}
-            placeholder="태그"
+            placeholder="제목, 내용, 태그 입력"
           />
         </label>
       </div>
@@ -160,44 +144,6 @@ export function CalendarWorkspace({
           이번 달 달력에 표시할 일정이나 회의록이 없습니다.
         </p>
       ) : null}
-
-      <CalendarBoardResults
-        boards={filteredBoards}
-        basicCount={basicCount}
-        onOpenBoard={onOpenBoard}
-      />
-    </section>
-  )
-}
-
-function CalendarBoardResults({ boards, basicCount, onOpenBoard }) {
-  if (!boards.length) {
-    return (
-      <p className="calendar-empty">
-        조건에 맞는 게시글이 없습니다.
-      </p>
-    )
-  }
-
-  return (
-    <section className="calendar-result-panel" aria-labelledby="calendar-result-title">
-      <div className="calendar-result-header">
-        <h3 id="calendar-result-title">필터 결과</h3>
-        <span>전체 {boards.length}개 · 일반 {basicCount}개</span>
-      </div>
-      <ul className="calendar-result-list">
-        {boards.slice(0, 8).map((board) => (
-          <li key={board.id}>
-            <button type="button" onClick={() => onOpenBoard(board.id)}>
-              <strong>{board.title}</strong>
-              <span>
-                {getBoardTypeLabel(board.board_type)}
-                {board.tag ? ` · #${board.tag}` : ''}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
     </section>
   )
 }
@@ -247,68 +193,6 @@ function mapBoardToCalendarEvents(board) {
   }
 
   return []
-}
-
-function filterBoards(boards, boardTypeFilter, searchKeyword, tagKeyword) {
-  // Backend: GET /board/
-  // Response items already include title, content, tag, board_type, and detail DTOs.
-  // These controls filter the loaded board DTOs on the frontend only.
-  const normalizedSearchKeyword = normalizeSearchValue(searchKeyword)
-  const normalizedTagKeyword = normalizeSearchValue(tagKeyword)
-
-  return boards.filter((board) => {
-    if (!matchesBoardType(board, boardTypeFilter)) {
-      return false
-    }
-
-    if (normalizedSearchKeyword) {
-      const haystack = normalizeSearchValue(`${board.title} ${board.content}`)
-      if (!haystack.includes(normalizedSearchKeyword)) {
-        return false
-      }
-    }
-
-    if (normalizedTagKeyword) {
-      const tag = normalizeSearchValue(board.tag || '')
-      if (!tag.includes(normalizedTagKeyword)) {
-        return false
-      }
-    }
-
-    return true
-  })
-}
-
-function matchesBoardType(board, boardTypeFilter) {
-  if (boardTypeFilter === 'all') {
-    return true
-  }
-
-  if (boardTypeFilter === 'basic') {
-    return board.board_type === BASIC_BOARD_TYPE
-  }
-
-  if (boardTypeFilter === 'schedule') {
-    return board.board_type === SCHEDULE_BOARD_TYPE
-  }
-
-  return board.board_type === PROCEEDINGS_BOARD_TYPE
-}
-
-function normalizeSearchValue(value) {
-  return value.trim().toLowerCase()
-}
-
-function getBoardTypeLabel(boardType) {
-  if (boardType === SCHEDULE_BOARD_TYPE) {
-    return '일정'
-  }
-
-  if (boardType === PROCEEDINGS_BOARD_TYPE) {
-    return '회의록'
-  }
-
-  return '일반'
 }
 
 // Backend: GET /board/
