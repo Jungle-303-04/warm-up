@@ -1,0 +1,29 @@
+"""노트북 저장소 포트.
+
+도메인이 소유하는 추상. in-memory/SQL 어댑터가 구현한다(DIP).
+get류는 없는 id에 대해 KeyError를 던진다(API에서 404로 변환).
+"""
+
+from typing import Protocol
+
+from app.notebooks.domain.records import NotebookRecord, SourceRecord
+
+
+class NotebookStore(Protocol):
+    def add_notebook(self, record: NotebookRecord) -> None: ...
+
+    def get_notebook(self, notebook_id: str) -> NotebookRecord: ...
+
+    def list_notebooks(self) -> list[NotebookRecord]: ...
+
+    def update_notebook(self, record: NotebookRecord) -> None: ...
+
+    def delete_notebook(self, notebook_id: str) -> None: ...
+
+    def add_source(self, record: SourceRecord) -> None: ...
+
+    def list_sources(self, notebook_id: str) -> list[SourceRecord]: ...
+
+    def get_source(self, notebook_id: str, source_id: str) -> SourceRecord: ...
+
+    def delete_source(self, notebook_id: str, source_id: str) -> None: ...
