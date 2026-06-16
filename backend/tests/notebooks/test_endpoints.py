@@ -127,3 +127,50 @@ def test_delete_source_returns_204() -> None:
     assert (
         client.get(f"/notebooks/{nb['id']}/sources/{created['id']}").status_code == 404
     )
+
+
+def test_chat_endpoint_returns_answer_with_citations() -> None:
+    nb = _create_notebook()
+    source = client.post(
+        f"/notebooks/{nb['id']}/sources",
+        json={
+            "kind": "md",
+            "title": "auth.md",
+            "content": "인증 미들웨어는 JWT 만료 시간을 확인하고 401 응답을 반환한다.",
+        },
+    ).json()
+
+    response = client.post(
+        f"/notebooks/{nb['id']}/chat",
+        json={"question": "JWT 만료는 어디서 확인하나요?", "source_ids": [source["id"]]},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "answer" in body
+    assert body["citations"][0]["source_id"] == source["id"]
+    assert body["citations"][0]["source_title"] == "auth.md"
+    assert "JWT" in body["citations"][0]["snippet"]
+
+    history = client.get(f"/notebooks/{nb['id']}/chat/messages")
+    assert history.status_code == 200
+    messages = history.json()["messages"]
+    assert [message["role"] for message in messages] == ["user", "assistant"]
+    assert messages[0]["content"] == "JWT 만료는 어디서 확인하나요?"
+    assert messages[0]["source_ids"] == [source["id"]]
+    assert messages[1]["content"] == body["answer"]
+    assert messages[1]["citations"][0]["source_id"] == source["id"]
+
+
+def test_chat_endpoint_returns_grounding_gap_without_sources() -> None:
+    nb = _create_notebook()
+
+    response = client.post(
+        f"/notebooks/{nb['id']}/chat",
+        json={"question": "무엇을 담고 있나요?"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["citations"] == []
+    assert "소스" in body["answer"]

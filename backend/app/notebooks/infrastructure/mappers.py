@@ -3,11 +3,13 @@
 from typing import cast
 
 from app.notebooks.domain.records import (
+    ChatMessageRecord,
+    ChatRole,
     NotebookRecord,
     SourceKind,
     SourceRecord,
 )
-from app.notebooks.infrastructure.models import NotebookModel, SourceModel
+from app.notebooks.infrastructure.models import ChatMessageModel, NotebookModel, SourceModel
 
 
 def notebook_to_model(record: NotebookRecord) -> NotebookModel:
@@ -56,5 +58,29 @@ def source_to_record(model: SourceModel) -> SourceRecord:
         repository_url=model.repository_url,
         branch=model.branch,
         repo_snapshot=model.repo_snapshot,
+        created_at=model.created_at,
+    )
+
+
+def chat_message_to_model(record: ChatMessageRecord) -> ChatMessageModel:
+    return ChatMessageModel(
+        id=record.id,
+        notebook_id=record.notebook_id,
+        role=record.role,
+        content=record.content,
+        citations=record.citations,
+        source_ids=record.source_ids,
+        created_at=record.created_at,
+    )
+
+
+def chat_message_to_record(model: ChatMessageModel) -> ChatMessageRecord:
+    return ChatMessageRecord(
+        id=model.id,
+        notebook_id=model.notebook_id,
+        role=cast(ChatRole, model.role),
+        content=model.content,
+        citations=model.citations or [],
+        source_ids=model.source_ids,
         created_at=model.created_at,
     )

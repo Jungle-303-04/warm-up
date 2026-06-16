@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Literal
 
 SourceKind = Literal["md", "text", "url", "pdf", "repo"]
+ChatRole = Literal["user", "assistant"]
 
 
 @dataclass(slots=True)
@@ -34,3 +35,14 @@ class SourceRecord:
     branch: str | None = None
     # repo 전용 캐시: [{"path": ..., "content": ...}, ...]
     repo_snapshot: list[dict] | None = field(default=None)
+
+
+@dataclass(slots=True)
+class ChatMessageRecord:
+    id: str
+    notebook_id: str
+    role: ChatRole
+    content: str
+    created_at: datetime
+    citations: list[dict] = field(default_factory=list)
+    source_ids: list[str] | None = None

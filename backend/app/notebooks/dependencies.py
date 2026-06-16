@@ -9,6 +9,7 @@ from functools import lru_cache
 from fastapi import Depends
 
 from app.config import Settings, get_settings
+from app.notebooks.application.chat_service import ChatAnswerer, ChatService, TextChunk
 from app.notebooks.application.service import NotebookService
 from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.infrastructure.in_memory_store import InMemoryNotebookStore
@@ -40,3 +41,46 @@ def get_notebook_service(
     store: NotebookStore = Depends(get_notebook_store),
 ) -> NotebookService:
     return NotebookService(store=store)
+
+
+def _build_llm_answerer(settings: Settings) -> ChatAnswerer | None:
+    if settings.llm_provider == "none" or not settings.openai_api_key:
+        return None
+
+    if settings.llm_provider != "openai":
+        return None
+
+    from app.pipeline.infrastructure.chat_models import build_chat_model
+
+    model = build_chat_model(
+        settings.llm_provider,
+        settings.llm_model,
+        settings.openai_api_key,
+        temperature=0.0,
+    )
+
+    def answer(question: str, evidence: list[TextChunk]) -> str:
+        context = "\n\n".join(
+            f"[{index}] {chunk.path or chunk.source_title}\n{chunk.text}"
+            for index, chunk in enumerate(evidence, start=1)
+        )
+        response = model.invoke(
+            "다음 근거만 사용해 한국어로 간결하게 답하세요. "
+            "근거에 없는 내용은 추측하지 마세요.\n\n"
+            f"질문: {question}\n\n근거:\n{context}"
+        )
+        content = getattr(response, "content", response)
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return "\n".join(str(part) for part in content)
+        return str(content)
+
+    return answer
+
+
+def get_notebook_chat_service(
+    store: NotebookStore = Depends(get_notebook_store),
+    settings: Settings = Depends(get_settings),
+) -> ChatService:
+    return ChatService(store=store, answerer=_build_llm_answerer(settings))

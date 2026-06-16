@@ -3,13 +3,14 @@
 노트북 삭제 시 소속 소스를 cascade로 함께 제거한다.
 """
 
-from app.notebooks.domain.records import NotebookRecord, SourceRecord
+from app.notebooks.domain.records import ChatMessageRecord, NotebookRecord, SourceRecord
 
 
 class InMemoryNotebookStore:
     def __init__(self) -> None:
         self._notebooks: dict[str, NotebookRecord] = {}
         self._sources: dict[str, SourceRecord] = {}
+        self._chat_messages: dict[str, ChatMessageRecord] = {}
 
     # --- 노트북 ---
 
@@ -38,6 +39,12 @@ class InMemoryNotebookStore:
             if source.notebook_id == notebook_id
         ]:
             del self._sources[source_id]
+        for message_id in [
+            mid
+            for mid, message in self._chat_messages.items()
+            if message.notebook_id == notebook_id
+        ]:
+            del self._chat_messages[message_id]
 
     # --- 소스 ---
 
@@ -63,3 +70,17 @@ class InMemoryNotebookStore:
         if source is None or source.notebook_id != notebook_id:
             raise KeyError(source_id)
         del self._sources[source_id]
+
+    # --- 채팅 메시지 ---
+
+    def add_chat_message(self, record: ChatMessageRecord) -> None:
+        self._chat_messages[record.id] = record
+
+    def list_chat_messages(self, notebook_id: str) -> list[ChatMessageRecord]:
+        self.get_notebook(notebook_id)
+        items = [
+            message
+            for message in self._chat_messages.values()
+            if message.notebook_id == notebook_id
+        ]
+        return sorted(items, key=lambda message: message.created_at)
