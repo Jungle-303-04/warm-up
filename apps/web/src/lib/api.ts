@@ -62,6 +62,11 @@ export function loginUrl(): string {
   return `${API_BASE}/auth/github/login`;
 }
 
+// 로그아웃. rp_session 쿠키를 서버에서 만료시킨다(204). 쿠키만 지우므로 인증 불필요.
+export function logout(): Promise<void> {
+  return request("/auth/logout", { method: "POST" });
+}
+
 export async function getMe(signal?: AbortSignal): Promise<Me | null> {
   const res = await fetch(`${API_BASE}/auth/me`, {
     credentials: "include",
