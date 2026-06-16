@@ -5,7 +5,7 @@
 임베딩이 없으면 키워드만으로도 동작한다.
 """
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.notebooks.domain.chunk_records import ChunkSearchHit, NotebookChunk
@@ -62,15 +62,18 @@ class SqlChunkStore:
         query_text: str,
         source_ids: list[str] | None,
         top_k: int,
+        file_paths: list[str] | None = None,
     ) -> list[ChunkSearchHit]:
         with session_scope(self._session_factory) as session:
             vector_scores = (
-                self._vector_candidates(session, notebook_id, source_ids, query_embedding)
+                self._vector_candidates(
+                    session, notebook_id, source_ids, query_embedding, file_paths
+                )
                 if query_embedding is not None
                 else {}
             )
             keyword_scores = self._keyword_candidates(
-                session, notebook_id, source_ids, query_text
+                session, notebook_id, source_ids, query_text, file_paths
             )
 
             fused: dict[str, float] = {}
@@ -100,10 +103,24 @@ class SqlChunkStore:
                 hits.append(ChunkSearchHit(chunk=chunk_to_record(model), score=float(score)))
             return hits
 
-    def _scope(self, notebook_id: str, source_ids: list[str] | None) -> list:
+    def _scope(
+        self,
+        notebook_id: str,
+        source_ids: list[str] | None,
+        file_paths: list[str] | None = None,
+    ) -> list:
         filters = [NotebookChunkModel.notebook_id == notebook_id]
         if source_ids is not None:
             filters.append(NotebookChunkModel.source_id.in_(source_ids))
+        # file_paths가 주어지면 파일 단위 범위 필터: file_path가 NULL(비repo 본문)인
+        # 청크는 항상 통과시키고, 경로가 있는 청크는 선택된 경로만 후보로 둔다.
+        if file_paths is not None:
+            filters.append(
+                or_(
+                    NotebookChunkModel.file_path.is_(None),
+                    NotebookChunkModel.file_path.in_(file_paths),
+                )
+            )
         return filters
 
     def _vector_candidates(
@@ -112,12 +129,13 @@ class SqlChunkStore:
         notebook_id: str,
         source_ids: list[str] | None,
         query_embedding: list[float],
+        file_paths: list[str] | None = None,
     ) -> dict[str, float]:
         distance = NotebookChunkModel.embedding.cosine_distance(query_embedding)
         rows = session.execute(
             select(NotebookChunkModel.id, distance.label("distance"))
             .where(
-                *self._scope(notebook_id, source_ids),
+                *self._scope(notebook_id, source_ids, file_paths),
                 NotebookChunkModel.embedding.is_not(None),
             )
             .order_by(distance)
@@ -131,6 +149,7 @@ class SqlChunkStore:
         notebook_id: str,
         source_ids: list[str] | None,
         query_text: str,
+        file_paths: list[str] | None = None,
     ) -> dict[str, float]:
         if not query_text.strip():
             return {}
@@ -139,7 +158,7 @@ class SqlChunkStore:
         rows = session.execute(
             select(NotebookChunkModel.id, rank.label("rank"))
             .where(
-                *self._scope(notebook_id, source_ids),
+                *self._scope(notebook_id, source_ids, file_paths),
                 NotebookChunkModel.content_tsv.op("@@")(ts_query),
             )
             .order_by(rank.desc())

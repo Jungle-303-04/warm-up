@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChatScroll } from "../hooks/use-chat-scroll";
 import { askNotebook, listNotebookChatMessages } from "../lib/api";
 import { SUGGESTIONS } from "../lib/fixtures";
+import { scopeFilePaths } from "../lib/indexing";
 import { selectScopeCount, useWorkspace } from "../lib/store";
 import type {
   ChatMessage,
@@ -66,6 +67,9 @@ export function ChatView() {
   const sourceCount = useWorkspace((s) => s.sources.length);
   const notebookId = useWorkspace((s) => s.notebookId);
   const selectedSourceIds = useWorkspace((s) => s.selectedSourceIds);
+  const sources = useWorkspace((s) => s.sources);
+  const indexProgress = useWorkspace((s) => s.indexProgress);
+  const selectedFilePaths = useWorkspace((s) => s.selectedFilePaths);
 
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -78,6 +82,14 @@ export function ChatView() {
 
   const selectedSourceIdList = useMemo(() => [...selectedSourceIds], [selectedSourceIds]);
   const allSourcesSelected = sourceCount > 0 && scopeCount === sourceCount;
+  // 답변 범위 안의 repo 소스 id(파일 단위 범위 계산용).
+  const scopeRepoSourceIds = useMemo(
+    () =>
+      sources
+        .filter((s) => s.kind === "repo" && selectedSourceIds.has(s.id))
+        .map((s) => s.id),
+    [sources, selectedSourceIds],
+  );
   const canSend = query.trim().length > 0 && scopeCount > 0 && !!notebookId;
 
   // 메시지 변화/타이핑 진행/대기 상태에 맞춰 하단 고정 스크롤.
@@ -136,12 +148,20 @@ export function ChatView() {
       if (!question || scopeCount === 0 || !notebookId) return;
 
       const sourceIds = allSourcesSelected ? null : selectedSourceIdList;
+      // repo 파일 부분 선택이 있을 때만 file_paths를 보내 답변 범위를 좁힌다.
+      const filePaths = scopeFilePaths(scopeRepoSourceIds, indexProgress, selectedFilePaths);
       const controller = new AbortController();
       abortRef.current = controller;
       setPendingQuestion(question);
       setSending(true);
       try {
-        const response = await askNotebook(notebookId, question, sourceIds, controller.signal);
+        const response = await askNotebook(
+          notebookId,
+          question,
+          sourceIds,
+          filePaths,
+          controller.signal,
+        );
         setMessages((prev) => [...prev, toAssistantMessage(response, true)]);
       } catch (error) {
         const wasAborted = controller.signal.aborted;
@@ -165,7 +185,15 @@ export function ChatView() {
         setSending(false);
       }
     },
-    [allSourcesSelected, notebookId, scopeCount, selectedSourceIdList],
+    [
+      allSourcesSelected,
+      indexProgress,
+      notebookId,
+      scopeCount,
+      scopeRepoSourceIds,
+      selectedFilePaths,
+      selectedSourceIdList,
+    ],
   );
 
   // 전송 중 들어온 질문은 큐로 모았다가 순차 처리.

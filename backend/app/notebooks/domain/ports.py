@@ -55,4 +55,5 @@ class ChunkStore(Protocol):
         query_text: str,
         source_ids: list[str] | None,
         top_k: int,
+        file_paths: list[str] | None = None,
     ) -> list[ChunkSearchHit]: ...

@@ -34,6 +34,8 @@ class CreateSourceRequest(BaseModel):
 class ChatRequest(BaseModel):
     question: str
     source_ids: list[str] | None = None
+    # repo 파일 단위 답변 범위. None이면 파일 제한 없음(기존 동작 유지).
+    file_paths: list[str] | None = None
 
 
 class ChatCitationView(BaseModel):

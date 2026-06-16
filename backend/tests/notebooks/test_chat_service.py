@@ -113,6 +113,87 @@ def test_chat_repo_citation_includes_file_path() -> None:
     assert top.path == "app/auth/session.py"
 
 
+def _build_repo_notebook():
+    """repo(파일 경로 있는 청크) + md(파일 경로 없는 본문) 소스를 인덱싱한 노트북."""
+    notebook_service, indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+
+    repo = SourceRecord(
+        id="repo-1",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[
+            {
+                "path": "app/auth/session.py",
+                "content": "def validate_session_token(token):\n    return token.ttl > 0\n",
+            },
+            {
+                "path": "app/billing/invoice.py",
+                "content": "def generate_invoice(order):\n    return order.total\n",
+            },
+        ],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+    md = notebook_service.add_source(
+        notebook.id,
+        kind="md",
+        title="notes.md",
+        content="# 메모\n\nvalidate_session_token 함수는 세션 토큰의 만료를 검증한다.",
+    )
+    for source in notebook_service.list_sources(notebook.id):
+        indexing.index_source(notebook.id, source.id)
+    return chat, notebook, repo, md
+
+
+def test_chat_file_paths_filters_repo_chunks_but_keeps_non_repo() -> None:
+    chat, notebook, _repo, md = _build_repo_notebook()
+
+    # session.py만 범위에 포함. invoice.py(repo)는 제외되어야 하고,
+    # file_path가 None인 md 본문 청크는 항상 통과해야 한다.
+    result = chat.ask(
+        notebook.id,
+        question="validate_session_token",
+        file_paths=["app/auth/session.py"],
+    )
+
+    assert result.citations
+    paths = {c.path for c in result.citations}
+    # 제외된 repo 파일은 인용에 없어야 한다.
+    assert "app/billing/invoice.py" not in paths
+    # 비repo(md) 본문 청크(path=None)는 통과한다.
+    assert None in paths or "app/auth/session.py" in paths
+
+
+def test_chat_file_paths_excludes_unselected_repo_file() -> None:
+    chat, notebook, _repo, _md = _build_repo_notebook()
+
+    # billing 파일만 선택하면 session.py 청크는 후보에서 빠진다.
+    result = chat.ask(
+        notebook.id,
+        question="generate_invoice 주문 합계",
+        file_paths=["app/billing/invoice.py"],
+    )
+
+    assert result.citations
+    paths = {c.path for c in result.citations}
+    assert "app/auth/session.py" not in paths
+
+
+def test_chat_file_paths_none_searches_all_files() -> None:
+    chat, notebook, _repo, _md = _build_repo_notebook()
+
+    # file_paths=None이면 모든 repo 파일이 후보(기존 동작).
+    result = chat.ask(notebook.id, question="generate_invoice 주문 합계", file_paths=None)
+
+    assert result.citations
+    assert result.citations[0].path == "app/billing/invoice.py"
+
+
 def test_chat_no_sources_returns_grounding_gap_not_error() -> None:
     notebook_service, _indexing, chat = _build()
     notebook = notebook_service.create_notebook(title="empty")

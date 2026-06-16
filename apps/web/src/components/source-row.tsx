@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useIndexProgress } from "../hooks/use-index-progress";
 import { deleteSource, getTree } from "../lib/api";
@@ -8,14 +8,13 @@ import { cn } from "../lib/cn";
 import { SOURCE_KINDS } from "../lib/fixtures";
 import {
   indexFilesByPath,
-  indexStatusLabel,
   isIndexActive,
   isSupportedPath,
+  supportedFilePaths,
 } from "../lib/indexing";
 import { useWorkspace } from "../lib/store";
 import type { IndexFile, IndexProgress, Source, TreeNode } from "../lib/types";
 import { Icon } from "./icon";
-import { ProgressBar } from "./ui/progress-bar";
 
 // 파일 단위 인덱싱 상태 → 아이콘/색.
 function fileStatusIcon(status: IndexFile["status"]): { icon: string; spin: boolean; className: string } {
@@ -33,18 +32,66 @@ function fileStatusIcon(status: IndexFile["status"]): { icon: string; spin: bool
   }
 }
 
+// 작은 체크박스(파일/소스 트라이스테이트 공용). state=checked|unchecked|indeterminate.
+function MiniCheckbox({
+  state,
+  onToggle,
+  label,
+  title,
+}: {
+  state: "checked" | "unchecked" | "indeterminate";
+  onToggle: () => void;
+  label: string;
+  title?: string;
+}) {
+  return (
+    <label
+      className="interactive grid h-5 w-5 shrink-0 cursor-pointer place-items-center rounded-md"
+      title={title}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <input
+        type="checkbox"
+        checked={state === "checked"}
+        ref={(el) => {
+          if (el) el.indeterminate = state === "indeterminate";
+        }}
+        onChange={onToggle}
+        aria-label={label}
+        className="peer sr-only"
+      />
+      <span
+        aria-hidden
+        className={cn(
+          "grid h-4 w-4 place-items-center rounded-[4px] border border-input bg-card",
+          state === "checked" && "border-primary bg-primary text-primary-foreground",
+          state === "indeterminate" && "border-primary bg-card",
+        )}
+      >
+        {state === "checked" ? (
+          <Icon name="check" size={12} strokeWidth={2.5} />
+        ) : state === "indeterminate" ? (
+          <span className="h-2 w-2 rounded-[2px] bg-primary" />
+        ) : null}
+      </span>
+    </label>
+  );
+}
+
 // 재귀 파일 트리. 디렉터리는 펼침/접힘, 파일 클릭은 뷰어로 연다.
 function TreeView({
   nodes,
-  notebookId,
   sourceId,
   filesByPath,
+  selectedPaths,
+  onToggleFile,
   depth = 0,
 }: {
   nodes: TreeNode[];
-  notebookId: string;
   sourceId: string;
   filesByPath: Map<string, IndexFile>;
+  selectedPaths: Set<string>;
+  onToggleFile: (path: string) => void;
   depth?: number;
 }) {
   return (
@@ -53,9 +100,10 @@ function TreeView({
         <TreeItem
           key={node.path}
           node={node}
-          notebookId={notebookId}
           sourceId={sourceId}
           filesByPath={filesByPath}
+          selectedPaths={selectedPaths}
+          onToggleFile={onToggleFile}
           depth={depth}
         />
       ))}
@@ -65,47 +113,84 @@ function TreeView({
 
 function TreeItem({
   node,
-  notebookId,
   sourceId,
   filesByPath,
+  selectedPaths,
+  onToggleFile,
   depth,
 }: {
   node: TreeNode;
-  notebookId: string;
   sourceId: string;
   filesByPath: Map<string, IndexFile>;
+  selectedPaths: Set<string>;
+  onToggleFile: (path: string) => void;
   depth: number;
 }) {
   const [open, setOpen] = useState(false);
   const openFile = useWorkspace((s) => s.openFile);
+  const toggleFilePath = useWorkspace((s) => s.toggleFilePath);
   const focused = useWorkspace(
     (s) => s.viewer?.sourceId === sourceId && s.viewer?.path === node.path,
   );
   const pad = { paddingLeft: `${depth * 11 + 6}px` };
 
   if (node.type === "dir") {
+    // 디렉터리 하위의 supported 파일 경로를 모아 일괄 토글/트라이스테이트 계산.
+    const descendant = collectSupportedPaths(node, filesByPath);
+    const selectedCount = descendant.filter((p) => selectedPaths.has(p)).length;
+    const dirState: "checked" | "unchecked" | "indeterminate" =
+      descendant.length === 0
+        ? "unchecked"
+        : selectedCount === descendant.length
+          ? "checked"
+          : selectedCount === 0
+            ? "unchecked"
+            : "indeterminate";
+
+    const toggleDir = () => {
+      // 전체 선택돼 있으면 해제, 아니면 전체 선택.
+      const selectAll = dirState !== "checked";
+      for (const p of descendant) {
+        const isSelected = selectedPaths.has(p);
+        if (selectAll && !isSelected) toggleFilePath(sourceId, p);
+        else if (!selectAll && isSelected) toggleFilePath(sourceId, p);
+      }
+    };
+
     return (
       <li>
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          style={pad}
-          className="interactive flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px] hover:bg-secondary"
-        >
-          <Icon
-            name="chevron_right"
-            size={12}
-            className={cn("shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
-          />
-          <Icon name="folder" size={13} className="shrink-0 text-muted-foreground" />
-          <span className="truncate">{node.name}</span>
-        </button>
+        <div className="flex items-center" style={pad}>
+          {descendant.length > 0 ? (
+            <MiniCheckbox
+              state={dirState}
+              onToggle={toggleDir}
+              label={`${node.name} 하위 전체 선택`}
+              title="하위 파일 전체 포함/제외"
+            />
+          ) : (
+            <span className="w-5 shrink-0" />
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="interactive flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px] hover:bg-secondary"
+          >
+            <Icon
+              name="chevron_right"
+              size={12}
+              className={cn("shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
+            />
+            <Icon name="folder" size={13} className="shrink-0 text-muted-foreground" />
+            <span className="truncate">{node.name}</span>
+          </button>
+        </div>
         {open && node.children ? (
           <TreeView
             nodes={node.children}
-            notebookId={notebookId}
             sourceId={sourceId}
             filesByPath={filesByPath}
+            selectedPaths={selectedPaths}
+            onToggleFile={onToggleFile}
             depth={depth + 1}
           />
         ) : null}
@@ -117,46 +202,71 @@ function TreeItem({
   const indexed = filesByPath.get(node.path);
   const supported = indexed ? indexed.supported : isSupportedPath(node.path);
   const status = indexed?.status;
+  const selected = selectedPaths.has(node.path);
 
   return (
     <li>
-      <button
-        type="button"
-        onClick={() => openFile(sourceId, node.path)}
-        style={pad}
-        title={supported ? node.path : `${node.path} · 인덱싱 미지원`}
+      <div
         className={cn(
-          "interactive flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px]",
-          focused
-            ? "bg-accent font-medium text-accent-foreground"
-            : "hover:bg-secondary",
-          !supported && !focused && "text-muted-foreground/70",
+          "flex items-center",
+          // 미지원 파일은 반투명으로 비활성처럼 보이게(배지 없음).
+          !supported && "opacity-50",
         )}
+        style={pad}
       >
-        <span className="w-[12px] shrink-0" />
-        <Icon
-          name="file"
-          size={13}
+        {supported ? (
+          <MiniCheckbox
+            state={selected ? "checked" : "unchecked"}
+            onToggle={() => onToggleFile(node.path)}
+            label={`${node.name} 답변 범위 포함`}
+            title={selected ? "답변 범위에서 제외" : "답변 범위에 포함"}
+          />
+        ) : (
+          // 미지원 파일은 체크박스를 두지 않고 자리만 맞춘다.
+          <span className="w-5 shrink-0" />
+        )}
+        <button
+          type="button"
+          onClick={() => openFile(sourceId, node.path)}
+          title={supported ? node.path : `${node.path} · 인덱싱 미지원`}
           className={cn(
-            "shrink-0",
+            "interactive flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px]",
             focused
-              ? "text-accent-foreground"
-              : supported
-                ? "text-muted-foreground"
-                : "text-muted-foreground/45",
+              ? "bg-accent font-medium text-accent-foreground"
+              : "hover:bg-secondary",
+            !supported && "cursor-default",
           )}
-        />
-        <span className="truncate">{node.name}</span>
-        {supported && status ? (
-          <FileStatusBadge status={status} />
-        ) : !supported ? (
-          <span className="ml-auto shrink-0 rounded-full bg-secondary px-1.5 py-px text-[9px] font-medium text-muted-foreground/70">
-            미지원
-          </span>
-        ) : null}
-      </button>
+        >
+          <Icon
+            name="file"
+            size={13}
+            className={cn(
+              "shrink-0",
+              focused
+                ? "text-accent-foreground"
+                : supported
+                  ? "text-muted-foreground"
+                  : "text-muted-foreground/60",
+            )}
+          />
+          <span className="truncate">{node.name}</span>
+          {supported && status ? <FileStatusBadge status={status} /> : null}
+        </button>
+      </div>
     </li>
   );
+}
+
+// 트리 노드(디렉터리 포함) 하위의 supported 파일 경로를 평탄화한다.
+function collectSupportedPaths(node: TreeNode, filesByPath: Map<string, IndexFile>): string[] {
+  if (node.type === "file") {
+    const indexed = filesByPath.get(node.path);
+    const supported = indexed ? indexed.supported : isSupportedPath(node.path);
+    return supported ? [node.path] : [];
+  }
+  const out: string[] = [];
+  for (const child of node.children ?? []) out.push(...collectSupportedPaths(child, filesByPath));
+  return out;
 }
 
 function FileStatusBadge({ status }: { status: IndexFile["status"] }) {
@@ -170,44 +280,38 @@ function FileStatusBadge({ status }: { status: IndexFile["status"] }) {
   );
 }
 
-// 소스 단위 인덱싱 진행 표시(얇은 진행바 + %/상태).
-function IndexProgressRow({ progress }: { progress: IndexProgress }) {
+// 제목 바로 아래 얇은 인라인 진행바(macOS 파일 복사 느낌).
+// queued/running일 때만 차오르고, done이면 부드럽게 사라진다. failed면 빨간 톤.
+function InlineIndexBar({ progress }: { progress: IndexProgress }) {
   const failed = progress.status === "failed";
-  const done = progress.status === "done";
   const active = isIndexActive(progress.status);
+  // 표시 여부: 진행 중이거나 실패면 보이고, 완료면 높이 0으로 접혀 사라진다.
+  const visible = active || failed;
+  const clamped = Math.min(100, Math.max(0, progress.percent));
 
   return (
-    <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
-      <p className="flex items-center gap-1.5">
-        <Icon
-          name={failed ? "report" : done ? "check_circle" : "progress_activity"}
-          size={12}
+    <div
+      aria-hidden={!visible}
+      className={cn(
+        "overflow-hidden transition-all duration-500 ease-out",
+        visible ? "mt-1 h-[2px] opacity-100" : "mt-0 h-0 opacity-0",
+      )}
+    >
+      <div className="h-[2px] w-full overflow-hidden rounded-full bg-secondary">
+        <div
           className={cn(
-            active && "animate-spin",
-            failed ? "text-destructive" : done ? "text-primary" : undefined,
+            "h-full rounded-full transition-[width] duration-300 ease-out",
+            failed ? "bg-destructive/85" : "bg-primary",
           )}
+          style={{ width: `${failed ? 100 : clamped}%` }}
         />
-        <span className="font-medium text-foreground">{indexStatusLabel(progress)}</span>
-        <span className="ml-auto tabular-nums">{Math.round(progress.percent)}%</span>
-      </p>
-      <ProgressBar
-        percent={progress.percent}
-        tone={failed ? "danger" : done ? "success" : "primary"}
-        className="mt-1"
-      />
-      {failed && progress.error ? (
-        <p className="mt-1 line-clamp-2 text-[10px] text-destructive">{progress.error}</p>
-      ) : done ? (
-        <p className="mt-1 text-[10px]">
-          청크 {progress.indexed_chunks}개 인덱싱 · 미지원 {progress.skipped_files}개 제외
-        </p>
-      ) : null}
+      </div>
     </div>
   );
 }
 
-// 한 행: 본문(뷰어 열기) + 삭제. 모든 소스는 자동으로 답변 범위에 포함된다(선택 없음).
-// repo는 펼쳐 파일 트리 표시. 마운트되는 동안 인덱싱 진행을 SSE로 구독한다.
+// 한 행: 본문(뷰어 열기) + 삭제 + 답변 범위 체크박스(repo는 트라이스테이트).
+// repo는 펼쳐 파일 트리 + 파일별 체크박스 표시. 마운트되는 동안 인덱싱을 SSE로 구독.
 export function SourceRow({ source, notebookId }: { source: Source; notebookId: string }) {
   // 진행 구독(언마운트/완료 시 내부에서 EventSource close).
   useIndexProgress(notebookId, source.id);
@@ -218,6 +322,10 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   const selected = useWorkspace((s) => s.selectedSourceIds.has(source.id));
   const toggleSelected = useWorkspace((s) => s.toggleSourceSelected);
   const progress = useWorkspace((s) => s.indexProgress[source.id]);
+  const selectedPaths = useWorkspace((s) => s.selectedFilePaths[source.id]);
+  const initFilePaths = useWorkspace((s) => s.initFilePaths);
+  const setAllFilePaths = useWorkspace((s) => s.setAllFilePaths);
+  const toggleFilePath = useWorkspace((s) => s.toggleFilePath);
 
   const [expanded, setExpanded] = useState(false);
   const [tree, setTree] = useState<TreeNode[] | null>(null);
@@ -227,6 +335,38 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   const cfg = SOURCE_KINDS[source.kind];
   const isRepo = source.kind === "repo";
   const filesByPath = indexFilesByPath(progress);
+  const supported = supportedFilePaths(progress);
+  const failed = progress?.status === "failed";
+  const indexing = progress ? isIndexActive(progress.status) : false;
+
+  // SSE로 supported 파일 목록이 도착하면 기본 전체 선택으로 초기화(이미 있으면 무시).
+  useEffect(() => {
+    if (isRepo && supported.length > 0) initFilePaths(source.id, supported);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRepo, source.id, supported.length, initFilePaths]);
+
+  // repo 체크박스 트라이스테이트: 선택 파일 수 ↔ supported 파일 수 비교.
+  const effectiveSelected = selectedPaths ?? new Set<string>();
+  const selectedCount = supported.filter((p) => effectiveSelected.has(p)).length;
+  const repoState: "checked" | "unchecked" | "indeterminate" =
+    supported.length === 0
+      ? selected
+        ? "checked"
+        : "unchecked"
+      : selectedCount === supported.length
+        ? "checked"
+        : selectedCount === 0
+          ? "unchecked"
+          : "indeterminate";
+
+  // repo 행 클릭: 전체 선택/해제 토글(+ 소스 선택 상태 동기화).
+  const toggleRepoSelection = () => {
+    const next = repoState !== "checked"; // 전체 선택돼 있지 않으면 전체 선택
+    if (supported.length > 0) setAllFilePaths(source.id, supported, next);
+    // 소스 자체 선택도 맞춘다(전체 선택→포함, 전체 해제→제외).
+    if (next && !selected) toggleSelected(source.id);
+    else if (!next && selected) toggleSelected(source.id);
+  };
 
   const toggleExpand = async () => {
     const next = !expanded;
@@ -255,25 +395,47 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
     }
   };
 
+  // 인덱싱 요약 툴팁(완료 후 영구 블록 대신 hover로만 노출).
+  const rowTitle = progress
+    ? failed
+      ? `인덱싱 실패${progress.error ? ` · ${progress.error}` : ""}`
+      : indexing
+        ? `인덱싱 중 ${progress.processed_files}/${progress.total_files}`
+        : `청크 ${progress.indexed_chunks}개 인덱싱 · 미지원 ${progress.skipped_files}개 제외`
+    : undefined;
+
   return (
     <div>
-      {/* 한 줄: 체크박스 · kind 아이콘 · 제목(truncate) · (repo) chevron · hover 삭제 */}
+      {/* 한 줄: 체크박스 · kind 아이콘 · 제목(truncate, 하단 인라인 진행바) · (repo) chevron · hover 삭제 */}
       <div
         className={cn(
           "group interactive flex items-center gap-1 rounded-lg pl-1.5 pr-1",
           focused ? "bg-accent" : "hover:bg-secondary",
-          !selected && "opacity-65",
+          // 인덱싱 중에는 살짝 dim(처리 중 느낌). 완료/실패면 또렷하게.
+          !selected && !indexing && "opacity-65",
+          indexing && "opacity-80",
         )}
       >
         <label
           className="interactive grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-card/70"
-          title={selected ? "소스 범위에서 제외" : "소스 범위에 포함"}
+          title={
+            isRepo
+              ? repoState === "checked"
+                ? "파일 전체 범위 해제"
+                : "파일 전체 범위 선택"
+              : selected
+                ? "소스 범위에서 제외"
+                : "소스 범위에 포함"
+          }
           onClick={(e) => e.stopPropagation()}
         >
           <input
             type="checkbox"
-            checked={selected}
-            onChange={() => toggleSelected(source.id)}
+            checked={isRepo ? repoState === "checked" : selected}
+            ref={(el) => {
+              if (el) el.indeterminate = isRepo && repoState === "indeterminate";
+            }}
+            onChange={() => (isRepo ? toggleRepoSelection() : toggleSelected(source.id))}
             aria-label={`${source.title} 선택`}
             className="peer sr-only"
           />
@@ -281,17 +443,23 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
             aria-hidden
             className={cn(
               "grid h-4 w-4 place-items-center rounded-[4px] border border-input bg-card",
-              selected && "border-primary bg-primary text-primary-foreground",
+              (isRepo ? repoState === "checked" : selected) &&
+                "border-primary bg-primary text-primary-foreground",
+              isRepo && repoState === "indeterminate" && "border-primary bg-card",
             )}
           >
-            {selected ? <Icon name="check" size={12} strokeWidth={2.5} /> : null}
+            {(isRepo ? repoState === "checked" : selected) ? (
+              <Icon name="check" size={12} strokeWidth={2.5} />
+            ) : isRepo && repoState === "indeterminate" ? (
+              <span className="h-2 w-2 rounded-[2px] bg-primary" />
+            ) : null}
           </span>
         </label>
         <button
           type="button"
           onClick={() => (isRepo ? toggleExpand() : openSource(source.id))}
           aria-current={focused ? "true" : undefined}
-          title={isRepo ? `${cfg.label} · ${source.title} 파일 트리` : `${cfg.label} · ${source.title}`}
+          title={rowTitle ?? (isRepo ? `${cfg.label} · ${source.title} 파일 트리` : `${cfg.label} · ${source.title}`)}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1.5 pr-1 text-left"
         >
           <span
@@ -300,21 +468,31 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           >
             <Icon name={cfg.icon} size={14} />
           </span>
-          <span
-            className={cn(
-              "min-w-0 flex-1 truncate text-[12.5px] font-medium leading-tight",
-              focused && "text-accent-foreground",
-            )}
-          >
-            {source.title}
-            {isRepo && source.branch ? (
-              <span
-                className={cn(
-                  "ml-1 font-normal",
-                  focused ? "text-accent-foreground/60" : "text-muted-foreground/60",
-                )}
-              >
-                {source.branch}
+          <span className="min-w-0 flex-1">
+            <span
+              className={cn(
+                "block truncate text-[12.5px] font-medium leading-tight",
+                focused && "text-accent-foreground",
+              )}
+            >
+              {source.title}
+              {isRepo && source.branch ? (
+                <span
+                  className={cn(
+                    "ml-1 font-normal",
+                    focused ? "text-accent-foreground/60" : "text-muted-foreground/60",
+                  )}
+                >
+                  {source.branch}
+                </span>
+              ) : null}
+            </span>
+            {/* 제목 바로 아래 얇은 인라인 진행바 */}
+            {progress ? <InlineIndexBar progress={progress} /> : null}
+            {/* 실패 시 짧은 에러 한 줄(인라인). */}
+            {failed && progress?.error ? (
+              <span className="mt-0.5 block truncate text-[10px] text-destructive">
+                {progress.error}
               </span>
             ) : null}
           </span>
@@ -342,12 +520,10 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
         </button>
       </div>
 
-      {/* 진행 표시는 repo가 아니어도 인덱싱 중이면 노출(md/text/pdf 포함). */}
-      <div className={cn(isRepo && "ml-[15px] mt-0.5 border-l border-border pl-1.5")}>
-        {progress ? <IndexProgressRow progress={progress} /> : null}
-
-        {isRepo && expanded ? (
-          treeLoading ? (
+      {/* repo 파일 트리(펼쳤을 때). 비repo 소스는 별도 블록을 두지 않는다. */}
+      {isRepo && expanded ? (
+        <div className="ml-[15px] mt-0.5 border-l border-border pl-1.5">
+          {treeLoading ? (
             <p className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-muted-foreground">
               <Icon name="progress_activity" size={12} className="animate-spin" />
               불러오는 중…
@@ -357,15 +533,16 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           ) : tree && tree.length > 0 ? (
             <TreeView
               nodes={tree}
-              notebookId={notebookId}
               sourceId={source.id}
               filesByPath={filesByPath}
+              selectedPaths={effectiveSelected}
+              onToggleFile={(path) => toggleFilePath(source.id, path)}
             />
           ) : (
             <p className="px-2 py-1 text-[11px] text-muted-foreground">파일이 없습니다</p>
-          )
-        ) : null}
-      </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

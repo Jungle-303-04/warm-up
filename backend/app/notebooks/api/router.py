@@ -164,6 +164,7 @@ def chat(
             notebook_id,
             question=request.question,
             source_ids=request.source_ids,
+            file_paths=request.file_paths,
         )
         return ChatResponse.from_result(result)
 

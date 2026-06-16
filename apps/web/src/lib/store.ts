@@ -17,6 +17,8 @@ export interface WorkspaceCacheSnapshot {
   centerTab?: CenterTab;
   artifacts?: StudioArtifact[];
   indexProgress?: Record<string, IndexProgress>;
+  // repo 소스별 선택된 파일 경로(답변 범위). 직렬화를 위해 배열로 저장.
+  selectedFilePaths?: Record<string, string[]>;
 }
 
 // 노트북 화면 전역 상태. 모든 소스는 자동으로 답변 범위에 포함된다(선택 개념 없음).
@@ -29,6 +31,10 @@ interface WorkspaceStore {
   artifacts: StudioArtifact[];
   // 소스별 RAG 인덱싱 진행(백엔드 SSE 스냅샷). key = sourceId.
   indexProgress: Record<string, IndexProgress>;
+  // repo 소스별 답변 범위에 포함된 파일 경로 집합. key = sourceId.
+  // 기본 "전체 선택"이지만, supported 파일 목록을 알아야 하므로 SSE files 도착 시
+  // initFilePaths로 채운다. 엔트리가 없으면 "아직 초기화 전(=전체 포함)"으로 본다.
+  selectedFilePaths: Record<string, Set<string>>;
 
   initNotebook: (notebookId: string, sources: Source[]) => void;
   setSources: (sources: Source[]) => void;
@@ -36,6 +42,11 @@ interface WorkspaceStore {
   removeSource: (id: string) => void;
   toggleSourceSelected: (id: string) => void;
   setAllSourcesSelected: (selected: boolean) => void;
+  // repo 파일 선택: 최초 supported 목록으로 기본 전체 선택 채우기(이미 있으면 무시).
+  initFilePaths: (sourceId: string, supportedPaths: string[]) => void;
+  toggleFilePath: (sourceId: string, path: string) => void;
+  // 소스의 supported 파일을 한 번에 전체 선택/해제(트라이스테이트 헤더용).
+  setAllFilePaths: (sourceId: string, supportedPaths: string[], selected: boolean) => void;
   hydrateCachedState: (snapshot: WorkspaceCacheSnapshot) => void;
 
   openSource: (id: string) => void; // 소스 본문을 뷰어에 열기 + 뷰어 탭으로 이동
@@ -88,6 +99,7 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
   centerTab: "대화",
   artifacts: [],
   indexProgress: {},
+  selectedFilePaths: {},
 
   initNotebook: (notebookId, sources) =>
     set({
@@ -97,6 +109,7 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
       viewer: null,
       centerTab: "대화",
       indexProgress: {},
+      selectedFilePaths: {},
       artifacts: seedArtifacts(sources.length),
     }),
   setSources: (sources) =>
@@ -107,6 +120,11 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
       for (const [id, progress] of Object.entries(state.indexProgress)) {
         if (nextSourceIds.has(id)) indexProgress[id] = progress;
       }
+      // 사라진 소스의 파일 선택 상태도 정리한다.
+      const selectedFilePaths: Record<string, Set<string>> = {};
+      for (const [id, paths] of Object.entries(state.selectedFilePaths)) {
+        if (nextSourceIds.has(id)) selectedFilePaths[id] = paths;
+      }
 
       return {
         sources,
@@ -116,6 +134,7 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
             .filter((id) => state.selectedSourceIds.has(id) || state.selectedSourceIds.size === 0),
         ),
         indexProgress,
+        selectedFilePaths,
       };
     }),
   addSource: (source) =>
@@ -129,11 +148,14 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
       selectedSourceIds.delete(id);
       const indexProgress = { ...state.indexProgress };
       delete indexProgress[id];
+      const selectedFilePaths = { ...state.selectedFilePaths };
+      delete selectedFilePaths[id];
       return {
         sources: state.sources.filter((s) => s.id !== id),
         selectedSourceIds,
         viewer: state.viewer?.sourceId === id ? null : state.viewer,
         indexProgress,
+        selectedFilePaths,
       };
     }),
   toggleSourceSelected: (id) =>
@@ -146,6 +168,34 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
   setAllSourcesSelected: (selected) =>
     set((state) => ({
       selectedSourceIds: selected ? new Set(state.sources.map((s) => s.id)) : new Set(),
+    })),
+  initFilePaths: (sourceId, supportedPaths) =>
+    set((state) => {
+      // 이미 초기화된 소스는 사용자의 선택을 보존(덮어쓰지 않음).
+      if (state.selectedFilePaths[sourceId]) return {};
+      return {
+        selectedFilePaths: {
+          ...state.selectedFilePaths,
+          [sourceId]: new Set(supportedPaths),
+        },
+      };
+    }),
+  toggleFilePath: (sourceId, path) =>
+    set((state) => {
+      const current = state.selectedFilePaths[sourceId] ?? new Set<string>();
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return {
+        selectedFilePaths: { ...state.selectedFilePaths, [sourceId]: next },
+      };
+    }),
+  setAllFilePaths: (sourceId, supportedPaths, selected) =>
+    set((state) => ({
+      selectedFilePaths: {
+        ...state.selectedFilePaths,
+        [sourceId]: selected ? new Set(supportedPaths) : new Set<string>(),
+      },
     })),
   hydrateCachedState: (snapshot) =>
     set((state) => {
@@ -165,12 +215,22 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
               ),
             );
 
+      const selectedFilePaths =
+        snapshot.selectedFilePaths === undefined
+          ? state.selectedFilePaths
+          : Object.fromEntries(
+              Object.entries(snapshot.selectedFilePaths)
+                .filter(([id]) => sourceIds.has(id))
+                .map(([id, paths]) => [id, new Set(paths)]),
+            );
+
       return {
         selectedSourceIds,
         viewer,
         centerTab: snapshot.centerTab ?? state.centerTab,
         artifacts: snapshot.artifacts ?? state.artifacts,
         indexProgress,
+        selectedFilePaths,
       };
     }),
 

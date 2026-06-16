@@ -74,6 +74,7 @@ class ChatService:
         *,
         question: str,
         source_ids: list[str] | None = None,
+        file_paths: list[str] | None = None,
     ) -> ChatResult:
         normalized_question = question.strip()
         if not normalized_question:
@@ -108,6 +109,7 @@ class ChatService:
                 query_text=normalized_question,
                 source_ids=search_source_ids,
                 top_k=MAX_CHUNKS,
+                file_paths=file_paths,
             )
             result = self._result_from_hits(normalized_question, hits, title_by_source)
 

@@ -16,23 +16,43 @@ export function indexFilesByPath(progress?: IndexProgress): Map<string, IndexFil
   return map;
 }
 
-// 소스 단위 진행 라벨. 예: "인덱싱 중 3/8", "완료", "실패".
-export function indexStatusLabel(progress: IndexProgress): string {
-  switch (progress.status) {
-    case "queued":
-      return "대기 중";
-    case "running":
-      return progress.total_files > 0
-        ? `인덱싱 중 ${progress.processed_files}/${progress.total_files}`
-        : "인덱싱 중";
-    case "done":
-      return "완료";
-    case "failed":
-      return "실패";
-  }
+// 진행 스냅샷에서 인덱싱 지원(supported) 파일 경로 목록.
+// 파일 선택 기본값(전체 선택)·트라이스테이트 계산의 기준이 된다.
+export function supportedFilePaths(progress?: IndexProgress): string[] {
+  if (!progress) return [];
+  return progress.files.filter((f) => f.supported).map((f) => f.path);
 }
 
 // 진행 중(아직 끝나지 않음) 여부.
 export function isIndexActive(status: IndexStatus): boolean {
   return status === "queued" || status === "running";
+}
+
+// 답변 범위로 보낼 file_paths를 계산한다.
+// - 범위 내 repo 소스 중 "부분 선택"(일부 supported 파일을 제외)이 하나도 없으면 null
+//   → 백엔드는 파일 제한 없이 기존처럼 동작.
+// - 부분 선택이 있으면, 범위 내 모든 repo 소스의 선택된 파일 경로 union을 보낸다.
+//   (비repo 소스 청크는 file_path가 None이라 백엔드에서 항상 통과한다.)
+export function scopeFilePaths(
+  scopeRepoSourceIds: string[],
+  indexProgress: Record<string, IndexProgress>,
+  selectedFilePaths: Record<string, Set<string>>,
+): string[] | null {
+  let anyPartial = false;
+  const union = new Set<string>();
+  for (const sourceId of scopeRepoSourceIds) {
+    const supported = supportedFilePaths(indexProgress[sourceId]);
+    if (supported.length === 0) continue; // supported 목록을 모르면 제한하지 않는다.
+    const selected = selectedFilePaths[sourceId];
+    if (selected === undefined) {
+      // 아직 초기화 전 → "전체 선택"으로 간주(부분 아님).
+      for (const p of supported) union.add(p);
+      continue;
+    }
+    const selectedSupported = supported.filter((p) => selected.has(p));
+    if (selectedSupported.length < supported.length) anyPartial = true;
+    for (const p of selectedSupported) union.add(p);
+  }
+  if (!anyPartial) return null;
+  return [...union];
 }

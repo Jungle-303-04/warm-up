@@ -47,13 +47,22 @@ class InMemoryChunkStore:
         query_text: str,
         source_ids: list[str] | None,
         top_k: int,
+        file_paths: list[str] | None = None,
     ) -> list[ChunkSearchHit]:
+        # file_paths가 주어지면 파일 단위 범위 필터: file_path가 없는(비repo 본문)
+        # 청크는 항상 통과시키고, 경로가 있는(repo 파일) 청크는 선택된 경로만 후보로 둔다.
+        allowed_paths = set(file_paths) if file_paths is not None else None
         with self._lock:
             candidates = [
                 chunk
                 for chunk in self._chunks.values()
                 if chunk.notebook_id == notebook_id
                 and (source_ids is None or chunk.source_id in source_ids)
+                and (
+                    allowed_paths is None
+                    or chunk.file_path is None
+                    or chunk.file_path in allowed_paths
+                )
             ]
 
         query_tokens = _tokens(query_text)

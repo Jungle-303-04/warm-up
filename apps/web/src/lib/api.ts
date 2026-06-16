@@ -66,11 +66,12 @@ export function askNotebook(
   nid: string,
   question: string,
   sourceIds: string[] | null,
+  filePaths: string[] | null,
   signal?: AbortSignal,
 ): Promise<NotebookChatResponse> {
   return request(`/notebooks/${nid}/chat`, {
     method: "POST",
-    body: JSON.stringify({ question, source_ids: sourceIds }),
+    body: JSON.stringify({ question, source_ids: sourceIds, file_paths: filePaths }),
     signal,
   });
 }
