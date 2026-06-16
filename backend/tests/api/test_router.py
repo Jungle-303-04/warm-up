@@ -2,9 +2,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.router import api_router
+from app.auth.dependencies import get_current_claims
+from app.auth.domain.records import SessionClaims
 
 app = FastAPI()
 app.include_router(api_router)
+# 보호된 라우터의 세션 인증을 더미 사용자로 우회.
+app.dependency_overrides[get_current_claims] = lambda: SessionClaims(user_id=1, login="test")
 client = TestClient(app)
 
 

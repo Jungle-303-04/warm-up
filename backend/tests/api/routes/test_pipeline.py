@@ -14,12 +14,16 @@ from app.pipeline import (
     REPO_SYNC,
     ProposalStatus,
 )
+from app.auth.dependencies import get_current_claims
+from app.auth.domain.records import SessionClaims
 from app.pipeline.api.router import router as pipeline_router
 from app.repo_rag.api.router import router as repo_rag_router
 
 app = FastAPI()
 app.include_router(pipeline_router, prefix="/pipeline")
 app.include_router(repo_rag_router, prefix="/pipeline")
+# 보호된 라우터의 세션 인증을 더미 사용자로 우회.
+app.dependency_overrides[get_current_claims] = lambda: SessionClaims(user_id=1, login="test")
 client = TestClient(app)
 
 

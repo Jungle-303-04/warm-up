@@ -7,10 +7,14 @@ POSTGRES_DATABASE_URL이 없으면 in-memory + 인라인 실행이므로 /sync�
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.auth.dependencies import get_current_claims
+from app.auth.domain.records import SessionClaims
 from app.repo_rag.api.router import router
 
 app = FastAPI()
 app.include_router(router, prefix="/pipeline")
+# 보호된 라우터의 세션 인증을 더미 사용자로 우회.
+app.dependency_overrides[get_current_claims] = lambda: SessionClaims(user_id=1, login="test")
 client = TestClient(app)
 
 
