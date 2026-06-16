@@ -1,7 +1,9 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 function Header({ onLoginClick, user }) {
+  const location = useLocation();
   const accountLabel = user?.nickname ?? "로그인";
+  const navLabel = location.pathname === "/login" ? "Sign in" : "Board";
 
   return (
     <header className="relative rounded-t-md bg-white px-6 py-5 shadow-[0_4px_4px_-4px_rgba(15,23,42,0.18)]">
@@ -14,7 +16,7 @@ function Header({ onLoginClick, user }) {
             f
           </Link>
           <span className="text-[30px] font-normal leading-none text-black">
-            Board
+            {navLabel}
           </span>
         </div>
 
