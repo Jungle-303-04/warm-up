@@ -5,8 +5,8 @@
 - 저장소: `Jungle-303-04/warm-up`
 - 브랜치: `minjeong`
 - 작성자: `minmings111 <minmings111@gmail.com>`
-- 범위: `c27ed3a Initial commit`부터 `8368026 fix: schedule tasks only for schedule boards`까지
-- 최신 확인 시각 기준: `2026-06-13 18:01:05 +09:00`
+- 범위: `c27ed3a Initial commit`부터 `842d495 fix: skip duplicate RAG index storage`까지
+- 최신 확인 시각 기준: `2026-06-16 20:00:37 +09:00`
 
 볼트의 `person-lee-minjeong.md` 기준에 따라 이 문서는 개발 작업만 다룬다.
 창작 인물 자료나 말투 자료는 구현 분석의 근거로 섞지 않는다. 여기서 말하는
@@ -15,18 +15,18 @@
 
 ## 한 줄 흐름
 
-민정의 브랜치는 `AI Board`라는 제품 구상에서 출발해, FastAPI/React/Docker
-실행 골격을 만들고, 이후 `Board` 도메인을 계층형 백엔드 구조로 나눈 뒤,
-SQLAlchemy 모델, 요청 DTO, 라우터, 서비스, 응답 DTO, 검증 로직, DB 저장,
-CRUD/search/pagination 순서로 확장해 온 흐름이다.
+민정의 브랜치는 `AI Board` 제품 구상에서 출발해 FastAPI/React/Docker 실행
+골격, Board CRUD, SQLAlchemy 저장 흐름을 먼저 만든 뒤, GitHub OAuth, RAG
+인덱싱, SQL/vector 저장, repository/branch/commit 범위의 RAG ask, LangGraph
+답변 그래프, agent chat scaffold까지 확장해 온 흐름이다.
 
 현재까지의 핵심 상태는 다음과 같다.
 
-- 좋은 방향: 기획을 먼저 쪼개고, AI 기능보다 일반 보드 CRUD 기반을 먼저 만들고 있다.
-- 좋은 방향: `model`, `schema`, `router`, `service`, `repository` 책임 분리를 시도하고 있다.
-- 새 진전: Board create에서 CRUD, 검색, pagination까지 API 표면을 넓혔다.
-- 아직 부족한 점: 테스트, N+1 query 위험, repository 책임 비대화, validation status 기준, update 정책이 약하다.
-- 지금 가장 중요한 다음 작업: create/list/detail/update/delete 최소 테스트와 응답 정책을 고정하는 것.
+- 좋은 방향: 기획을 먼저 쪼개고, 일반 보드 CRUD 기반을 만든 뒤 AI/RAG 기능으로 넘어갔다.
+- 좋은 방향: `api`, `service`, `domain`, `external`, `ports` 책임 분리를 시도하고 있다.
+- 새 진전: GitHub repository를 commit 단위 evidence로 인덱싱하고, `/rag/ask`를 해당 evidence 범위로 제한했다.
+- 아직 부족한 점: 테스트, env/secret 문서, SQL/vector 저장 일관성, 중복 인덱싱 race condition, agent 경계가 약하다.
+- 지금 가장 중요한 다음 작업: RAG indexing과 `/rag/ask` 테스트, idempotency/unique constraint, `.env.example`, SQL/vector partial failure 기준을 고정하는 것.
 
 ## 전체 커밋 흐름
 
@@ -54,6 +54,23 @@ CRUD/search/pagination 순서로 확장해 온 흐름이다.
 | 20 | `6acd9f7 fix: initialize schedule tasks response data` | 2026-06-13 02:10 | schedule task 응답 초기화 버그 수정 |
 | 21 | `c6b0e08 feat: add board CRUD with search pagination` | 2026-06-13 15:55 | Board CRUD/search/pagination 확장 |
 | 22 | `8368026 fix: schedule tasks only for schedule boards` | 2026-06-13 18:01 | schedule task 응답 정책 보정 |
+| 23 | `0d571f3 feat: scaffold RAG and GitHub domains` | 2026-06-14 16:32 | RAG/GitHub 도메인 확장 시작 |
+| 24 | `723927e feat: add GitHub RAG indexing pipeline` | 2026-06-14 22:04 | GitHub 파일을 RAG chunk로 바꾸는 pipeline 추가 |
+| 25 | `95cdb38 refactor: split RAG chunking modules` | 2026-06-14 22:26 | chunking 책임을 module로 분리 |
+| 26 | `696c85f feat: wire RAG indexing services` | 2026-06-14 23:31 | DI container와 RAG router/service 조립 |
+| 27 | `21b1961 docs: add source code comments` | 2026-06-14 23:38 | 주요 source comment 보강 |
+| 28 | `a5c4b66 feat: store RAG indexes in SQL and vector DB` | 2026-06-15 01:04 | RAG SQL/vector 저장 구조 추가 |
+| 29 | `6b59517 refactor: align layered pipeline and auth structure` | 2026-06-15 01:41 | auth와 ports/external 계층 정렬 |
+| 30 | `53dfba1 feat: add github oauth test console` | 2026-06-15 01:55 | GitHub OAuth frontend 확인 화면 추가 |
+| 31 | `ca6152c fix: localize oauth login screen` | 2026-06-15 02:00 | OAuth 화면 한글화 |
+| 32 | `0574d07 feat: add repository RAG answer workflow` | 2026-06-15 02:42 | repository RAG 답변 흐름 추가 |
+| 33 | `266b5c3 Refactor backend modules and add agent chat scaffold` | 2026-06-15 04:12 | top-level module 재배치와 agent scaffold 추가 |
+| 34 | `6b07845 docs: add RAG study diagrams and notes` | 2026-06-15 21:17 | RAG 학습 문서와 다이어그램 추가 |
+| 35 | `804d34f refactor: route RAG answer flow through LangGraph` | 2026-06-15 21:51 | RAG answer flow를 LangGraph로 이동 |
+| 36 | `7b51bd9 docs: clarify RAG ask boundaries and run ids` | 2026-06-15 23:22 | `/rag/ask`, run_id, repo/branch/commit 경계 문서화 |
+| 37 | `d0a73de feat: scope RAG ask by repository commit` | 2026-06-16 02:10 | RAG ask evidence를 repository/branch/commit으로 제한 |
+| 38 | `1865d09 refactor: branch RAG answer graph on evidence` | 2026-06-16 03:13 | evidence 유무에 따른 LangGraph 분기 |
+| 39 | `842d495 fix: skip duplicate RAG index storage` | 2026-06-16 04:13 | 같은 repo/branch/commit RAG index 재사용 |
 
 ## 커밋 단위 분석
 
@@ -633,11 +650,348 @@ CRUD/search/pagination 순서로 확장해 온 흐름이다.
 - schedule board는 list, basic/proceedings board는 `None`으로 갈지 문서화한다.
 - API 응답 테스트로 basic/proceedings/schedule 각각의 `schedule_board_tasks` 값을 고정한다.
 
+### 23. `0d571f3` - RAG/GitHub domains scaffold
+
+구현한 것:
+
+- `backend/app/domains/rag/*`, `backend/app/domains/github/*` 기본 파일을 추가했다.
+- GitHub 파일을 RAG 입력으로 바꾸기 위한 snapshot, chunk, pipeline 개념을 넣기 시작했다.
+
+의도와 흐름:
+
+- Board CRUD 이후 원래 README에 적어 둔 AI/RAG/GitHub 방향으로 넘어가려는 첫 전환점이다.
+
+고려하지 못한 것:
+
+- scaffold 범위가 넓고, 아직 API contract와 테스트가 부족하다.
+- Board에서 RAG로 넘어가는 제품 흐름이 코드상 명확히 연결되지는 않았다.
+
+개선 방향:
+
+- RAG 입력, 출력, skip 조건을 DTO와 테스트로 먼저 고정한다.
+
+### 24. `723927e` - GitHub RAG indexing pipeline
+
+구현한 것:
+
+- GitHub 파일을 snapshot으로 만들고 RAG evidence chunk로 변환하는 pipeline을 추가했다.
+- `common/identity.py`, `common/validation.py`, `rag/pipeline.py`, RAG schema/service를 확장했다.
+
+의도와 흐름:
+
+- GitHub repository 파일을 검색 가능한 근거 단위로 만들려는 의도다.
+- chunk identity와 citation을 두어 나중에 답변 출처를 추적하려 했다.
+
+고려하지 못한 것:
+
+- GitHub API 실패, rate limit, binary/large file 제외 정책이 아직 약하다.
+- chunk 품질을 확인할 fixture test가 없다.
+
+개선 방향:
+
+- GitHub fixture 기반으로 text, markdown, python, binary, empty file 케이스를 나눈다.
+
+### 25. `95cdb38` - RAG chunking modules split
+
+구현한 것:
+
+- RAG chunking을 `chunk_identity.py`, `chunking.py`, `python_classifier.py` 등으로 분리했다.
+
+의도와 흐름:
+
+- 커지는 RAG service를 작은 책임 단위로 쪼개려는 리팩터링이다.
+- Python 코드는 class/function/import 같은 구조적 단위로 나누려는 방향이 보인다.
+
+고려하지 못한 것:
+
+- chunker별 입력/출력 규약이 테스트로 고정되지 않았다.
+
+개선 방향:
+
+- Python/Markdown chunker 각각에 snapshot fixture와 expected chunk snapshot test를 붙인다.
+
+### 26. `696c85f` - RAG indexing services wiring
+
+구현한 것:
+
+- `container.py`를 추가해 dependency-injector 기반 service 조립을 시작했다.
+- `ChunkFactory`, `ChunkCitationService`, `ChunkerRegistry`, `MarkdownChunker`,
+  `PythonChunker`, `SnapshotValidator`, `ChunkingService`를 연결했다.
+- `rag/router.py`와 `main.py`에 RAG route를 연결했다.
+
+의도와 흐름:
+
+- helper 묶음에서 실제 FastAPI route와 service 구조로 올리려는 단계다.
+
+고려하지 못한 것:
+
+- DI container가 생겼지만 test override와 env 설정 기준은 아직 없다.
+
+개선 방향:
+
+- container provider를 테스트에서 교체하는 패턴을 문서화한다.
+
+### 27. `21b1961` - Source code comments
+
+구현한 것:
+
+- 주요 source file에 한국어 주석을 추가했다.
+
+의도와 흐름:
+
+- 혼자 AI 도움 없이 학습하면서 각 파일의 역할을 설명 가능하게 만들려는 흐름이다.
+
+고려하지 못한 것:
+
+- 주석은 이해에는 도움되지만, 테스트나 API contract를 대체하지 않는다.
+
+개선 방향:
+
+- 주석으로 설명한 책임을 테스트 이름과 문서 섹션으로도 고정한다.
+
+### 28. `a5c4b66` - RAG indexes in SQL and vector DB
+
+구현한 것:
+
+- `RagIndexRun`, `RagFileSnapshot`, `RagChunk`, `RagSkippedFile` 모델을 추가했다.
+- SQL repository와 Chroma vector repository를 추가했다.
+- OpenAI embedding service와 Bruno API collection을 추가했다.
+
+의도와 흐름:
+
+- RAG를 단순 메모리 처리에서 재조회 가능한 저장 시스템으로 옮기는 핵심 커밋이다.
+- SQL은 추적성과 원문 저장, vector DB는 검색성을 맡는 구조다.
+
+고려하지 못한 것:
+
+- SQL 저장과 vector 저장 사이의 부분 실패 보상 전략이 없다.
+- embedding/vector DB/OpenAI 설정에 대한 `.env.example`이 필요하다.
+
+개선 방향:
+
+- SQL/vector 저장 통합 테스트와 실패 보상 정책을 먼저 잡는다.
+
+### 29. `6b59517` - Layered pipeline and auth structure
+
+구현한 것:
+
+- GitHub OAuth, JWT, auth repository/service/router를 추가했다.
+- 기능별 구조를 ports/service/external 중심으로 재정렬했다.
+
+의도와 흐름:
+
+- GitHub repository 접근을 사용자 OAuth token과 연결하려는 단계다.
+- 외부 의존성을 ports로 감싸 테스트 가능한 구조를 만들려는 시도다.
+
+고려하지 못한 것:
+
+- auth, RAG, board 구조 재배치가 한 번에 들어와 회귀 위험이 크다.
+- OAuth/JWT 설정 실패 시 사용자에게 보일 오류 기준이 약하다.
+
+개선 방향:
+
+- auth callback, token 발급, current-user 최소 테스트를 추가한다.
+- `.env.example`에 GitHub OAuth/JWT 필수 값을 명시한다.
+
+### 30. `53dfba1` - GitHub OAuth test console
+
+구현한 것:
+
+- frontend에 GitHub OAuth 테스트 화면을 추가했다.
+
+의도와 흐름:
+
+- backend auth 흐름을 브라우저에서 직접 확인하려는 실용적 장치다.
+
+고려하지 못한 것:
+
+- 테스트 console과 실제 제품 화면의 경계가 명확해야 한다.
+
+개선 방향:
+
+- dev/test 용도임을 UI 문구나 경로로 분리한다.
+
+### 31. `ca6152c` - OAuth login screen localization
+
+구현한 것:
+
+- OAuth login 화면을 한국어 중심으로 정리했다.
+
+의도와 흐름:
+
+- 팀원이 직접 쓰는 화면으로 읽기 쉽게 바꾸려는 정리다.
+
+고려하지 못한 것:
+
+- auth 실패, callback 실패, token 만료 같은 상태별 메시지는 더 필요하다.
+
+개선 방향:
+
+- 성공/실패 상태 메시지를 API 오류 코드 기준과 맞춘다.
+
+### 32. `0574d07` - Repository RAG answer workflow
+
+구현한 것:
+
+- repository RAG 답변 흐름, vector search, LLM answer generation, frontend repository workspace를 연결했다.
+
+의도와 흐름:
+
+- GitHub repository를 인덱싱하고 사용자가 질문하면 근거 기반 답변을 받는 제품 흐름을 만들려 했다.
+
+고려하지 못한 것:
+
+- RAG 답변이 어떤 run, branch, commit의 evidence를 쓰는지 처음에는 더 명확해야 했다.
+- no evidence 상황에서 LLM이 추측하지 않도록 막는 분기가 필요했다.
+
+개선 방향:
+
+- `/rag/ask` 요청에 repository/branch/commit 기준을 명확히 하고, evidence 없는 케이스를 테스트한다.
+
+### 33. `266b5c3` - Backend modules refactor and agent chat scaffold
+
+구현한 것:
+
+- `domains/*`를 `auth`, `board`, `github`, `rag`, `agent`, `shared` top-level module로 재배치했다.
+- `api`, `service`, `domain`, `external`, `ports` 구조를 정리했다.
+- `AgentChatService`, `InMemoryChatStore`, `EchoAgentResponder` 기반 agent chat scaffold를 추가했다.
+
+의도와 흐름:
+
+- 기능별 모듈 경계를 분명히 하고, agent 실험 입구를 마련하려는 커밋이다.
+
+고려하지 못한 것:
+
+- 파일 이동 폭이 커서 import 회귀 위험이 크다.
+- echo responder는 실제 tool-using agent가 아니다.
+
+개선 방향:
+
+- module 이동 후 smoke test와 import test를 추가한다.
+- agent scaffold와 RAG answer graph의 경계를 문서와 이름에서 분리한다.
+
+### 34. `6b07845` - RAG study diagrams and notes
+
+구현한 것:
+
+- `docs/rag_study.md`, `docs/rag_ask_flow.md`, PlantUML diagram을 추가했다.
+
+의도와 흐름:
+
+- 구현한 RAG 흐름을 스스로 설명 가능한 문서로 만들려는 학습형 커밋이다.
+
+고려하지 못한 것:
+
+- 문서가 빠르게 바뀌는 코드와 동기화되지 않으면 stale해질 수 있다.
+
+개선 방향:
+
+- 주요 RAG route가 바뀔 때 문서의 요청/응답 예시도 같이 갱신한다.
+
+### 35. `804d34f` - RAG answer flow through LangGraph
+
+구현한 것:
+
+- RAG answer flow를 `RagAnswerGraph`로 옮겼다.
+- `retrieve_vector -> generate_answer -> build_response` 흐름을 graph로 표현했다.
+
+의도와 흐름:
+
+- RAG 답변 단계를 명시적인 graph node로 나누려는 시도다.
+
+고려하지 못한 것:
+
+- 이 시점의 graph는 아직 단순 직선 흐름이라 agent workflow라기보다 RAG workflow다.
+
+개선 방향:
+
+- evidence 없음, 재검색, query rewrite 같은 분기가 생길 때 LangGraph의 장점이 살아난다.
+
+### 36. `7b51bd9` - RAG ask boundaries and run ids
+
+구현한 것:
+
+- `/rag/ask`의 경계와 `run_id`, repository/branch/commit 기준의 차이를 문서화했다.
+
+의도와 흐름:
+
+- 사용자가 직접 외워야 하는 값은 `run_id`가 아니라 repository/branch/commit이어야 한다는 판단이다.
+
+고려하지 못한 것:
+
+- 실제 코드도 commit 기준 evidence로 필터링되어야 문서와 일치한다.
+
+개선 방향:
+
+- 다음 커밋처럼 request DTO와 vector filter를 commit 기준으로 맞춘다.
+
+### 37. `d0a73de` - Scope RAG ask by repository commit
+
+구현한 것:
+
+- `RagAskRequestDTO`에 repository/branch/commit 기준을 명확히 했다.
+- vector search가 `repository_full_name`, `branch`, `commit_sha` metadata filter를 사용하게 했다.
+- Bruno, frontend, 문서도 commit 기준 질문 흐름으로 맞췄다.
+
+의도와 흐름:
+
+- RAG 답변을 사용자가 보고 있는 코드 버전과 같은 commit evidence로 제한하려는 핵심 보강이다.
+
+고려하지 못한 것:
+
+- commit 없이 branch만 들어왔을 때 latest run 선택 기준은 사용자 기대와 다를 수 있다.
+
+개선 방향:
+
+- exact commit, branch latest, missing run 케이스를 테스트로 고정한다.
+
+### 38. `1865d09` - Branch answer graph on evidence
+
+구현한 것:
+
+- `RagAnswerGraph`가 vector 검색 후 evidence 존재 여부로 분기한다.
+- evidence가 있으면 LLM 답변을 생성하고, 없으면 no-evidence 응답을 만든다.
+
+의도와 흐름:
+
+- 근거 없는 질문에 LLM이 추측 답변을 하지 않도록 막으려는 안전 장치다.
+
+고려하지 못한 것:
+
+- no-evidence 상황에서 query rewrite나 SQL keyword fallback은 아직 없다.
+
+개선 방향:
+
+- no-evidence branch를 테스트하고, 이후 재검색 전략을 붙일지 결정한다.
+
+### 39. `842d495` - Duplicate RAG index storage skip
+
+구현한 것:
+
+- `RagIndexService.find_existing_run()`으로 같은 repository/branch/commit 기존 run을 찾는다.
+- 기존 run이 있으면 GitHub 수집, chunk 생성, SQL/vector 저장을 다시 하지 않고 `reused=True`로 응답한다.
+- SQL/vector repository의 count/exact-run 조회와 frontend/Bruno 응답 확인 흐름을 보강했다.
+
+의도와 흐름:
+
+- 같은 commit을 반복 인덱싱해 저장소와 비용을 늘리는 문제를 줄이려는 보강이다.
+
+고려하지 못한 것:
+
+- application-level check만으로는 동시 요청 race condition을 막기 어렵다.
+- DB unique constraint 또는 idempotency lock이 필요하다.
+
+개선 방향:
+
+- `repository_full_name + branch + commit_sha` unique constraint를 추가한다.
+- duplicate request 동시성 테스트를 추가한다.
+- SQL/vector 저장 중 하나만 성공하는 실패 케이스를 정한다.
+
 ## 현재까지 보이는 강점
 
 - 큰 제품 방향을 먼저 잡고 작은 구현 단위로 내려오고 있다.
-- AI/RAG/MCP를 처음부터 섞지 않고 일반 협업 보드의 기본 모델부터 만들고 있다.
-- 계층을 나누는 감각이 있다.
+- 일반 협업 보드의 기본 모델을 만든 뒤 RAG/GitHub/Auth/Agent로 확장했다.
+- 기능별 module과 `api`, `service`, `domain`, `external`, `ports` 계층을 나누는 감각이 있다.
 - DB constraint와 Pydantic validation을 함께 생각하기 시작했다.
 - 잘못된 구현을 조금씩 고치는 흐름이 있다.
   - 예: task FK를 `schedule_board_detail.board_id`로 수정
@@ -647,6 +1001,10 @@ CRUD/search/pagination 순서로 확장해 온 흐름이다.
   - 예: 실제 DB 저장으로 가기 위한 session factory 추가
   - 예: create 이후 CRUD/search/pagination으로 API 표면 확장
   - 예: schedule task 응답을 schedule board 전용으로 보정
+- RAG chunk identity, citation, SQL/vector 저장, commit scope를 고려했다.
+- `/rag/ask`가 특정 repository/branch/commit evidence 안에서만 답하도록 범위를 좁힌 점이 좋다.
+- evidence 없음 분기를 LangGraph에 명시해 근거 없는 답변을 줄이려 했다.
+- 중복 RAG index 재사용으로 비용과 저장소 팽창을 줄이려 했다.
 
 ## 현재까지 보이는 약점
 
@@ -658,10 +1016,26 @@ CRUD/search/pagination 순서로 확장해 온 흐름이다.
 - HTTP status 기준, 예외 책임, DTO 검증 위치 같은 팀 규칙이 아직 코드에 반영되지 않았다.
 - `board_type` 값 기준이 여러 파일에 흩어져 있어 값 변경 시 불일치가 생길 수 있다.
 - 테스트가 없어 지금 넣은 검증이 다음 수정에서 깨져도 잡기 어렵다.
+- RAG/Auth/Agent/refactor가 짧은 시간에 동시에 들어와 import 회귀와 API 회귀 위험이 크다.
+- OAuth/JWT/OpenAI/Chroma/GitHub API 설정에 필요한 `.env.example`과 실패 메시지 기준이 부족하다.
+- SQL 저장과 vector 저장 사이의 부분 실패 보상 전략이 없다.
+- duplicate index reuse는 DB unique constraint 없이 동시 요청 race condition에 취약하다.
+- agent chat scaffold는 아직 echo/memory 수준이라 실제 RAG agent나 MCP tool executor로 보기 어렵다.
 
 ## 지금 고치는 순서
 
-1. Board CRUD 흐름을 테스트로 고정한다.
+1. RAG indexing과 `/rag/ask` 흐름을 테스트로 고정한다.
+   - repository index store 성공
+   - duplicate index reused
+   - exact commit evidence found
+   - no evidence
+   - branch latest run
+   - invalid repository/auth 실패
+2. `repository_full_name + branch + commit_sha` unique constraint 또는 idempotency lock을 둔다.
+3. SQL/vector 저장 부분 실패 보상 기준을 정한다.
+4. `.env.example`에 GitHub OAuth, JWT, OpenAI, Chroma, PostgreSQL 설정을 명시한다.
+5. Agent scaffold와 RAG answer graph의 경계를 문서와 route 이름에서 분리한다.
+6. Board CRUD 흐름을 테스트로 고정한다.
    - basic board create
    - schedule board create
    - proceedings board create
@@ -671,33 +1045,29 @@ CRUD/search/pagination 순서로 확장해 온 흐름이다.
    - delete 후 재조회 404
    - schedule task 없는 요청
    - 잘못된 detail 조합
-2. `schedule_board_tasks` 응답 정책을 정한다.
+7. `schedule_board_tasks` 응답 정책을 정한다.
    - schedule board는 list
    - basic/proceedings board는 `None` 또는 빈 list 중 하나로 고정
-3. `User` 기준을 정한다.
+8. `User` 기준을 정한다.
    - JWT 전 임시 user table을 둘지
    - auth 구현 전까지 `user_id`를 mock으로 둘지
-4. `POSTGRES_DATABASE_URL`, `.env.example`, migration 기준을 정한다.
-5. body validation을 `schema.py`로 옮긴다.
+9. body validation을 `schema.py`로 옮긴다.
    - `board_type` invalid
    - basic board detail/task 포함
    - detail 누락
    - detail 혼합
    - `start_at >= end_at`
    - 실패 status는 `422`
-6. service/repository 책임을 줄인다.
+10. service/repository 책임을 줄인다.
    - request body 모양 검증은 schema
    - DB 조회/저장 규칙은 service
    - HTTP status 변환은 router
    - ORM -> DTO 변환은 mapper 함수로 분리 검토
-7. list query의 N+1 위험을 줄인다.
+11. list query의 N+1 위험을 줄인다.
    - relationship/eager loading
    - bulk 조회
    - response mapper 최적화
-8. RAG/Agent/MCP 모델은 Board가 안정화된 뒤 별도 테이블로 붙인다.
-   - `Document`
-   - `DocumentChunk`
-   - `RetrievalLog`
+12. MCP와 실제 agent 실행 기록은 현재 RAG 저장 모델과 별도 테이블로 붙인다.
    - `AgentRun`
    - `ToolCall`
    - `McpServer`
@@ -705,9 +1075,10 @@ CRUD/search/pagination 순서로 확장해 온 흐름이다.
 
 ## 민정에게 줄 수 있는 피드백
 
-> 지금 흐름은 좋아. 문서로 큰 방향을 잡고, Board 도메인을 계층별로 나누고,
-> 모델에서 DTO, route, service, response, validation, DB 저장, CRUD까지 넓혀 온 게 보인다.
-> 이제 API 표면은 충분히 커졌으니 다음 기준은 테스트야.
-> create/list/detail/update/delete 최소 테스트를 붙이고, schedule task 응답이
-> schedule board에서만 나오는 정책을 고정하자.
-> 그 다음 repository가 너무 많은 일을 하는 부분과 N+1 query 위험을 정리하자.
+> 지금 흐름은 Board CRUD에서 RAG/GitHub/Auth까지 확장된 게 보인다.
+> 특히 `/rag/ask`를 repository/branch/commit evidence로 제한한 건 맞는 방향이야.
+> 이제 범위를 더 넓히기보다 테스트와 운영 기준을 고정해야 해.
+> duplicate index reuse는 unique constraint나 idempotency lock으로 막고,
+> SQL/vector 저장 중 하나만 성공하는 실패 케이스를 정하자.
+> LangGraph를 쓴다고 바로 agent가 되는 건 아니니까, 지금은 RAG answer graph와
+> agent scaffold를 분리해서 설명하는 게 맞아.

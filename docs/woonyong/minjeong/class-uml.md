@@ -1,175 +1,91 @@
-# 민정 Board 클래스 UML
+# 민정 warm-up 현재 클래스 UML
 
-이 UML은 `origin/minjeong`의 현재 구현을 기준으로 한다. 주요 근거 파일은
-`backend/app/db/base.py`, `backend/app/domains/board/model.py`,
-`backend/app/domains/user/model.py`다.
-멤버 표기는 실제 SQLAlchemy 문법을 닮은 코드형 축약을 사용한다.
-반복적인 `nullable=False`는 타입 힌트가 이미 의도를 보여주는 경우 생략하고,
-외래키, 기본키, nullable 예외처럼 구조 이해에 중요한 정보는 남겼다.
-반복 토큰은 한 줄 가독성을 위해 UML용 별칭으로 축약했다.
+이 문서는 `origin/minjeong`의 `842d495 fix: skip duplicate RAG index storage`
+기준 클래스 구조를 요약한다. 코드 클래스명과 주요 필드명은 실제 구현명을
+유지하고, 해석 문장은 한국어로 적는다.
 
-| UML 별칭 | 실제 코드 |
-|---|---|
-| `Map[T]` | `Mapped[T]` |
-| `col(...)` | `mapped_column(...)` |
-| `FK("...")` | `ForeignKey("...")` |
-| `PK=True` | `primary_key=True` |
-| `AI=True` | `autoincrement=True` |
-| `NULL=True` | `nullable=True` |
-| `D=...` | `default=...` |
-| `ON=...` | `onupdate=...` |
-| `Check(...)` | `CheckConstraint(...)` |
-| `table = "..."` | `__tablename__ = "..."` |
-| `args = ...` | `__table_args__ = ...` |
-| `Int`, `Str`, `DT`, `dt` | `Integer`, `String`, `DateTime`, `datetime` |
-| `utcnow` | `datetime.utcnow` |
-| `A|B` | `A | B` union type |
+기준 파일은 `backend/app/container.py`, `backend/app/main.py`,
+`backend/app/board`, `backend/app/auth`, `backend/app/github`,
+`backend/app/rag`, `backend/app/agent` 하위 구현이다.
 
-## 클래스/상속 UML
-
-![민정 Board 클래스 UML](./assets/class-uml.svg)
-
-이 그림은 `Base`, mixin, ORM 클래스의 상속/적용 관계만 보여준다.
-외래키 관계까지 한 SVG에 넣으면 선이 과하게 교차하므로 테이블 관계는 아래
-그림으로 분리했다.
-
-## 테이블 관계 UML
-
-![민정 Board 테이블 관계 UML](./assets/table-relations.svg)
-
-두 SVG는 Graphviz DOT 원본에서 생성한다. DOT는 코드형 라벨의 행간, 박스 폭,
-관계선 라우팅을 렌더러가 계산하므로 Mermaid SVG 좌표를 직접 고치는 방식보다
-안정적이다.
-
-```bash
-dot -Tsvg docs/woonyong/minjeong/assets/class-uml.dot \
-  -o docs/woonyong/minjeong/assets/class-uml.svg
-dot -Tsvg docs/woonyong/minjeong/assets/table-relations.dot \
-  -o docs/woonyong/minjeong/assets/table-relations.svg
-python3 docs/woonyong/dev-tools/raise-svg-cardinality-labels.py \
-  docs/woonyong/minjeong/assets/table-relations.svg
-```
-
-## DOT 원본
-
-- [class-uml.dot](./assets/class-uml.dot)
-- [table-relations.dot](./assets/table-relations.dot)
-
-## 요청/응답 DTO UML
-
-`8368026` 기준으로 `schema.py`에 생성/수정 요청 DTO, 검색 parameter DTO,
-응답 DTO가 분리돼 있다. `CreateBoard.board_type`은 기본값 `1`을 가진다.
-아래 다이어그램은 실제 Pydantic 클래스의 포함/상속 관계를 보여준다.
+## 전체 모듈 조립 구조
 
 ```mermaid
 classDiagram
     direction LR
 
-    class CreateBoard {
-        <<Pydantic request DTO>>
-        +int board_type = Field(1)
-        +str title
-        +str content
-        +str? tag
-        +int user_id
-        +list~int~ assignee_user_ids
-        +list~int~ participant_user_ids
-        +list~int~ carbon_copy_user_ids
-        +CreateScheduleBoardDetail? schedule_board_detail
-        +list~CreateScheduleBoardTaskDetail~ schedule_board_tasks
-        +CreateProceedingsBoardDetail? proceedings_board_detail
+    class FastAPIApp {
+        <<main.py>>
+        +lifespan()
+        +include_router(board_router)
+        +include_router(auth_router)
+        +include_router(rag_router)
+        +include_router(agent_router)
     }
 
-    class CreateScheduleBoardDetail {
-        <<Pydantic request DTO>>
-        +datetime start_at
-        +datetime end_at
-        +int importance ge 1 le 10
+    class AppContainer {
+        <<dependency_injector>>
+        +db_session
+        +board_service
+        +auth_service
+        +github_service
+        +rag_index_service
+        +rag_answer_service
+        +agent_chat_service
     }
 
-    class CreateScheduleBoardTaskDetail {
-        <<Pydantic request DTO>>
-        +str task_name
-        +int task_status ge 1 le 4
+    class BoardService {
+        +create_board(db, create_request)
+        +get_boards(db, search_params)
+        +get_board(db, board_id)
+        +update_board(db, board_id, update_request)
+        +delete_board(db, board_id)
     }
 
-    class CreateProceedingsBoardDetail {
-        <<Pydantic request DTO>>
-        +datetime meeting_date
+    class AuthService {
+        +build_github_login_url()
+        +handle_github_callback(code)
+        +get_current_user(token)
     }
 
-    class UpdateBoard {
-        <<Pydantic request DTO>>
-        +inherits CreateBoard
+    class GitHubService {
+        +get_file(owner, repo, path, ref)
     }
 
-    class BoardSearchParams {
-        <<Pydantic query DTO>>
-        +str? title
-        +int? user_id
-        +str? tag
-        +int page = Field(1, ge=1)
-        +int size = Field(20, ge=1, le=100)
+    class RagIndexService {
+        +index_repository_and_store(request, user)
+        +index_and_store(result)
+        +find_existing_run(repository_full_name, branch, commit_sha)
+        +build_stored_index_response(run, reused)
     }
 
-    class BoardResponse {
-        <<Pydantic response DTO>>
-        +int id
-        +int board_type
-        +str title
-        +str content
-        +str? tag
-        +int user_id
-        +datetime created_at
-        +datetime updated_at
-        +list~int~ assignee_user_ids
-        +list~int~ participant_user_ids
-        +list~int~ carbon_copy_user_ids
-        +ResponseScheduleBoardDetail? schedule_board_detail
-        +list~ResponseScheduleBoardTaskDetail~? schedule_board_tasks
-        +ResponseProceedingsBoardDetail? proceedings_board_detail
+    class RagAnswerService {
+        +answer(request, user)
     }
 
-    class ResponseScheduleBoardDetail {
-        <<Pydantic response DTO>>
-        +int board_id
-        +datetime start_at
-        +datetime end_at
-        +int importance
+    class AgentChatService {
+        +create_session(request)
+        +get_session(session_id)
+        +send_message(session_id, request)
     }
 
-    class ResponseScheduleBoardTaskDetail {
-        <<Pydantic response DTO>>
-        +int id
-        +str task_name
-        +int task_status
-    }
-
-    class ResponseProceedingsBoardDetail {
-        <<Pydantic response DTO>>
-        +int board_id
-        +datetime meeting_date
-    }
-
-    class BoardPageResponse {
-        <<Pydantic response DTO>>
-        +list~BoardResponse~ items
-        +int total
-        +int page
-        +int size
-    }
-
-    CreateBoard <|-- UpdateBoard
-    CreateBoard "1" o-- "0..1" CreateScheduleBoardDetail : schedule_board_detail
-    CreateBoard "1" o-- "0..*" CreateScheduleBoardTaskDetail : schedule_board_tasks
-    CreateBoard "1" o-- "0..1" CreateProceedingsBoardDetail : proceedings_board_detail
-    BoardResponse "1" o-- "0..1" ResponseScheduleBoardDetail : schedule_board_detail
-    BoardResponse "1" o-- "0..*" ResponseScheduleBoardTaskDetail : schedule_board_tasks
-    BoardResponse "1" o-- "0..1" ResponseProceedingsBoardDetail : proceedings_board_detail
-    BoardPageResponse "1" o-- "0..*" BoardResponse : items
+    FastAPIApp --> AppContainer : uses
+    AppContainer --> BoardService
+    AppContainer --> AuthService
+    AppContainer --> GitHubService
+    AppContainer --> RagIndexService
+    AppContainer --> RagAnswerService
+    AppContainer --> AgentChatService
 ```
 
-## 논리 원본
+해석:
+
+- `main.py`는 router 연결과 startup DB/vector DB 확인을 담당한다.
+- `AppContainer`는 service, repository, GitHub client, OpenAI/Chroma adapter를 조립한다.
+- 현재 구조는 `domains/*`에서 top-level `board`, `auth`, `github`, `rag`,
+  `agent` module로 이동했다.
+
+## Board/Auth SQL 모델
 
 ```mermaid
 classDiagram
@@ -177,90 +93,86 @@ classDiagram
 
     class Base {
         <<SQLAlchemy DeclarativeBase>>
-        +pass
     }
 
     class IdMixin {
-        <<mixin>>
-        +id: Map[int] = col(Int, PK=True, AI=True)
+        +id
     }
 
     class TimestampMixin {
-        <<mixin>>
-        +created_at: Map[dt] = col(DT, D=utcnow)
-        +updated_at: Map[dt] = col(DT, D=utcnow, ON=utcnow)
-    }
-
-    class Board {
-        <<table: board>>
-        +table = "board"
-        +board_type: Map[int] = col(Int)
-        +title: Map[str] = col(Str)
-        +content: Map[str] = col(Text)
-        +tag: Map[str|None] = col(Str, NULL=True)
-        +user_id: Map[int] = col(FK("user.id"))
-    }
-
-    class BoardTypeConstants {
-        <<module constants>>
-        +BASIC_BOARD_TYPE = 1
-        +SCHEDULE_BOARD_TYPE = 2
-        +PROCEEDINGS_BOARD_TYPE = 3
-    }
-
-    class ScheduleBoardDetail {
-        <<table: schedule_board_detail>>
-        +table = "schedule_board_detail"
-        +args = Check("importance >= 1 AND importance <= 10")
-        +board_id: Map[int] = col(FK("board.id"), PK=True)
-        +start_at: Map[dt] = col(DT, D=utcnow)
-        +end_at: Map[dt] = col(DT, D=utcnow)
-        +importance: Map[int] = col(Int)
-    }
-
-    class ScheduleBoardTask {
-        <<table: schedule_board_task>>
-        +table = "schedule_board_task"
-        +args = Check("task_status >= 1 AND task_status <= 4")
-        +board_id: Map[int] = col(FK("schedule_board_detail.board_id"))
-        +task_name: Map[str] = col(Str)
-        +task_status: Map[int] = col(Int)
-    }
-
-    class ProceedingsBoardDetail {
-        <<table: proceedings_board_detail>>
-        +table = "proceedings_board_detail"
-        +board_id: Map[int] = col(FK("board.id"), PK=True)
-        +meeting_date: Map[dt] = col(DT, D=utcnow)
-    }
-
-    class BoardCarbonCopy {
-        <<table: board_carbon_copy>>
-        +table = "board_carbon_copy"
-        +board_id: Map[int] = col(FK("board.id"), PK=True)
-        +user_id: Map[int] = col(FK("user.id"), PK=True)
-    }
-
-    class BoardAssignee {
-        <<table: board_assignee>>
-        +table = "board_assignee"
-        +board_id: Map[int] = col(FK("board.id"), PK=True)
-        +user_id: Map[int] = col(FK("user.id"), PK=True)
-    }
-
-    class BoardParticipant {
-        <<table: board_participant>>
-        +table = "board_participant"
-        +board_id: Map[int] = col(FK("board.id"), PK=True)
-        +user_id: Map[int] = col(FK("user.id"), PK=True)
+        +created_at
+        +updated_at
     }
 
     class User {
         <<table: user>>
-        +table = "user"
-        +id: Map[int] = col(Int, PK=True, AI=True)
+        +id
     }
 
+    class GitHubOAuthAccount {
+        <<table: github_oauth_account>>
+        +int user_id
+        +int github_user_id
+        +str login
+        +str? name
+        +str? email
+        +str? avatar_url
+        +str access_token
+        +str token_type
+        +str? scope
+        +datetime? token_expires_at
+    }
+
+    class Board {
+        <<table: board>>
+        +int board_type
+        +str title
+        +str content
+        +str? tag
+        +int user_id
+    }
+
+    class ScheduleBoardDetail {
+        <<table: schedule_board_detail>>
+        +int board_id
+        +datetime start_at
+        +datetime end_at
+        +int importance
+    }
+
+    class ScheduleBoardTask {
+        <<table: schedule_board_task>>
+        +int board_id
+        +str task_name
+        +int task_status
+    }
+
+    class ProceedingsBoardDetail {
+        <<table: proceedings_board_detail>>
+        +int board_id
+        +datetime meeting_date
+    }
+
+    class BoardCarbonCopy {
+        <<table: board_carbon_copy>>
+        +int board_id
+        +int user_id
+    }
+
+    class BoardAssignee {
+        <<table: board_assignee>>
+        +int board_id
+        +int user_id
+    }
+
+    class BoardParticipant {
+        <<table: board_participant>>
+        +int board_id
+        +int user_id
+    }
+
+    Base <|-- User
+    Base <|-- GitHubOAuthAccount
     Base <|-- Board
     Base <|-- ScheduleBoardDetail
     Base <|-- ScheduleBoardTask
@@ -268,42 +180,331 @@ classDiagram
     Base <|-- BoardCarbonCopy
     Base <|-- BoardAssignee
     Base <|-- BoardParticipant
-    Base <|-- User
 
-    IdMixin <|.. Board
-    TimestampMixin <|.. Board
-    IdMixin <|.. ScheduleBoardTask
     IdMixin <|.. User
+    IdMixin <|.. GitHubOAuthAccount
+    IdMixin <|.. Board
+    IdMixin <|.. ScheduleBoardTask
+    TimestampMixin <|.. GitHubOAuthAccount
+    TimestampMixin <|.. Board
 
+    User "1" <-- "0..*" Board : user_id
+    User "1" <-- "0..1" GitHubOAuthAccount : user_id
     Board "1" <-- "0..1" ScheduleBoardDetail : board_id
     ScheduleBoardDetail "1" <-- "0..*" ScheduleBoardTask : board_id
     Board "1" <-- "0..1" ProceedingsBoardDetail : board_id
     Board "1" <-- "0..*" BoardCarbonCopy : board_id
     Board "1" <-- "0..*" BoardAssignee : board_id
     Board "1" <-- "0..*" BoardParticipant : board_id
-
-    User "1" <-- "0..*" Board : user_id
     User "1" <-- "0..*" BoardCarbonCopy : user_id
     User "1" <-- "0..*" BoardAssignee : user_id
     User "1" <-- "0..*" BoardParticipant : user_id
 ```
 
-## 해석 메모
+해석:
 
-- `Board`는 모든 게시글의 공통 부모 테이블 역할을 한다. 코드 주석상
-	  `board_type` 값 `1`은 detail이 없는 basic board, 값 `2`는
-	  `ScheduleBoardDetail`, 값 `3`은 `ProceedingsBoardDetail`로 연결될 의도다.
-	  아직 이 매핑을 강제하는 DB 제약은 없다.
-- `ScheduleBoardDetail`과 `ProceedingsBoardDetail`은 `board_id`를 기본키이자
-  외래키로 사용한다. 따라서 한 Board는 각 상세 테이블에 최대 1개의 상세
-  row만 가질 수 있다.
-- 최신 구현에서 `ScheduleBoardTask.board_id`는 `board.id`가 아니라
-  `schedule_board_detail.board_id`를 참조한다. 즉 task는 일반 Board가 아니라
-  일정 상세 row에 종속되는 구조로 바뀌었다.
-- `BoardCarbonCopy`, `BoardAssignee`, `BoardParticipant`는 `(board_id,
-  user_id)` 복합 기본키를 가진 Board-User 역할 연결 테이블이다.
-- 최신 구현에서 `backend/app/domains/user/model.py`에 최소 `User(Base, IdMixin)`
-  모델이 생겼다. 앱 시작 시 `main.py`가 테스트용 `User(id=1)`을 생성하지만,
-  아직 인증/JWT와 연결된 실제 사용자 도메인으로 보기에는 임시 성격이 강하다.
-- 외래키는 선언되어 있지만 SQLAlchemy `relationship()` 속성은 아직
-  정의되어 있지 않다.
+- Board 모델은 초기 작업의 중심이고, `board_type`에 따라 일정/회의록 detail을 분리한다.
+- GitHub OAuth 정보는 `GitHubOAuthAccount`로 `User`와 1:1에 가깝게 묶인다.
+- 아직 `relationship()`이 풍부하게 잡힌 구조라기보다는 FK와 repository query 중심 구조다.
+
+## RAG SQL/vector 저장 구조
+
+```mermaid
+classDiagram
+    direction LR
+
+    class RagIndexRun {
+        <<table: rag_index_run>>
+        +str? repository_full_name
+        +str? branch
+        +str commit_sha
+        +datetime indexed_at
+        +int total_files
+        +int indexed_files
+        +int skipped_files
+        +int total_chunks
+    }
+
+    class RagFileSnapshot {
+        <<table: rag_file_snapshot>>
+        +int run_id
+        +str path
+        +str? name
+        +str? sha
+        +str commit_sha
+        +str language
+        +str source_type
+        +str content_hash
+        +str citation
+        +int? size
+        +str? html_url
+    }
+
+    class RagChunk {
+        <<table: rag_chunk>>
+        +int run_id
+        +int file_snapshot_id
+        +str external_chunk_id
+        +str chunk_hash
+        +int chunk_index
+        +str path
+        +str commit_sha
+        +str language
+        +str source_type
+        +str chunk_type
+        +str? symbol_name
+        +int? start_line
+        +int? end_line
+        +str citation
+        +str chunk_text
+        +dict metadata_json
+        +bool direct_implementation_evidence
+    }
+
+    class RagSkippedFile {
+        <<table: rag_skipped_file>>
+        +int run_id
+        +str path
+        +str reason
+    }
+
+    class RagSqlRepository {
+        +save_index_result(result)
+        +find_latest_run(repository_full_name, branch)
+        +find_exact_run(repository_full_name, branch, commit_sha)
+        +get_run_detail(run_id)
+        +search_chunks(...)
+    }
+
+    class RagVectorRepository {
+        +save_chunks(run_id, chunks)
+        +search(query_embedding, filters)
+        +count_run_chunks(run_id)
+    }
+
+    RagIndexRun "1" <-- "0..*" RagFileSnapshot : run_id
+    RagIndexRun "1" <-- "0..*" RagChunk : run_id
+    RagIndexRun "1" <-- "0..*" RagSkippedFile : run_id
+    RagFileSnapshot "1" <-- "0..*" RagChunk : file_snapshot_id
+    RagSqlRepository --> RagIndexRun
+    RagSqlRepository --> RagFileSnapshot
+    RagSqlRepository --> RagChunk
+    RagSqlRepository --> RagSkippedFile
+    RagVectorRepository ..> RagChunk : metadata copy
+```
+
+해석:
+
+- SQL은 인덱싱 실행 이력, 파일 스냅샷, chunk 원문, skip 사유를 보관한다.
+- Chroma vector DB는 `RagChunk`의 embedding 검색용 복제 데이터를 가진다.
+- 최신 커밋은 `repository_full_name + branch + commit_sha` 기준 기존 run을 찾아
+  중복 저장을 건너뛰지만, DB unique constraint는 아직 없다.
+
+## RAG 인덱싱 파이프라인
+
+```mermaid
+classDiagram
+    direction LR
+
+    class GitHubRepositoryClient {
+        +get_repository_tree(owner, repo, ref)
+        +get_file_content(owner, repo, path, ref)
+        +resolve_ref(owner, repo, ref)
+    }
+
+    class GitHubFileSnapshotBuilder {
+        +build(file_response)
+    }
+
+    class GitHubContentDecoder {
+        +decode(content, encoding)
+    }
+
+    class GitHubLanguageDetector {
+        +detect(path)
+    }
+
+    class GitHubFileCitationBuilder {
+        +build(repository, path, commit_sha, start_line, end_line)
+    }
+
+    class GitHubRagPipelineService {
+        +index_repository(request)
+        +build_artifacts(snapshots)
+    }
+
+    class SnapshotValidator {
+        +validate(snapshot)
+    }
+
+    class ChunkingService {
+        +chunk_snapshot(snapshot)
+    }
+
+    class ChunkerRegistry {
+        +get(language)
+    }
+
+    class LanguageChunker {
+        <<abstract>>
+        +chunk(snapshot)
+    }
+
+    class PythonChunker {
+        +chunk(snapshot)
+    }
+
+    class MarkdownChunker {
+        +chunk(snapshot)
+    }
+
+    class TextSplitter {
+        +split(text)
+    }
+
+    class PythonChunkClassifier {
+        +classify(node)
+    }
+
+    class ChunkFactory {
+        +create(...)
+    }
+
+    class ChunkIdentityService {
+        +build_chunk_id(...)
+        +build_chunk_hash(...)
+    }
+
+    class ChunkCitationService {
+        +build(...)
+    }
+
+    class OpenAIEmbeddingService {
+        +embed_texts(texts)
+    }
+
+    class RagIndexService {
+        +index_repository_and_store(request, user)
+        +index_and_store(result)
+        +find_existing_run(repository_full_name, branch, commit_sha)
+    }
+
+    RagIndexService --> GitHubRagPipelineService
+    RagIndexService --> RagSqlRepository
+    RagIndexService --> RagVectorRepository
+    RagIndexService --> OpenAIEmbeddingService
+    GitHubRagPipelineService --> GitHubRepositoryClient
+    GitHubRagPipelineService --> GitHubFileSnapshotBuilder
+    GitHubFileSnapshotBuilder --> GitHubContentDecoder
+    GitHubFileSnapshotBuilder --> GitHubLanguageDetector
+    GitHubFileSnapshotBuilder --> GitHubFileCitationBuilder
+    GitHubRagPipelineService --> SnapshotValidator
+    GitHubRagPipelineService --> ChunkingService
+    ChunkingService --> ChunkerRegistry
+    ChunkerRegistry --> LanguageChunker
+    LanguageChunker <|-- PythonChunker
+    LanguageChunker <|-- MarkdownChunker
+    PythonChunker --> PythonChunkClassifier
+    PythonChunker --> TextSplitter
+    MarkdownChunker --> TextSplitter
+    PythonChunker --> ChunkFactory
+    MarkdownChunker --> ChunkFactory
+    ChunkFactory --> ChunkIdentityService
+    ChunkFactory --> ChunkCitationService
+```
+
+해석:
+
+- GitHub 파일 수집과 RAG chunk 생성이 별도 service/domain class로 분해됐다.
+- Python과 Markdown chunker를 분리한 점은 코드 RAG 품질에서 중요한 결정이다.
+- `RagIndexService`가 중복 run 확인, pipeline 실행, SQL/vector 저장을 묶는다.
+
+## RAG 답변 그래프와 Agent scaffold
+
+```mermaid
+classDiagram
+    direction LR
+
+    class RagAskRequestDTO {
+        +str repository_full_name
+        +str branch
+        +str? commit_sha
+        +str question
+        +int top_k
+    }
+
+    class RagAnswerService {
+        +answer(request, user)
+    }
+
+    class RagAnswerGraph {
+        +build_graph()
+        +retrieve_vector(state)
+        +route_by_evidence(state)
+        +generate_answer(state)
+        +build_no_evidence_answer(state)
+        +build_response(state)
+    }
+
+    class RagLlm {
+        +answer(question, evidence)
+    }
+
+    class PromptBuilder {
+        +build(question, evidence)
+    }
+
+    class EvidenceFormatter {
+        +format(evidence)
+    }
+
+    class OpenAIGenerator {
+        +generate(prompt)
+    }
+
+    class AgentChatService {
+        +create_session(request)
+        +get_session(session_id)
+        +send_message(session_id, request)
+    }
+
+    class InMemoryChatStore {
+        +create_session(...)
+        +get_session(session_id)
+        +append_message(...)
+    }
+
+    class EchoAgentResponder {
+        +respond(turns)
+    }
+
+    RagAnswerService --> RagAnswerGraph
+    RagAnswerService --> RagSqlRepository : find run
+    RagAnswerGraph --> RagVectorRepository : search with filters
+    RagAnswerGraph --> RagLlm : when evidence exists
+    RagLlm --> PromptBuilder
+    RagLlm --> EvidenceFormatter
+    RagLlm --> OpenAIGenerator
+    RagAskRequestDTO --> RagAnswerService
+    AgentChatService --> InMemoryChatStore
+    AgentChatService --> EchoAgentResponder
+```
+
+해석:
+
+- `/rag/ask`는 repository/branch/commit 범위로 SQL run을 찾고, 같은 범위의
+  vector evidence를 검색한 뒤 답변한다.
+- `RagAnswerGraph`는 evidence가 없을 때 별도 no-evidence 응답을 만들도록 분기한다.
+- `AgentChatService`는 현재 echo responder 기반 scaffold라, RAG answer graph와
+  같은 수준의 agent runtime으로 보면 안 된다.
+
+## 현재 구조 평가
+
+- 좋은 점: Board, Auth, GitHub, RAG, Agent의 책임을 module 단위로 나누기 시작했다.
+- 좋은 점: RAG chunk identity, citation, SQL 저장, vector 저장, commit scope를 모두 고려했다.
+- 좋은 점: LangGraph를 통해 evidence 유무 분기를 코드 구조로 드러냈다.
+- 위험: RAG indexing, vector 저장, `/rag/ask`, auth callback에 대한 테스트가 부족하다.
+- 위험: SQL transaction과 vector DB 저장이 함께 실패/성공해야 하는데 보상 전략이 명확하지 않다.
+- 위험: 중복 저장 방지는 application check만으로는 동시 요청 race condition을 막기 어렵다.
+- 개선: `repository_full_name + branch + commit_sha` unique constraint, idempotency test,
+  SQL/vector partial failure test, `.env.example`, agent/RAG 경계 문서화가 필요하다.

@@ -3,7 +3,7 @@
 이 폴더는 민정의 `minjeong` 브랜치 구현 분석, 하루 단위 작업 아카이브,
 클래스 단위 시각화 자료를 모아두는 공간이다.
 
-파일명과 경로는 저장소 관리 편의를 위해 영어로 유지하지만, 문서 본문은
+파일명과 경로는 저장소 관리 편의를 위해 영어로 유지하지만, 문서 제목과 본문은
 한국어로 작성한다.
 
 ## 현재 스냅샷
@@ -11,8 +11,8 @@
 - 저장소: `Jungle-303-04/warm-up`
 - 브랜치: `minjeong`
 - 작성자: `minmings111 <minmings111@gmail.com>`
-- 최신 확인 커밋: `8368026 fix: schedule tasks only for schedule boards`
-- 확인 시각: `2026-06-13 18:01:05 +09:00`
+- 최신 확인 커밋: `842d495 fix: skip duplicate RAG index storage`
+- 확인 시각: `2026-06-16 20:00:37 +09:00`
 
 ## 아카이브
 
@@ -20,6 +20,9 @@
 - [2026-06-11 warm-up Board 모델 분석](./2026-06-11-warm-up-board-model-analysis.md)
 - [2026-06-12 warm-up Board 생성 응답 흐름 분석](./2026-06-12-warm-up-board-create-response-analysis.md)
 - [2026-06-13 warm-up Board DB 저장 흐름 분석](./2026-06-13-warm-up-board-db-insert-analysis.md)
+- [2026-06-14 warm-up RAG/GitHub 인덱싱 분석](./2026-06-14-warm-up-rag-github-indexing-analysis.md)
+- [2026-06-15 warm-up Auth/Agent/RAG 답변 분석](./2026-06-15-warm-up-auth-agent-rag-answer-analysis.md)
+- [2026-06-16 warm-up RAG 근거 범위/중복 저장 분석](./2026-06-16-warm-up-rag-evidence-scope-analysis.md)
 
 ## 구현 기준 메모
 
@@ -27,44 +30,72 @@
 
 ## 시각 자료
 
-- [Board 클래스 UML](./class-uml.md): 현재 구현된 SQLAlchemy 모델을 기준으로 만든 Mermaid 클래스 다이어그램
+- [현재 클래스 UML](./class-uml.md): `842d495` 기준 backend 계층, RAG 인덱싱/답변 흐름, SQLAlchemy 모델 관계를 Mermaid로 정리한 자료
 
 ## 구현 읽기
 
-최신 구현은 초기 스캐폴드에서 한 단계 나아가 `board` 도메인의 SQLAlchemy
-모델링으로 이동했다.
+최신 구현은 초기 `Board` CRUD를 넘어 GitHub OAuth, repository RAG indexing,
+SQL/vector 저장, repository/branch/commit 범위의 RAG ask, LangGraph 기반 답변
+흐름, agent chat scaffold까지 확장됐다.
 
-- `backend/app/db/base.py`
-- `backend/app/db/session.py`
-- `backend/app/domains/board/model.py`
-- `backend/app/domains/user/model.py`
-- `backend/requirements.txt`
+주요 진입점은 다음과 같다.
+
 - `backend/app/main.py`
-- `backend/app/domains/board/repository.py`
-- `backend/app/domains/board/router.py`
-- `backend/app/domains/board/schema.py`
-- `backend/app/domains/board/service.py`
+- `backend/app/container.py`
+- `backend/app/board/api/router.py`
+- `backend/app/board/service/board_service.py`
+- `backend/app/board/external/repository.py`
+- `backend/app/auth/api/router.py`
+- `backend/app/auth/service/auth_service.py`
+- `backend/app/auth/external/github_oauth_client.py`
+- `backend/app/github/service/github_service.py`
+- `backend/app/github/external/repository.py`
+- `backend/app/rag/api/router.py`
+- `backend/app/rag/service/index_service.py`
+- `backend/app/rag/service/pipeline.py`
+- `backend/app/rag/service/answer_service.py`
+- `backend/app/rag/service/answer_graph.py`
+- `backend/app/rag/external/sql_repository.py`
+- `backend/app/rag/external/vector_repository.py`
+- `backend/app/agent/service/chat_service.py`
+- `backend/app/agent/external/echo_responder.py`
+- `frontend/src/features/auth`
+- `frontend/src/features/repository`
+- `docs/rag_ask_flow.md`
+- `docs/rag_study.md`
+- `bruno/warm-up-api`
 
-현재 보이는 설계 방향은 계층형 FastAPI 백엔드다.
+현재 보이는 설계 방향은 기능별 top-level module과 ports/service/external 계층을
+사용하는 FastAPI 백엔드다.
 
-- `router.py`: Board HTTP 요청을 받는 계층
-- `service.py`: 비즈니스 흐름을 처리할 계층
-- `repository.py`: SQLAlchemy 영속성 처리를 분리할 계층
-- `schema.py`: Pydantic 요청/응답 DTO를 정의할 계층
-- `model.py`: Board, 일정 상세, 회의록 상세, 일정 task, Board-User 역할 연결 테이블을 정의하는 계층
+- `api`: HTTP router와 request/response DTO
+- `service`: use case와 orchestration
+- `domain`: 순수 도메인 helper, chunker, classifier, identity/citation
+- `external`: SQLAlchemy, GitHub API, Chroma, OpenAI, in-memory store 같은 외부 의존성
+- `container.py`: dependency-injector 기반 조립 위치
 
-현재 브랜치는 `POST /board/` create endpoint에서 출발해 `GET /board/`,
-`GET /board/{board_id}`, `PUT /board/{board_id}`, `DELETE /board/{board_id}`까지
-Board CRUD 형태로 확장됐다. `BoardSearchParams`, `BoardPageResponse`,
-`UpdateBoard`가 추가됐고, repository에는 검색 조건, pagination, 단건 조회,
-수정, 삭제, ORM -> DTO 변환 함수가 생겼다. 다만 테스트 부재, repository 책임
-비대화, `400`/`422` 기준 미정리, `create_all`, 임시 `User(id=1)` 같은
-학습용 구현의 위험은 남아 있다.
+핵심 변화는 RAG 답변이 단순 vector search가 아니라 `repository_full_name`,
+`branch`, `commit_sha` 기준 evidence로 제한되기 시작했다는 점이다. 같은
+repository/branch/commit 조합은 기존 index run을 재사용해 `reused=True`로
+응답하도록 보강됐다.
 
 ## RAG/Agent/MCP 관점
 
-현재 Board 모델은 일반 협업 보드의 출발점으로는 괜찮지만, RAG, Agent, MCP
-실행 기록까지 담는 전체 모델로 보기에는 아직 중심 도메인만 있는 상태다.
-AI 관련 데이터는 Board 테이블에 섞기보다 나중에 `Document`, `Chunk`,
-`RetrievalLog`, `AgentRun`, `ToolCall`, `McpServer`, `McpTool` 같은 별도
-테이블이 Board나 Project를 참조하는 방식으로 확장하는 편이 좋다.
+초기에는 Board 모델만 있었기 때문에 RAG, Agent, MCP 실행 기록을 담기에는
+모델이 부족했다. 최신 브랜치에서는 `RagIndexRun`, `RagFileSnapshot`,
+`RagChunk`, `RagSkippedFile`이 생겨 RAG 인덱싱 결과를 Board와 분리해 저장하는
+방향으로 바뀌었다. 이 방향은 적절하다.
+
+다만 아직 `agent` module은 `EchoAgentResponder`와 `InMemoryChatStore` 중심의
+chat scaffold다. 현재 구현을 완성형 agent나 MCP tool executor로 부르기보다는,
+RAG answer graph와 별도인 agent 실험 입구로 보는 편이 정확하다.
+
+## 계속 봐야 할 지점
+
+- RAG indexing과 `/rag/ask` 통합 테스트 부재
+- GitHub OAuth/JWT/OpenAI/Chroma 설정을 설명하는 `.env.example` 부재
+- `repository_full_name + branch + commit_sha` 중복 방지의 DB unique constraint 부재
+- SQL 저장과 vector 저장 중 하나만 성공했을 때의 보상 전략 부재
+- `latest run` 선택 기준과 사용자가 기대하는 commit 기준의 차이
+- agent scaffold와 RAG answer graph의 경계
+- Board CRUD의 기존 테스트 공백, N+1 query 위험, validation status 정책
