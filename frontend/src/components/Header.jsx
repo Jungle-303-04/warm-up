@@ -3,9 +3,14 @@ import { Link, useLocation } from "react-router-dom";
 function Header({ onLoginClick, user }) {
   const location = useLocation();
   const accountLabel = user?.nickname ?? "로그인";
+  const isPostDetailPage = location.pathname.startsWith("/posts/");
   const navItems = [
     { label: "Board", path: "/" },
-    { label: "글쓰기", path: "/write" },
+    {
+      isActive: isPostDetailPage || location.pathname === "/write",
+      label: isPostDetailPage ? "글보기" : "글쓰기",
+      path: isPostDetailPage ? location.pathname : "/write",
+    },
   ];
 
   return (
@@ -20,7 +25,7 @@ function Header({ onLoginClick, user }) {
           </Link>
           <nav className="flex items-center gap-7">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = item.isActive ?? location.pathname === item.path;
 
               return (
                 <Link

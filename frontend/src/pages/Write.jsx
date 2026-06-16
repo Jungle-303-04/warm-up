@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import FontInfoPopover from "../components/FontInfoPopover";
 
 const waitingMessages = [
   [
@@ -8,11 +9,16 @@ const waitingMessages = [
 ];
 
 const recommendedFont = {
+  downloadUrl: "https://www.fontshare.com/fonts/zodiak",
+  license: "OFL",
   name: "Zodiak",
+  notice: "브랜드 적용 전 라이선스 원문을 한 번 더 확인하세요.",
   tags: ["영문", "세리프", "강조"],
   reason:
     "입력한 문장은 짧지만 감정의 방향이 분명하고, 말의 끝에 힘이 남는 구조예요. 그래서 부드럽기보다는 인상이 또렷하게 남는 세리프 계열 폰트가 잘 어울려요. 특히 Zodiak은 문장의 리듬을 조금 더 극적으로 보여주면서도 과하게 장식적으로 느껴지지 않아, 제목이나 강조 문장에 사용하기 좋아요.",
+  source: "Fontshare",
   previewText: "I want to play this game forever",
+  usage: "인쇄, 웹사이트, 영상, BI/CI",
 };
 
 function TypingWaitingMessage({ lines }) {
@@ -83,26 +89,7 @@ function Write() {
                 <div className="flex min-h-7 flex-wrap items-center gap-2">
                   {hasRecommendation ? (
                     <>
-                      <button
-                        className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md bg-black px-2 py-0.5 text-[10px] font-medium text-white transition-opacity hover:opacity-70"
-                        type="button"
-                      >
-                        <svg
-                          aria-hidden="true"
-                          className="h-3 w-3"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            d="M12 17v-5m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                        {recommendation.name}
-                      </button>
+                      <FontInfoPopover font={recommendation} />
                       {recommendation.tags.map((tag) => (
                         <span
                           className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-medium text-black"
