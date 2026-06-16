@@ -86,3 +86,17 @@ def test_me_without_session_returns_401(client: TestClient) -> None:
     response = client.get("/auth/me")
 
     assert response.status_code == 401
+
+
+def test_logout_expires_session_cookie(client: TestClient) -> None:
+    # 로그아웃은 인증 없이도 호출 가능하며 rp_session 쿠키를 만료시킨다.
+    token = SessionTokenCodec(secret=SECRET, ttl_seconds=3600).issue(7, "octocat")
+    client.cookies.set("rp_session", token)
+
+    response = client.post("/auth/logout")
+
+    assert response.status_code == 204
+    # 만료시키는 Set-Cookie 헤더로 rp_session 쿠키가 비워지는지 확인.
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "rp_session=" in set_cookie
+    assert 'rp_session=""' in set_cookie or "rp_session=;" in set_cookie

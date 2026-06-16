@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 
 from app.auth.api.schemas import MeResponse
 from app.auth.application.service import AuthService
@@ -58,6 +58,15 @@ def github_callback(
         path="/",
     )
     response.delete_cookie(STATE_COOKIE, path="/")
+    return response
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout() -> Response:
+    # 세션 쿠키만 지우면 되므로 인증은 불필요하다.
+    # rp_session 쿠키를 만료시키고(204) 빈 본문을 반환한다.
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    response.delete_cookie(SESSION_COOKIE, path="/")
     return response
 
 
