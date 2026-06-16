@@ -2,45 +2,83 @@
 
 import { create } from "zustand";
 
-import { BOARD_TASKS, SOURCES } from "./fixtures";
-import type { BoardTask, CenterTab } from "./types";
+import type { CenterTab, Source } from "./types";
 
-// 워크스페이스 전역 상태. 세 패널이 같은 "범위(선택 소스)"와 포커스를 공유한다.
+// 뷰어가 가리키는 대상: 소스 자체 또는 repo 소스 안의 특정 파일.
+export interface ViewerTarget {
+  sourceId: string;
+  // path 가 있으면 repo 파일, 없으면 소스 본문.
+  path?: string;
+}
+
+// 노트북 화면 전역 상태. 세 패널이 같은 "범위(선택 소스)"와 포커스를 공유한다.
 interface WorkspaceStore {
-  selected: Record<string, boolean>;
-  focusedSourceId: string | null;
+  notebookId: string | null;
+  sources: Source[];
+  selected: Record<string, boolean>; // 답변 범위에 포함된 소스
+  viewer: ViewerTarget | null; // 중앙 뷰어가 여는 대상
   centerTab: CenterTab;
-  boardTasks: BoardTask[];
-  activeThreadId: string | null;
+
+  // 노트북 진입 시 소스 목록을 주입(모두 범위 포함으로 초기화).
+  initNotebook: (notebookId: string, sources: Source[]) => void;
+  setSources: (sources: Source[]) => void;
+  addSource: (source: Source) => void; // 소스 추가 후 목록 반영
+  removeSource: (id: string) => void;
 
   toggleSource: (id: string) => void;
   setAllSources: (on: boolean) => void;
-  openSource: (id: string) => void; // 뷰어에 열기 + 뷰어 탭으로 이동
+  openSource: (id: string) => void; // 소스 본문을 뷰어에 열기 + 뷰어 탭으로 이동
+  openFile: (sourceId: string, path: string) => void; // repo 파일을 뷰어에 열기
   setCenterTab: (tab: CenterTab) => void;
-  addBoardTask: (task: Omit<BoardTask, "id">) => void; // 승인된 제안 → 보드 태스크
-  openThread: (id: string) => void; // 스레드 열기 + 대화 탭으로 이동
-  newThread: () => void; // 새 대화 시작
 }
 
 export const useWorkspace = create<WorkspaceStore>((set) => ({
-  selected: Object.fromEntries(SOURCES.map((s) => [s.id, true])),
-  focusedSourceId: null,
+  notebookId: null,
+  sources: [],
+  selected: {},
+  viewer: null,
   centerTab: "대화",
-  boardTasks: BOARD_TASKS,
-  activeThreadId: null,
+
+  initNotebook: (notebookId, sources) =>
+    set({
+      notebookId,
+      sources,
+      selected: Object.fromEntries(sources.map((s) => [s.id, true])),
+      viewer: null,
+      centerTab: "대화",
+    }),
+  setSources: (sources) =>
+    set((state) => ({
+      sources,
+      // 새 소스는 기본 범위 포함, 기존 선택은 유지.
+      selected: Object.fromEntries(
+        sources.map((s) => [s.id, state.selected[s.id] ?? true]),
+      ),
+    })),
+  addSource: (source) =>
+    set((state) => ({
+      sources: [source, ...state.sources],
+      selected: { ...state.selected, [source.id]: true },
+    })),
+  removeSource: (id) =>
+    set((state) => {
+      const { [id]: _drop, ...selected } = state.selected;
+      return {
+        sources: state.sources.filter((s) => s.id !== id),
+        selected,
+        viewer: state.viewer?.sourceId === id ? null : state.viewer,
+      };
+    }),
 
   toggleSource: (id) =>
     set((state) => ({ selected: { ...state.selected, [id]: !state.selected[id] } })),
   setAllSources: (on) =>
-    set({ selected: Object.fromEntries(SOURCES.map((s) => [s.id, on])) }),
-  openSource: (id) => set({ focusedSourceId: id, centerTab: "뷰어" }),
-  setCenterTab: (tab) => set({ centerTab: tab }),
-  addBoardTask: (task) =>
     set((state) => ({
-      boardTasks: [{ ...task, id: `t-${Date.now()}` }, ...state.boardTasks],
+      selected: Object.fromEntries(state.sources.map((s) => [s.id, on])),
     })),
-  openThread: (id) => set({ activeThreadId: id, centerTab: "대화" }),
-  newThread: () => set({ activeThreadId: null, centerTab: "대화" }),
+  openSource: (id) => set({ viewer: { sourceId: id }, centerTab: "뷰어" }),
+  openFile: (sourceId, path) => set({ viewer: { sourceId, path }, centerTab: "뷰어" }),
+  setCenterTab: (tab) => set({ centerTab: tab }),
 }));
 
 // 파생 셀렉터: 범위에 포함된 소스 개수.

@@ -1,5 +1,6 @@
 import {
   AlignLeft,
+  ArrowLeft,
   ArrowUp,
   ArrowUpRight,
   Bell,
@@ -7,12 +8,15 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   ChevronsUpDown,
   CircleUserRound,
   Database,
+  File,
   FileText,
   FileType,
+  Folder,
   FolderGit2,
   Link2,
   ListChecks,
@@ -22,14 +26,17 @@ import {
   MessageSquare,
   Monitor,
   Moon,
+  MoreVertical,
   Network,
   NotebookText,
+  Pencil,
   Plus,
   Search,
   Share2,
   Sparkles,
   StickyNote,
   Sun,
+  Trash2,
   Workflow,
   X,
 } from "lucide-react";
@@ -70,6 +77,13 @@ const ICONS: Record<string, LucideIcon> = {
   picture_as_pdf: FileType, // PDF
   link: Link2,
   close: X, // 모달/다이얼로그 닫기
+  more_vert: MoreVertical, // 카드 메뉴
+  edit: Pencil, // 이름 변경
+  delete: Trash2, // 삭제
+  folder: Folder, // 트리 디렉터리
+  file: File, // 트리 파일
+  chevron_down: ChevronDown, // 트리 펼침
+  arrow_back: ArrowLeft, // 대시보드로
 };
 
 export function Icon({

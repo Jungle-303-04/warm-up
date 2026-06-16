@@ -1,6 +1,7 @@
 // 프론트 전역에서 공유하는 도메인 타입.
 
-export type SourceKind = "repo" | "md" | "text" | "pdf";
+// 백엔드 SourceView.kind 와 1:1. "url" 포함.
+export type SourceKind = "repo" | "md" | "text" | "pdf" | "url";
 
 export interface SourceKindConfig {
   icon: string;
@@ -9,49 +10,55 @@ export interface SourceKindConfig {
   chipFg: string;
 }
 
-export interface Source {
-  id: string;
-  name: string;
-  kind: SourceKind;
-  progress: number;
-  status?: string;
-  branches?: string[]; // repo 전용: 인덱싱된 모든 브랜치
-  externalUrl?: string; // repo/link: 외부에서 열기
-  content?: string; // md/text/pdf: 뷰어 본문(추출 텍스트)
-}
-
-// 백엔드 계약과 동일한 작성자 표현(team-sharing-model.md). 모든 작성자/담당자 표시의 기준.
-export interface Author {
-  login: string; // GitHub login
-  avatar_url?: string; // 있으면 실제 아바타, 없으면 이니셜 폴백
-}
-
-// 워크스페이스 멤버(데모). Author + 로컬 표시용(name/이니셜 색).
-export interface Member extends Author {
-  name: string;
-  color: string; // avatar_url 없을 때 이니셜 배경
-}
-
-export type BoardStatus = "todo" | "doing" | "done";
-
-export interface BoardStatusMeta {
-  label: string;
-  dotBg: string;
-  dotFg: string;
-}
-
-export interface BoardTask {
+// 백엔드 NotebookView.
+export interface Notebook {
   id: string;
   title: string;
-  status: BoardStatus;
-  due: string; // YYYY-MM-DD
-  repo: string;
-  author?: string; // 작성자/담당자 login (Member.login). 없으면 담당자 미지정
+  summary: string | null;
+  source_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
-export type BoardView = "kanban" | "week" | "calendar" | "list";
+// 백엔드 SourceView.
+export interface Source {
+  id: string;
+  notebook_id: string;
+  kind: SourceKind;
+  title: string;
+  url: string | null;
+  repository_url: string | null;
+  branch: string | null;
+  created_at: string;
+}
 
-export type CenterTab = "대화" | "보드" | "뷰어";
+// 백엔드 SourceDetailView = SourceView + content.
+export interface SourceDetail extends Source {
+  content: string | null;
+}
+
+// 백엔드 NotebookDetailView = NotebookView + sources.
+export interface NotebookDetail extends Notebook {
+  sources: Source[];
+}
+
+// repo 소스 파일 트리 노드.
+export interface TreeNode {
+  name: string;
+  path: string;
+  type: "dir" | "file";
+  children?: TreeNode[];
+}
+
+// 소스 생성 요청 바디.
+export interface SourceCreate {
+  kind: SourceKind;
+  title: string;
+  content?: string;
+  url?: string;
+  repository_url?: string;
+  branch?: string;
+}
 
 // 채팅 답변 골격(D7: lookup + locate + summarize). 백엔드 답변 그래프 출력과 1:1 대응.
 
@@ -72,3 +79,6 @@ export type AgentResponse =
   | { kind: "summary"; text: string; citations?: Citation[] } // summarize: 문단 요약
   | { kind: "abstain"; reason: string } // 근거 부족 등으로 답변 보류
   | { kind: "clarify"; question: string }; // 추가 정보 요청
+
+// 중앙 패널 토글: 뷰어 ⇄ 채팅.
+export type CenterTab = "대화" | "뷰어";

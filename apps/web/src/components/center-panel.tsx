@@ -3,13 +3,13 @@
 import { cn } from "../lib/cn";
 import { useWorkspace } from "../lib/store";
 import type { CenterTab } from "../lib/types";
-import { BoardPanel } from "./board-panel";
 import { ChatView } from "./chat-view";
 import { Panel } from "./ui/panel";
 import { ViewerPanel } from "./viewer-panel";
 
-const TABS: CenterTab[] = ["대화", "보드", "뷰어"];
+const TABS: CenterTab[] = ["대화", "뷰어"];
 
+// 중앙 패널: 채팅 ⇄ 뷰어 토글.
 export function CenterPanel() {
   const tab = useWorkspace((s) => s.centerTab);
   const setTab = useWorkspace((s) => s.setCenterTab);
@@ -47,7 +47,7 @@ export function CenterPanel() {
         aria-labelledby={`tab-${tab}`}
         className="flex min-h-0 flex-1 flex-col"
       >
-        {tab === "대화" ? <ChatView /> : tab === "보드" ? <BoardPanel /> : <ViewerPanel />}
+        {tab === "대화" ? <ChatView /> : <ViewerPanel />}
       </div>
     </Panel>
   );
