@@ -138,6 +138,6 @@ def test_note_crud_endpoints() -> None:
 def test_create_note_requires_content_returns_400() -> None:
     nb = _create_notebook()
     response = client.post(
-        f"/notebooks/{nb}/artifacts/note", json={"content": "   "}
+        f"/notebooks/{nb}/artifacts/note", json={"content": None}
     )
     assert response.status_code == 400

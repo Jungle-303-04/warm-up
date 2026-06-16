@@ -84,3 +84,13 @@ class InMemoryNotebookStore:
             if message.notebook_id == notebook_id
         ]
         return sorted(items, key=lambda message: message.created_at)
+
+    def clear_chat_messages(self, notebook_id: str) -> None:
+        self.get_notebook(notebook_id)
+        to_delete = [
+            mid
+            for mid, message in self._chat_messages.items()
+            if message.notebook_id == notebook_id
+        ]
+        for mid in to_delete:
+            del self._chat_messages[mid]

@@ -107,3 +107,10 @@ class SqlNotebookStore:
                 .order_by(ChatMessageModel.created_at)
             )
             return [chat_message_to_record(model) for model in session.scalars(stmt).all()]
+
+    def clear_chat_messages(self, notebook_id: str) -> None:
+        with session_scope(self._session_factory) as session:
+            if session.get(NotebookModel, notebook_id) is None:
+                raise KeyError(notebook_id)
+            stmt = delete(ChatMessageModel).where(ChatMessageModel.notebook_id == notebook_id)
+            session.execute(stmt)

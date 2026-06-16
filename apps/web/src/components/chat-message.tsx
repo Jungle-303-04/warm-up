@@ -62,7 +62,7 @@ function CitationChips({ citations }: { citations: Citation[] }) {
 function UserBubble({ content }: { content: string }) {
   return (
     <div className="flex justify-end">
-      <div className="w-fit max-w-[85%] whitespace-pre-wrap break-words rounded-[20px] rounded-br-[4px] bg-primary px-4 py-2.5 text-[13px] leading-relaxed text-primary-foreground shadow-sm">
+      <div className="w-fit max-w-[85%] whitespace-pre-wrap break-words rounded-[22px] rounded-br-[6px] bg-primary px-5 py-3 text-[14px] font-medium leading-relaxed text-primary-foreground shadow-sm">
         {content}
       </div>
     </div>
@@ -106,7 +106,7 @@ function AssistantBubble({
       <div className="flex gap-2.5">
         <Avatar />
         <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2.5 rounded-2xl rounded-tl-md border border-border bg-secondary px-3 py-2.5 text-[12.5px] leading-relaxed text-muted-foreground">
+          <div className="flex items-start gap-2.5 rounded-[20px] rounded-tl-[6px] border border-border/80 bg-secondary/85 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground/90">
             <Icon name="report" size={15} className="mt-0.5 shrink-0 text-primary" />
             <span>{message.content}</span>
           </div>
@@ -149,7 +149,7 @@ function AssistantBubble({
 
 function Avatar() {
   return (
-    <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
+    <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent/80 text-accent-foreground/90">
       <Icon name="hub" size={15} />
     </span>
   );

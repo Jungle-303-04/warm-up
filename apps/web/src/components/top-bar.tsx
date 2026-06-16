@@ -59,8 +59,8 @@ export function TopBar({
   };
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-border/70 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="flex min-w-0 items-center gap-1">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/70 px-4.5 bg-background/85 backdrop-blur-md">
+      <div className="flex min-w-0 items-center gap-1.5">
         <Link
           href="/"
           className="transition-all duration-200 ease-in-out flex items-center gap-2 rounded-full px-2 py-1 hover:bg-secondary"
@@ -124,7 +124,7 @@ export function TopBar({
         </Button>
         <IconButton name="settings" label="설정" size={17} preparing />
         <ThemeToggle />
-        <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />
+        <span className="mx-0.5 h-5 w-px bg-border/80" aria-hidden />
         <AuthMenu />
       </div>
     </header>

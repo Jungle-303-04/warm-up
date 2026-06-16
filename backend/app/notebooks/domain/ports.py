@@ -33,6 +33,8 @@ class NotebookStore(Protocol):
 
     def list_chat_messages(self, notebook_id: str) -> list[ChatMessageRecord]: ...
 
+    def clear_chat_messages(self, notebook_id: str) -> None: ...
+
 
 class ChunkStore(Protocol):
     """노트북 청크 영속 저장소 포트.

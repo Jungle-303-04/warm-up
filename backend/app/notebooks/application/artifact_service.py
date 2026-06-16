@@ -31,7 +31,11 @@ from app.notebooks.domain.records import SourceRecord
 MAX_CONTEXT_FILES = 40
 MAX_FILE_CHARS = 4000
 # dependency 외 타입에 사용하는 파일 확장자.
-_CODE_EXTS = (".py",)
+_CODE_EXTS = (
+    ".py", ".ts", ".tsx", ".js", ".jsx", ".sql", 
+    ".go", ".rs", ".java", ".json", ".yaml", ".yml", 
+    ".toml", ".h", ".cpp", ".cc", ".cs", ".html", ".css"
+)
 _DOC_EXTS = (".md", ".markdown")
 
 
@@ -90,10 +94,10 @@ class ArtifactService:
         self,
         notebook_id: str,
         *,
-        content: str,
+        content: str | None,
         title: str | None = None,
     ) -> ArtifactRecord:
-        if content is None or not content.strip():
+        if content is None:
             raise ValueError("note는 content가 필요합니다")
         self.store.get_notebook(notebook_id)  # 존재 확인(없으면 KeyError → 404)
 
@@ -197,6 +201,16 @@ def _language_of(path: str) -> str | None:
     lowered = path.lower()
     if lowered.endswith(".py"):
         return "python"
+    if lowered.endswith((".ts", ".tsx")):
+        return "typescript"
+    if lowered.endswith((".js", ".jsx")):
+        return "javascript"
+    if lowered.endswith(".sql"):
+        return "sql"
+    if lowered.endswith((".yaml", ".yml")):
+        return "yaml"
+    if lowered.endswith(".json"):
+        return "json"
     if lowered.endswith(_DOC_EXTS):
         return "markdown"
     return None

@@ -151,4 +151,4 @@ def test_create_note_requires_content() -> None:
     service, store = _service()
     nb_id = _notebook_only(store)
     with pytest.raises(ValueError, match="content"):
-        service.create_note(nb_id, content="   ")
+        service.create_note(nb_id, content=None)

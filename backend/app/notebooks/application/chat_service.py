@@ -85,6 +85,9 @@ class ChatService:
         selected = _select_sources(sources, source_ids)
         title_by_source = {source.id: source.title for source in sources}
 
+        # 이전 대화 기록 가져오기
+        chat_history = self.store.list_chat_messages(notebook_id)
+
         if not sources:
             result = ChatResult(
                 answer="아직 연결된 소스가 없어 답변할 근거가 없습니다. 먼저 소스를 추가해 주세요.",
@@ -102,16 +105,26 @@ class ChatService:
             search_source_ids = (
                 [source.id for source in selected] if source_ids is not None else None
             )
-            query_embedding = self.embedder.embed_query(normalized_question)
+
+            # 1) 질문 재구성 (Query Reformulation)
+            standalone_question = normalized_question
+            if chat_history and self.answerer and hasattr(self.answerer, "reformulate"):
+                try:
+                    standalone_question = self.answerer.reformulate(normalized_question, chat_history)
+                except Exception:
+                    pass
+
+            # 2) 재구성된 질문으로 RAG 검색 수행
+            query_embedding = self.embedder.embed_query(standalone_question)
             hits = self.chunk_store.search(
                 notebook_id,
                 query_embedding=query_embedding,
-                query_text=normalized_question,
+                query_text=standalone_question,
                 source_ids=search_source_ids,
                 top_k=MAX_CHUNKS,
                 file_paths=file_paths,
             )
-            result = self._result_from_hits(normalized_question, hits, title_by_source)
+            result = self._result_from_hits(normalized_question, hits, title_by_source, chat_history)
 
         self._record_turn(notebook_id, normalized_question, result, source_ids)
         return result
@@ -119,18 +132,24 @@ class ChatService:
     def list_messages(self, notebook_id: str) -> list[ChatMessageRecord]:
         return self.store.list_chat_messages(notebook_id)
 
+    def clear_messages(self, notebook_id: str) -> None:
+        self.store.clear_chat_messages(notebook_id)
+
     def _result_from_hits(
         self,
         question: str,
         hits: list[ChunkSearchHit],
         title_by_source: dict[str, str],
+        history: list[ChatMessageRecord],
     ) -> ChatResult:
         if not hits:
+            # RAG 검색 결과가 없어도 LLM이 자체 지식을 바탕으로 유연하게 대답할 수 있도록
+            # 빈 evidence를 전달하여 LLM 답변을 받아옵니다.
+            answer = self._answer(question, [], history)
+            if answer.strip():
+                return ChatResult(answer=answer, citations=[])
             return ChatResult(
-                answer=(
-                    "선택된 소스에서 질문과 직접적으로 연결되는 근거를 찾지 못했습니다. "
-                    "질문을 더 구체적으로 바꾸거나 관련 소스를 추가해 주세요."
-                ),
+                answer="질문에 적절히 답변할 수 있는 근거를 찾지 못했습니다.",
                 citations=[],
             )
 
@@ -143,16 +162,19 @@ class ChatService:
             )
             for hit in hits
         ]
-        answer = self._answer(question, evidence)
+        answer = self._answer(question, evidence, history)
         citations = _dedupe_citations(
             [_citation_from_chunk(chunk, question) for chunk in evidence]
         )
         return ChatResult(answer=answer, citations=citations)
 
-    def _answer(self, question: str, evidence: list[TextChunk]) -> str:
+    def _answer(self, question: str, evidence: list[TextChunk], history: list[ChatMessageRecord]) -> str:
         if self.answerer is not None:
             try:
-                answer = self.answerer(question, evidence).strip()
+                if hasattr(self.answerer, "answer"):
+                    answer = self.answerer.answer(question, evidence, history).strip()
+                else:
+                    answer = self.answerer(question, evidence).strip()
                 if answer:
                     return answer
             except Exception:

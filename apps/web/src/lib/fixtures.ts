@@ -93,8 +93,8 @@ export type StudioTint = "blue" | "violet" | "teal" | "amber" | "rose" | "indigo
 export const STUDIO_TILES: StudioTile[] = [
   { type: "uml", icon: "account_tree", label: "UML", typeLabel: "UML", hint: "클래스·시퀀스 구조", tint: "blue" },
   { type: "erd", icon: "schema", label: "ERD", typeLabel: "ERD", hint: "데이터 모델 관계", tint: "violet" },
-  { type: "dependency", icon: "dependency", label: "의존성 그래프", typeLabel: "Graph", hint: "모듈 연결과 영향권", tint: "teal" },
-  { type: "change_summary", icon: "diff", label: "변경 요약", typeLabel: "Diff", hint: "커밋·파일 변화 압축", tint: "amber" },
+  { type: "dependency", icon: "hub", label: "의존성 그래프", typeLabel: "Graph", hint: "모듈 연결과 영향권", tint: "teal" },
+  { type: "change_summary", icon: "difference", label: "변경 요약", typeLabel: "Diff", hint: "커밋·파일 변화 압축", tint: "amber" },
 ];
 
 export const RECOMMENDED_NOTEBOOKS = [

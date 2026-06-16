@@ -32,19 +32,17 @@ MAX_CHARS_PER_CHUNK = 1500
 # - 답변 언어는 사용자 질문 언어를 따른다. 간결·정확, 가능하면 파일/경로 언급.
 SYSTEM_PROMPT = (
     "너는 소프트웨어 코드 저장소 및 기술 문서 분석을 전문으로 하는 지능형 기술 지원 어시스턴트이다.\n"
-    "반드시 아래의 가이드를 엄격히 준수하여 [근거] 청크에만 기반한 신뢰도 높은 한국어 답변을 제공하라.\n\n"
-    "1. 근거 기반 가이드:\n"
-    "   - 오직 주어진 [근거] 청크의 텍스트와 코드 정보만 사용하여 답하라.\n"
-    "   - 근거에 명시적으로 없거나 유추할 수 없는 내용은 절대 추측하거나 상상하지 말고 반드시 '답변할 근거가 부족합니다.'라고 정직하게 대답하라.\n"
-    "   - 답변 작성 시 관련된 근거의 출처 번호(예: [출처 1], [출처 2] 등)를 해당 문장 끝에 반드시 태그로 언급하라.\n"
-    "   - 언급하는 대상 파일의 경로(path)나 소스 제목을 본문에서 명확히 밝혀라.\n\n"
+    "사용자의 질문 의도를 파악하여 아래 가이드에 따라 가장 적절하고 풍부한 답변을 제공하라.\n\n"
+    "1. 질문의 분류 및 답변 가이드:\n"
+    "   - **문서/코드 관련 질문:** 사용자의 질문이 제공된 [근거] 문서나 코드에 관련된 내용일 경우, 반드시 [근거] 청크의 텍스트와 코드 정보를 최대한 활용하여 답변하라. 답변 작성 시 관련된 근거의 출처 번호(예: [출처 1], [출처 2] 등)를 문장 끝에 명시하고, 파일 경로(path)나 소스 제목을 본문에서 명확히 밝혀라.\n"
+    "   - **일반 상식/개발 지식/일상 대화 질문:** 질문이 제공된 [근거] 문서와 직접적인 관련이 없거나(예: 인사말, 일반적인 프로그래밍 문법, DFS 등 알고리즘 구현 방법, 범용 IT 상식 등), [근거] 문서만으로는 답변할 수 없는 경우에는 '답변할 근거가 부족합니다'라고 딱딱하게 끊지 말고, 너의 풍부한 내장 지식을 바탕으로 친절하고 상세하게 답변을 제공하라. 만약 제공된 문서에 관련 내용이 없어 자신의 지식으로 답하는 경우에는 그 사실을 부드럽게 언급하며 설명하라.\n\n"
     "2. 질문 의도별 출력 구조화:\n"
     "   - **코드 검증/버그 분석:** 발견된 잠재적 문제점, 발생 시나리오, 수정 코드 가이드라인(``` 코드 블록 사용)을 단락별로 구분하여 제시하라.\n"
     "   - **아키텍처/구조 분석:** 구성 요소들 간의 관계나 의존성을 명확한 마크다운 테이블(Table) 또는 순서도로 시각화하여 가독성을 극대화하라.\n"
     "   - **계획 수립/구현 가이드:** 번호 리스트(1., 2., 3.)를 사용해 실행 가능한 구체적 마크다운 가이드를 순차적으로 작성하라.\n\n"
     "3. 언어 및 톤앤매너:\n"
-    "   - 부드러우면서도 전문적이고 일관된 어조의 한국어 명조문으로 작성하라.\n"
-    "   - 불필요한 서술이나 중복을 지양하고 간결하고 명확하게 핵심 정보만 요약하여 제공하라."
+    "   - 전문적이면서도 매우 친절하고 부드러운 한국어 문체로 작성하라.\n"
+    "   - 불필요하게 딱딱하거나 기계적인 답변(예: 단답형 '근거 부족')을 피하고, 실제 GPT나 유능한 개발 파트너처럼 자연스러운 대화를 나누어라."
 )
 
 
@@ -83,25 +81,68 @@ class ChatOpenAIAnswerer:
         self._chat_model = chat_model
 
     def __call__(self, question: str, chunks: list[TextChunk]) -> str:
+        return self.answer(question, chunks, [])
+
+    def answer(self, question: str, chunks: list[TextChunk], history: list[object]) -> str:
         try:
-            prompt = _build_messages(question, chunks)
+            prompt = _build_messages(question, chunks, history)
             response = self._chat_model.invoke(prompt)  # type: ignore[attr-defined]
             return _coerce_text(getattr(response, "content", response)).strip()
         except Exception:
-            # 네트워크/타임아웃/키/파싱 오류 등은 빈 문자열로 흡수 → 결정론 폴백.
             return ""
 
+    def reformulate(self, question: str, history: list[object]) -> str:
+        try:
+            prompt = _build_reformulate_messages(question, history)
+            response = self._chat_model.invoke(prompt)  # type: ignore[attr-defined]
+            return _coerce_text(getattr(response, "content", response)).strip()
+        except Exception:
+            return question
 
-def _build_messages(question: str, chunks: list[TextChunk]) -> list[tuple[str, str]]:
+
+REFORMULATE_SYSTEM_PROMPT = (
+    "이전 대화 기록과 사용자의 마지막 질문을 바탕으로, "
+    "문서 검색(RAG)에 사용할 수 있는 독립적이고 완벽한 한 문장의 한국어 질문으로 재작성하십시오.\n"
+    "규칙:\n"
+    "- 지시대명사(그것, 이 코드, 저번에 말한 것 등)가 있다면 맥락의 구체적인 명칭으로 바꾸십시오.\n"
+    "- 질문의 원래 의도를 절대로 왜곡하지 마십시오.\n"
+    "- 추가적인 설명이나 서두 없이 오직 재작성된 질문 문장 한 줄만 출력하십시오."
+)
+
+
+def _build_reformulate_messages(question: str, history: list[object]) -> list[tuple[str, str]]:
+    formatted_history = []
+    # 최근 6개(3턴) 대화만 사용
+    for msg in history[-6:]:
+        role_name = "User" if getattr(msg, "role", "") == "user" else "Assistant"
+        formatted_history.append(f"{role_name}: {getattr(msg, "content", "")}")
+    history_text = "\n".join(formatted_history)
+    human = f"[대화 기록]\n{history_text}\n\n[마지막 질문]\n{question}\n\n재작성된 질문:"
+    return [("system", REFORMULATE_SYSTEM_PROMPT), ("human", human)]
+
+
+def _build_messages(
+    question: str,
+    chunks: list[TextChunk],
+    history: list[object] | None = None,
+) -> list[tuple[str, str]]:
     """system + human 메시지(role, content) 튜플 목록을 만든다.
 
     LangChain ChatModel.invoke는 (role, content) 튜플 리스트를 받아준다.
     컨텍스트는 chunks를 [출처 i] 형식으로 번호 매겨 제공한다.
     """
 
+    messages = [("system", SYSTEM_PROMPT)]
+    if history:
+        # 최근 6개(3턴) 대화만 사용
+        for msg in history[-6:]:
+            role = "human" if getattr(msg, "role", "") == "user" else "ai"
+            messages.append((role, getattr(msg, "content", "")))
+
     context = _format_context(chunks)
     human = f"[근거]\n{context}\n\n[질문]\n{question}"
-    return [("system", SYSTEM_PROMPT), ("human", human)]
+    messages.append(("human", human))
+    return messages
 
 
 def _format_context(chunks: list[TextChunk]) -> str:

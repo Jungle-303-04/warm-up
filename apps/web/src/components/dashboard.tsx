@@ -66,24 +66,24 @@ export function Dashboard() {
 
   return (
     <div className="relative min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-12 items-center justify-between border-b border-border/60 bg-background/80 px-6 backdrop-blur">
-        <div className="flex items-center gap-2">
-          <span className="grid h-6 w-6 place-items-center rounded-lg bg-accent text-accent-foreground">
-            <Icon name="hub" size={15} />
+      <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border/70 bg-background/85 px-6 backdrop-blur-md">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-accent-foreground">
+            <Icon name="hub" size={16} />
           </span>
-          <span className="text-[14px] font-semibold">RepoLM</span>
+          <span className="text-[15px] font-bold tracking-tight">RepoLM</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <ThemeToggle />
           <AuthMenu />
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-6 py-8">
+      <main className="mx-auto w-full max-w-5xl px-6 py-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-[23px] font-semibold">노트북</h1>
-            <p className="mt-1 text-[13px] text-muted-foreground">
+            <h1 className="text-[26px] font-bold tracking-tight text-foreground/90">노트북</h1>
+            <p className="mt-1.5 text-[13.5px] text-muted-foreground/90">
               저장소와 문서를 모아 근거 기반으로 질문하세요.
             </p>
           </div>
@@ -91,9 +91,9 @@ export function Dashboard() {
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
             disabled={creating}
-            className="transition-all duration-200 ease-in-out inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[12.5px] font-medium text-primary-foreground shadow-sm hover:opacity-90 hover:shadow active:scale-[0.98] disabled:opacity-50"
+            className="transition-all duration-200 ease-in-out inline-flex items-center gap-1.5 rounded-full bg-primary px-4.5 py-2.5 text-[13px] font-semibold text-primary-foreground shadow hover:scale-[1.01] hover:opacity-95 active:scale-[0.98] disabled:opacity-50"
           >
-            <Icon name="add" size={17} /> 새 노트북 만들기
+            <Icon name="add" size={18} /> 새 노트북 만들기
           </button>
         </div>
 
@@ -187,19 +187,19 @@ function NotebookCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const dateLabel = formatDate(notebook.updated_at || notebook.created_at);
   return (
-    <div className="group transition-all duration-200 ease-in-out relative flex min-h-[170px] overflow-hidden rounded-3xl border border-border bg-card shadow-sm hover:scale-[1.02] hover:-translate-y-1 hover:border-primary/30 hover:shadow-md">
+    <div className="group transition-all duration-300 ease-in-out relative flex min-h-[175px] overflow-hidden rounded-[24px] border border-border/80 bg-card shadow-sm hover:scale-[1.015] hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
       {/* 책등을 시뮬레이트하는 세로 그라데이션 바 */}
-      <div className="w-3.5 bg-gradient-to-b from-primary via-primary/80 to-primary/60 shrink-0 opacity-85 group-hover:opacity-100 transition-opacity duration-200" />
+      <div className="w-3 bg-gradient-to-b from-primary via-primary/85 to-primary/70 shrink-0 opacity-90 group-hover:opacity-100 transition-opacity duration-300" />
       
       <button
         type="button"
         onClick={onOpen}
-        className="flex flex-1 flex-col items-start p-5 text-left"
+        className="flex flex-1 flex-col items-start p-5.5 text-left"
       >
-        <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-accent-foreground">
-          <Icon name="book" size={17} />
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent/80 text-accent-foreground/90">
+          <Icon name="book" size={16} />
         </span>
-        <h3 className="mt-4 line-clamp-2 text-[14.5px] font-bold leading-snug text-foreground group-hover:text-primary transition-colors">
+        <h3 className="mt-4 line-clamp-2 text-[15.5px] font-bold leading-snug tracking-tight text-foreground group-hover:text-primary transition-colors">
           {notebook.title}
         </h3>
         {notebook.summary ? (

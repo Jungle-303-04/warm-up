@@ -103,14 +103,14 @@ export function SourcesPanel({
         onDrop={onDrop}
       >
         {/* 헤더 */}
-        <div className="flex h-11 items-center justify-between border-b border-border px-3">
-          <div className="flex items-center gap-1.5">
-            <Icon name="folder" size={16} className="text-muted-foreground" />
-            <h2 className="t-title">소스</h2>
+        <div className="flex h-14 items-center justify-between border-b border-border/70 px-4">
+          <div className="flex items-center gap-2">
+            <Icon name="folder" size={16} className="text-muted-foreground/90" />
+            <h2 className="text-[14.5px] font-bold tracking-tight text-foreground/90">소스</h2>
           </div>
           <div className="flex items-center gap-1.5">
             {sources.length > 0 ? (
-              <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+              <span className="rounded-full bg-secondary/80 px-2 py-0.5 text-[11px] font-bold tabular-nums text-muted-foreground/90">
                 {selectedCount}/{sources.length}
               </span>
             ) : null}
@@ -129,20 +129,20 @@ export function SourcesPanel({
         </div>
 
         {/* 액션: 단일 "소스 추가" 진입점(통합 모달 → 파일·URL·GitHub). 공용 sm 알약. */}
-        <div className="px-3 pb-2 pt-2.5">
+        <div className="px-4 pb-2.5 pt-3.5">
           <Button
             variant="primary"
             size="sm"
             icon="add"
             onClick={openAddSource}
-            className="w-full"
+            className="w-full font-bold shadow-sm"
           >
             소스 추가
           </Button>
         </div>
 
         {/* 검색: 소스 이름 필터(소스 0개면 비활성 placeholder). 밀도에 맞춰 단정하게 축소. */}
-        <div className="px-3 pb-2">
+        <div className="px-4 pb-2">
           <div
             className={cn(
               "transition-all duration-200 ease-in-out flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1",

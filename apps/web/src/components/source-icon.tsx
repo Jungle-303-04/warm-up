@@ -50,7 +50,7 @@ export function SourceIcon({
       <img
         // host 변경 시 강제로 새 <img>를 만들어 onError 상태 꼬임을 방지.
         key={host}
-        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`}
+        src={`https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${host}&size=64`}
         alt=""
         // 작은 아이콘은 즉시 로드(지연 로드 시 안 뜨는 케이스 방지).
         loading="eager"

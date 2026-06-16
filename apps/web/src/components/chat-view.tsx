@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useChatScroll } from "../hooks/use-chat-scroll";
-import { askNotebook, listNotebookChatMessages } from "../lib/api";
+import { askNotebook, listNotebookChatMessages, clearNotebookChatMessages } from "../lib/api";
 import { SUGGESTIONS } from "../lib/fixtures";
 import { scopeFilePaths } from "../lib/indexing";
 import { selectScopeCount, useWorkspace } from "../lib/store";
@@ -238,7 +238,7 @@ export function ChatView() {
     setQueuedQuestions([]);
   };
 
-  // 대화 초기화: 백엔드에 메시지 영속 삭제 엔드포인트가 없으므로 프론트만 비운다.
+  // 대화 초기화: 백엔드 API를 통해 메시지 영속 삭제
   // 진행 중 요청 중단 + 화면 메시지/대기열/입력 초안(localStorage) 클리어.
   const resetConversation = () => {
     abortRef.current?.abort();
@@ -247,6 +247,9 @@ export function ChatView() {
     setQuery("");
     setHistoryError(null);
     if (notebookId) {
+      void clearNotebookChatMessages(notebookId).catch((err) => {
+        console.error("대화 삭제 API 실패:", err);
+      });
       try {
         localStorage.removeItem(draftKey(notebookId));
       } catch {
@@ -276,19 +279,19 @@ export function ChatView() {
         {/* 콘텐츠를 패널 폭 전체로 사용(중앙 정렬·max-width 제거, 좌우 패딩만). */}
         <div className="w-full px-6 py-5">
           {/* 헤더 카드 */}
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-sm">
-                <Icon name="hub" size={19} />
+          <div className="rounded-[24px] border border-border/80 bg-card p-5.5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/80 text-accent-foreground shadow-sm">
+                <Icon name="hub" size={18} />
               </span>
               <div className="min-w-0 flex-1">
-                <h1 className="truncate text-[15px] font-semibold">RepoLM 대화</h1>
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                <h1 className="truncate text-[15.5px] font-bold tracking-tight text-foreground/90">RepoLM 대화</h1>
+                <p className="mt-0.5 truncate text-[11.5px] font-medium text-muted-foreground/85">
                   소스 {sourceCount}개 연결됨 · {today}
                 </p>
               </div>
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
-                <Icon name="check_circle" size={13} />
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent/90 px-3 py-1 text-[11.5px] font-bold text-accent-foreground">
+                <Icon name="check_circle" size={12.5} />
                 {scopeCount}개 기준
               </span>
               {/* 대화 초기화: 현재 노트북의 화면 메시지와 입력 초안을 비운다. */}
@@ -304,7 +307,7 @@ export function ChatView() {
                 초기화
               </Button>
             </div>
-            <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mt-3.5 text-[13.5px] leading-relaxed text-muted-foreground/90 font-medium">
               연결된 저장소·문서를 근거로 질문에 답하고, 코드와 문서가 어긋난 부분을 찾습니다.
               답변에는 항상 출처(파일·라인)가 따라옵니다.
             </p>
@@ -401,7 +404,7 @@ export function ChatView() {
 
       {/* 하단 입력바 - 중앙 플로팅 알약형 캡슐 */}
       <div className="shrink-0 px-6 pb-6 pt-2">
-        <div className="mx-auto flex max-w-2xl w-full items-end gap-2.5 rounded-[28px] border border-border/70 bg-card/85 px-4 py-2.5 shadow-md backdrop-blur-md focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
+        <div className="mx-auto flex max-w-2xl w-full items-end gap-3 rounded-[32px] border border-border bg-card px-5 py-3 shadow-md focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-200">
           <textarea
             rows={1}
             value={query}
@@ -416,18 +419,17 @@ export function ChatView() {
             placeholder={
               scopeCount === 0
                 ? "왼쪽에서 소스를 선택하세요"
-                : sending
-                  ? "다음 질문을 입력하면 대기열에 추가됩니다"
-                  : "무엇이든 물어보세요 (Enter 전송 · Shift+Enter 줄바꿈)"
+                : "질문하거나 창작하세요"
             }
             aria-label="메시지 입력"
             className="max-h-32 flex-1 resize-none self-center bg-transparent py-1.5 pl-1.5 text-[13px] leading-relaxed outline-none placeholder:text-muted-foreground/75 disabled:cursor-not-allowed"
           />
-          <div className="flex shrink-0 items-center gap-2.5 self-end pb-0.5">
-            <span className="hidden items-center gap-1 text-[11px] font-medium text-muted-foreground/80 sm:inline-flex">
-              <Icon name="description" size={13} />
-              소스 {scopeCount}/{sourceCount}
-            </span>
+          <div className="flex shrink-0 items-center gap-2 self-end pb-0.5">
+            {scopeCount > 0 ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground/90 bg-secondary px-2.5 py-1 rounded-full">
+                소스 {scopeCount}개
+              </span>
+            ) : null}
             <button
               type="button"
               onClick={() => send()}
@@ -435,7 +437,7 @@ export function ChatView() {
               aria-label="보내기"
               className="transition-all duration-200 ease-in-out grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:scale-105 hover:opacity-95 active:scale-95 disabled:opacity-35 disabled:hover:scale-100 disabled:active:scale-100"
             >
-              <Icon name="arrow_upward" size={16} />
+              <Icon name="arrow_forward" size={16} />
             </button>
           </div>
         </div>

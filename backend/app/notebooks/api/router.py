@@ -197,6 +197,19 @@ def list_chat_messages(
     return http_error(run, NOT_FOUND)
 
 
+@router.delete(
+    "/notebooks/{notebook_id}/chat/messages",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_current_claims)],
+)
+def clear_chat_messages(
+    notebook_id: str,
+    service: ChatService = Depends(get_notebook_chat_service),
+) -> Response:
+    http_error(lambda: service.clear_messages(notebook_id), NOT_FOUND)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post(
     "/notebooks/{notebook_id}/sources",
     response_model=SourceView,

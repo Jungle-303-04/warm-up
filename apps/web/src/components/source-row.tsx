@@ -195,14 +195,14 @@ function TreeItem({
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="transition-all duration-200 ease-in-out flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px] hover:bg-secondary"
+            className="transition-all duration-200 ease-in-out flex min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 pr-2 text-left text-[13px] hover:bg-secondary"
           >
             <Icon
               name="chevron_right"
-              size={12}
-              className={cn("shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
+              size={16}
+              className={cn("shrink-0 text-muted-foreground/60 transition-transform", open && "rotate-90")}
             />
-            <Icon name="folder" size={13} className="shrink-0 text-muted-foreground" />
+            <Icon name="folder" size={16} className="shrink-0 text-muted-foreground/80" />
             <span className="truncate">{node.name}</span>
           </button>
         </div>
@@ -252,23 +252,23 @@ function TreeItem({
           onClick={() => openFile(sourceId, node.path)}
           title={supported ? node.path : `${node.path} · 인덱싱 미지원`}
           className={cn(
-            "transition-all duration-200 ease-in-out flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px]",
+            "transition-all duration-200 ease-in-out flex min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 pr-2 text-left text-[13px]",
             focused
-              ? "bg-accent font-medium text-accent-foreground"
+              ? "bg-accent font-semibold text-accent-foreground"
               : "hover:bg-secondary",
             !supported && "cursor-default",
           )}
         >
           <Icon
             name={fileIconForPath(node.path)}
-            size={13}
+            size={16}
             className={cn(
               "shrink-0",
               focused
                 ? "text-accent-foreground"
                 : supported
-                  ? "text-muted-foreground"
-                  : "text-muted-foreground/60",
+                  ? "text-muted-foreground/80"
+                  : "text-muted-foreground/50",
             )}
           />
           <span className="truncate">{node.name}</span>
@@ -531,16 +531,13 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           title={rowTitle ?? (isRepo ? `${cfg.label} · ${source.title} 파일 트리` : `${cfg.label} · ${source.title}`)}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1.5 pr-1 text-left"
         >
-          <span
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-md"
-            style={{ background: cfg.chipBg, color: cfg.chipFg }}
-          >
+          <span className="grid h-6 w-6 shrink-0 place-items-center text-muted-foreground/80">
             {/* URL 소스는 favicon, 그 외는 정적 아이콘(SourceIcon이 폴백까지 처리). */}
             <SourceIcon
               iconName={cfg.icon}
               url={source.url}
               isUrl={source.kind === "url"}
-              size={14}
+              size={15}
             />
           </span>
           <span className="min-w-0 flex-1">

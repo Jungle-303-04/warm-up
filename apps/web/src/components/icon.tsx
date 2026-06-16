@@ -1,190 +1,34 @@
-import {
-  AlignLeft,
-  ArrowLeft,
-  ArrowUp,
-  ArrowUpRight,
-  AudioLines,
-  BarChart3,
-  Bell,
-  BookOpenCheck,
-  Boxes,
-  Calendar,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  ChevronsUpDown,
-  CircleStop,
-  CircleUserRound,
-  Clock,
-  Copy,
-  Minus,
-  Database,
-  File,
-  FileCode2,
-  FileImage,
-  FileJson2,
-  FileQuestion,
-  FileSpreadsheet,
-  FileStack,
-  FileTerminal,
-  FileText,
-  FileType,
-  FlaskConical,
-  Folder,
-  FolderGit2,
-  GitCompare,
-  Globe2,
-  Grid2X2,
-  Image,
-  Layers,
-  LibraryBig,
-  Lightbulb,
-  Link2,
-  List,
-  ListChecks,
-  Loader2,
-  LogIn,
-  LogOut,
-  type LucideIcon,
-  MapPinned,
-  MessageSquare,
-  Monitor,
-  Moon,
-  MoreVertical,
-  Network,
-  NotebookText,
-  NotebookPen,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
-  Paperclip,
-  Pencil,
-  Pin,
-  Plus,
-  Presentation,
-  RefreshCw,
-  Search,
-  Settings2,
-  Share2,
-  SlidersHorizontal,
-  Sparkles,
-  StickyNote,
-  Sun,
-  Table2,
-  Tags,
-  ThumbsDown,
-  ThumbsUp,
-  Trash2,
-  UploadCloud,
-  Video,
-  Workflow,
-  X,
-} from "lucide-react";
-
-// board-simple과 동일한 lucide 라인 아이콘. 의미 기반 name → 컴포넌트 매핑.
-const ICONS: Record<string, LucideIcon> = {
-  hub: Boxes,
-  add: Plus,
-  add_circle: Plus,
-  travel_explore: Search,
-  check: Check,
-  chat_bubble_outline: MessageSquare,
-  auto_awesome: Sparkles,
-  arrow_upward: ArrowUp,
-  chevron_right: ChevronRight,
-  unfold_more: ChevronsUpDown,
-  share: Share2,
-  notifications: Bell,
-  account_circle: CircleUserRound,
-  login: LogIn,
-  logout: LogOut, // 로그아웃(프로필 메뉴)
-  expand_more: ChevronDown, // 펼침 표시(프로필 메뉴 토글)
-  library_add: LibraryBig, // 소스로 추가
-  progress_activity: Loader2,
-  refresh: RefreshCw, // 재분석(reindex)
-  stop_circle: CircleStop,
-  theme_system: Monitor,
-  light_mode: Sun,
-  dark_mode: Moon,
-  north_east: ArrowUpRight,
-  trending_up: BarChart3,
-  public: Globe2,
-  language: Globe2,
-  grid_view: Grid2X2,
-  view_headline: List,
-  label_auto: Tags,
-  dock_to_left: PanelLeftClose,
-  dock_to_right: PanelRightClose,
-  dock_left_open: PanelLeftOpen,
-  dock_right_open: PanelRightOpen,
-  tune: SlidersHorizontal,
-  landscape_2: Image,
-  keep: Pin,
-  check_circle: CheckCircle2,
-  schedule: Clock, // 인덱싱 대기 상태
-  remove: Minus, // 인덱싱 건너뜀(skipped)
-  account_tree: Workflow,
-  flowchart: Workflow,
-  schema: Database,
-  checklist: ListChecks,
-  calendar_month: Calendar,
-  report: NotebookText, // 보고서 (스튜디오)
-  mindmap: Network, // 마인드맵 (스튜디오)
-  dependency: Network, // 의존성 그래프 (스튜디오)
-  code_tour: MapPinned, // 코드 투어 (스튜디오)
-  diff: GitCompare, // 변경 요약 (스튜디오)
-  test_map: FlaskConical, // 테스트맵 (스튜디오)
-  audio: AudioLines, // 오디오 개요 (스튜디오)
-  audio_magic_eraser: AudioLines,
-  tablet: Presentation,
-  subscriptions: Video,
-  auto_tab_group: FileStack,
-  cards_star: BookOpenCheck,
-  quiz: FileQuestion,
-  stacked_bar_chart: BarChart3,
-  table_view: Table2,
-  settings: Settings2, // 상단바 설정
-  article: StickyNote,
-  sticky_note_2: StickyNote,
-  lightbulb: Lightbulb, // 추천 질문 칩
-  note_add: NotebookPen, // 메모 추가
-  // 채팅 답변 액션 줄
-  save_note: NotebookPen, // 메모에 저장
-  copy: Copy, // 복사
-  thumb_up: ThumbsUp, // 좋아요
-  thumb_down: ThumbsDown, // 싫어요
-  attach: Paperclip, // 입력바 첨부
-  notebook: NotebookText, // 노트북 대표 아이콘(대시보드/탑바)
-  // 소스 타입 아이콘
-  folder_code: FolderGit2, // GitHub 저장소
-  description: FileText, // Markdown
-  text_snippet: AlignLeft, // 텍스트
-  picture_as_pdf: FileType, // PDF
-  link: Link2,
-  upload_file: UploadCloud, // 파일 드롭존 오버레이
-  close: X, // 모달/다이얼로그 닫기
-  more_vert: MoreVertical, // 카드 메뉴
-  edit: Pencil, // 이름 변경
-  delete: Trash2, // 삭제
-  folder: Folder, // 트리 디렉터리
-  file: File, // 트리 파일(일반)
-  // 파일 유형별 또렷한 아이콘(NotebookLM풍). 확장자 기반 매핑에서 사용.
-  file_code: FileCode2, // 코드 파일(py/ts/go 등)
-  file_json: FileJson2, // json/yaml 설정
-  file_terminal: FileTerminal, // 셸 스크립트(sh/bash)
-  file_image: FileImage, // 이미지(svg/png 등)
-  file_spreadsheet: FileSpreadsheet, // csv/표 데이터
-  layers: Layers,
-  chevron_down: ChevronDown, // 트리 펼침
-  arrow_back: ArrowLeft, // 대시보드로
+// Google Material Symbols는 기본적으로 lowercase 스네이크 케이스 이름을 사용합니다.
+// 기존 lucide 매핑용 이름 중 머티리얼 심볼과 호환되지 않는 항목들을 오버라이드합니다.
+const SYMBOL_NAME_OVERRIDES: Record<string, string> = {
+  hub: "widgets", // Boxes 대신 위젯
+  theme_system: "settings_brightness",
+  progress_activity: "autorenew", // 로딩 스피너
+  refresh: "sync",
+  save_note: "note_add",
+  folder_code: "folder",
+  file_code: "code",
+  file_json: "terminal",
+  file_terminal: "terminal",
+  file_image: "image",
+  file_spreadsheet: "table_chart",
+  audio_magic_eraser: "cleaning_services",
+  cards_star: "style",
+  dock_to_left: "left_panel_close",
+  dock_left_open: "left_panel_open",
+  dock_to_right: "right_panel_close",
+  dock_right_open: "right_panel_open",
+  audio: "audio_file",
+  article: "article",
+  keep: "push_pin",
+  delete: "delete",
+  edit: "edit",
 };
 
 export function Icon({
   name,
   size = 18,
-  strokeWidth = 2,
+  strokeWidth = 1.5, // 기본 획 두께를 약간 얇게 조정하여 프리미엄 룩 완성
   className = "",
 }: {
   name: string;
@@ -193,7 +37,6 @@ export function Icon({
   className?: string;
 }) {
   if (name === "github") {
-    // lucide가 brand 아이콘을 제거해 GitHub 마크는 인라인 SVG로 제공한다.
     return (
       <svg
         width={size}
@@ -207,6 +50,24 @@ export function Icon({
       </svg>
     );
   }
-  const Glyph = ICONS[name] ?? Boxes;
-  return <Glyph size={size} strokeWidth={strokeWidth} className={className} aria-hidden />;
+
+  const symbol = SYMBOL_NAME_OVERRIDES[name] ?? name;
+
+  // strokeWidth 1.5 -> wght 300, 2 -> wght 350, 2.5 -> wght 400
+  const wght = strokeWidth <= 1.5 ? 300 : strokeWidth >= 2.5 ? 400 : 350;
+
+  return (
+    <span
+      className={`material-symbols-outlined select-none inline-flex items-center justify-center ${className}`}
+      style={{
+        fontSize: `${size}px`,
+        width: `${size}px`,
+        height: `${size}px`,
+        fontVariationSettings: `'FILL' 0, 'wght' ${wght}, 'GRAD' 0, 'opsz' 20`,
+      }}
+      aria-hidden
+    >
+      {symbol}
+    </span>
+  );
 }

@@ -22,57 +22,55 @@
 }
 
 @theme {
-  /* velog 느낌의 한글 UI 폰트(Pretendard) → 시스템 폴백 */
-  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+  /* Google NotebookLM 느낌의 Outfit 영문 + Pretendard 한글 듀얼 서체 */
+  --font-sans: "Outfit", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* RepoLM 워크벤치 팔레트.
-   쿨 뉴트럴 표면 위에 teal/amber/violet 계열 액센트를 얹어 코드 분석 도구의 밀도를 살린다. */
 :root {
-  --background: 45 18% 96%; /* #f7f6f3 — 따뜻한 크림 베이지 */
-  --foreground: 180 8% 12%; /* #1c1e1e — 차분한 다크 차콜 */
-  --card: 0 0% 100%; /* #ffffff — 순백 카드 */
-  --card-foreground: 180 8% 12%;
-  --primary: 171 37% 17%; /* #1b3b36 — 딥 포레스트 그린 */
-  --primary-foreground: 45 18% 96%;
-  --secondary: 45 12% 91%; /* #ebe8e1 — 부드러운 샌드 틴트 */
-  --secondary-foreground: 180 8% 12%;
-  --muted: 45 12% 93%;
-  --muted-foreground: 180 4% 50%; /* #79807e — 소프트 세이지 */
-  --accent: 164 25% 92%; /* #e4efec — 차분한 민트 파스텔 */
-  --accent-foreground: 171 63% 18%; /* #114a41 — 딥 민트 텍스트 */
-  --destructive: 0 75% 45%; /* #bf2626 */
+  --background: 40 18% 97%; /* #FAF8F5 — 눈이 편안한 크림 베이지 */
+  --foreground: 40 4% 16%; /* #2A2A28 — 따뜻하고 짙은 브라운 챠콜 */
+  --card: 0 0% 100%; /* #FFFFFF — 순백색 문서/대화 창 */
+  --card-foreground: 40 4% 16%;
+  --primary: 171 69% 14%; /* #0B3C35 — 시그니처 딥 포레스트 그린 */
+  --primary-foreground: 40 18% 97%;
+  --secondary: 40 10% 93%; /* #F4F0EA — 소스 패널 등 라이트 베이지 */
+  --secondary-foreground: 40 4% 16%;
+  --muted: 40 8% 91%; /* #E8E4DC */
+  --muted-foreground: 40 4% 45%; /* #6B6862 — 차분한 토프 그레이 */
+  --accent: 171 25% 90%; /* #DCECE9 — 투명하고 맑은 민트 파스텔 */
+  --accent-foreground: 171 45% 18%; /* #0E4B43 — 민트 그린 포인트 */
+  --destructive: 0 75% 45%;
   --destructive-foreground: 0 0% 100%;
-  --border: 42 18% 88%; /* #e3dfd6 — 연한 클레이 베이지 */
-  --input: 42 18% 84%;
-  --ring: 171 37% 17%;
-  --code-bg: 180 8% 12%;
-  --code-fg: 45 18% 96%;
+  --border: 38 10% 84%; /* #DDD8CF — 극도로 연하고 부드러운 그레이 클레이 */
+  --input: 38 10% 80%;
+  --ring: 171 69% 14%;
+  --code-bg: 40 4% 16%;
+  --code-fg: 40 18% 97%;
   color-scheme: light;
 }
 
 .dark {
-  --background: 150 5% 9%; /* #151716 — 포레스트 차콜 */
-  --foreground: 150 4% 88%; /* #e0e3e2 */
-  --card: 150 6% 13%; /* #1f2221 — 딥 카드 표면 */
-  --card-foreground: 150 4% 88%;
-  --primary: 165 59% 45%; /* #30b896 — 딥 민트그린 */
-  --primary-foreground: 150 6% 8%;
-  --secondary: 150 5% 15%; /* #242826 */
-  --secondary-foreground: 150 4% 88%;
-  --muted: 150 5% 15%;
-  --muted-foreground: 150 3% 58%; /* #909693 */
-  --accent: 165 40% 16%; /* 다크 민트 아크릴 */
-  --accent-foreground: 165 65% 65%; /* #6be6cd */
-  --destructive: 0 90% 65%;
-  --destructive-foreground: 0 0% 10%;
-  --border: 156 5% 18%; /* #2c312e — 다크 에메랄드 테두리 */
-  --input: 156 5% 22%;
-  --ring: 165 59% 45%;
-  --code-bg: 150 5% 7%;
-  --code-fg: 150 4% 88%;
+  --background: 240 6% 7%; /* #131314 — 매우 어두운 검정 회색 */
+  --foreground: 220 5% 90%; /* #E3E3E3 — 부드러운 흰색 */
+  --card: 220 5% 12%; /* #1E1F22 — 조금 덜 어두운 패널/카드 회색 */
+  --card-foreground: 220 5% 90%;
+  --primary: 214 90% 80%; /* #A8C7FA — 구글 특유의 부드러운 블루 */
+  --primary-foreground: 220 5% 12%;
+  --secondary: 220 5% 16%; /* #242528 — 소스 패널/칩 2차 어두운 회색 */
+  --secondary-foreground: 220 5% 90%;
+  --muted: 220 5% 18%; /* #2B2C30 */
+  --muted-foreground: 220 5% 65%; /* #A5A6A9 — 차분한 회색 */
+  --accent: 214 30% 20%; /* #243242 — 소프트 블루 반투명 액센트 */
+  --accent-foreground: 214 90% 85%; /* #C2E7FF */
+  --destructive: 0 85% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 5% 18%; /* #2C2D31 — 아주 연하고 세련된 어두운 보더 */
+  --input: 220 5% 20%;
+  --ring: 214 90% 80%;
+  --code-bg: 240 6% 5%;
+  --code-fg: 220 5% 90%;
   color-scheme: dark;
 }
 
@@ -92,6 +90,26 @@ body {
   color: hsl(var(--foreground));
   line-height: 1.5;
   text-rendering: optimizeLegibility;
+}
+
+/* Google Material Symbols 전역 최적화 선언 */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'liga';
+  /* 얇고 세련된 디자인을 위한 variation 세팅: wght 300 (얇게), opsz 20, fill 0 */
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
 }
 
 

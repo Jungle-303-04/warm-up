@@ -277,7 +277,7 @@ class GenerateArtifactRequest(BaseModel):
 
 class CreateNoteRequest(BaseModel):
     title: str | None = None
-    content: str
+    content: str | None = None
 
 
 class UpdateArtifactRequest(BaseModel):

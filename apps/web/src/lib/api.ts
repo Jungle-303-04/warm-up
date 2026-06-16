@@ -109,6 +109,10 @@ export function listNotebookChatMessages(nid: string): Promise<NotebookChatMessa
   return request(`/notebooks/${nid}/chat/messages`);
 }
 
+export function clearNotebookChatMessages(nid: string): Promise<void> {
+  return request(`/notebooks/${nid}/chat/messages`, { method: "DELETE" });
+}
+
 export function updateNotebook(
   nid: string,
   body: { title?: string; summary?: string },
@@ -190,8 +194,8 @@ export const ARTIFACT_META: Record<
 > = {
   uml: { label: "UML", icon: "account_tree", tint: "blue" },
   erd: { label: "ERD", icon: "schema", tint: "violet" },
-  dependency: { label: "의존성 그래프", icon: "dependency", tint: "teal" },
-  change_summary: { label: "변경 요약", icon: "diff", tint: "amber" },
+  dependency: { label: "의존성 그래프", icon: "hub", tint: "teal" },
+  change_summary: { label: "변경 요약", icon: "difference", tint: "amber" },
   note: { label: "메모", icon: "sticky_note_2", tint: "grey" },
 };
 
