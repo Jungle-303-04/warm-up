@@ -1,6 +1,7 @@
 // 백엔드 API 타입 클라이언트. 세션 쿠키를 쓰므로 모든 요청에 credentials:"include".
 import type {
   IndexProgress,
+  LinkMetadata,
   Notebook,
   NotebookChatMessageList,
   NotebookChatResponse,
@@ -125,6 +126,19 @@ export function getFile(
 // 1회 조회(재접속/초기 상태 복원용).
 export function getIndexProgress(nid: string, sid: string): Promise<IndexProgress> {
   return request(`/notebooks/${nid}/sources/${sid}/index`);
+}
+
+// 인덱싱 재실행(정지/실패 회복용). repo면 재클론→재인덱싱.
+// 즉시 status:"queued"인 IndexProgress를 반환한다.
+export function reindexSource(nid: string, sid: string): Promise<IndexProgress> {
+  return request(`/notebooks/${nid}/sources/${sid}/reindex`, { method: "POST" });
+}
+
+// ── 링크 메타데이터(URL 소스 제목/아이콘 자동 채움) ─────────────────
+// GET /link-metadata?url=<URL> (쿠키 인증). 실패해도 200(가능 필드만, icon_url은 s2 폴백).
+// signal로 디바운스 중 취소 가능. 네트워크 오류 시 throw(호출부에서 폴백 처리).
+export function getLinkMetadata(url: string, signal?: AbortSignal): Promise<LinkMetadata> {
+  return request(`/link-metadata?url=${encodeURIComponent(url)}`, { signal });
 }
 
 // ── GitHub 공개 API(브랜치 자동 인식) ─────────────────────────────

@@ -57,6 +57,7 @@ import {
   Pin,
   Plus,
   Presentation,
+  RefreshCw,
   Search,
   Settings2,
   Share2,
@@ -92,6 +93,7 @@ const ICONS: Record<string, LucideIcon> = {
   account_circle: CircleUserRound,
   login: LogIn,
   progress_activity: Loader2,
+  refresh: RefreshCw, // 재분석(reindex)
   stop_circle: CircleStop,
   theme_system: Monitor,
   light_mode: Sun,

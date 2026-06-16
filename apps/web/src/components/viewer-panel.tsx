@@ -326,7 +326,7 @@ export function ViewerPanel() {
           )}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-semibold leading-tight">{headerTitle}</p>
+          <p className="truncate text-[12px] font-semibold leading-tight">{headerTitle}</p>
           <p className="truncate text-[11px] text-muted-foreground">{headerSub}</p>
         </div>
         {externalUrl ? (

@@ -77,6 +77,15 @@ export interface IndexProgress {
   files: IndexFile[];
   error: string | null;
   updated_at: string;
+  // 최신화(클론/인덱싱) 완료 시각. done일 때만 채워지며 그 외엔 null.
+  last_synced_at: string | null;
+}
+
+// GET /link-metadata?url=... 응답. 실패해도 200(가능 필드만 채워짐).
+export interface LinkMetadata {
+  title: string | null;
+  description: string | null;
+  icon_url: string | null;
 }
 
 // 백엔드 SourceDetailView = SourceView + content.

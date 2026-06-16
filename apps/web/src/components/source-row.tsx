@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { useIndexProgress } from "../hooks/use-index-progress";
-import { deleteSource, getTree } from "../lib/api";
+import { deleteSource, getTree, reindexSource } from "../lib/api";
 import { cn } from "../lib/cn";
 import { SOURCE_KINDS } from "../lib/fixtures";
 import {
@@ -16,6 +16,27 @@ import { useWorkspace } from "../lib/store";
 import type { IndexFile, IndexProgress, Source, TreeNode } from "../lib/types";
 import { Icon } from "./icon";
 import { SourceIcon } from "./source-icon";
+
+// 정지 의심 판정 임계값(ms). queued/running인데 이 시간 이상 updated_at이
+// 갱신되지 않으면 멈춘 것으로 보고 재분석 버튼을 노출한다(너무 공격적이지 않게).
+const STALL_THRESHOLD_MS = 20_000;
+
+// last_synced_at(ISO) → "마지막 동기화: YYYY.MM.DD HH:mm" (ko-KR). 파싱 실패 시 null.
+function formatLastSynced(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const fmt = d.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  // ko-KR는 "2026. 06. 17. 14:30" 형태 → "2026.06.17 14:30"으로 정돈.
+  return fmt.replace(/\.\s/g, ".").replace(/\.(\d{2}:\d{2})/, " $1").replace(/\.$/, "");
+}
 
 // 파일 단위 인덱싱 상태 → 아이콘/색.
 function fileStatusIcon(status: IndexFile["status"]): { icon: string; spin: boolean; className: string } {
@@ -314,8 +335,10 @@ function InlineIndexBar({ progress }: { progress: IndexProgress }) {
 // 한 행: 본문(뷰어 열기) + 삭제 + 답변 범위 체크박스(repo는 트라이스테이트).
 // repo는 펼쳐 파일 트리 + 파일별 체크박스 표시. 마운트되는 동안 인덱싱을 SSE로 구독.
 export function SourceRow({ source, notebookId }: { source: Source; notebookId: string }) {
-  // 진행 구독(언마운트/완료 시 내부에서 EventSource close).
-  useIndexProgress(notebookId, source.id);
+  // 재분석 시 진행 구독을 다시 열기 위한 nonce(변경 시 useIndexProgress 재구독).
+  const [resubscribeNonce, setResubscribeNonce] = useState(0);
+  // 진행 구독(언마운트/완료 시 내부에서 EventSource close). nonce 변경 시 재구독.
+  useIndexProgress(notebookId, source.id, resubscribeNonce);
 
   const focused = useWorkspace((s) => s.viewer?.sourceId === source.id && !s.viewer?.path);
   const openSource = useWorkspace((s) => s.openSource);
@@ -327,11 +350,16 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   const initFilePaths = useWorkspace((s) => s.initFilePaths);
   const setAllFilePaths = useWorkspace((s) => s.setAllFilePaths);
   const toggleFilePath = useWorkspace((s) => s.toggleFilePath);
+  const setIndexProgress = useWorkspace((s) => s.setIndexProgress);
 
   const [expanded, setExpanded] = useState(false);
   const [tree, setTree] = useState<TreeNode[] | null>(null);
   const [treeLoading, setTreeLoading] = useState(false);
   const [treeError, setTreeError] = useState<string | null>(null);
+  // 재분석 진행 중(중복 클릭 방지).
+  const [reindexing, setReindexing] = useState(false);
+  // 정지 의심 판정용 현재시각 틱. 진행 중일 때만 주기적으로 갱신한다.
+  const [now, setNow] = useState(() => Date.now());
 
   const cfg = SOURCE_KINDS[source.kind];
   const isRepo = source.kind === "repo";
@@ -339,6 +367,46 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   const supported = supportedFilePaths(progress);
   const failed = progress?.status === "failed";
   const indexing = progress ? isIndexActive(progress.status) : false;
+  const done = progress?.status === "done";
+
+  // 진행 중일 때만 5초 간격 타이머로 now를 갱신해 정지 의심을 재평가한다.
+  // 진행이 끝나면 타이머를 정리(누수 방지).
+  useEffect(() => {
+    if (!indexing) return;
+    const t = setInterval(() => setNow(Date.now()), 5_000);
+    return () => clearInterval(t);
+  }, [indexing]);
+
+  // 정지 의심: queued/running인데 updated_at이 임계값 이상 갱신되지 않음.
+  const stalled = (() => {
+    if (!indexing || !progress) return false;
+    const last = new Date(progress.updated_at).getTime();
+    if (Number.isNaN(last)) return false;
+    return now - last >= STALL_THRESHOLD_MS;
+  })();
+
+  // 재분석 버튼 노출 조건: 실패했거나 정지 의심일 때(재분석 중이면 숨김).
+  const canReindex = !!progress && (failed || stalled) && !reindexing;
+
+  // 마지막 동기화 시각(진행 중이 아닐 때, done이고 값이 있을 때만 표시).
+  const lastSynced =
+    done && !indexing ? formatLastSynced(progress?.last_synced_at) : null;
+
+  // 재분석: reindex 호출 → 즉시 queued 스냅샷 반영 → useIndexProgress가 SSE 재구독.
+  const handleReindex = async () => {
+    if (!notebookId || reindexing) return;
+    setReindexing(true);
+    try {
+      const next = await reindexSource(notebookId, source.id);
+      setIndexProgress(source.id, next);
+      setNow(Date.now()); // 정지 판정 기준 초기화.
+      setResubscribeNonce((n) => n + 1); // SSE 재구독 트리거.
+    } catch {
+      // 재분석 트리거 실패는 조용히 무시(다음 클릭으로 재시도 가능).
+    } finally {
+      setReindexing(false);
+    }
+  };
 
   // SSE로 supported 파일 목록이 도착하면 기본 전체 선택으로 초기화(이미 있으면 무시).
   useEffect(() => {
@@ -478,7 +546,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           <span className="min-w-0 flex-1">
             <span
               className={cn(
-                "block truncate text-[12.5px] font-medium leading-tight",
+                "block truncate text-[12px] font-medium leading-tight",
                 focused && "text-accent-foreground",
               )}
             >
@@ -502,6 +570,23 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
                 {progress.error}
               </span>
             ) : null}
+            {/* 정지 의심 안내(진행 중인데 일정 시간 갱신 없음). */}
+            {stalled && !failed ? (
+              <span className="mt-0.5 block truncate text-[10px] text-amber-600 dark:text-amber-500">
+                응답이 없어요. 재분석할 수 있습니다.
+              </span>
+            ) : null}
+            {/* 완료된 소스의 마지막 동기화 시각(진행 중이 아닐 때만). */}
+            {lastSynced ? (
+              <span
+                className={cn(
+                  "mt-0.5 block truncate text-[10px]",
+                  focused ? "text-accent-foreground/60" : "text-muted-foreground/60",
+                )}
+              >
+                마지막 동기화: {lastSynced}
+              </span>
+            ) : null}
           </span>
           {isRepo ? (
             <Icon
@@ -515,6 +600,27 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
             />
           ) : null}
         </button>
+
+        {/* 재분석: 실패/정지 의심이거나 재분석 진행 중일 때 노출. 행동 유도라 항상 보이게. */}
+        {canReindex || reindexing ? (
+          <button
+            type="button"
+            onClick={handleReindex}
+            disabled={reindexing}
+            aria-label={`${source.title} 재분석`}
+            title={reindexing ? "재분석 중…" : "재분석"}
+            className={cn(
+              "interactive grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed",
+              failed ? "text-destructive hover:bg-destructive/10" : "",
+            )}
+          >
+            <Icon
+              name={reindexing ? "progress_activity" : "refresh"}
+              size={14}
+              className={reindexing ? "animate-spin" : ""}
+            />
+          </button>
+        ) : null}
 
         <button
           type="button"

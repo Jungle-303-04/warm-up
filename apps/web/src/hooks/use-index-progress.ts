@@ -8,7 +8,12 @@ import { useWorkspace } from "../lib/store";
 // 한 소스의 RAG 인덱싱 진행을 구독한다.
 // 1) 마운트 시 1회 조회로 현재 상태 복원 → 2) SSE 구독으로 실시간 갱신.
 // status done/failed면 SSE는 스스로 종료하고, 언마운트 시에도 반드시 close(누수 방지).
-export function useIndexProgress(notebookId: string | null, sourceId: string) {
+// resubscribeKey가 바뀌면(재분석 트리거 등) 다시 조회·구독한다.
+export function useIndexProgress(
+  notebookId: string | null,
+  sourceId: string,
+  resubscribeKey?: number,
+) {
   const setIndexProgress = useWorkspace((s) => s.setIndexProgress);
 
   useEffect(() => {
@@ -39,5 +44,5 @@ export function useIndexProgress(notebookId: string | null, sourceId: string) {
       active = false;
       stream?.close();
     };
-  }, [notebookId, sourceId, setIndexProgress]);
+  }, [notebookId, sourceId, setIndexProgress, resubscribeKey]);
 }

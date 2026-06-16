@@ -207,7 +207,7 @@ export function SourcesPanel({
             </div>
           ) : (
             <>
-              <label className="interactive mx-1 mb-1 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11.5px] text-muted-foreground hover:bg-secondary">
+              <label className="interactive mx-1 mb-1 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-secondary">
                 <span className="relative grid h-4 w-4 place-items-center rounded-[4px] border border-input bg-card">
                   <input
                     type="checkbox"

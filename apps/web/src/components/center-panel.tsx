@@ -33,7 +33,7 @@ export function CenterPanel() {
               aria-controls={`panel-${t}`}
               onClick={() => setTab(t)}
               className={cn(
-                "interactive rounded-full px-2.5 py-0.5 text-[11.5px]",
+                "interactive rounded-full px-2.5 py-0.5 text-[11px]",
                 tab === t
                   ? "bg-card font-semibold text-foreground shadow-elev-1"
                   : "font-medium text-muted-foreground hover:text-foreground",

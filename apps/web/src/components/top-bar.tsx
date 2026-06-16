@@ -66,7 +66,7 @@ export function TopBar({
           <span className="grid h-6 w-6 place-items-center rounded-lg bg-accent text-accent-foreground">
             <Icon name="hub" size={15} />
           </span>
-          <span className="text-[14px] font-semibold">RepoLM</span>
+          <span className="text-[13px] font-semibold">RepoLM</span>
         </Link>
         <Icon name="chevron_right" size={15} className="shrink-0 text-muted-foreground/50" />
 
@@ -85,7 +85,7 @@ export function TopBar({
               }
             }}
             aria-label="노트북 제목"
-            className="min-w-0 max-w-[40ch] rounded-lg border border-primary/50 bg-card px-2 py-0.5 text-[13px] font-medium outline-none ring-2 ring-primary/15"
+            className="min-w-0 max-w-[40ch] rounded-lg border border-primary/50 bg-card px-2 py-0.5 text-[12px] font-medium outline-none ring-2 ring-primary/15"
           />
         ) : (
           <button
@@ -94,7 +94,7 @@ export function TopBar({
             title="제목 편집"
             className="interactive group flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-0.5 hover:bg-secondary"
           >
-            <span className="truncate text-[13px] font-medium">{title}</span>
+            <span className="truncate text-[12px] font-medium">{title}</span>
             {saving ? (
               <Icon name="progress_activity" size={13} className="shrink-0 animate-spin text-muted-foreground" />
             ) : (
@@ -113,7 +113,7 @@ export function TopBar({
           type="button"
           disabled
           title="공유 · 준비 중"
-          className="interactive mr-1 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[12.5px] font-medium text-muted-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
+          className="interactive mr-1 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[12px] font-medium text-muted-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
         >
           <Icon name="share" size={15} /> 공유
         </button>

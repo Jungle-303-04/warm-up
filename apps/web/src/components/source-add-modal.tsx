@@ -5,14 +5,16 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   createSource,
   fetchGitHubRepoInfo,
+  getLinkMetadata,
   parseGitHubRepo,
   type GitHubRepoInfo,
 } from "../lib/api";
 import { cn } from "../lib/cn";
 import { useWorkspace } from "../lib/store";
-import type { Source, SourceCreate } from "../lib/types";
+import type { LinkMetadata, Source, SourceCreate } from "../lib/types";
 import { Collapse } from "./ui/collapse";
 import { Icon } from "./icon";
+import { SourceIcon } from "./source-icon";
 import { Modal } from "./ui/modal";
 
 // 통합 소스 추가 모달.
@@ -134,7 +136,7 @@ function FileDropzone({
         <span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-primary-foreground">
           <Icon name={busy ? "progress_activity" : "upload_file"} size={20} className={busy ? "animate-spin" : ""} />
         </span>
-        <span className="text-[12.5px] font-semibold text-foreground">
+        <span className="text-[12px] font-semibold text-foreground">
           {busy ? "파일 처리 중…" : "파일을 끌어다 놓거나 클릭하여 선택"}
         </span>
         <span className="text-[11px]">PDF · Markdown · 텍스트</span>
@@ -194,17 +196,24 @@ function LinkForm({
   const [titleEdited, setTitleEdited] = useState(false);
   const [branch, setBranch] = useState(""); // 선택/수동 입력 브랜치
   const [gh, setGh] = useState<GhState>({ kind: "none" });
+  // 비-GitHub URL의 링크 메타데이터(실제 제목/아이콘). 로딩/결과 표시용.
+  const [meta, setMeta] = useState<LinkMetadata | null>(null);
+  const [metaLoading, setMetaLoading] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 디바운스/취소 관리.
+  // 디바운스/취소 관리(GitHub 브랜치 인식).
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // 디바운스/취소 관리(링크 메타데이터).
+  const metaDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const metaAbortRef = useRef<AbortController | null>(null);
 
   // URL 변경 → 제목 자동 채움(사용자가 직접 수정 전까지) + github 형태이면 브랜치 인식.
   useEffect(() => {
-    // 제목 자동 채움: URL 기반으로만(실제 <title>은 CORS로 불가).
+    // 제목 임시 자동 채움: URL 기반(즉시 피드백). 비-GitHub URL은 아래 메타 효과가
+    // 실제 HTML 제목으로 덮어쓴다(사용자가 직접 수정하지 않은 경우에 한함).
     if (!titleEdited) setTitle(inferTitleFromUrl(url));
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -243,6 +252,54 @@ function LinkForm({
     };
   }, [url, titleEdited]);
 
+  // 비-GitHub URL → 디바운스로 링크 메타데이터 조회(실제 HTML 제목/아이콘).
+  // 성공하고 사용자가 제목을 직접 수정하지 않았으면 실제 제목으로 덮어쓴다.
+  useEffect(() => {
+    if (metaDebounceRef.current) clearTimeout(metaDebounceRef.current);
+    metaAbortRef.current?.abort();
+
+    const trimmed = url.trim();
+    const parsed = parseGitHubRepo(trimmed);
+    // GitHub는 브랜치 인식 경로가 처리하므로 메타 조회 대상이 아니다.
+    if (!trimmed || parsed) {
+      setMeta(null);
+      setMetaLoading(false);
+      return;
+    }
+    // 그럴듯한 URL 형태일 때만 조회(점이 있거나 스킴 포함).
+    if (!trimmed.includes(".") && !trimmed.includes("://")) {
+      setMeta(null);
+      setMetaLoading(false);
+      return;
+    }
+
+    setMetaLoading(true);
+    const controller = new AbortController();
+    metaAbortRef.current = controller;
+    metaDebounceRef.current = setTimeout(async () => {
+      try {
+        const data = await getLinkMetadata(trimmed, controller.signal);
+        if (controller.signal.aborted) return;
+        setMeta(data);
+        // 사용자가 직접 수정하지 않았고 실제 제목이 있으면 자동 채움.
+        if (data.title) {
+          setTitle((prev) => (titleEdited ? prev : data.title ?? prev));
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+        // 메타 조회 실패는 조용히 무시(URL 기반 제목으로 폴백).
+        setMeta(null);
+      } finally {
+        if (!controller.signal.aborted) setMetaLoading(false);
+      }
+    }, 500);
+
+    return () => {
+      if (metaDebounceRef.current) clearTimeout(metaDebounceRef.current);
+      controller.abort();
+    };
+  }, [url, titleEdited]);
+
   const isGitHub = gh.kind !== "none";
   // 브랜치 영역(드롭다운 또는 수동 입력)을 펼칠지 여부.
   const branchOpen = isGitHub;
@@ -264,7 +321,9 @@ function LinkForm({
           branch: b,
         };
       } else {
-        body = { kind: "url", title: title.trim() || trimmed, url: trimmed };
+        // 제목 우선순위: 사용자/메타 제목 → URL 도출 → 원문 URL.
+        const urlTitle = title.trim() || meta?.title?.trim() || inferTitleFromUrl(trimmed) || trimmed;
+        body = { kind: "url", title: urlTitle, url: trimmed };
       }
       await onSubmit(body);
       onClose();
@@ -299,7 +358,7 @@ function LinkForm({
             placeholder="https://example.com/docs · https://github.com/org/repo"
             className={inputCls}
           />
-          {/* GitHub 인식 상태 인디케이터(입력 우측). */}
+          {/* 인식 상태 인디케이터(입력 우측): GitHub 우선, 아니면 링크 메타 로딩/사이트 아이콘. */}
           {gh.kind === "loading" ? (
             <Icon
               name="progress_activity"
@@ -312,6 +371,17 @@ function LinkForm({
               size={15}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-primary"
             />
+          ) : metaLoading ? (
+            <Icon
+              name="progress_activity"
+              size={15}
+              className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground"
+            />
+          ) : !isGitHub && url.trim() ? (
+            // 비-GitHub URL: 사이트 아이콘 미리보기(favicon/icon_url 폴백은 SourceIcon이 처리).
+            <span className="absolute right-3 top-1/2 -translate-y-1/2">
+              <SourceIcon iconName="link" url={url.trim()} isUrl size={15} />
+            </span>
           ) : null}
         </div>
       </Field>
@@ -362,6 +432,10 @@ function LinkForm({
           placeholder={isGitHub ? "비우면 레포 이름을 사용" : "비우면 URL을 제목으로 사용"}
           className={inputCls}
         />
+        {/* 비-GitHub URL 메타 설명 미리보기(있을 때만, 한 줄). */}
+        {!isGitHub && meta?.description ? (
+          <p className="truncate text-[11px] text-muted-foreground">{meta.description}</p>
+        ) : null}
       </Field>
 
       {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
@@ -431,7 +505,7 @@ function BranchDropdown({
                 setOpen(false);
               }}
               className={cn(
-                "interactive flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[12.5px] hover:bg-secondary",
+                "interactive flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[12px] hover:bg-secondary",
                 b === value ? "font-semibold text-foreground" : "text-muted-foreground",
               )}
             >
@@ -455,7 +529,7 @@ const inputCls =
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-[12.5px] font-medium">{label}</span>
+      <span className="text-[12px] font-medium">{label}</span>
       {children}
     </label>
   );
@@ -472,7 +546,7 @@ function SubmitButton({
     <button
       type="submit"
       disabled={disabled}
-      className="interactive w-full rounded-full bg-primary py-2 text-[12.5px] font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
+      className="interactive w-full rounded-full bg-primary py-2 text-[12px] font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
     >
       {children}
     </button>
