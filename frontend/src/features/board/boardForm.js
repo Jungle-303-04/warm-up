@@ -24,7 +24,7 @@ export function buildBoardForm(board) {
   return {
     title: board.title || '',
     content: board.content || '',
-    tag: board.tag || '',
+    tag: formatBoardTagInput(board.tag || ''),
     assigneeUserIds: formatIdsForInput(board.assignee_user_ids),
     participantUserIds: formatIdsForInput(board.participant_user_ids),
     carbonCopyUserIds: formatIdsForInput(board.carbon_copy_user_ids),
@@ -95,6 +95,31 @@ export function getTaskStatusLabel(status) {
   return labels[status] || `상태 ${status}`
 }
 
+export function getBoardAuthorLabel(board) {
+  return (
+    board.author_display_name
+    || board.author_name
+    || board.author_login
+    || `사용자 ${board.user_id}`
+  )
+}
+
+export function getBoardTags(board) {
+  return parseBoardTags(board.tag || '')
+}
+
+export function getBoardTagLabel(tag) {
+  return `#${normalizeBoardTag(tag)}`
+}
+
+export function normalizeBoardTag(tag) {
+  return String(tag || '')
+    .trim()
+    .replace(/^#+/, '')
+    .replace(/^[,，]+|[,，]+$/g, '')
+    .trim()
+}
+
 export function calculateScheduleTaskProgress(tasks) {
   if (!tasks?.length) {
     return null
@@ -134,7 +159,7 @@ function buildBoardPayload(boardType, form) {
     board_type: boardType,
     title: form.title.trim(),
     content: form.content.trim(),
-    tag: form.tag.trim() || null,
+    tag: normalizeBoardTagInput(form.tag),
     assignee_user_ids: parseIdList(form.assigneeUserIds),
     participant_user_ids: parseIdList(form.participantUserIds),
     carbon_copy_user_ids: parseIdList(form.carbonCopyUserIds),
@@ -159,6 +184,33 @@ function buildBoardPayload(boardType, form) {
   }
 
   return payload
+}
+
+function normalizeBoardTagInput(value) {
+  const tags = parseBoardTags(value)
+  return tags.length ? tags.map(getBoardTagLabel).join(' ') : null
+}
+
+function formatBoardTagInput(value) {
+  const tags = parseBoardTags(value)
+  return tags.map(getBoardTagLabel).join(' ')
+}
+
+function parseBoardTags(value) {
+  const tagText = String(value || '').trim()
+  if (!tagText) {
+    return []
+  }
+
+  const rawTags = tagText.includes('#')
+    ? tagText.split('#')
+    : tagText.split(/[\s,，]+/)
+
+  const tags = rawTags
+    .map(normalizeBoardTag)
+    .filter(Boolean)
+
+  return [...new Set(tags)]
 }
 
 function formatIdsForInput(ids) {

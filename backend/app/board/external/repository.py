@@ -3,6 +3,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth.external.model import GitHubOAuthAccount
 from app.board.api.schema import (
     BoardPageResponse,
     BoardResponse,
@@ -144,6 +145,8 @@ def delete_board(db: Session, board_id: int) -> bool:
 def convert_to_board_response(db: Session, board: Board) -> BoardResponse:
     """분리된 보드 테이블들을 프론트가 쓰는 단일 응답 DTO로 조립한다."""
 
+    author = select_author_account(db, board.user_id)
+
     return BoardResponse(
         id=board.id,
         board_type=board.board_type,
@@ -151,6 +154,9 @@ def convert_to_board_response(db: Session, board: Board) -> BoardResponse:
         content=board.content,
         tag=board.tag,
         user_id=board.user_id,
+        author_display_name=build_author_display_name(author, board.user_id),
+        author_login=author.login if author else None,
+        author_name=author.name if author else None,
         created_at=board.created_at,
         updated_at=board.updated_at,
         assignee_user_ids=select_related_user_ids(db, BoardAssignee, board.id),
@@ -160,6 +166,26 @@ def convert_to_board_response(db: Session, board: Board) -> BoardResponse:
         schedule_board_tasks=select_schedule_tasks(db, board.id),
         proceedings_board_detail=select_proceedings_detail(db, board.id),
     )
+
+
+def select_author_account(db: Session, user_id: int) -> GitHubOAuthAccount | None:
+    """내부 user_id를 화면에 보여줄 GitHub 계정 정보로 바꾼다."""
+
+    return db.scalar(
+        select(GitHubOAuthAccount).where(GitHubOAuthAccount.user_id == user_id)
+    )
+
+
+def build_author_display_name(
+    author: GitHubOAuthAccount | None,
+    user_id: int,
+) -> str:
+    """이름이 있으면 이름, 없으면 GitHub login, 둘 다 없으면 내부 id fallback을 사용한다."""
+
+    if author is None:
+        return f"사용자 {user_id}"
+
+    return author.name or author.login or f"사용자 {user_id}"
 
 
 def build_board(request: CreateBoard | UpdateBoard) -> Board:

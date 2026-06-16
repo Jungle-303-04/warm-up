@@ -71,6 +71,9 @@ class BoardResponse(BaseModel):
     content: str
     tag: str | None = None
     user_id: int
+    author_display_name: str | None = None
+    author_login: str | None = None
+    author_name: str | None = None
     created_at: datetime
     updated_at: datetime
 

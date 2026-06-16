@@ -5,7 +5,13 @@ import {
   DEFAULT_BOARD_SEARCH_FILTERS,
   filterBoards,
 } from './boardFilters'
-import { formatDateTime, getBoardTypeLabel } from './boardForm'
+import {
+  formatDateTime,
+  getBoardAuthorLabel,
+  getBoardTagLabel,
+  getBoardTags,
+  getBoardTypeLabel,
+} from './boardForm'
 
 export function BoardSearchPage({
   boards,
@@ -19,19 +25,31 @@ export function BoardSearchPage({
   const [searchKeyword, setSearchKeyword] = useState(
     initialFilters.searchKeyword || DEFAULT_BOARD_SEARCH_FILTERS.searchKeyword,
   )
+  const [tagFilter, setTagFilter] = useState(
+    initialFilters.tagFilter || DEFAULT_BOARD_SEARCH_FILTERS.tagFilter,
+  )
   const [sortOrder, setSortOrder] = useState('newest')
   const filteredBoards = useMemo(
-    () => sortBoards(filterBoards(boards, boardTypeFilter, searchKeyword), sortOrder),
-    [boards, boardTypeFilter, searchKeyword, sortOrder],
+    () => sortBoards(filterBoards(boards, boardTypeFilter, searchKeyword, tagFilter), sortOrder),
+    [boards, boardTypeFilter, searchKeyword, tagFilter, sortOrder],
   )
   const hasSearchKeyword = searchKeyword.trim().length > 0
+  const hasTagFilter = tagFilter.trim().length > 0
   const hasTypeFilter = boardTypeFilter !== DEFAULT_BOARD_SEARCH_FILTERS.boardTypeFilter
   const resultLabel = buildResultLabel({
     hasSearchKeyword,
+    hasTagFilter,
     hasTypeFilter,
     count: filteredBoards.length,
     totalCount: boards.length,
+    tagFilter,
   })
+
+  function applyTagFilter(tag) {
+    setBoardTypeFilter(DEFAULT_BOARD_SEARCH_FILTERS.boardTypeFilter)
+    setSearchKeyword(DEFAULT_BOARD_SEARCH_FILTERS.searchKeyword)
+    setTagFilter(tag)
+  }
 
   return (
     <section className="board-search-page" aria-labelledby="board-search-title">
@@ -54,7 +72,7 @@ export function BoardSearchPage({
               type="search"
               value={searchKeyword}
               onChange={(event) => setSearchKeyword(event.target.value)}
-              placeholder="제목, 내용, 태그"
+              placeholder="제목, 내용, 태그, 작성자"
             />
           </label>
         </div>
@@ -87,31 +105,53 @@ export function BoardSearchPage({
         </button>
       </div>
 
+      {hasTagFilter ? (
+        <div className="board-active-filters" aria-label="적용된 게시글 필터">
+          <button
+            type="button"
+            className="board-tag-button"
+            onClick={() => setTagFilter('')}
+          >
+            {getBoardTagLabel(tagFilter)} 지우기
+          </button>
+        </div>
+      ) : null}
+
       {filteredBoards.length ? (
         <ul className="board-search-list">
           {filteredBoards.map((board) => (
-            <li key={board.id}>
-              <button type="button" onClick={() => onOpenBoard(board.id)}>
+            <li className="board-search-card" key={board.id}>
+              <button
+                type="button"
+                className="board-search-open-button"
+                onClick={() => onOpenBoard(board.id, {
+                  boardTypeFilter,
+                  searchKeyword,
+                  tagFilter,
+                })}
+              >
                 <span className="board-search-type">
                   {getBoardTypeLabel(board.board_type)}
                 </span>
                 <strong>{board.title}</strong>
                 <p>{buildBoardExcerpt(board.content)}</p>
-                <dl className="board-search-meta" aria-label={`${board.title} 게시글 정보`}>
-                  <div>
-                    <dt>작성자</dt>
-                    <dd>{board.user_id}</dd>
-                  </div>
-                  <div>
-                    <dt>작성일</dt>
-                    <dd>{formatDateTime(board.created_at)}</dd>
-                  </div>
-                  <div>
-                    <dt>태그</dt>
-                    <dd>{board.tag ? `#${board.tag}` : '-'}</dd>
-                  </div>
-                </dl>
               </button>
+              <dl className="board-search-meta" aria-label={`${board.title} 게시글 정보`}>
+                <div>
+                  <dt>작성자</dt>
+                  <dd>{getBoardAuthorLabel(board)}</dd>
+                </div>
+                <div>
+                  <dt>작성일</dt>
+                  <dd>{formatDateTime(board.created_at)}</dd>
+                </div>
+                <div>
+                  <dt>태그</dt>
+                  <dd>
+                    <BoardTagList tags={getBoardTags(board)} onSelectTag={applyTagFilter} />
+                  </dd>
+                </div>
+              </dl>
             </li>
           ))}
         </ul>
@@ -119,6 +159,27 @@ export function BoardSearchPage({
         <p className="calendar-empty">조건에 맞는 게시글이 없습니다.</p>
       )}
     </section>
+  )
+}
+
+function BoardTagList({ tags, onSelectTag }) {
+  if (!tags.length) {
+    return '-'
+  }
+
+  return (
+    <span className="board-tag-list">
+      {tags.map((tag) => (
+        <button
+          type="button"
+          className="board-tag-button"
+          key={tag}
+          onClick={() => onSelectTag(tag)}
+        >
+          {getBoardTagLabel(tag)}
+        </button>
+      ))}
+    </span>
   )
 }
 
@@ -132,7 +193,18 @@ function buildBoardExcerpt(content) {
   return `${normalizedContent.slice(0, 120)}...`
 }
 
-function buildResultLabel({ hasSearchKeyword, hasTypeFilter, count, totalCount }) {
+function buildResultLabel({
+  hasSearchKeyword,
+  hasTagFilter,
+  hasTypeFilter,
+  count,
+  totalCount,
+  tagFilter,
+}) {
+  if (hasTagFilter) {
+    return `${getBoardTagLabel(tagFilter)} 태그 게시글 ${count}개`
+  }
+
   if (hasSearchKeyword) {
     return `검색 결과 ${count}개`
   }

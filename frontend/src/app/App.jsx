@@ -172,7 +172,7 @@ function App() {
       // Expected query:
       // {
       //   title?: string | null,
-      //   tag?: string | null,
+      //   tag?: string | null, // "#기획 #회의"처럼 #으로 구분된 복수 태그 문자열
       //   page: number,
       //   size: number
       // }
@@ -185,8 +185,11 @@ function App() {
       //     board_type: 1 | 2 | 3,
       //     title: string,
       //     content: string,
-      //     tag?: string | null,
+      //     tag?: string | null, // "#기획 #회의"처럼 #으로 구분된 복수 태그 문자열
       //     user_id: number,
+      //     author_display_name?: string | null,
+      //     author_login?: string | null,
+      //     author_name?: string | null,
       //     created_at: string,
       //     updated_at: string,
       //     schedule_board_detail?: {
@@ -386,8 +389,11 @@ function App() {
       //   board_type: 1 | 2 | 3,
       //   title: string,
       //   content: string,
-      //   tag?: string | null,
+      //   tag?: string | null, // "#기획 #회의"처럼 #으로 구분된 복수 태그 문자열
       //   user_id: number,
+      //   author_display_name?: string | null,
+      //   author_login?: string | null,
+      //   author_name?: string | null,
       //   created_at: string,
       //   updated_at: string,
       //   assignee_user_ids: number[],
@@ -478,6 +484,13 @@ function App() {
     window.history.pushState({ boardSearch: true }, '', '#board/search')
   }
 
+  function openBoardTagSearch(tag) {
+    openBoardSearchPage({
+      ...DEFAULT_BOARD_SEARCH_FILTERS,
+      tagFilter: tag,
+    })
+  }
+
   function openRepositoryAnalysis() {
     setSelectedBoard(null)
     setIsCreatingBoard(false)
@@ -527,7 +540,7 @@ function App() {
       //   board_type: 1 | 2 | 3,
       //   title: string,
       //   content: string,
-      //   tag?: string | null,
+      //   tag?: string | null, // "#기획 #회의"처럼 #으로 구분된 복수 태그 문자열
       //   assignee_user_ids: number[],
       //   participant_user_ids: number[],
       //   carbon_copy_user_ids: number[],
@@ -592,7 +605,7 @@ function App() {
       //   board_type: 1 | 2 | 3,
       //   title: string,
       //   content: string,
-      //   tag?: string | null,
+      //   tag?: string | null, // "#기획 #회의"처럼 #으로 구분된 복수 태그 문자열
       //   assignee_user_ids: number[],
       //   participant_user_ids: number[],
       //   carbon_copy_user_ids: number[],
@@ -946,6 +959,7 @@ function App() {
                 onUpdate={(payload, uiOptions) =>
                   updateBoardDetail(selectedBoard.id, payload, uiOptions)}
                 onDelete={() => void deleteBoardDetail(selectedBoard.id)}
+                onOpenTagSearch={openBoardTagSearch}
               />
             ) : isCreatingBoard ? (
               <BoardCreatePanel
@@ -961,9 +975,9 @@ function App() {
                 boards={boards}
                 initialFilters={boardSearchFilters}
                 onBack={returnToMainPage}
-                onOpenBoard={(boardId) =>
+                onOpenBoard={(boardId, currentFilters = boardSearchFilters) =>
                   void openBoardDetail(boardId, {
-                    backToSearchFilters: boardSearchFilters,
+                    backToSearchFilters: currentFilters,
                   })}
               />
             ) : isRepositoryPageOpen ? (

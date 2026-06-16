@@ -67,7 +67,7 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
     //   board_type: 1 | 2 | 3,
     //   title: string,
     //   content: string,
-    //   tag?: string | null,
+    //   tag?: string | null, // "#기획 #회의"처럼 #으로 구분된 복수 태그 문자열
     //   assignee_user_ids: number[],
     //   participant_user_ids: number[],
     //   carbon_copy_user_ids: number[],
@@ -129,7 +129,7 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
               type="text"
               value={form.tag}
               onChange={(event) => updateField('tag', event.target.value)}
-              placeholder="calendar"
+              placeholder="#기획 #회의"
             />
           </label>
           <label className="board-field board-color-field">
@@ -171,7 +171,7 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
                 type="text"
                 value={form.assigneeUserIds}
                 onChange={(event) => updateField('assigneeUserIds', event.target.value)}
-                placeholder="1, 2"
+                placeholder="예: 102, 245"
               />
             </label>
             <label className="board-field">
@@ -180,7 +180,7 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
                 type="text"
                 value={form.participantUserIds}
                 onChange={(event) => updateField('participantUserIds', event.target.value)}
-                placeholder="1, 2"
+                placeholder="예: 102, 245"
               />
             </label>
             <label className="board-field">
@@ -189,7 +189,7 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
                 type="text"
                 value={form.carbonCopyUserIds}
                 onChange={(event) => updateField('carbonCopyUserIds', event.target.value)}
-                placeholder="1, 2"
+                placeholder="예: 102, 245"
               />
             </label>
           </div>

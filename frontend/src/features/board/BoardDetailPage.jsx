@@ -12,6 +12,9 @@ import {
   calculateScheduleTaskProgress,
   formatDateTime,
   formatIds,
+  getBoardAuthorLabel,
+  getBoardTagLabel,
+  getBoardTags,
   getBoardTypeLabel,
   getTaskStatusLabel,
 } from './boardForm'
@@ -24,8 +27,11 @@ import {
 //   board_type: 1 | 2 | 3,
 //   title: string,
 //   content: string,
-//   tag?: string | null,
+//   tag?: string | null, // "#기획 #회의"처럼 #으로 구분된 복수 태그 문자열
 //   user_id: number,
+//   author_display_name?: string | null,
+//   author_login?: string | null,
+//   author_name?: string | null,
 //   created_at: string,
 //   updated_at: string,
 //   assignee_user_ids: number[],
@@ -44,9 +50,16 @@ import {
 //   proceedings_board_detail?: {
 //     meeting_date: string
 //   } | null
-//   ui_event_color?: string // 프론트 localStorage에서 붙이는 캘린더 표시 색상이다.
+//   ui_event_color?: string // 프론트 localStorage에서 붙이는 캘린더/작업 소화율 표시 색상이다.
 // }
-export function BoardDetailPage({ board, isSaving, onBack, onUpdate, onDelete }) {
+export function BoardDetailPage({
+  board,
+  isSaving,
+  onBack,
+  onUpdate,
+  onDelete,
+  onOpenTagSearch,
+}) {
   const [isEditing, setIsEditing] = useState(false)
   const [form, setForm] = useState(() => buildBoardForm(board))
   const boardTypeLabel = getBoardTypeLabel(board.board_type)
@@ -153,17 +166,18 @@ export function BoardDetailPage({ board, isSaving, onBack, onUpdate, onDelete })
           onSubmit={submitUpdate}
         />
       ) : (
-        <BoardReadView board={board} />
+        <BoardReadView board={board} onOpenTagSearch={onOpenTagSearch} />
       )}
     </article>
   )
 }
 
-function BoardReadView({ board }) {
+function BoardReadView({ board, onOpenTagSearch }) {
+  const tags = getBoardTags(board)
+
   return (
     <>
       <header className="board-detail-header">
-        <p className="eyebrow">게시글 상세</p>
         <h2 id="board-detail-title">{board.title}</h2>
         <dl className="board-detail-meta board-detail-meta-inline" aria-label="게시글 기본 정보">
           <div>
@@ -172,11 +186,13 @@ function BoardReadView({ board }) {
           </div>
           <div>
             <dt>태그</dt>
-            <dd>{board.tag || '-'}</dd>
+            <dd>
+              <BoardTagList tags={tags} onSelectTag={onOpenTagSearch} />
+            </dd>
           </div>
           <div>
             <dt>작성자</dt>
-            <dd>{board.user_id}</dd>
+            <dd>{getBoardAuthorLabel(board)}</dd>
           </div>
           <div>
             <dt>생성일</dt>
@@ -215,6 +231,27 @@ function BoardReadView({ board }) {
   )
 }
 
+function BoardTagList({ tags, onSelectTag }) {
+  if (!tags.length) {
+    return '-'
+  }
+
+  return (
+    <span className="board-tag-list">
+      {tags.map((tag) => (
+        <button
+          type="button"
+          className="board-tag-button"
+          key={tag}
+          onClick={() => onSelectTag?.(tag)}
+        >
+          {getBoardTagLabel(tag)}
+        </button>
+      ))}
+    </span>
+  )
+}
+
 function BoardEditForm({
   board,
   form,
@@ -245,7 +282,7 @@ function BoardEditForm({
             type="text"
             value={form.tag}
             onChange={(event) => onChange('tag', event.target.value)}
-            placeholder="태그 없음"
+            placeholder="#기획 #회의"
           />
         </label>
         <label className="board-field board-color-field">
@@ -277,7 +314,7 @@ function BoardEditForm({
               type="text"
               value={form.assigneeUserIds}
               onChange={(event) => onChange('assigneeUserIds', event.target.value)}
-              placeholder="1, 2"
+              placeholder="예: 102, 245"
             />
           </label>
           <label className="board-field">
@@ -286,7 +323,7 @@ function BoardEditForm({
               type="text"
               value={form.participantUserIds}
               onChange={(event) => onChange('participantUserIds', event.target.value)}
-              placeholder="1, 2"
+              placeholder="예: 102, 245"
             />
           </label>
           <label className="board-field">
@@ -295,7 +332,7 @@ function BoardEditForm({
               type="text"
               value={form.carbonCopyUserIds}
               onChange={(event) => onChange('carbonCopyUserIds', event.target.value)}
-              placeholder="1, 2"
+              placeholder="예: 102, 245"
             />
           </label>
         </div>
@@ -480,7 +517,10 @@ function BoardTypeDetail({ board }) {
         </dl>
         {board.schedule_board_tasks?.length ? (
           <>
-            <ScheduleProgressSummary progressPercent={progressPercent} />
+            <ScheduleProgressSummary
+              progressPercent={progressPercent}
+              eventColor={board.ui_event_color}
+            />
             <ul className="board-task-list" aria-label="일정 작업 목록">
               {board.schedule_board_tasks.map((task) => (
                 <li key={task.id}>
@@ -516,9 +556,13 @@ function BoardTypeDetail({ board }) {
   return null
 }
 
-function ScheduleProgressSummary({ progressPercent }) {
+function ScheduleProgressSummary({ progressPercent, eventColor }) {
+  const progressStyle = eventColor
+    ? { '--board-progress-color': eventColor }
+    : undefined
+
   return (
-    <div className="schedule-progress-summary">
+    <div className="schedule-progress-summary" style={progressStyle}>
       <div className="schedule-progress-label">
         <span>작업 소화율</span>
         <strong>{progressPercent}%</strong>

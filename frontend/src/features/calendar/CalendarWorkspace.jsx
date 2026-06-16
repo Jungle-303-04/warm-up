@@ -124,7 +124,7 @@ export function CalendarWorkspace({
             type="search"
             value={searchKeyword}
             onChange={(event) => setSearchKeyword(event.target.value)}
-            placeholder="제목, 내용, 태그"
+            placeholder="제목, 내용, 태그, 작성자"
           />
         </label>
       </div>
@@ -260,8 +260,11 @@ function mapBasicBoardToCalendarEvent(board) {
 //   board_type: 2,
 //   title: string,
 //   content: string,
-//   tag?: string | null,
+//   tag?: string | null, // "#기획 #회의"처럼 #으로 구분된 복수 태그 문자열
 //   user_id: number,
+//   author_display_name?: string | null,
+//   author_login?: string | null,
+//   author_name?: string | null,
 //   schedule_board_detail: {
 //     start_at: string,
 //     end_at: string,
@@ -300,7 +303,7 @@ function mapScheduleBoardToCalendarEvent(board) {
 //   board_type: 3,
 //   title: string,
 //   content: string,
-//   tag?: string | null,
+//   tag?: string | null, // "#기획 #회의"처럼 #으로 구분된 복수 태그 문자열
 //   user_id: number,
 //   proceedings_board_detail: {
 //     meeting_date: string
