@@ -2,18 +2,13 @@ export function RepositoryWorkspace({
   repositoryFullName,
   branch,
   indexResult,
-  question,
-  answerResult,
   repositoryRuns,
   isLoading,
   isIndexing,
-  isAsking,
   isLoadingRepositoryRuns,
   onRepositoryChange,
   onBranchChange,
-  onQuestionChange,
   onIndexRepository,
-  onAskRepository,
   onReloadRepositoryRuns,
   onSelectRepositoryRun,
 }) {
@@ -39,17 +34,6 @@ export function RepositoryWorkspace({
       />
 
       {indexResult ? <RunSummary indexResult={indexResult} /> : null}
-
-      <RepositoryQuestionForm
-        question={question}
-        indexResult={indexResult}
-        isLoading={isLoading}
-        isAsking={isAsking}
-        onQuestionChange={onQuestionChange}
-        onSubmit={onAskRepository}
-      />
-
-      {answerResult ? <AnswerPanel answerResult={answerResult} /> : null}
     </section>
   )
 }
@@ -95,42 +79,6 @@ function RepositoryIndexForm({
 
       {isIndexing ? (
         <ProgressPanel message="레포지토리 전체 파일을 검사하고 있습니다." />
-      ) : null}
-    </form>
-  )
-}
-
-function RepositoryQuestionForm({
-  question,
-  indexResult,
-  isLoading,
-  isAsking,
-  onQuestionChange,
-  onSubmit,
-}) {
-  return (
-    <form className="workspace-form" onSubmit={onSubmit}>
-      <label>
-        <span>질문</span>
-        <textarea
-          value={question}
-          onChange={(event) => onQuestionChange(event.target.value)}
-          placeholder="이 레포 기준으로 다음 구현 계획을 제안해줘"
-          rows="4"
-          disabled={isLoading}
-        />
-      </label>
-
-      <button
-        type="submit"
-        className="primary-action"
-        disabled={isLoading || !indexResult}
-      >
-        {isAsking ? '답변 생성 중' : 'LLM 액션 실행'}
-      </button>
-
-      {isAsking ? (
-        <ProgressPanel message="저장된 RAG 근거를 찾고 LLM 답변을 생성하고 있습니다." />
       ) : null}
     </form>
   )
@@ -237,21 +185,6 @@ function RepositoryRunList({
           아직 분석된 레포지토리가 없습니다.
         </p>
       )}
-    </section>
-  )
-}
-
-function AnswerPanel({ answerResult }) {
-  return (
-    <section className="answer-panel" aria-label="LLM 답변">
-      <p>{answerResult.answer}</p>
-      <ul>
-        {answerResult.sources.map((source) => (
-          <li key={`${source.citation}-${source.distance}`}>
-            {source.citation}
-          </li>
-        ))}
-      </ul>
     </section>
   )
 }

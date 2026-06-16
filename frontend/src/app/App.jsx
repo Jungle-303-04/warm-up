@@ -4,6 +4,7 @@ import { AuthSection } from '../features/auth/AuthSection'
 import { BoardCreatePanel } from '../features/board/BoardCreatePanel'
 import { BoardDetailPage } from '../features/board/BoardDetailPage'
 import { CalendarWorkspace } from '../features/calendar/CalendarWorkspace'
+import { ChatbotDrawer } from '../features/chatbot/ChatbotDrawer'
 import { RepositoryWorkspace } from '../features/repository/RepositoryWorkspace'
 import {
   deleteJson,
@@ -32,8 +33,6 @@ function App() {
   const [branch, setBranch] = useState('')
   const [indexResult, setIndexResult] = useState(null)
   const [repositoryRuns, setRepositoryRuns] = useState([])
-  const [question, setQuestion] = useState('')
-  const [answerResult, setAnswerResult] = useState(null)
   const [boards, setBoards] = useState([])
   const [selectedBoard, setSelectedBoard] = useState(null)
   const [isCreatingBoard, setIsCreatingBoard] = useState(false)
@@ -45,7 +44,6 @@ function App() {
   const [activeAction, setActiveAction] = useState('')
 
   const isIndexing = activeAction === 'index'
-  const isAsking = activeAction === 'ask'
 
   const runAction = useCallback(async (action, message, callback) => {
     setIsLoading(true)
@@ -257,7 +255,6 @@ function App() {
       clearSession()
       setUser(null)
       setIndexResult(null)
-      setAnswerResult(null)
       setBoards([])
       setRepositoryRuns([])
       setSelectedBoard(null)
@@ -500,7 +497,6 @@ function App() {
     }
 
     await runAction('index', '레포지토리를 분석하고 DB에 저장하는 중입니다.', async () => {
-      setAnswerResult(null)
       // Backend: POST /rag/github/repository/index/store
       // Request DTO:
       // {
@@ -544,13 +540,11 @@ function App() {
   function updateRepositoryFullName(value) {
     setRepositoryFullName(value)
     setIndexResult(null)
-    setAnswerResult(null)
   }
 
   function updateBranch(value) {
     setBranch(value)
     setIndexResult(null)
-    setAnswerResult(null)
   }
 
   function selectRepositoryRun(run) {
@@ -567,54 +561,6 @@ function App() {
       vector_chunk_count: run.total_chunks,
       pipeline_result: null,
       indexed_at: run.indexed_at,
-    })
-    setAnswerResult(null)
-  }
-
-  async function askRepository(event) {
-    event.preventDefault()
-
-    if (!indexResult) {
-      setStatus({ type: 'error', message: '먼저 레포지토리 분석을 실행해 주세요.' })
-      return
-    }
-
-    const repositoryName = repositoryFullName.trim()
-    await runAction('ask', '저장된 근거로 답변을 생성하는 중입니다.', async () => {
-      // Backend: POST /rag/ask
-      // Request DTO:
-      // {
-      //   question: string,
-      //   repository_full_name: string,
-      //   branch?: string | null,
-      //   commit_sha?: string | null,
-      //   limit: number
-      // }
-      // Response DTO:
-      // {
-      //   answer: string,
-      //   repository_full_name?: string | null,
-      //   branch?: string | null,
-      //   commit_sha?: string | null,
-      //   run_id?: number | null,
-      //   sources: Array<{
-      //     citation: string,
-      //     path: string,
-      //     chunk_type: string,
-      //     distance?: number | null
-      //   }>
-      // }
-      const payload = await postJson(`${API_BASE_URL}/rag/ask`, {
-        question,
-        repository_full_name: repositoryName,
-        branch: branch.trim() || null,
-        commit_sha: indexResult.commit_sha || indexResult.pipeline_result?.commit_sha || null,
-        limit: 5,
-      })
-      setAnswerResult(payload)
-      const successMessage = 'LLM 액션이 완료되었습니다.'
-      setStatus({ type: 'success', message: successMessage })
-      window.alert(successMessage)
     })
   }
 
@@ -703,23 +649,23 @@ function App() {
                   repositoryFullName={repositoryFullName}
                   branch={branch}
                   indexResult={indexResult}
-                  question={question}
-                  answerResult={answerResult}
                   repositoryRuns={repositoryRuns}
                   isLoading={isLoading}
                   isIndexing={isIndexing}
-                  isAsking={isAsking}
                   isLoadingRepositoryRuns={isLoadingRepositoryRuns}
                   onRepositoryChange={updateRepositoryFullName}
                   onBranchChange={updateBranch}
-                  onQuestionChange={setQuestion}
                   onIndexRepository={indexRepository}
-                  onAskRepository={askRepository}
                   onReloadRepositoryRuns={() => void loadRepositoryRuns({ notify: true })}
                   onSelectRepositoryRun={selectRepositoryRun}
                 />
               </>
             )}
+            <ChatbotDrawer
+              repositoryFullName={repositoryFullName}
+              branch={branch}
+              indexResult={indexResult}
+            />
           </>
         ) : null}
       </AuthSection>
