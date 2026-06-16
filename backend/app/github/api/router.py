@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from app.api.errors import http_error
 from app.api.responses import BAD_REQUEST_RESPONSE
+from app.auth.dependencies import get_current_claims
 from app.config import Settings, get_settings
 from app.github.api.schemas import (
     PublishProposalRequest,
@@ -75,6 +76,7 @@ def publish_proposal(
     body: PublishProposalRequest,
     client: GitHubCommentClient = Depends(get_comment_client),
     proposals: ProposalReviewService = Depends(get_proposal_review_service),
+    _claims = Depends(get_current_claims),
 ) -> PublishProposalResponse:
     def run() -> PublishProposalResponse:
         record = proposals.get(proposal_id)

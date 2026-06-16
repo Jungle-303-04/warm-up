@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Response, status
 
 from app.api.errors import http_error
 from app.api.responses import BAD_REQUEST_RESPONSE
+from app.auth.dependencies import get_current_claims
 from app.config import Settings, get_settings
 from app.repo_rag.api.schemas import (
     RepoRagSearchHit,
@@ -19,7 +20,7 @@ from app.repo_rag.dependencies import (
     get_uow_factory,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_claims)])
 
 
 @router.post("/sync", status_code=status.HTTP_200_OK, responses=BAD_REQUEST_RESPONSE)

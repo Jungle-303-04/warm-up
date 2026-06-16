@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.api.errors import http_error
 from app.api.responses import BAD_REQUEST_RESPONSE
+from app.auth.dependencies import get_current_claims
 from app.pipeline import (
     PipelineRequest,
     PipelineResponse,
@@ -9,7 +10,7 @@ from app.pipeline import (
 from app.pipeline.application.service import PipelineService
 from app.pipeline.dependencies import get_pipeline_service
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_claims)])
 
 
 @router.post(
