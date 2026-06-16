@@ -42,7 +42,7 @@ export function Modal({
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-card text-card-foreground shadow-elev-3",
+          "flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-card text-card-foreground shadow-lg",
           className,
         )}
       >
@@ -50,7 +50,7 @@ export function Modal({
           <h2 className="text-[15px] font-semibold">{title}</h2>
           <IconButton name="close" label="닫기" size={16} onClick={onClose} />
         </header>
-        <div className="scroll-thin overflow-y-auto p-5">{children}</div>
+        <div className="overflow-y-auto p-5">{children}</div>
       </div>
     </div>
   );

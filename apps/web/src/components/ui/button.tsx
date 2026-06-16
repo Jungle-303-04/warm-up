@@ -61,7 +61,7 @@ export function Button({
       type={type}
       disabled={disabled || loading}
       className={cn(
-        "interactive inline-flex shrink-0 items-center justify-center font-medium",
+        "transition-all duration-200 ease-in-out inline-flex shrink-0 items-center justify-center font-medium",
         pill ? "rounded-full" : "rounded-lg",
         "disabled:cursor-not-allowed",
         SIZE[size],

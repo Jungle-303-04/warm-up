@@ -28,7 +28,7 @@ export function IconButton({
       disabled={disabled || preparing}
       onClick={onClick}
       className={cn(
-        "interactive grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+        "transition-all duration-200 ease-in-out grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
         className,
       )}
     >

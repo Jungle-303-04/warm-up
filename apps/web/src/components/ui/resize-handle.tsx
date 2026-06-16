@@ -85,7 +85,7 @@ export function ResizeHandle({
       {/* 시각 막대: hover/drag/focus 시 primary 톤 하이라이트. */}
       <span
         aria-hidden
-        className="interactive h-10 w-full rounded-full bg-border group-hover:bg-primary/60 group-focus-visible:bg-primary group-active:bg-primary"
+        className="transition-all duration-200 ease-in-out h-10 w-full rounded-full bg-border group-hover:bg-primary/60 group-focus-visible:bg-primary group-active:bg-primary"
       />
     </div>
   );
