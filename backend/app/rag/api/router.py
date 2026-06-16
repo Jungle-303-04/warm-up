@@ -1,10 +1,8 @@
 from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.auth.api.dependencies import AUTH_COOKIE_NAME, resolve_github_account
-from app.auth.domain.errors import AuthTokenError
-from app.auth.service.ports import AuthServicePort
+from app.auth.api.dependencies import AuthRequestContext, resolve_auth_context
 from app.container import AppContainer
 from app.db.session import get_session
 from app.rag.api.schema import (
@@ -67,26 +65,18 @@ def store_github_rag_index(
 @inject
 def store_github_repository_rag_index(
     request: GitHubRepositoryIndexRequestDTO,
-    authorization: str | None = Header(default=None),
-    auth_cookie: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
-    db: Session = Depends(get_session),
-    auth_service: AuthServicePort = Depends(Provide[AppContainer.auth_service]),
+    auth_context: AuthRequestContext = Depends(resolve_auth_context),
     index_service: IndexUseCase = Depends(Provide[AppContainer.rag_index_service]),
 ) -> RagStoredIndexResponseDTO:
     """로그인 사용자의 GitHub 토큰으로 레포 파일을 수집해 RAG 저장소에 인덱싱한다."""
 
     try:
-        account = resolve_github_account(db, auth_service, authorization, auth_cookie)
+        account = auth_context.github_account()
         return index_service.index_repository_and_store(
-            db=db,
+            db=auth_context.db,
             request=request,
             github_access_token=account.access_token,
         )
-    except AuthTokenError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
-        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -99,25 +89,17 @@ def store_github_repository_rag_index(
     tags=["rag"],
     response_model=RagAskResponseDTO,
 )
-@inject # dependancy injection
+@inject
 def ask_repository_rag(
     request: RagAskRequestDTO,
-    authorization: str | None = Header(default=None), # read Authorization in HTTP header
-    auth_cookie: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME), # get login token in cookie
-    db: Session = Depends(get_session), # db session injection
-    auth_service: AuthServicePort = Depends(Provide[AppContainer.auth_service]),
+    auth_context: AuthRequestContext = Depends(resolve_auth_context),
     answer_service: AnswerUseCase = Depends(Provide[AppContainer.rag_answer_service]),
 ) -> RagAskResponseDTO:
     """저장된 RAG 근거를 검색하고 LLM 답변과 출처를 함께 반환한다."""
 
     try:
-        resolve_github_account(db, auth_service, authorization, auth_cookie)
-        return answer_service.answer(db, request)
-    except AuthTokenError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
-        ) from exc
+        auth_context.github_account()
+        return answer_service.answer(auth_context.db, request)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

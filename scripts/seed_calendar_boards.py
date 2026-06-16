@@ -4,9 +4,24 @@ import os
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+
+def read_demo_user_id() -> int:
+    value = os.getenv("CALENDAR_SEED_USER_ID")
+    if value is None or not value.strip():
+        raise SystemExit(
+            "CALENDAR_SEED_USER_ID is required. "
+            "Use the internal DB user_id from the logged-in GitHub account."
+        )
+
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise SystemExit("CALENDAR_SEED_USER_ID must be an integer.") from exc
+
+
 API_BASE_URL = os.getenv("CALENDAR_SEED_API_BASE_URL", "http://localhost:8000")
 DEMO_TAG = "calendar-demo"
-DEMO_USER_ID = int(os.getenv("CALENDAR_SEED_USER_ID", "1"))
+DEMO_USER_ID = read_demo_user_id()
 
 
 def main() -> None:

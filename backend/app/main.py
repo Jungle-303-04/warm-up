@@ -6,15 +6,15 @@ from sqlalchemy import text
 
 from app.container import container
 from app.db.base import Base
-from app.db.session import SessionLocal, engine
+from app.db.session import engine
 from app.agent.api import router as agent_router_module
+from app.auth.api import dependencies as auth_dependencies_module
 from app.auth.api import router as auth_router_module
 from app.auth.external import model as auth_model
 from app.board.api import router as board_router_module
 from app.board.external import model as board_model
 from app.rag.api import router as rag_router_module
 from app.rag.external import model as rag_model
-from app.user.external.model import User
 
 
 def wire_container(app: FastAPI) -> None:
@@ -24,6 +24,7 @@ def wire_container(app: FastAPI) -> None:
     container.wire(
         modules=[
             agent_router_module,
+            auth_dependencies_module,
             rag_router_module,
             auth_router_module,
             board_router_module,
@@ -50,16 +51,6 @@ def create_database_tables() -> None:
     Base.metadata.create_all(bind=engine)
 
 
-def create_test_user() -> None:
-    """기존 board API 테스트가 user_id=1을 바로 사용할 수 있게 기본 사용자를 보장한다."""
-
-    with SessionLocal() as session:
-        user = session.get(User, 1)
-        if user is None:
-            session.add(User(id=1))
-            session.commit()
-
-
 def unwire_container() -> None:
     """앱 종료 시 라우터에 연결된 provider wiring을 정리한다."""
 
@@ -74,7 +65,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     check_database_connection()
     check_vector_database_connection()
     create_database_tables()
-    create_test_user()
 
     yield
 
