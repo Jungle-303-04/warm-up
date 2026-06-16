@@ -1,6 +1,12 @@
 export const BASIC_BOARD_TYPE = 1
 export const SCHEDULE_BOARD_TYPE = 2
 export const PROCEEDINGS_BOARD_TYPE = 3
+export const TASK_STATUS_OPTIONS = [
+  { value: '1', label: '대기' },
+  { value: '2', label: '진행' },
+  { value: '3', label: '완료' },
+  { value: '4', label: '보류' },
+]
 
 export function buildBoardForm(board) {
   return {
@@ -39,7 +45,7 @@ export function buildCreateForm(initialStartDate = null) {
     scheduleStartAt: toDateTimeInputValue(start.toISOString()),
     scheduleEndAt: toDateTimeInputValue(end.toISOString()),
     importance: '5',
-    scheduleTasks: '',
+    scheduleTasks: [buildEmptyScheduleTask()],
     meetingDate: toDateTimeInputValue(start.toISOString()),
   }
 }
@@ -110,7 +116,7 @@ function buildBoardPayload(boardType, form) {
       end_at: toApiDateTime(form.scheduleEndAt),
       importance: Number(form.importance),
     }
-    payload.schedule_board_tasks = parseTaskLines(form.scheduleTasks)
+    payload.schedule_board_tasks = parseTaskRows(form.scheduleTasks)
   }
 
   if (boardType === PROCEEDINGS_BOARD_TYPE) {
@@ -137,24 +143,33 @@ function parseIdList(value) {
 
 function formatTasksForInput(tasks) {
   return tasks?.length
-    ? tasks.map((task) => `${task.task_name}|${task.task_status}`).join('\n')
-    : ''
+    ? tasks.map((task) => ({
+      rowId: buildScheduleTaskRowId(),
+      taskName: task.task_name || '',
+      taskStatus: String(task.task_status || 1),
+    }))
+    : [buildEmptyScheduleTask()]
 }
 
-function parseTaskLines(value) {
-  return value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [taskName, rawStatus = '1'] = line.split('|')
-      const taskStatus = clampTaskStatus(Number(rawStatus.trim()))
-      return {
-        task_name: taskName.trim(),
-        task_status: taskStatus,
-      }
-    })
+function parseTaskRows(tasks) {
+  return tasks
+    .map((task) => ({
+      task_name: task.taskName.trim(),
+      task_status: clampTaskStatus(Number(task.taskStatus)),
+    }))
     .filter((task) => task.task_name)
+}
+
+export function buildEmptyScheduleTask() {
+  return {
+    rowId: buildScheduleTaskRowId(),
+    taskName: '',
+    taskStatus: '1',
+  }
+}
+
+function buildScheduleTaskRowId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 function clampTaskStatus(value) {

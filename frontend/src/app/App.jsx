@@ -31,9 +31,12 @@ import {
 } from './config'
 import './App.css'
 
+const THEME_STORAGE_KEY = 'warm-up-theme'
+
 function App() {
   const [status, setStatus] = useState(INITIAL_STATUS)
   const [user, setUser] = useState(null)
+  const [theme, setTheme] = useState(getInitialTheme)
   const [repositoryFullName, setRepositoryFullName] = useState('')
   const [branch, setBranch] = useState('')
   const [indexResult, setIndexResult] = useState(null)
@@ -54,6 +57,11 @@ function App() {
   const [activeAction, setActiveAction] = useState('')
 
   const isIndexing = activeAction === 'index'
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem(THEME_STORAGE_KEY, theme)
+  }, [theme])
 
   const runAction = useCallback(async (action, message, callback) => {
     setIsLoading(true)
@@ -481,6 +489,10 @@ function App() {
     window.history.pushState({ repositoryRunsPage: true }, '', '#repository/runs')
   }
 
+  function toggleTheme() {
+    setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))
+  }
+
   function selectRepositoryRunFromList(run) {
     selectRepositoryRun(run)
     setSelectedBoard(null)
@@ -812,6 +824,8 @@ function App() {
         onOpenBoardSearch={() => openBoardSearchPage()}
         onOpenRepositoryAnalysis={openRepositoryAnalysis}
         onOpenRepositoryRuns={openRepositoryRunsPage}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       >
         {user ? (
           <>
@@ -951,6 +965,15 @@ function buildIndexResultForUi(indexResult, latestRun) {
     ...indexResult,
     indexed_at: latestRun?.indexed_at || null,
   }
+}
+
+function getInitialTheme() {
+  const storedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+  if (storedTheme === 'dark' || storedTheme === 'light') {
+    return storedTheme
+  }
+
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 function toValidDateOrNull(value) {

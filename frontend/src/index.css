@@ -23,6 +23,28 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root[data-theme='light'] {
+  --surface: #f4f7f6;
+  --panel: #ffffff;
+  --field: #f8faf9;
+  --text: #4d5863;
+  --muted: #6f7c89;
+  --heading: #17202a;
+  --line: #dbe3e1;
+  --line-strong: #b8c5c1;
+}
+
+:root[data-theme='dark'] {
+  --surface: #111827;
+  --panel: #182231;
+  --field: #202c3a;
+  --text: #b6c0ca;
+  --muted: #8996a4;
+  --heading: #f4f7fb;
+  --line: #303d4c;
+  --line-strong: #526071;
+}
+
 body {
   margin: 0;
 }
@@ -32,7 +54,7 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --surface: #111827;
     --panel: #182231;
     --field: #202c3a;

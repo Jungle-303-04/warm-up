@@ -4,6 +4,8 @@ import {
   BASIC_BOARD_TYPE,
   PROCEEDINGS_BOARD_TYPE,
   SCHEDULE_BOARD_TYPE,
+  TASK_STATUS_OPTIONS,
+  buildEmptyScheduleTask,
   buildCreateForm,
   buildCreatePayload,
 } from './boardForm'
@@ -17,6 +19,32 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
       ...current,
       [fieldName]: value,
     }))
+  }
+
+  function addScheduleTask() {
+    setForm((current) => ({
+      ...current,
+      scheduleTasks: [...current.scheduleTasks, buildEmptyScheduleTask()],
+    }))
+  }
+
+  function updateScheduleTask(rowId, fieldName, value) {
+    setForm((current) => ({
+      ...current,
+      scheduleTasks: current.scheduleTasks.map((task) => (
+        task.rowId === rowId ? { ...task, [fieldName]: value } : task
+      )),
+    }))
+  }
+
+  function removeScheduleTask(rowId) {
+    setForm((current) => {
+      const nextTasks = current.scheduleTasks.filter((task) => task.rowId !== rowId)
+      return {
+        ...current,
+        scheduleTasks: nextTasks.length ? nextTasks : [buildEmptyScheduleTask()],
+      }
+    })
   }
 
   async function submitCreate(event) {
@@ -116,6 +144,9 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
           boardType={boardType}
           form={form}
           onChange={updateField}
+          onAddScheduleTask={addScheduleTask}
+          onUpdateScheduleTask={updateScheduleTask}
+          onRemoveScheduleTask={removeScheduleTask}
         />
 
         <section className="board-detail-section">
@@ -151,15 +182,24 @@ export function BoardCreatePanel({ initialStartDate, isSaving, onCancel, onCreat
           </div>
         </section>
 
-        <button type="submit" className="primary-action board-save-button" disabled={isSaving}>
-          {isSaving ? '등록 중' : '게시글 등록'}
-        </button>
+        <div className="board-form-actions">
+          <button type="submit" className="primary-action board-save-button" disabled={isSaving}>
+            {isSaving ? '등록 중' : '게시글 등록'}
+          </button>
+        </div>
       </form>
     </article>
   )
 }
 
-function BoardCreateTypeFields({ boardType, form, onChange }) {
+function BoardCreateTypeFields({
+  boardType,
+  form,
+  onChange,
+  onAddScheduleTask,
+  onUpdateScheduleTask,
+  onRemoveScheduleTask,
+}) {
   if (boardType === SCHEDULE_BOARD_TYPE) {
     return (
       <section className="board-detail-section">
@@ -195,15 +235,12 @@ function BoardCreateTypeFields({ boardType, form, onChange }) {
             />
           </label>
         </div>
-        <label className="board-field">
-          <span>작업 목록</span>
-          <textarea
-            value={form.scheduleTasks}
-            onChange={(event) => onChange('scheduleTasks', event.target.value)}
-            placeholder={'작업명|상태번호\n캘린더 이벤트 매핑|2'}
-            rows={4}
-          />
-        </label>
+        <ScheduleTaskRows
+          tasks={form.scheduleTasks}
+          onAdd={onAddScheduleTask}
+          onUpdate={onUpdateScheduleTask}
+          onRemove={onRemoveScheduleTask}
+        />
       </section>
     )
   }
@@ -226,4 +263,54 @@ function BoardCreateTypeFields({ boardType, form, onChange }) {
   }
 
   return null
+}
+
+function ScheduleTaskRows({ tasks, onAdd, onUpdate, onRemove }) {
+  return (
+    <section className="schedule-task-editor" aria-labelledby="schedule-task-create-title">
+      <div className="schedule-task-editor-header">
+        <h4 id="schedule-task-create-title">작업 목록</h4>
+        <button type="button" className="secondary-button compact" onClick={onAdd}>
+          작업 추가
+        </button>
+      </div>
+
+      <div className="schedule-task-rows">
+        {tasks.map((task, index) => (
+          <div className="schedule-task-row" key={task.rowId}>
+            <label className="board-field">
+              <span>{index + 1}번째 작업</span>
+              <input
+                type="text"
+                value={task.taskName}
+                onChange={(event) => onUpdate(task.rowId, 'taskName', event.target.value)}
+                placeholder="작업명을 입력하세요"
+              />
+            </label>
+            <label className="board-field">
+              <span>상태</span>
+              <select
+                value={task.taskStatus}
+                onChange={(event) => onUpdate(task.rowId, 'taskStatus', event.target.value)}
+              >
+                {TASK_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="danger-button compact"
+              onClick={() => onRemove(task.rowId)}
+              aria-label={`${index + 1}번째 작업 삭제`}
+            >
+              삭제
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
 }
