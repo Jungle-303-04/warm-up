@@ -1,7 +1,9 @@
 """노트북 의존성 배선.
 
-POSTGRES_DATABASE_URL이 있으면 SQL 저장소로 영속화하고, 없으면 in-memory로
-동작한다. 저장소는 프로세스 단일 인스턴스로 유지(lru_cache)한다.
+POSTGRES_DATABASE_URL이 있으면 SQL 저장소(+pgvector 청크 검색)로, 없으면
+in-memory로 동작한다. 임베딩은 기본 deterministic이라 외부 키 없이도
+인덱싱·검색·채팅이 모두 동작한다. 저장소/레지스트리는 프로세스 단일
+인스턴스(lru_cache)로 유지한다.
 """
 
 from functools import lru_cache
@@ -10,14 +12,27 @@ from fastapi import Depends
 
 from app.config import Settings, get_settings
 from app.notebooks.application.chat_service import ChatAnswerer, ChatService, TextChunk
+from app.notebooks.application.indexing_service import IndexingService
 from app.notebooks.application.service import NotebookService
-from app.notebooks.domain.ports import NotebookStore
+from app.notebooks.domain.indexing_progress import (
+    IndexProgressRegistry,
+    get_progress_registry,
+)
+from app.notebooks.domain.ports import ChunkStore, NotebookStore
+from app.notebooks.infrastructure.in_memory_chunk_store import InMemoryChunkStore
 from app.notebooks.infrastructure.in_memory_store import InMemoryNotebookStore
+from app.repo_rag.dependencies import build_embedding_client
+from app.repo_rag.domain.ports import EmbeddingClient
 
 
 @lru_cache(maxsize=1)
 def _in_memory_store() -> InMemoryNotebookStore:
     return InMemoryNotebookStore()
+
+
+@lru_cache(maxsize=1)
+def _in_memory_chunk_store() -> InMemoryChunkStore:
+    return InMemoryChunkStore()
 
 
 @lru_cache(maxsize=1)
@@ -33,14 +48,53 @@ def _sql_store() -> NotebookStore:
     return SqlNotebookStore(session_factory)
 
 
+@lru_cache(maxsize=1)
+def _sql_chunk_store() -> ChunkStore:
+    settings = get_settings()
+    if settings.postgres_database_url is None:
+        raise RuntimeError("POSTGRES_DATABASE_URL is required for SQL storage")
+
+    from app.notebooks.infrastructure.sql_chunk_store import SqlChunkStore
+    from app.repo_rag.infrastructure.db import create_db_engine, create_session_factory
+
+    session_factory = create_session_factory(create_db_engine(settings.postgres_database_url))
+    return SqlChunkStore(session_factory, text_config=settings.search_text_config)
+
+
 def get_notebook_store(settings: Settings = Depends(get_settings)) -> NotebookStore:
     return _sql_store() if settings.uses_postgres else _in_memory_store()
+
+
+def get_chunk_store(settings: Settings = Depends(get_settings)) -> ChunkStore:
+    return _sql_chunk_store() if settings.uses_postgres else _in_memory_chunk_store()
+
+
+def get_embedding_client(settings: Settings = Depends(get_settings)) -> EmbeddingClient:
+    return build_embedding_client(settings)
+
+
+def get_progress_registry_dep() -> IndexProgressRegistry:
+    return get_progress_registry()
 
 
 def get_notebook_service(
     store: NotebookStore = Depends(get_notebook_store),
 ) -> NotebookService:
     return NotebookService(store=store)
+
+
+def get_indexing_service(
+    store: NotebookStore = Depends(get_notebook_store),
+    chunk_store: ChunkStore = Depends(get_chunk_store),
+    embedder: EmbeddingClient = Depends(get_embedding_client),
+    registry: IndexProgressRegistry = Depends(get_progress_registry_dep),
+) -> IndexingService:
+    return IndexingService(
+        store=store,
+        chunk_store=chunk_store,
+        embedder=embedder,
+        registry=registry,
+    )
 
 
 def _build_llm_answerer(settings: Settings) -> ChatAnswerer | None:
@@ -81,6 +135,13 @@ def _build_llm_answerer(settings: Settings) -> ChatAnswerer | None:
 
 def get_notebook_chat_service(
     store: NotebookStore = Depends(get_notebook_store),
+    chunk_store: ChunkStore = Depends(get_chunk_store),
+    embedder: EmbeddingClient = Depends(get_embedding_client),
     settings: Settings = Depends(get_settings),
 ) -> ChatService:
-    return ChatService(store=store, answerer=_build_llm_answerer(settings))
+    return ChatService(
+        store=store,
+        chunk_store=chunk_store,
+        embedder=embedder,
+        answerer=_build_llm_answerer(settings),
+    )

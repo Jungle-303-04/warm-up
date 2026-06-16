@@ -28,4 +28,4 @@ class SqlGitHubTokenStore:
     def get(self, user_id: int) -> str | None:
         with session_scope(self._session_factory) as session:
             model = session.get(GitHubTokenModel, user_id)
-            return model.access_token if model is not None else None
+            return model.access_token if model is not None else None  # type: ignore[return-value]

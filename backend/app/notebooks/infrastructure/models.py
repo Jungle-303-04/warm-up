@@ -7,9 +7,15 @@ notebook_sources는 notebook_id FK(ON DELETE CASCADE)로 노트북에 종속된�
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Computed, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from app.config import get_settings
+
+EMBEDDING_DIMENSION = get_settings().embedding_dimension
+SEARCH_TEXT_CONFIG = get_settings().search_text_config
 
 
 class Base(DeclarativeBase):
@@ -60,4 +66,35 @@ class ChatMessageModel(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     citations: Mapped[list[dict]] = mapped_column(JSONB, nullable=False, default=list)
     source_ids: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class NotebookChunkModel(Base):
+    __tablename__ = "notebook_chunks"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    notebook_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("notebooks.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    source_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("notebook_sources.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    file_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    language: Mapped[str | None] = mapped_column(String, nullable=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(EMBEDDING_DIMENSION), nullable=True
+    )
+    content_tsv: Mapped[str | None] = mapped_column(
+        TSVECTOR,
+        Computed(f"to_tsvector('{SEARCH_TEXT_CONFIG}', text)", persisted=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

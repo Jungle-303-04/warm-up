@@ -2,6 +2,7 @@
 
 from typing import cast
 
+from app.notebooks.domain.chunk_records import NotebookChunk
 from app.notebooks.domain.records import (
     ChatMessageRecord,
     ChatRole,
@@ -9,7 +10,12 @@ from app.notebooks.domain.records import (
     SourceKind,
     SourceRecord,
 )
-from app.notebooks.infrastructure.models import ChatMessageModel, NotebookModel, SourceModel
+from app.notebooks.infrastructure.models import (
+    ChatMessageModel,
+    NotebookChunkModel,
+    NotebookModel,
+    SourceModel,
+)
 
 
 def notebook_to_model(record: NotebookRecord) -> NotebookModel:
@@ -82,5 +88,34 @@ def chat_message_to_record(model: ChatMessageModel) -> ChatMessageRecord:
         content=model.content,
         citations=model.citations or [],
         source_ids=model.source_ids,
+        created_at=model.created_at,
+    )
+
+
+def chunk_to_model(record: NotebookChunk) -> NotebookChunkModel:
+    return NotebookChunkModel(
+        id=record.id,
+        notebook_id=record.notebook_id,
+        source_id=record.source_id,
+        file_path=record.file_path,
+        chunk_index=record.chunk_index,
+        language=record.language,
+        text=record.text,
+        embedding=record.embedding,
+        created_at=record.created_at,
+    )
+
+
+def chunk_to_record(model: NotebookChunkModel) -> NotebookChunk:
+    embedding = model.embedding
+    return NotebookChunk(
+        id=model.id,
+        notebook_id=model.notebook_id,
+        source_id=model.source_id,
+        file_path=model.file_path,
+        chunk_index=model.chunk_index,
+        language=model.language,
+        text=model.text,
+        embedding=list(embedding) if embedding is not None else None,
         created_at=model.created_at,
     )

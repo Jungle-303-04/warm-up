@@ -39,7 +39,9 @@ class ChatRequest(BaseModel):
 class ChatCitationView(BaseModel):
     source_id: str
     source_title: str
+    # path는 기존 필드명을 유지하고, file_path를 별칭으로 함께 노출(프론트 호환).
     path: str | None = None
+    file_path: str | None = None
     snippet: str
 
     @classmethod
@@ -48,15 +50,18 @@ class ChatCitationView(BaseModel):
             source_id=record.source_id,
             source_title=record.source_title,
             path=record.path,
+            file_path=record.path,
             snippet=record.snippet,
         )
 
     @classmethod
     def from_payload(cls, payload: dict) -> "ChatCitationView":
+        path = payload.get("path") if payload.get("path") is not None else payload.get("file_path")
         return cls(
             source_id=str(payload.get("source_id") or ""),
             source_title=str(payload.get("source_title") or ""),
-            path=payload.get("path"),
+            path=path,
+            file_path=path,
             snippet=str(payload.get("snippet") or ""),
         )
 
@@ -214,3 +219,43 @@ class TreeResponse(BaseModel):
 class FileResponse(BaseModel):
     path: str
     content: str
+
+
+class IndexFileView(BaseModel):
+    path: str
+    language: str | None = None
+    supported: bool
+    status: str  # "queued" | "indexing" | "done" | "skipped" | "failed"
+    chunks: int
+
+
+class IndexProgressView(BaseModel):
+    source_id: str
+    notebook_id: str
+    status: str  # "queued" | "running" | "done" | "failed"
+    total_files: int
+    processed_files: int
+    skipped_files: int
+    total_chunks: int
+    indexed_chunks: int
+    percent: int
+    files: list[IndexFileView]
+    error: str | None = None
+    updated_at: str
+
+    @classmethod
+    def from_view(cls, view: dict) -> "IndexProgressView":
+        return cls(
+            source_id=view["source_id"],
+            notebook_id=view["notebook_id"],
+            status=view["status"],
+            total_files=view["total_files"],
+            processed_files=view["processed_files"],
+            skipped_files=view["skipped_files"],
+            total_chunks=view["total_chunks"],
+            indexed_chunks=view["indexed_chunks"],
+            percent=view["percent"],
+            files=[IndexFileView(**file) for file in view["files"]],
+            error=view["error"],
+            updated_at=view["updated_at"],
+        )

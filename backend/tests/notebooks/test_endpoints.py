@@ -1,7 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.auth.dependencies import get_current_claims
+from app.auth.domain.records import SessionClaims
 from app.main import app
+from app.notebooks.dependencies import _in_memory_chunk_store as _chunk_store
 from app.notebooks.dependencies import _in_memory_store as _store
 
 client = TestClient(app)
@@ -9,9 +12,13 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def _reset_store():
+    app.dependency_overrides[get_current_claims] = lambda: SessionClaims(user_id=1, login="t")
     _store.cache_clear()
+    _chunk_store.cache_clear()
     yield
+    app.dependency_overrides.clear()
     _store.cache_clear()
+    _chunk_store.cache_clear()
 
 
 def _create_notebook(title: str = "My NB", summary: str | None = "s") -> dict:
