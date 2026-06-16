@@ -10,7 +10,7 @@ interface QuickCard {
   tint: string; // .studio-tint-* 키
   title: string;
   desc: string;
-  action: "repo" | "file" | "url";
+  action: "link" | "file";
 }
 
 const CARDS: QuickCard[] = [
@@ -18,8 +18,8 @@ const CARDS: QuickCard[] = [
     icon: "github",
     tint: "teal",
     title: "GitHub 저장소 연결",
-    desc: "브랜치를 인덱싱해 코드 근거로 답합니다.",
-    action: "repo",
+    desc: "URL을 붙여넣으면 브랜치를 인식해 코드 근거로 답합니다.",
+    action: "link",
   },
   {
     icon: "description",
@@ -31,18 +31,17 @@ const CARDS: QuickCard[] = [
   {
     icon: "link",
     tint: "violet",
-    title: "URL 추가",
-    desc: "문서 페이지나 위키 링크를 소스로 등록합니다.",
-    action: "url",
+    title: "링크 추가",
+    desc: "문서 페이지·위키 링크나 GitHub 주소를 소스로 등록합니다.",
+    action: "link",
   },
 ];
 
 export function ChatEmpty() {
-  const { openFilePicker, openUrl, openRepo } = useSourceActions();
+  const { openFilePicker, openLink } = useSourceActions();
   const run = (action: QuickCard["action"]) => {
     if (action === "file") openFilePicker();
-    else if (action === "url") openUrl();
-    else openRepo();
+    else openLink();
   };
 
   return (
@@ -64,7 +63,7 @@ export function ChatEmpty() {
         <div className="mt-6 grid w-full gap-2.5 sm:grid-cols-3">
           {CARDS.map((c) => (
             <button
-              key={c.action}
+              key={c.title}
               type="button"
               onClick={() => run(c.action)}
               className="interactive group flex flex-col items-start gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-left hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2 active:scale-[0.99]"

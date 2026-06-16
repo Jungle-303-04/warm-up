@@ -127,6 +127,56 @@ export function getIndexProgress(nid: string, sid: string): Promise<IndexProgres
   return request(`/notebooks/${nid}/sources/${sid}/index`);
 }
 
+// ── GitHub 공개 API(브랜치 자동 인식) ─────────────────────────────
+// 비인증 fetch. 입력 URL이 github.com/{owner}/{repo} 형태일 때만 호출한다.
+// 실패/비공개/레이트리밋이면 null을 반환해 호출부가 수동 입력으로 폴백하게 한다.
+
+export interface GitHubRepoInfo {
+  owner: string;
+  repo: string;
+  defaultBranch: string;
+  branches: string[];
+}
+
+// 입력 문자열에서 owner/repo를 파싱. github.com 호스트가 아니면 null.
+export function parseGitHubRepo(input: string): { owner: string; repo: string } | null {
+  const url = input.trim();
+  if (!url) return null;
+  // https://github.com/owner/repo(.git)(/...) · github.com/owner/repo · git@github.com:owner/repo
+  const m = url.match(
+    /(?:^|\/\/|@)github\.com[/:]([^/\s]+)\/([^/\s#?]+?)(?:\.git)?(?:[/#?].*)?$/i,
+  );
+  if (!m) return null;
+  const owner = m[1];
+  const repo = m[2];
+  if (!owner || !repo) return null;
+  return { owner, repo };
+}
+
+// 공개 저장소의 default_branch + 브랜치 목록을 인식.
+// signal로 디바운스 중 취소 가능. 실패 시 throw(호출부에서 폴백 처리).
+export async function fetchGitHubRepoInfo(
+  owner: string,
+  repo: string,
+  signal?: AbortSignal,
+): Promise<GitHubRepoInfo> {
+  const base = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  const headers = { Accept: "application/vnd.github+json" };
+  // 1) default_branch
+  const repoRes = await fetch(base, { headers, signal });
+  if (!repoRes.ok) throw new Error(`GitHub 조회 실패 (${repoRes.status})`);
+  const repoJson = (await repoRes.json()) as { default_branch?: string };
+  const defaultBranch = repoJson.default_branch || "main";
+  // 2) 브랜치 목록(최대 100개)
+  const brRes = await fetch(`${base}/branches?per_page=100`, { headers, signal });
+  if (!brRes.ok) throw new Error(`브랜치 조회 실패 (${brRes.status})`);
+  const brJson = (await brRes.json()) as Array<{ name: string }>;
+  const names = brJson.map((b) => b.name);
+  // default_branch가 목록에 없으면 맨 앞에 보강.
+  const branches = names.includes(defaultBranch) ? names : [defaultBranch, ...names];
+  return { owner, repo, defaultBranch, branches };
+}
+
 // SSE 구독. 반환값 close()로 반드시 정리(EventSource 누수 방지).
 // onProgress: data 이벤트마다 호출, onDone: status done/failed로 종료 시 1회 호출.
 export function openIndexStream(

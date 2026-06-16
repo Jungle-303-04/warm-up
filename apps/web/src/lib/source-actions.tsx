@@ -15,15 +15,14 @@ import { createSource } from "./api";
 import { fileToSourceCreate } from "./file-source";
 import { useWorkspace } from "./store";
 
-// 소스 추가 흐름(파일선택·URL·레포)을 한 곳에서 소유한다.
+// 소스 추가 흐름(파일선택·링크)을 한 곳에서 소유한다.
 // 좌측 소스 패널과 가운데 온보딩 히어로가 동일한 흐름을 호출할 수 있도록
 // context로 노출한다(기능 계약 유지: createSource → addSource).
-type AddTab = "url" | "repo";
+// URL과 GitHub 레포는 단일 "링크 추가" 모달로 통합됐다.
 
 interface SourceActions {
   openFilePicker: () => void; // 숨긴 file input 트리거
-  openUrl: () => void; // URL 모달
-  openRepo: () => void; // GitHub 레포 모달
+  openLink: () => void; // 링크(URL·GitHub) 추가 모달
   busy: boolean; // 파일 처리 중
   error: string | null;
   // 드래그앤드롭에서 파일 일괄 처리(소스 패널이 직접 호출).
@@ -49,7 +48,7 @@ export function SourceActionsProvider({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [modal, setModal] = useState<{ open: boolean; tab: AddTab }>({ open: false, tab: "url" });
+  const [modalOpen, setModalOpen] = useState(false);
 
   // 파일 목록 순차 처리 → createSource → 스토어 반영. 실패는 모아서 표시.
   const processFiles = useCallback(
@@ -85,8 +84,7 @@ export function SourceActionsProvider({
   const value = useMemo<SourceActions>(
     () => ({
       openFilePicker: () => fileInputRef.current?.click(),
-      openUrl: () => setModal({ open: true, tab: "url" }),
-      openRepo: () => setModal({ open: true, tab: "repo" }),
+      openLink: () => setModalOpen(true),
       busy,
       error,
       processFiles,
@@ -106,12 +104,11 @@ export function SourceActionsProvider({
         onChange={onPick}
       />
       {children}
-      {/* URL·레포 추가 모달은 흐름의 단일 소유자인 Provider가 렌더한다. */}
+      {/* 링크(URL·GitHub) 추가 모달은 흐름의 단일 소유자인 Provider가 렌더한다. */}
       <SourceAddModal
-        open={modal.open}
-        initialTab={modal.tab}
+        open={modalOpen}
         notebookId={notebookId}
-        onClose={() => setModal((m) => ({ ...m, open: false }))}
+        onClose={() => setModalOpen(false)}
       />
     </Ctx.Provider>
   );

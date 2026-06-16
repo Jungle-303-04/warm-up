@@ -1,39 +1,34 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { createSource } from "../lib/api";
+import {
+  createSource,
+  fetchGitHubRepoInfo,
+  parseGitHubRepo,
+  type GitHubRepoInfo,
+} from "../lib/api";
 import { cn } from "../lib/cn";
 import { useWorkspace } from "../lib/store";
 import type { Source, SourceCreate } from "../lib/types";
+import { Collapse } from "./ui/collapse";
 import { Icon } from "./icon";
 import { Modal } from "./ui/modal";
 
-type Tab = "url" | "repo";
-
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "url", label: "URL", icon: "link" },
-  { id: "repo", label: "GitHub 레포", icon: "github" },
-];
-
-// URL · 레포 추가 모달.
+// 링크(URL · GitHub) 통합 추가 모달.
+// 입력은 URL 하나. 값이 github.com/{owner}/{repo} 형태이면 디바운스로 GitHub
+// 공개 API를 조회해 브랜치 목록을 인식하고, 인식되면 브랜치 드롭다운이 열린다.
+// 제출 시 GitHub면 kind="repo"(repository_url+branch), 아니면 kind="url".
 export function SourceAddModal({
   open,
   onClose,
   notebookId,
-  initialTab = "url",
 }: {
   open: boolean;
   onClose: () => void;
   notebookId: string;
-  initialTab?: Tab;
 }) {
-  const [tab, setTab] = useState<Tab>(initialTab);
   const addSource = useWorkspace((s) => s.addSource);
-
-  useEffect(() => {
-    if (open) setTab(initialTab);
-  }, [open, initialTab]);
 
   const submitSource = async (body: SourceCreate): Promise<Source> => {
     const source = await createSource(notebookId, body);
@@ -42,64 +37,15 @@ export function SourceAddModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="URL · 레포 추가">
-      <p className="mb-3 text-[12.5px] leading-relaxed text-muted-foreground">
-        파일(PDF · Markdown · 텍스트)은 패널에 끌어다 놓거나 “소스 추가”로 선택하세요. 여기서는
-        링크와 GitHub 레포를 등록합니다.
+    <Modal open={open} onClose={onClose} title="링크 추가">
+      <p className="mb-4 text-[12.5px] leading-relaxed text-muted-foreground">
+        문서 페이지·위키 링크나 GitHub 저장소 주소를 붙여넣으세요. GitHub 주소면 브랜치를
+        자동으로 인식합니다. 파일(PDF · Markdown · 텍스트)은 패널에 끌어다 놓거나 “소스 추가”로
+        선택하세요.
       </p>
-      <div
-        role="tablist"
-        aria-label="소스 추가 방식"
-        className="mb-4 flex gap-1 rounded-full bg-secondary p-1"
-      >
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "interactive flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-[12px]",
-              tab === t.id
-                ? "bg-card font-semibold text-foreground shadow-elev-1"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Icon name={t.icon} size={15} />
-            <span>{t.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {tab === "url" ? (
-        <UrlTab onSubmit={submitSource} onDone={onClose} />
-      ) : (
-        <RepoTab onSubmit={submitSource} onClose={onClose} />
-      )}
+      {open ? <LinkForm onSubmit={submitSource} onClose={onClose} /> : null}
     </Modal>
   );
-}
-
-function useSubmit(onSubmit: (body: SourceCreate) => Promise<Source>, onDone?: () => void) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const run = async (build: () => Promise<SourceCreate> | SourceCreate) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const body = await build();
-      await onSubmit(body);
-      onDone?.();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "추가 실패");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return { busy, error, run };
 }
 
 function inferRepoTitle(url: string) {
@@ -107,96 +53,208 @@ function inferRepoTitle(url: string) {
   return m ? m[1] : url;
 }
 
-// URL 입력: kind="url".
-function UrlTab({ onSubmit, onDone }: { onSubmit: (body: SourceCreate) => Promise<Source>; onDone?: () => void }) {
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
-  const { busy, error, run } = useSubmit(onSubmit, onDone);
+// GitHub 인식 상태(머신).
+type GhState =
+  | { kind: "none" } // GitHub URL 아님 → 일반 URL
+  | { kind: "loading" } // 브랜치 인식 중
+  | { kind: "ready"; info: GitHubRepoInfo } // 인식 성공
+  | { kind: "error"; message: string }; // 비공개·레이트리밋·실패 → 수동 입력 폴백
 
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        run(() => ({ kind: "url", title: title.trim() || url.trim(), url: url.trim() }));
-      }}
-      className="space-y-3"
-    >
-      <Field label="URL">
-        <input
-          type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://example.com/docs"
-          className={inputCls}
-        />
-      </Field>
-      <Field label="제목 (선택)">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="비우면 URL을 제목으로 사용"
-          className={inputCls}
-        />
-      </Field>
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      <SubmitButton disabled={!url.trim() || busy}>{busy ? "추가 중…" : "URL 추가"}</SubmitButton>
-    </form>
-  );
-}
-
-// GitHub 레포 등록: repository_url + branch, kind="repo".
-// 생성은 즉시 201 반환하고 인덱싱은 백그라운드에서 진행된다.
-// 진행바는 소스 패널(SourceRow)이 SSE로 구독해 표시하므로 여기선 생성 후 닫기만 한다.
-function RepoTab({
+function LinkForm({
   onSubmit,
   onClose,
 }: {
   onSubmit: (body: SourceCreate) => Promise<Source>;
   onClose: () => void;
 }) {
-  const [repoUrl, setRepoUrl] = useState("");
-  const [branch, setBranch] = useState("main");
-  const { busy, error, run } = useSubmit(onSubmit, onClose);
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const [branch, setBranch] = useState(""); // 선택/수동 입력 브랜치
+  const [gh, setGh] = useState<GhState>({ kind: "none" });
+
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 디바운스/취소 관리.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // URL 변경 → github 형태이면 디바운스로 브랜치 인식.
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    abortRef.current?.abort();
+
+    const parsed = parseGitHubRepo(url);
+    if (!parsed) {
+      setGh({ kind: "none" });
+      return;
+    }
+
+    setGh({ kind: "loading" });
+    const controller = new AbortController();
+    abortRef.current = controller;
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const info = await fetchGitHubRepoInfo(parsed.owner, parsed.repo, controller.signal);
+        setGh({ kind: "ready", info });
+        // 기본 브랜치를 미리 선택(사용자가 아직 손대지 않았으면).
+        setBranch((prev) => prev || info.defaultBranch);
+      } catch (e) {
+        if (controller.signal.aborted) return; // 입력이 더 들어와 취소된 경우는 무시.
+        setGh({
+          kind: "error",
+          message:
+            e instanceof Error
+              ? `브랜치 자동 인식 실패(${e.message}). 비공개이거나 한도 초과일 수 있어요. 브랜치를 직접 입력하세요.`
+              : "브랜치 자동 인식 실패. 브랜치를 직접 입력하세요.",
+        });
+      }
+    }, 450);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      controller.abort();
+    };
+  }, [url]);
+
+  const isGitHub = gh.kind !== "none";
+  // 브랜치 영역(드롭다운 또는 수동 입력)을 펼칠지 여부.
+  const branchOpen = isGitHub;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    setBusy(true);
+    setError(null);
+    try {
+      let body: SourceCreate;
+      if (isGitHub) {
+        const b = branch.trim() || (gh.kind === "ready" ? gh.info.defaultBranch : "main");
+        body = {
+          kind: "repo",
+          title: title.trim() || inferRepoTitle(trimmed),
+          repository_url: trimmed,
+          branch: b,
+        };
+      } else {
+        body = { kind: "url", title: title.trim() || trimmed, url: trimmed };
+      }
+      await onSubmit(body);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "추가 실패");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitLabel = busy
+    ? isGitHub
+      ? "레포 등록 중…"
+      : "추가 중…"
+    : isGitHub
+      ? "레포 등록"
+      : "URL 추가";
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        const normalizedUrl = repoUrl.trim();
-        if (!normalizedUrl) return;
-        run(() => ({
-          kind: "repo",
-          title: inferRepoTitle(normalizedUrl),
-          repository_url: normalizedUrl,
-          branch: branch.trim() || "main",
-        }));
-      }}
-      className="space-y-3"
-    >
-      <Field label="레포 URL">
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <Field label="URL">
+        <div className="relative">
+          <input
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com/docs · https://github.com/org/repo"
+            className={inputCls}
+          />
+          {/* GitHub 인식 상태 인디케이터(입력 우측). */}
+          {gh.kind === "loading" ? (
+            <Icon
+              name="progress_activity"
+              size={15}
+              className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground"
+            />
+          ) : gh.kind === "ready" ? (
+            <Icon
+              name="github"
+              size={15}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-primary"
+            />
+          ) : null}
+        </div>
+      </Field>
+
+      {/* GitHub로 인식되면 애니메이션으로 늘어나며 브랜치 선택 영역이 나타난다. */}
+      <Collapse open={branchOpen}>
+        <div className="space-y-3 pt-0.5">
+          {gh.kind === "ready" ? (
+            <Field label="브랜치">
+              {/* 인식된 브랜치 리스트박스. 기본=default_branch 미리선택. */}
+              <div className="relative">
+                <select
+                  value={branch || gh.info.defaultBranch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  className={cn(inputCls, "appearance-none pr-9")}
+                  aria-label="브랜치 선택"
+                >
+                  {gh.info.branches.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                      {b === gh.info.defaultBranch ? " (기본)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <Icon
+                  name="unfold_more"
+                  size={15}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+              </div>
+              <p className="text-[11.5px] text-muted-foreground">
+                {gh.info.branches.length}개 브랜치를 인식했어요. 선택한 브랜치를 인덱싱합니다.
+              </p>
+            </Field>
+          ) : gh.kind === "error" ? (
+            <Field label="브랜치">
+              <input
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                placeholder="main"
+                className={inputCls}
+              />
+              <p className="text-[11.5px] text-destructive">{gh.message}</p>
+            </Field>
+          ) : (
+            // loading: 영역만 열어두고 안내.
+            <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+              <Icon name="progress_activity" size={13} className="animate-spin" />
+              GitHub 저장소 브랜치를 인식하는 중…
+            </p>
+          )}
+        </div>
+      </Collapse>
+
+      <Field label="제목 (선택)">
         <input
-          type="url"
-          value={repoUrl}
-          onChange={(e) => setRepoUrl(e.target.value)}
-          placeholder="https://github.com/org/repo"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={isGitHub ? "비우면 레포 이름을 사용" : "비우면 URL을 제목으로 사용"}
           className={inputCls}
         />
       </Field>
-      <Field label="브랜치">
-        <input
-          value={branch}
-          onChange={(e) => setBranch(e.target.value)}
-          placeholder="main"
-          className={inputCls}
-        />
-      </Field>
-      <p className="text-[12px] text-muted-foreground">
-        등록하면 해당 브랜치를 백그라운드로 인덱싱합니다. 진행 상황은 소스 목록에서 실시간으로
-        확인할 수 있어요.
-      </p>
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      <SubmitButton disabled={!repoUrl.trim() || busy}>
-        {busy ? "레포 등록 중…" : "레포 등록"}
+
+      {isGitHub ? (
+        <p className="text-[12px] text-muted-foreground">
+          등록하면 해당 브랜치를 백그라운드로 인덱싱합니다. 진행 상황은 소스 목록에서 실시간으로
+          확인할 수 있어요.
+        </p>
+      ) : null}
+
+      {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
+
+      <SubmitButton disabled={!url.trim() || busy || gh.kind === "loading"}>
+        {submitLabel}
       </SubmitButton>
     </form>
   );
@@ -212,10 +270,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </label>
   );
-}
-
-function ErrorText({ children }: { children: React.ReactNode }) {
-  return <p className="text-[12px] text-destructive">{children}</p>;
 }
 
 function SubmitButton({

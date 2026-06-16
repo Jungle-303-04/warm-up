@@ -9,6 +9,7 @@ import { useWorkspace } from "../lib/store";
 import type { SourceKind } from "../lib/types";
 import { Icon } from "./icon";
 import { SourceRow } from "./source-row";
+import { Collapse } from "./ui/collapse";
 import { Panel } from "./ui/panel";
 
 // 그룹 표시 순서(종류별 묶음). SOURCE_KINDS에 없는 종류는 무시.
@@ -27,7 +28,7 @@ export function SourcesPanel({
   const selectedCount = useWorkspace((s) => s.selectedSourceIds.size);
   const setAllSourcesSelected = useWorkspace((s) => s.setAllSourcesSelected);
   // 소스 추가 흐름은 공용 컨텍스트에서 가져온다(온보딩 히어로와 공유).
-  const { openFilePicker, openUrl, openRepo, busy, error, processFiles } = useSourceActions();
+  const { openFilePicker, openLink, busy, error, processFiles } = useSourceActions();
 
   // 드래그 깜빡임 방지용 enter/leave 카운터.
   const dragDepth = useRef(0);
@@ -125,7 +126,7 @@ export function SourcesPanel({
           </div>
         </div>
 
-        {/* 액션: 파일 선택(주) + URL·레포(보조) */}
+        {/* 액션: 파일 선택(주) + 링크(보조: URL·GitHub 통합) */}
         <div className="flex gap-2 px-3 pb-2 pt-3">
           <button
             type="button"
@@ -137,51 +138,27 @@ export function SourcesPanel({
           </button>
           <button
             type="button"
-            onClick={openUrl}
-            title="URL 추가"
-            aria-label="URL 추가"
-            className="interactive grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground hover:shadow-elev-1 active:scale-[0.97]"
+            onClick={openLink}
+            title="링크 추가 (URL · GitHub)"
+            aria-label="링크 추가"
+            className="interactive flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-[12.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground hover:shadow-elev-1 active:scale-[0.97]"
           >
-            <Icon name="link" size={17} />
-          </button>
-          <button
-            type="button"
-            onClick={openRepo}
-            title="GitHub 레포 추가"
-            aria-label="GitHub 레포 추가"
-            className="interactive grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground hover:shadow-elev-1 active:scale-[0.97]"
-          >
-            <Icon name="github" size={16} />
+            <Icon name="link" size={16} />
+            링크
           </button>
         </div>
 
-        <div className="px-3 pb-2">
-          <div className="flex min-h-9 items-center justify-between rounded-lg bg-[linear-gradient(90deg,rgba(113,130,255,.15),rgba(248,250,253,0))] px-3 py-1.5 text-[12px] text-muted-foreground dark:bg-[linear-gradient(90deg,rgba(168,199,250,.13),rgba(34,38,43,0))]">
-            <span className="flex min-w-0 items-center gap-2">
-              <Icon name="search_spark" size={14} className="shrink-0 text-primary" />
-              <span className="truncate font-medium text-foreground">Fast Research</span>
-            </span>
-            <button
-              type="button"
-              onClick={openUrl}
-              className="interactive rounded-full px-2 py-1 text-[11px] font-semibold text-primary hover:bg-accent"
-            >
-              검색
-            </button>
-          </div>
-        </div>
-
-        {/* 검색/디스커버: 소스 이름 필터(소스 0개면 비활성 placeholder) */}
+        {/* 검색: 소스 이름 필터(소스 0개면 비활성 placeholder). 밀도에 맞춰 단정하게 축소. */}
         <div className="px-3 pb-2">
           <div
             className={cn(
-              "interactive flex items-center gap-2 rounded-full border border-border px-3 py-1.5",
+              "interactive flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1",
               empty
                 ? "bg-secondary/40 opacity-60"
                 : "bg-secondary/60 focus-within:border-primary/50 focus-within:bg-card",
             )}
           >
-            <Icon name="travel_explore" size={15} className="shrink-0 text-muted-foreground" />
+            <Icon name="travel_explore" size={13} className="shrink-0 text-muted-foreground" />
             <input
               type="text"
               value={filter}
@@ -189,29 +166,31 @@ export function SourcesPanel({
               onChange={(e) => setFilter(e.target.value)}
               placeholder={empty ? "소스를 추가하면 검색할 수 있어요" : "소스에서 검색…"}
               aria-label="소스 검색"
-              className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+              className="min-w-0 flex-1 bg-transparent text-[11.5px] leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
             />
             {filter ? (
               <button
                 type="button"
                 onClick={() => setFilter("")}
                 aria-label="검색 지우기"
-                className="interactive grid h-5 w-5 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="interactive grid h-4 w-4 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
-                <Icon name="close" size={13} />
+                <Icon name="close" size={12} />
               </button>
             ) : null}
           </div>
         </div>
 
-        {/* 처리 상태 / 에러 */}
-        {busy ? (
+        {/* 처리 상태 / 에러: 급격한 표시 대신 height/opacity로 부드럽게 여닫는다. */}
+        <Collapse open={busy}>
           <p className="mx-3 mb-1 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
             <Icon name="progress_activity" size={12} className="animate-spin" />
             파일 처리 중…
           </p>
-        ) : null}
-        {error ? <p className="mx-3 mb-1 text-[11.5px] text-destructive">{error}</p> : null}
+        </Collapse>
+        <Collapse open={!!error}>
+          <p className="mx-3 mb-1 text-[11.5px] text-destructive">{error}</p>
+        </Collapse>
 
         <div className="scroll-thin flex-1 overflow-y-auto px-2 pb-3 pt-1">
           {empty ? (
@@ -290,13 +269,13 @@ export function SourcesPanel({
                             </span>
                           </button>
                         )}
-                        {isOpen ? (
+                        <Collapse open={isOpen}>
                           <div className={cn("space-y-px", singleKind ? "" : "mt-0.5")}>
                             {g.items.map((s) => (
                               <SourceRow key={s.id} source={s} notebookId={notebookId} />
                             ))}
                           </div>
-                        ) : null}
+                        </Collapse>
                       </div>
                     );
                   })}
