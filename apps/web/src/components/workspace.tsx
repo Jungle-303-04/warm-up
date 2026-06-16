@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { getNotebook } from "../lib/api";
 import { SourceActionsProvider } from "../lib/source-actions";
-import { useWorkspace } from "../lib/store";
+import { useWorkspace, type WorkspaceCacheSnapshot } from "../lib/store";
 import { PANEL_LIMITS, usePanelSizes } from "../lib/use-panel-sizes";
 import type { NotebookDetail } from "../lib/types";
 import { CenterPanel } from "./center-panel";
@@ -12,7 +12,34 @@ import { Icon } from "./icon";
 import { SourcesPanel } from "./sources-panel";
 import { StudioPanel } from "./studio-panel";
 import { TopBar } from "./top-bar";
+import { Panel } from "./ui/panel";
 import { ResizeHandle } from "./ui/resize-handle";
+
+interface WorkspaceUiCache extends WorkspaceCacheSnapshot {
+  leftCollapsed?: boolean;
+  rightCollapsed?: boolean;
+}
+
+function workspaceCacheKey(notebookId: string) {
+  return `repolm.workspace.${notebookId}`;
+}
+
+function readWorkspaceCache(notebookId: string): WorkspaceUiCache | null {
+  try {
+    const raw = localStorage.getItem(workspaceCacheKey(notebookId));
+    return raw ? (JSON.parse(raw) as WorkspaceUiCache) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeWorkspaceCache(notebookId: string, cache: WorkspaceUiCache) {
+  try {
+    localStorage.setItem(workspaceCacheKey(notebookId), JSON.stringify(cache));
+  } catch {
+    // 캐시 저장 실패는 화면 동작을 막지 않는다.
+  }
+}
 
 // 노트북 워크스페이스. 진입 시 노트북 상세를 불러와 스토어를 초기화한다.
 export function Workspace({ notebookId }: { notebookId: string }) {
@@ -20,9 +47,17 @@ export function Workspace({ notebookId }: { notebookId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const initNotebook = useWorkspace((s) => s.initNotebook);
+  const hydrateCachedState = useWorkspace((s) => s.hydrateCachedState);
+  const selectedSourceIds = useWorkspace((s) => s.selectedSourceIds);
+  const sourceSyncStatuses = useWorkspace((s) => s.sourceSyncStatuses);
+  const viewer = useWorkspace((s) => s.viewer);
+  const centerTab = useWorkspace((s) => s.centerTab);
+  const artifacts = useWorkspace((s) => s.artifacts);
 
   // 3패널 리사이즈: 좌/우 px 너비 상태 + 드래그/키보드 조절.
   const { sizes, setLeft, setRight } = usePanelSizes();
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
   const mainRef = useRef<HTMLElement | null>(null);
   // 드래그 시작 시점의 기준 너비 스냅샷.
   const baseRef = useRef({ left: sizes.left, right: sizes.right });
@@ -44,15 +79,46 @@ export function Workspace({ notebookId }: { notebookId: string }) {
     getNotebook(notebookId)
       .then((detail) => {
         if (!active) return;
-        setNotebook(detail);
+        const cache = readWorkspaceCache(detail.id);
         initNotebook(detail.id, detail.sources);
+        if (cache) {
+          hydrateCachedState(cache);
+          setLeftCollapsed(Boolean(cache.leftCollapsed));
+          setRightCollapsed(Boolean(cache.rightCollapsed));
+        } else {
+          setLeftCollapsed(false);
+          setRightCollapsed(false);
+        }
+        setNotebook(detail);
       })
       .catch((e) => active && setError(e instanceof Error ? e.message : "불러오기 실패"))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [notebookId, initNotebook]);
+  }, [hydrateCachedState, initNotebook, notebookId]);
+
+  useEffect(() => {
+    if (!notebook) return;
+    writeWorkspaceCache(notebook.id, {
+      selectedSourceIds: [...selectedSourceIds],
+      viewer,
+      centerTab,
+      artifacts,
+      sourceSyncStatuses,
+      leftCollapsed,
+      rightCollapsed,
+    });
+  }, [
+    artifacts,
+    centerTab,
+    leftCollapsed,
+    notebook,
+    rightCollapsed,
+    selectedSourceIds,
+    sourceSyncStatuses,
+    viewer,
+  ]);
 
   if (loading) {
     return (
@@ -81,39 +147,100 @@ export function Workspace({ notebookId }: { notebookId: string }) {
     <SourceActionsProvider notebookId={notebook.id}>
       <div className="relative flex h-screen flex-col bg-background text-foreground">
         <TopBar notebookId={notebook.id} notebookTitle={notebook.title} />
-        <main ref={mainRef} className="flex flex-1 gap-3 overflow-hidden px-3 pb-3 pt-0.5">
+        <main ref={mainRef} className="flex flex-1 gap-3 overflow-hidden px-3 pb-3 pt-1.5">
           {/* 좌 패널: 동적 px 너비(불가피한 값 → style). */}
-          <SourcesPanel notebookId={notebook.id} style={{ width: `${sizes.left}px` }} />
+          {leftCollapsed ? (
+            <CollapsedPanelRail
+              side="left"
+              label="소스"
+              icon="folder"
+              onOpen={() => setLeftCollapsed(false)}
+            />
+          ) : (
+            <SourcesPanel
+              notebookId={notebook.id}
+              style={{ width: `${sizes.left}px` }}
+              onCollapse={() => setLeftCollapsed(true)}
+            />
+          )}
 
           {/* 좌-중 드래그 핸들 */}
-          <ResizeHandle
-            ariaLabel="소스 패널 너비 조절"
-            onResizeStart={() => {
-              baseRef.current.left = sizes.left;
-            }}
-            onResize={(delta) =>
-              setLeft(Math.min(baseRef.current.left + delta, maxLeftByCenter()))
-            }
-          />
+          {leftCollapsed ? null : (
+            <ResizeHandle
+              ariaLabel="소스 패널 너비 조절"
+              onResizeStart={() => {
+                baseRef.current.left = sizes.left;
+              }}
+              onResize={(delta) =>
+                setLeft(Math.min(baseRef.current.left + delta, maxLeftByCenter()))
+              }
+            />
+          )}
 
           {/* 가운데: 나머지 채움 */}
           <CenterPanel />
 
           {/* 중-우 드래그 핸들(우 패널은 왼쪽으로 끌면 넓어지므로 delta 부호 반전) */}
-          <ResizeHandle
-            ariaLabel="스튜디오 패널 너비 조절"
-            onResizeStart={() => {
-              baseRef.current.right = sizes.right;
-            }}
-            onResize={(delta) =>
-              setRight(Math.min(baseRef.current.right - delta, maxRightByCenter()))
-            }
-          />
+          {rightCollapsed ? null : (
+            <ResizeHandle
+              ariaLabel="스튜디오 패널 너비 조절"
+              onResizeStart={() => {
+                baseRef.current.right = sizes.right;
+              }}
+              onResize={(delta) =>
+                setRight(Math.min(baseRef.current.right - delta, maxRightByCenter()))
+              }
+            />
+          )}
 
           {/* 우 패널: 동적 px 너비 */}
-          <StudioPanel style={{ width: `${sizes.right}px` }} />
+          {rightCollapsed ? (
+            <CollapsedPanelRail
+              side="right"
+              label="스튜디오"
+              icon="auto_awesome"
+              onOpen={() => setRightCollapsed(false)}
+            />
+          ) : (
+            <StudioPanel
+              style={{ width: `${sizes.right}px` }}
+              onCollapse={() => setRightCollapsed(true)}
+            />
+          )}
         </main>
       </div>
     </SourceActionsProvider>
+  );
+}
+
+function CollapsedPanelRail({
+  side,
+  label,
+  icon,
+  onOpen,
+}: {
+  side: "left" | "right";
+  label: string;
+  icon: string;
+  onOpen: () => void;
+}) {
+  return (
+    <Panel as="aside" className="w-12 shrink-0">
+      <button
+        type="button"
+        onClick={onOpen}
+        title={`${label} 패널 열기`}
+        aria-label={`${label} 패널 열기`}
+        className="interactive flex h-full w-full flex-col items-center gap-3 px-2 py-3.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+      >
+        <Icon name={side === "left" ? "dock_left_open" : "dock_right_open"} size={17} />
+        <span className="grid h-8 w-8 place-items-center rounded-xl bg-accent text-accent-foreground">
+          <Icon name={icon} size={17} />
+        </span>
+        <span className="[writing-mode:vertical-rl] text-[11.5px] font-semibold tracking-normal">
+          {label}
+        </span>
+      </button>
+    </Panel>
   );
 }

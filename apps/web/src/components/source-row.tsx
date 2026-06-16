@@ -52,7 +52,7 @@ function TreeItem({
   const focused = useWorkspace(
     (s) => s.viewer?.sourceId === sourceId && s.viewer?.path === node.path,
   );
-  const pad = { paddingLeft: `${depth * 12 + 8}px` };
+  const pad = { paddingLeft: `${depth * 11 + 6}px` };
 
   if (node.type === "dir") {
     return (
@@ -61,14 +61,14 @@ function TreeItem({
           type="button"
           onClick={() => setOpen((o) => !o)}
           style={pad}
-          className="interactive flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-[12.5px] hover:bg-secondary"
+          className="interactive flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px] hover:bg-secondary"
         >
           <Icon
             name="chevron_right"
-            size={13}
+            size={12}
             className={cn("shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
           />
-          <Icon name="folder" size={14} className="shrink-0 text-muted-foreground" />
+          <Icon name="folder" size={13} className="shrink-0 text-muted-foreground" />
           <span className="truncate">{node.name}</span>
         </button>
         {open && node.children ? (
@@ -90,16 +90,16 @@ function TreeItem({
         onClick={() => openFile(sourceId, node.path)}
         style={pad}
         className={cn(
-          "interactive flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-[12.5px]",
+          "interactive flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[12px]",
           focused
             ? "bg-accent font-medium text-accent-foreground"
             : "hover:bg-secondary",
         )}
       >
-        <span className="w-[13px] shrink-0" />
+        <span className="w-[12px] shrink-0" />
         <Icon
           name="file"
-          size={14}
+          size={13}
           className={cn("shrink-0", focused ? "text-accent-foreground" : "text-muted-foreground")}
         />
         <span className="truncate">{node.name}</span>
@@ -157,15 +157,16 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
 
   return (
     <div>
+      {/* 한 줄: 체크박스 · kind 아이콘 · 제목(truncate) · (repo) chevron · hover 삭제 */}
       <div
         className={cn(
-          "group interactive flex items-center gap-1 rounded-xl pl-2 pr-1",
+          "group interactive flex items-center gap-1 rounded-lg pl-1.5 pr-1",
           focused ? "bg-accent" : "hover:bg-secondary",
           !selected && "opacity-65",
         )}
       >
         <label
-          className="interactive grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-card/70"
+          className="interactive grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-card/70"
           title={selected ? "소스 범위에서 제외" : "소스 범위에 포함"}
           onClick={(e) => e.stopPropagation()}
         >
@@ -179,54 +180,48 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           <span
             aria-hidden
             className={cn(
-              "grid h-[18px] w-[18px] place-items-center rounded-[5px] border border-input bg-card",
+              "grid h-4 w-4 place-items-center rounded-[4px] border border-input bg-card",
               selected && "border-primary bg-primary text-primary-foreground",
             )}
           >
-            {selected ? <Icon name="check" size={13} strokeWidth={2.5} /> : null}
+            {selected ? <Icon name="check" size={12} strokeWidth={2.5} /> : null}
           </span>
         </label>
         <button
           type="button"
           onClick={() => (isRepo ? toggleExpand() : openSource(source.id))}
           aria-current={focused ? "true" : undefined}
-          title={isRepo ? `${source.title} 파일 트리` : `${source.title} 열기`}
-          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-2 pr-1 text-left"
+          title={isRepo ? `${cfg.label} · ${source.title} 파일 트리` : `${cfg.label} · ${source.title}`}
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1.5 pr-1 text-left"
         >
           <span
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-md"
             style={{ background: cfg.chipBg, color: cfg.chipFg }}
           >
-            <Icon name={cfg.icon} size={16} />
+            <Icon name={cfg.icon} size={14} />
           </span>
-          <span className="min-w-0 flex-1">
-            <span
-              className={cn(
-                "block truncate text-[13px] font-medium leading-tight",
-                focused && "text-accent-foreground",
-              )}
-            >
-              {source.title}
-            </span>
-            <span
-              className={cn(
-                "mt-0.5 flex items-center gap-1 text-[11px]",
-                focused ? "text-accent-foreground/80" : "text-muted-foreground",
-              )}
-            >
-              <span>{cfg.label}</span>
-              {isRepo && source.branch ? (
-                <>
-                  <span aria-hidden>·</span>
-                  <span className="truncate">{source.branch}</span>
-                </>
-              ) : null}
-            </span>
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-[12.5px] font-medium leading-tight",
+              focused && "text-accent-foreground",
+            )}
+          >
+            {source.title}
+            {isRepo && source.branch ? (
+              <span
+                className={cn(
+                  "ml-1 font-normal",
+                  focused ? "text-accent-foreground/60" : "text-muted-foreground/60",
+                )}
+              >
+                {source.branch}
+              </span>
+            ) : null}
           </span>
           {isRepo ? (
             <Icon
               name="chevron_right"
-              size={16}
+              size={15}
               className={cn(
                 "shrink-0 transition-transform",
                 focused ? "text-accent-foreground" : "text-muted-foreground",
@@ -241,30 +236,30 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           onClick={handleDelete}
           aria-label={`${source.title} 삭제`}
           title="소스 삭제"
-          className="interactive grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+          className="interactive grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
         >
-          <Icon name="delete" size={15} />
+          <Icon name="delete" size={14} />
         </button>
       </div>
 
       {isRepo ? (
-        <div className="ml-[18px] mt-0.5 border-l border-border pl-1.5">
+        <div className="ml-[15px] mt-0.5 border-l border-border pl-1.5">
           {syncStatus ? (
             <SyncStatusRow syncStatus={syncStatus} />
           ) : treeError && !expanded ? null : null}
 
           {expanded ? (
             treeLoading ? (
-              <p className="flex items-center gap-1.5 px-2 py-1.5 text-[11.5px] text-muted-foreground">
-                <Icon name="progress_activity" size={13} className="animate-spin" />
+              <p className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-muted-foreground">
+                <Icon name="progress_activity" size={12} className="animate-spin" />
                 불러오는 중…
               </p>
             ) : treeError ? (
-              <p className="px-2 py-1.5 text-[11.5px] text-destructive">{treeError}</p>
+              <p className="px-2 py-1 text-[11px] text-destructive">{treeError}</p>
             ) : tree && tree.length > 0 ? (
               <TreeView nodes={tree} notebookId={notebookId} sourceId={source.id} />
             ) : (
-              <p className="px-2 py-1.5 text-[11.5px] text-muted-foreground">
+              <p className="px-2 py-1 text-[11px] text-muted-foreground">
                 파일이 없습니다
               </p>
             )

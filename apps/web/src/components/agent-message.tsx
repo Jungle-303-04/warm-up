@@ -1,4 +1,7 @@
+"use client";
+
 import type { AgentResponse, Citation } from "../lib/types";
+import { useWorkspace } from "../lib/store";
 import { CitationChip } from "./citation-chip";
 import { Icon } from "./icon";
 
@@ -9,10 +12,22 @@ function citationLabel(c: Citation): string {
 }
 
 function CitationChips({ citations }: { citations: Citation[] }) {
+  const openSource = useWorkspace((s) => s.openSource);
+  const openFile = useWorkspace((s) => s.openFile);
+  const openCitation = (citation: Citation) => {
+    if (citation.path) openFile(citation.sourceId, citation.path);
+    else openSource(citation.sourceId);
+  };
+
   return (
     <div className="flex flex-wrap gap-1.5">
       {citations.map((c, i) => (
-        <CitationChip key={`${c.sourceId}-${i}`} index={i + 1} label={citationLabel(c)} />
+        <CitationChip
+          key={`${c.sourceId}-${i}`}
+          index={i + 1}
+          label={citationLabel(c)}
+          onClick={() => openCitation(c)}
+        />
       ))}
     </div>
   );
@@ -21,8 +36,8 @@ function CitationChips({ citations }: { citations: Citation[] }) {
 // 보류/추가요청 등 안내 박스.
 function Notice({ icon, children }: { icon: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-xl border border-border bg-secondary px-3.5 py-3 text-[13px] leading-relaxed text-muted-foreground">
-      <Icon name={icon} size={16} className="mt-0.5 shrink-0 text-primary" />
+    <div className="flex items-start gap-2.5 rounded-xl border border-border bg-secondary px-3 py-2.5 text-[12.5px] leading-relaxed text-muted-foreground">
+      <Icon name={icon} size={15} className="mt-0.5 shrink-0 text-primary" />
       <span>{children}</span>
     </div>
   );
@@ -34,7 +49,7 @@ export function AgentMessage({ response }: { response: AgentResponse }) {
     case "answer": // lookup: 본문 + 인용칩
       return (
         <div className="space-y-3">
-          <p className="text-[13px] leading-relaxed">{response.text}</p>
+          <p className="whitespace-pre-line text-[12.5px] leading-relaxed">{response.text}</p>
           <CitationChips citations={response.citations} />
         </div>
       );
@@ -43,15 +58,15 @@ export function AgentMessage({ response }: { response: AgentResponse }) {
       return (
         <div className="space-y-2">
           {response.intro ? (
-            <p className="text-[13px] leading-relaxed text-muted-foreground">{response.intro}</p>
+            <p className="text-[12.5px] leading-relaxed text-muted-foreground">{response.intro}</p>
           ) : null}
           <ul className="space-y-1.5">
             {response.citations.map((c, i) => (
               <li
                 key={`${c.sourceId}-${i}`}
-                className="interactive flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-[12.5px] hover:border-primary/40"
+                className="interactive flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-1.5 text-[12px] hover:border-primary/40"
               >
-                <Icon name="description" size={14} className="shrink-0 text-muted-foreground" />
+                <Icon name="description" size={13} className="shrink-0 text-muted-foreground" />
                 <span className="truncate font-mono">{citationLabel(c)}</span>
               </li>
             ))}
@@ -62,7 +77,7 @@ export function AgentMessage({ response }: { response: AgentResponse }) {
     case "summary": // summarize: 문단 요약
       return (
         <div className="space-y-3">
-          <p className="text-[13px] leading-relaxed">{response.text}</p>
+          <p className="whitespace-pre-line text-[12.5px] leading-relaxed">{response.text}</p>
           {response.citations?.length ? <CitationChips citations={response.citations} /> : null}
         </div>
       );

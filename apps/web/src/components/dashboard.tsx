@@ -59,12 +59,12 @@ export function Dashboard() {
 
   return (
     <div className="relative min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex h-[60px] items-center justify-between border-b border-border/60 bg-background/80 px-6 backdrop-blur">
+      <header className="sticky top-0 z-10 flex h-12 items-center justify-between border-b border-border/60 bg-background/80 px-6 backdrop-blur">
         <div className="flex items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-accent-foreground">
-            <Icon name="hub" size={17} />
+          <span className="grid h-6 w-6 place-items-center rounded-lg bg-accent text-accent-foreground">
+            <Icon name="hub" size={15} />
           </span>
-          <span className="text-[15px] font-semibold tracking-tight">RepoLM</span>
+          <span className="text-[14px] font-semibold">RepoLM</span>
         </div>
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
@@ -72,11 +72,11 @@ export function Dashboard() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-6 py-10">
+      <main className="mx-auto w-full max-w-5xl px-6 py-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-[26px] font-semibold tracking-tight">노트북</h1>
-            <p className="mt-1.5 text-[13.5px] text-muted-foreground">
+            <h1 className="text-[23px] font-semibold">노트북</h1>
+            <p className="mt-1 text-[13px] text-muted-foreground">
               저장소와 문서를 모아 근거 기반으로 질문하세요.
             </p>
           </div>
@@ -84,9 +84,9 @@ export function Dashboard() {
             type="button"
             onClick={handleCreate}
             disabled={creating}
-            className="interactive inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-[13px] font-medium text-primary-foreground shadow-elev-1 hover:opacity-90 hover:shadow-elev-2 active:scale-[0.98] disabled:opacity-50"
+            className="interactive inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[12.5px] font-medium text-primary-foreground shadow-elev-1 hover:opacity-90 hover:shadow-elev-2 active:scale-[0.98] disabled:opacity-50"
           >
-            <Icon name="add" size={18} /> {creating ? "만드는 중…" : "새 노트북 만들기"}
+            <Icon name="add" size={17} /> {creating ? "만드는 중…" : "새 노트북 만들기"}
           </button>
         </div>
 
@@ -99,7 +99,7 @@ export function Dashboard() {
         ) : notebooks.length === 0 ? (
           <EmptyState onCreate={handleCreate} />
         ) : (
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {notebooks.map((nb) => (
               <NotebookCard
                 key={nb.id}
@@ -136,20 +136,20 @@ function formatDate(iso: string | undefined): string {
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="mt-14 grid place-items-center rounded-3xl border border-dashed border-border bg-card/40 py-24 text-center">
-      <span className="grid h-16 w-16 place-items-center rounded-2xl bg-accent text-accent-foreground">
-        <Icon name="hub" size={30} />
+    <div className="mt-12 grid place-items-center rounded-3xl border border-dashed border-border bg-card/40 py-20 text-center">
+      <span className="grid h-14 w-14 place-items-center rounded-2xl bg-accent text-accent-foreground">
+        <Icon name="hub" size={28} />
       </span>
-      <p className="mt-5 text-[16px] font-semibold">아직 노트북이 없습니다</p>
-      <p className="mt-1.5 max-w-sm text-[13.5px] leading-relaxed text-muted-foreground">
+      <p className="mt-4 text-[15px] font-semibold">아직 노트북이 없습니다</p>
+      <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
         첫 노트북을 만들고 GitHub 저장소·문서·PDF를 소스로 추가해 보세요.
       </p>
       <button
         type="button"
         onClick={onCreate}
-        className="interactive mt-6 inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-[13px] font-medium text-primary-foreground shadow-elev-1 hover:opacity-90 hover:shadow-elev-2 active:scale-[0.98]"
+        className="interactive mt-5 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[12.5px] font-medium text-primary-foreground shadow-elev-1 hover:opacity-90 hover:shadow-elev-2 active:scale-[0.98]"
       >
-        <Icon name="add" size={18} /> 새 노트북 만들기
+        <Icon name="add" size={17} /> 새 노트북 만들기
       </button>
     </div>
   );
@@ -169,24 +169,24 @@ function NotebookCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const dateLabel = formatDate(notebook.updated_at || notebook.created_at);
   return (
-    <div className="group interactive relative flex min-h-[176px] flex-col rounded-2xl border border-border bg-card p-5 shadow-elev-1 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2">
+    <div className="group interactive relative flex min-h-[156px] flex-col rounded-2xl border border-border bg-card p-4 shadow-elev-1 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2">
       <button
         type="button"
         onClick={onOpen}
         className="flex flex-1 flex-col items-start text-left"
       >
-        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-accent text-accent-foreground">
-          <Icon name="hub" size={21} />
+        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-accent text-accent-foreground">
+          <Icon name="hub" size={19} />
         </span>
-        <h3 className="mt-3.5 line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight">
+        <h3 className="mt-3 line-clamp-2 text-[14px] font-semibold leading-snug">
           {notebook.title}
         </h3>
         {notebook.summary ? (
-          <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
             {notebook.summary}
           </p>
         ) : null}
-        <span className="mt-auto flex items-center gap-1.5 pt-4 text-[11.5px] text-muted-foreground">
+        <span className="mt-auto flex items-center gap-1.5 pt-3.5 text-[11px] text-muted-foreground">
           <span>소스 {notebook.source_count}개</span>
           {dateLabel ? (
             <>
@@ -199,17 +199,17 @@ function NotebookCard({
         </span>
       </button>
 
-      <div className="absolute right-2.5 top-2.5">
+      <div className="absolute right-2 top-2">
         <button
           type="button"
           aria-label="노트북 메뉴"
           onClick={() => setMenuOpen((o) => !o)}
           className={cn(
-            "interactive grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary group-hover:opacity-100",
+            "interactive grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary group-hover:opacity-100",
             menuOpen ? "opacity-100" : "opacity-0",
           )}
         >
-          <Icon name="more_vert" size={18} />
+          <Icon name="more_vert" size={17} />
         </button>
         {menuOpen ? (
           <>

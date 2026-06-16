@@ -47,45 +47,45 @@ export function ChatEmpty() {
 
   return (
     <div className="scroll-thin flex-1 overflow-y-auto">
-      <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col items-center justify-center px-6 py-12">
+      <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col items-center justify-center px-6 py-10">
         {/* 히어로: 큰 아이콘 + 헤드라인 + 설명 */}
-        <span className="grid h-16 w-16 place-items-center rounded-3xl bg-accent text-accent-foreground shadow-elev-2">
-          <Icon name="hub" size={32} />
+        <span className="grid h-14 w-14 place-items-center rounded-3xl bg-accent text-accent-foreground shadow-elev-2">
+          <Icon name="hub" size={28} />
         </span>
-        <h1 className="mt-5 text-center text-[22px] font-semibold leading-tight tracking-tight">
+        <h1 className="mt-4 text-center text-[19px] font-semibold leading-tight">
           소스를 추가해 시작하세요
         </h1>
-        <p className="mt-2.5 max-w-md text-center text-[13.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 max-w-md text-center text-[13px] leading-relaxed text-muted-foreground">
           저장소·문서·링크를 연결하면 RepoLM이 근거 기반으로 답하고, 코드와 문서가 어긋난
           지점을 짚어냅니다.
         </p>
 
         {/* 빠른 시작 카드 3개 */}
-        <div className="mt-8 grid w-full gap-3 sm:grid-cols-3">
+        <div className="mt-6 grid w-full gap-2.5 sm:grid-cols-3">
           {CARDS.map((c) => (
             <button
               key={c.action}
               type="button"
               onClick={() => run(c.action)}
-              className="interactive group flex flex-col items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2 active:scale-[0.99]"
+              className="interactive group flex flex-col items-start gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-left hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2 active:scale-[0.99]"
             >
               <span
-                className={`studio-tint studio-tint-${c.tint} grid h-11 w-11 place-items-center rounded-2xl`}
+                className={`studio-tint studio-tint-${c.tint} grid h-10 w-10 place-items-center rounded-2xl`}
               >
-                <Icon name={c.icon} size={20} />
+                <Icon name={c.icon} size={18} />
               </span>
               <span className="w-full">
                 <span className="flex items-center justify-between gap-1">
-                  <span className="text-[14px] font-semibold leading-tight tracking-tight">
+                  <span className="text-[13px] font-semibold leading-tight">
                     {c.title}
                   </span>
                   <Icon
                     name="north_east"
-                    size={15}
+                    size={14}
                     className="shrink-0 text-muted-foreground/50 transition-colors group-hover:text-primary"
                   />
                 </span>
-                <span className="mt-1 block text-[12px] leading-relaxed text-muted-foreground">
+                <span className="mt-1 block text-[11.5px] leading-relaxed text-muted-foreground">
                   {c.desc}
                 </span>
               </span>
@@ -94,8 +94,8 @@ export function ChatEmpty() {
         </div>
 
         {/* 보조 안내: 드래그앤드롭 힌트 */}
-        <p className="mt-7 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-          <Icon name="upload_file" size={14} />
+        <p className="mt-6 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+          <Icon name="upload_file" size={13} />
           파일을 왼쪽 소스 패널로 끌어다 놓아도 됩니다.
         </p>
       </div>

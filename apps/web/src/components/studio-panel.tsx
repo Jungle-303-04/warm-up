@@ -1,101 +1,126 @@
 "use client";
 
+import { useState } from "react";
+
 import { cn } from "../lib/cn";
-import { STUDIO_HERO, STUDIO_NOTES, STUDIO_TILES } from "../lib/fixtures";
-import { useWorkspace } from "../lib/store";
+import { STUDIO_TILES, type StudioTile } from "../lib/fixtures";
+import { selectScopeCount, useWorkspace } from "../lib/store";
+import type { StudioArtifact } from "../lib/types";
 import { Icon } from "./icon";
 import { Panel } from "./ui/panel";
 
 // 우 패널. 너비는 workspace 에서 style 로 주입(동적 리사이즈).
-// 소스 0개면 전체를 살짝 dim 처리 + 안내(아직 비활성 톤).
-export function StudioPanel({ style }: { style?: React.CSSProperties }) {
+// 소스 0개면 생성 버튼만 비활성화하고 메모는 계속 만들 수 있게 둔다.
+export function StudioPanel({
+  style,
+  onCollapse,
+}: {
+  style?: React.CSSProperties;
+  onCollapse?: () => void;
+}) {
   const sourceCount = useWorkspace((s) => s.sources.length);
+  const scopeCount = useWorkspace(selectScopeCount);
+  const artifacts = useWorkspace((s) => s.artifacts);
+  const createArtifact = useWorkspace((s) => s.createArtifact);
+  const addNote = useWorkspace((s) => s.addNote);
+  const [status, setStatus] = useState<string | null>(null);
   const empty = sourceCount === 0;
+  const canCreate = sourceCount > 0 && scopeCount > 0;
+
+  const create = (tile: StudioTile) => {
+    if (!canCreate) return;
+    createArtifact({
+      kind: "artifact",
+      title: tile.label,
+      typeLabel: tile.typeLabel,
+      detail: `소스 ${scopeCount}개 · 방금 전`,
+      icon: tile.icon,
+      tint: tile.tint,
+    });
+    setStatus(`${tile.label} 생성됨`);
+  };
+
+  const createNote = () => {
+    addNote();
+    setStatus("새 메모 추가됨");
+  };
 
   return (
     <Panel as="aside" className="shrink-0" style={style}>
-      <div className="flex items-center justify-between px-4 pb-2 pt-4">
-        <div className="flex items-center gap-2">
-          <Icon name="auto_awesome" size={16} className="text-primary" />
+      <div className="flex h-11 items-center justify-between border-b border-border px-3">
+        <div className="flex items-center gap-1.5">
+          <Icon name="auto_awesome" size={15} className="text-primary" />
           <h2 className="t-title">스튜디오</h2>
         </div>
-        <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-          준비 중
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            소스 {scopeCount}개
+          </span>
+          {onCollapse ? (
+            <button
+              type="button"
+              onClick={onCollapse}
+              title="스튜디오 패널 접기"
+              aria-label="스튜디오 패널 접기"
+              className="interactive grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <Icon name="dock_to_right" size={15} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
-      <div className="scroll-thin relative flex-1 overflow-y-auto px-4 pb-4 pt-1.5">
-        {/* 소스 0개일 때 비활성 안내 배너 */}
-        {empty ? (
-          <div className="mb-3 flex items-start gap-2 rounded-xl border border-dashed border-border bg-secondary/40 px-3 py-2.5 text-[12px] leading-snug text-muted-foreground">
-            <Icon name="check_circle" size={14} className="mt-0.5 shrink-0" />
-            <span>소스를 추가하면 스튜디오 산출물을 만들 수 있어요.</span>
+      <div className="scroll-thin relative flex-1 overflow-y-auto px-3 pb-3 pt-1">
+        {!canCreate ? (
+          <div className="mb-2.5 mt-2.5 flex items-start gap-2 rounded-lg border border-dashed border-border bg-secondary/40 px-3 py-2 text-[11.5px] leading-snug text-muted-foreground">
+            <Icon name={empty ? "check_circle" : "label_auto"} size={13} className="mt-0.5 shrink-0" />
+            <span>{empty ? "소스를 추가하면 스튜디오 산출물을 만들 수 있어요." : "선택된 소스가 있어야 산출물을 만들 수 있어요."}</span>
           </div>
         ) : null}
 
-        <div className={cn(empty && "pointer-events-none select-none opacity-55")}>
-          {/* 와이드 히어로 카드: 가장 강조되는 산출물 */}
-          <button
-            type="button"
-            disabled
-            title={`${STUDIO_HERO.label} · 준비 중`}
-            className="interactive group relative flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-border bg-card p-4 text-left hover:border-primary/30 hover:shadow-elev-2 disabled:cursor-not-allowed"
-          >
-            <span
-              className={`studio-tint studio-tint-${STUDIO_HERO.tint} grid h-12 w-12 shrink-0 place-items-center rounded-2xl`}
-            >
-              <Icon name={STUDIO_HERO.icon} size={24} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2">
-                <span className="t-title truncate">{STUDIO_HERO.label}</span>
-                <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  베타
-                </span>
-              </span>
-              <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">
-                {STUDIO_HERO.hint}
-              </span>
-            </span>
-            <Icon
-              name="chevron_right"
-              size={18}
-              className="shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
-            />
-          </button>
+        <div>
+          <div className="mt-2.5 rounded-lg border border-border bg-surface-raised px-3 py-2.5">
+            <p className="t-section flex items-center gap-2">
+              <Icon name="layers" size={14} className="text-primary" />
+              코드 이해 산출물
+            </p>
+            <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
+              선택한 소스만 기준으로 구조, 데이터 관계, 의존성, 변경 흐름을 정리합니다.
+            </p>
+          </div>
 
-          {/* 기능 카드 2열 그리드: 채도 또렷한 색조 박스 + 라벨 위계 강화 */}
-          <div className="mt-3 grid grid-cols-2 gap-2.5">
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
             {STUDIO_TILES.map((t) => (
               <button
                 key={t.label}
                 type="button"
-                disabled
-                title={`${t.label} · 준비 중`}
-                className="interactive group relative flex min-h-[112px] flex-col gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-left hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elev-2 disabled:cursor-not-allowed"
+                disabled={!canCreate}
+                onClick={() => create(t)}
+                title={t.label}
+                className="interactive group relative flex min-h-[104px] flex-col gap-2 rounded-xl border border-border bg-card p-3 text-left hover:-translate-y-0.5 hover:border-primary/35 hover:bg-surface-raised hover:shadow-elev-2 disabled:cursor-not-allowed disabled:opacity-55"
               >
                 {t.beta ? (
-                  <span className="absolute right-2.5 top-2.5 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span className="absolute right-2 top-2 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-normal text-muted-foreground">
                     베타
                   </span>
                 ) : null}
                 <span
-                  className={`studio-tint studio-tint-${t.tint} grid h-10 w-10 place-items-center rounded-xl`}
+                  className={`studio-tint studio-tint-${t.tint} grid h-9 w-9 place-items-center rounded-lg`}
                 >
-                  <Icon name={t.icon} size={20} />
+                  <Icon name={t.icon} size={18} />
                 </span>
                 <span className="min-w-0">
                   <span className="flex items-center justify-between gap-1">
-                    <span className="truncate text-[13.5px] font-semibold leading-tight tracking-tight">
+                    <span className="truncate text-[13px] font-semibold leading-tight">
                       {t.label}
                     </span>
                     <Icon
                       name="chevron_right"
-                      size={15}
+                      size={14}
                       className="shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
                     />
                   </span>
-                  <span className="mt-1 block text-[11.5px] leading-snug text-muted-foreground">
+                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
                     {t.hint}
                   </span>
                 </span>
@@ -103,56 +128,76 @@ export function StudioPanel({ style }: { style?: React.CSSProperties }) {
             ))}
           </div>
 
-          {/* 메모 섹션 */}
-          <div className="mt-6 flex items-center justify-between">
-            <p className="t-section">메모</p>
+          {status ? (
+            <p className="mt-2.5 rounded-lg bg-accent/70 px-3 py-1.5 text-[11.5px] font-medium text-accent-foreground">
+              {status}
+            </p>
+          ) : null}
+
+          <div className="mt-5 flex items-center justify-between border-t border-border pt-3.5">
+            <p className="t-section">아티팩트 및 메모</p>
             <button
               type="button"
-              disabled
-              title="메모 추가 · 준비 중"
-              className="interactive inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-[12px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+              onClick={createNote}
+              title="메모 추가"
+              className="interactive inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
-              <Icon name="add" size={15} /> 추가
+              <Icon name="add" size={14} /> 추가
             </button>
           </div>
 
-          <div className="mt-2.5 space-y-2">
-            {STUDIO_NOTES.map((n) => (
-              <button
-                key={n.title}
-                type="button"
-                disabled
-                title={`${n.title} · 준비 중`}
-                className="interactive flex w-full items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 text-left hover:border-primary/30 hover:shadow-elev-1 disabled:cursor-not-allowed"
-              >
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground">
-                  <Icon name={n.icon} size={17} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-semibold leading-tight">
-                    {n.title}
-                  </span>
-                  <span className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <span>{n.kind}</span>
-                    <span aria-hidden>·</span>
-                    <span>{n.time}</span>
-                  </span>
-                </span>
-              </button>
-            ))}
+          <div className="mt-2 space-y-1.5">
+            {artifacts.length > 0 ? (
+              artifacts.map((artifact) => <ArtifactItem key={artifact.id} artifact={artifact} />)
+            ) : (
+              <div className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-[12px] text-muted-foreground">
+                아직 생성된 항목이 없습니다.
+              </div>
+            )}
 
-            {/* 메모 추가 placeholder(점선 카드) */}
             <button
               type="button"
-              disabled
-              title="메모 추가 · 준비 중"
-              className="interactive flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2.5 text-[12.5px] text-muted-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              onClick={createNote}
+              title="메모 추가"
+              className="interactive flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2 text-[12px] text-muted-foreground hover:bg-secondary"
             >
-              <Icon name="note_add" size={16} /> 새 메모
+              <Icon name="note_add" size={15} /> 새 메모
             </button>
           </div>
         </div>
       </div>
     </Panel>
+  );
+}
+
+function ArtifactItem({ artifact }: { artifact: StudioArtifact }) {
+  return (
+    <button
+      type="button"
+      title={artifact.title}
+      className="interactive flex w-full items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2 text-left hover:border-primary/30 hover:shadow-elev-1"
+    >
+      <span
+        className={cn(
+          "grid h-8 w-8 shrink-0 place-items-center rounded-lg",
+          artifact.tint === "grey"
+            ? "bg-secondary text-muted-foreground"
+            : `studio-tint studio-tint-${artifact.tint}`,
+        )}
+      >
+        <Icon name={artifact.icon} size={16} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[12.5px] font-semibold leading-tight">
+          {artifact.title}
+        </span>
+        <span className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+          <span className="truncate">{artifact.typeLabel}</span>
+          <span aria-hidden>·</span>
+          <span className="truncate">{artifact.detail}</span>
+        </span>
+      </span>
+      <Icon name="more_vert" size={15} className="shrink-0 text-muted-foreground/60" />
+    </button>
   );
 }

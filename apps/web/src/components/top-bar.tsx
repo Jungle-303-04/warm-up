@@ -56,19 +56,19 @@ export function TopBar({
   };
 
   return (
-    <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-border/70 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header className="flex h-12 shrink-0 items-center justify-between border-b border-border/70 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="flex min-w-0 items-center gap-1">
         <Link
           href="/"
-          className="interactive flex items-center gap-2 rounded-full px-2 py-1.5 hover:bg-secondary"
+          className="interactive flex items-center gap-2 rounded-full px-2 py-1 hover:bg-secondary"
           title="대시보드로"
         >
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-accent-foreground">
-            <Icon name="hub" size={17} />
+          <span className="grid h-6 w-6 place-items-center rounded-lg bg-accent text-accent-foreground">
+            <Icon name="hub" size={15} />
           </span>
-          <span className="text-[15px] font-semibold tracking-tight">RepoLM</span>
+          <span className="text-[14px] font-semibold">RepoLM</span>
         </Link>
-        <Icon name="chevron_right" size={16} className="shrink-0 text-muted-foreground/50" />
+        <Icon name="chevron_right" size={15} className="shrink-0 text-muted-foreground/50" />
 
         {/* 인라인 편집 가능한 노트북 제목 */}
         {editing ? (
@@ -85,16 +85,16 @@ export function TopBar({
               }
             }}
             aria-label="노트북 제목"
-            className="min-w-0 max-w-[40ch] rounded-lg border border-primary/50 bg-card px-2 py-1 text-[14px] font-medium outline-none ring-2 ring-primary/15"
+            className="min-w-0 max-w-[40ch] rounded-lg border border-primary/50 bg-card px-2 py-0.5 text-[13px] font-medium outline-none ring-2 ring-primary/15"
           />
         ) : (
           <button
             type="button"
             onClick={startEdit}
             title="제목 편집"
-            className="interactive group flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-secondary"
+            className="interactive group flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-0.5 hover:bg-secondary"
           >
-            <span className="truncate text-[14px] font-medium">{title}</span>
+            <span className="truncate text-[13px] font-medium">{title}</span>
             {saving ? (
               <Icon name="progress_activity" size={13} className="shrink-0 animate-spin text-muted-foreground" />
             ) : (
@@ -113,11 +113,11 @@ export function TopBar({
           type="button"
           disabled
           title="공유 · 준비 중"
-          className="interactive mr-1 inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
+          className="interactive mr-1 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[12.5px] font-medium text-muted-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
         >
-          <Icon name="share" size={16} /> 공유
+          <Icon name="share" size={15} /> 공유
         </button>
-        <IconButton name="settings" label="설정" size={18} preparing />
+        <IconButton name="settings" label="설정" size={17} preparing />
         <ThemeToggle />
         <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />
         <AuthMenu />

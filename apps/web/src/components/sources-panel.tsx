@@ -17,11 +17,15 @@ const KIND_ORDER: SourceKind[] = ["repo", "md", "pdf", "text", "url"];
 export function SourcesPanel({
   notebookId,
   style,
+  onCollapse,
 }: {
   notebookId: string;
   style?: React.CSSProperties;
+  onCollapse?: () => void;
 }) {
   const sources = useWorkspace((s) => s.sources);
+  const selectedCount = useWorkspace((s) => s.selectedSourceIds.size);
+  const setAllSourcesSelected = useWorkspace((s) => s.setAllSourcesSelected);
   // 소스 추가 흐름은 공용 컨텍스트에서 가져온다(온보딩 히어로와 공유).
   const { openFilePicker, openUrl, openRepo, busy, error, processFiles } = useSourceActions();
 
@@ -48,6 +52,8 @@ export function SourcesPanel({
   const singleKind = groups.length <= 1;
   const filteredEmpty = filter.trim().length > 0 && groups.length === 0;
   const empty = sources.length === 0;
+  const allSelected = sources.length > 0 && selectedCount === sources.length;
+  const someSelected = selectedCount > 0 && selectedCount < sources.length;
 
   const toggleGroup = (kind: SourceKind) =>
     setCollapsed((prev) => {
@@ -94,26 +100,39 @@ export function SourcesPanel({
         onDrop={onDrop}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-4 pb-2 pt-4">
-          <div className="flex items-center gap-2">
-            <Icon name="folder" size={17} className="text-muted-foreground" />
-            <h2 className="text-[15px] font-semibold tracking-tight">소스</h2>
+        <div className="flex h-11 items-center justify-between border-b border-border px-3">
+          <div className="flex items-center gap-1.5">
+            <Icon name="folder" size={16} className="text-muted-foreground" />
+            <h2 className="t-title">소스</h2>
           </div>
-          {sources.length > 0 ? (
-            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
-              {sources.length}
-            </span>
-          ) : null}
+          <div className="flex items-center gap-1.5">
+            {sources.length > 0 ? (
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+                {selectedCount}/{sources.length}
+              </span>
+            ) : null}
+            {onCollapse ? (
+              <button
+                type="button"
+                onClick={onCollapse}
+                title="소스 패널 접기"
+                aria-label="소스 패널 접기"
+                className="interactive grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                <Icon name="dock_to_left" size={15} />
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {/* 액션: 파일 선택(주) + URL·레포(보조) */}
-        <div className="flex gap-2 px-4 pb-2">
+        <div className="flex gap-2 px-3 pb-2 pt-3">
           <button
             type="button"
             onClick={openFilePicker}
-            className="interactive flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground hover:opacity-90 hover:shadow-elev-2 active:scale-[0.99]"
+            className="interactive flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-[12.5px] font-semibold text-primary-foreground hover:opacity-90 hover:shadow-elev-2 active:scale-[0.99]"
           >
-            <Icon name="add" size={17} />
+            <Icon name="add" size={16} />
             소스 추가
           </button>
           <button
@@ -121,32 +140,48 @@ export function SourcesPanel({
             onClick={openUrl}
             title="URL 추가"
             aria-label="URL 추가"
-            className="interactive grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground hover:shadow-elev-1 active:scale-[0.97]"
+            className="interactive grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground hover:shadow-elev-1 active:scale-[0.97]"
           >
-            <Icon name="link" size={18} />
+            <Icon name="link" size={17} />
           </button>
           <button
             type="button"
             onClick={openRepo}
             title="GitHub 레포 추가"
             aria-label="GitHub 레포 추가"
-            className="interactive grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground hover:shadow-elev-1 active:scale-[0.97]"
+            className="interactive grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground hover:shadow-elev-1 active:scale-[0.97]"
           >
-            <Icon name="github" size={17} />
+            <Icon name="github" size={16} />
           </button>
         </div>
 
+        <div className="px-3 pb-2">
+          <div className="flex min-h-9 items-center justify-between rounded-lg bg-[linear-gradient(90deg,rgba(113,130,255,.15),rgba(248,250,253,0))] px-3 py-1.5 text-[12px] text-muted-foreground dark:bg-[linear-gradient(90deg,rgba(168,199,250,.13),rgba(34,38,43,0))]">
+            <span className="flex min-w-0 items-center gap-2">
+              <Icon name="search_spark" size={14} className="shrink-0 text-primary" />
+              <span className="truncate font-medium text-foreground">Fast Research</span>
+            </span>
+            <button
+              type="button"
+              onClick={openUrl}
+              className="interactive rounded-full px-2 py-1 text-[11px] font-semibold text-primary hover:bg-accent"
+            >
+              검색
+            </button>
+          </div>
+        </div>
+
         {/* 검색/디스커버: 소스 이름 필터(소스 0개면 비활성 placeholder) */}
-        <div className="px-4 pb-2.5 pt-1">
+        <div className="px-3 pb-2">
           <div
             className={cn(
-              "interactive flex items-center gap-2 rounded-full border border-border px-3.5 py-2",
+              "interactive flex items-center gap-2 rounded-full border border-border px-3 py-1.5",
               empty
                 ? "bg-secondary/40 opacity-60"
                 : "bg-secondary/60 focus-within:border-primary/50 focus-within:bg-card",
             )}
           >
-            <Icon name="travel_explore" size={16} className="shrink-0 text-muted-foreground" />
+            <Icon name="travel_explore" size={15} className="shrink-0 text-muted-foreground" />
             <input
               type="text"
               value={filter}
@@ -154,7 +189,7 @@ export function SourcesPanel({
               onChange={(e) => setFilter(e.target.value)}
               placeholder={empty ? "소스를 추가하면 검색할 수 있어요" : "소스에서 검색…"}
               aria-label="소스 검색"
-              className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+              className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
             />
             {filter ? (
               <button
@@ -171,21 +206,21 @@ export function SourcesPanel({
 
         {/* 처리 상태 / 에러 */}
         {busy ? (
-          <p className="mx-4 mb-1 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-            <Icon name="progress_activity" size={13} className="animate-spin" />
+          <p className="mx-3 mb-1 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+            <Icon name="progress_activity" size={12} className="animate-spin" />
             파일 처리 중…
           </p>
         ) : null}
-        {error ? <p className="mx-4 mb-1 text-[12px] text-destructive">{error}</p> : null}
+        {error ? <p className="mx-3 mb-1 text-[11.5px] text-destructive">{error}</p> : null}
 
         <div className="scroll-thin flex-1 overflow-y-auto px-2 pb-3 pt-1">
           {empty ? (
-            <div className="mt-8 px-4 text-center">
-              <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-elev-1">
-                <Icon name="upload_file" size={26} />
+            <div className="mt-7 px-4 text-center">
+              <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-elev-1">
+                <Icon name="upload_file" size={24} />
               </span>
-              <p className="mt-4 text-[14px] font-semibold tracking-tight">아직 소스가 없어요</p>
-              <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
+              <p className="mt-3.5 text-[13px] font-semibold">아직 소스가 없어요</p>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
                 파일을 여기로 끌어다 놓거나
                 <br />
                 위의 버튼으로 소스를 추가하세요.
@@ -194,26 +229,44 @@ export function SourcesPanel({
               <button
                 type="button"
                 onClick={openFilePicker}
-                className="interactive mt-4 flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-border px-4 py-5 text-muted-foreground hover:border-primary/40 hover:bg-secondary/50 hover:text-foreground"
+                className="interactive mt-3.5 flex w-full flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-border px-4 py-4 text-muted-foreground hover:border-primary/40 hover:bg-secondary/50 hover:text-foreground"
               >
-                <Icon name="add" size={20} className="text-primary" />
-                <span className="text-[12.5px] font-medium">PDF · Markdown · 텍스트 추가</span>
+                <Icon name="add" size={18} className="text-primary" />
+                <span className="text-[12px] font-medium">PDF · Markdown · 텍스트 추가</span>
               </button>
             </div>
           ) : (
             <>
-              {/* 자동 포함 안내(체크박스 없음) */}
-              <div className="mx-1 mb-1.5 flex items-start gap-1.5 rounded-lg bg-accent/40 px-2.5 py-2 text-[11.5px] leading-snug text-accent-foreground">
-                <Icon name="check_circle" size={13} className="mt-0.5 shrink-0" />
-                <span>모든 소스가 자동으로 답변 근거에 포함됩니다.</span>
-              </div>
+              <label className="interactive mx-1 mb-1 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11.5px] text-muted-foreground hover:bg-secondary">
+                <span className="relative grid h-4 w-4 place-items-center rounded-[4px] border border-input bg-card">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={(e) => setAllSourcesSelected(e.target.checked)}
+                    aria-label="모든 소스 선택"
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                  {allSelected ? (
+                    <span className="absolute inset-[-1px] grid place-items-center rounded-[4px] bg-primary text-primary-foreground">
+                      <Icon name="check" size={12} strokeWidth={2.5} />
+                    </span>
+                  ) : someSelected ? (
+                    <span className="h-2 w-2 rounded-[2px] bg-primary" />
+                  ) : null}
+                </span>
+                <span className="flex-1 font-medium text-foreground">모두 선택</span>
+                <span className="tabular-nums">{selectedCount}개</span>
+              </label>
 
               {filteredEmpty ? (
-                <p className="mt-6 px-4 text-center text-[12.5px] text-muted-foreground">
+                <p className="mt-5 px-4 text-center text-[12px] text-muted-foreground">
                   “{filter.trim()}”와 일치하는 소스가 없습니다.
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {groups.map((g) => {
                     const cfg = SOURCE_KINDS[g.kind];
                     const isOpen = !collapsed.has(g.kind);
@@ -224,11 +277,11 @@ export function SourcesPanel({
                           <button
                             type="button"
                             onClick={() => toggleGroup(g.kind)}
-                            className="interactive flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-secondary"
+                            className="interactive flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-normal text-muted-foreground hover:bg-secondary"
                           >
                             <Icon
                               name="chevron_right"
-                              size={13}
+                              size={12}
                               className={cn("shrink-0 transition-transform", isOpen && "rotate-90")}
                             />
                             <span className="flex-1 normal-case tracking-normal">{cfg.label}</span>
@@ -238,7 +291,7 @@ export function SourcesPanel({
                           </button>
                         )}
                         {isOpen ? (
-                          <div className={cn("space-y-0.5", singleKind ? "" : "mt-0.5")}>
+                          <div className={cn("space-y-px", singleKind ? "" : "mt-0.5")}>
                             {g.items.map((s) => (
                               <SourceRow key={s.id} source={s} notebookId={notebookId} />
                             ))}
@@ -262,11 +315,11 @@ export function SourcesPanel({
               "border-2 border-dashed border-primary bg-accent/85 text-accent-foreground backdrop-blur-sm",
             )}
           >
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground">
-              <Icon name="upload_file" size={24} />
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-primary text-primary-foreground">
+              <Icon name="upload_file" size={22} />
             </span>
-            <p className="text-[14px] font-semibold">여기에 놓아 소스로 추가</p>
-            <p className="text-[12px] opacity-80">PDF · Markdown · 텍스트</p>
+            <p className="text-[13px] font-semibold">여기에 놓아 소스로 추가</p>
+            <p className="text-[11.5px] opacity-80">PDF · Markdown · 텍스트</p>
           </div>
         ) : null}
       </div>

@@ -8,9 +8,9 @@ const STORAGE_KEY = "repolm-panels";
 // 클램프 경계(요구사항).
 export const PANEL_LIMITS = {
   leftMin: 240,
-  leftMax: 480,
+  leftMax: 560,
   rightMin: 240,
-  rightMax: 480,
+  rightMax: 560,
   centerMin: 360,
 } as const;
 
@@ -19,7 +19,7 @@ export interface PanelSizes {
   right: number;
 }
 
-const DEFAULTS: PanelSizes = { left: 320, right: 300 };
+const DEFAULTS: PanelSizes = { left: 320, right: 320 };
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
@@ -33,7 +33,15 @@ export function usePanelSizes() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      if (!raw) {
+        const vw = Math.max(320, window.innerWidth);
+        const quarter = Math.round(vw * 0.25);
+        setSizes({
+          left: clamp(quarter, PANEL_LIMITS.leftMin, PANEL_LIMITS.leftMax),
+          right: clamp(quarter, PANEL_LIMITS.rightMin, PANEL_LIMITS.rightMax),
+        });
+        return;
+      }
       const parsed = JSON.parse(raw) as Partial<PanelSizes>;
       setSizes({
         left: clamp(parsed.left ?? DEFAULTS.left, PANEL_LIMITS.leftMin, PANEL_LIMITS.leftMax),

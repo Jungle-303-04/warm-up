@@ -1,6 +1,8 @@
 // 백엔드 API 타입 클라이언트. 세션 쿠키를 쓰므로 모든 요청에 credentials:"include".
 import type {
   Notebook,
+  NotebookChatMessageList,
+  NotebookChatResponse,
   NotebookDetail,
   Source,
   SourceCreate,
@@ -57,6 +59,23 @@ export function getNotebook(nid: string): Promise<NotebookDetail> {
   return request(`/notebooks/${nid}`);
 }
 
+export function askNotebook(
+  nid: string,
+  question: string,
+  sourceIds: string[] | null,
+  signal?: AbortSignal,
+): Promise<NotebookChatResponse> {
+  return request(`/notebooks/${nid}/chat`, {
+    method: "POST",
+    body: JSON.stringify({ question, source_ids: sourceIds }),
+    signal,
+  });
+}
+
+export function listNotebookChatMessages(nid: string): Promise<NotebookChatMessageList> {
+  return request(`/notebooks/${nid}/chat/messages`);
+}
+
 export function updateNotebook(
   nid: string,
   body: { title?: string; summary?: string },
@@ -96,4 +115,66 @@ export function getFile(
   path: string,
 ): Promise<{ path: string; content: string }> {
   return request(`/notebooks/${nid}/sources/${sid}/file?path=${encodeURIComponent(path)}`);
+}
+
+export interface RepoRagSyncJobView {
+  id: string;
+  repository_id: string | null;
+  trigger_type: string;
+  branch: string;
+  requested_commit_sha: string | null;
+  idempotency_key: string;
+  status: string;
+  error: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface RepoRagSyncEvent {
+  id: string;
+  job_id: string;
+  stage: string;
+  detail: string;
+  created_at: string;
+}
+
+export interface RepoRagSyncResponse {
+  job: RepoRagSyncJobView;
+  events: RepoRagSyncEvent[];
+}
+
+export interface RepoRagSyncRunResponse {
+  status: number;
+  response: RepoRagSyncResponse;
+}
+
+export interface RepoRagSyncRequest {
+  repository: string;
+  branch: string;
+  repository_url: string;
+}
+
+export async function runRepoRagSync(
+  body: RepoRagSyncRequest,
+): Promise<RepoRagSyncRunResponse> {
+  const res = await fetch(`${API_BASE}/pipeline/sync`, {
+    credentials: "include",
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    throw new Error(`요청 실패 (${res.status})`);
+  }
+
+  return {
+    status: res.status,
+    response: (await res.json()) as RepoRagSyncResponse,
+  };
+}
+
+export async function getRepoRagSyncJob(jobId: string): Promise<RepoRagSyncResponse> {
+  return request(`/pipeline/sync/${jobId}`);
 }

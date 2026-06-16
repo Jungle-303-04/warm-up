@@ -10,6 +10,20 @@ export interface SourceKindConfig {
   chipFg: string;
 }
 
+export type StudioArtifactKind = "artifact" | "note";
+
+export interface StudioArtifact {
+  id: string;
+  kind: StudioArtifactKind;
+  title: string;
+  typeLabel: string;
+  detail: string;
+  icon: string;
+  tint: string;
+  createdAt: number;
+  sourceCount: number;
+}
+
 // 백엔드 NotebookView.
 export interface Notebook {
   id: string;
@@ -30,6 +44,16 @@ export interface Source {
   repository_url: string | null;
   branch: string | null;
   created_at: string;
+}
+
+export interface SourceSyncProgress {
+  sourceId: string;
+  jobId: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  stageLabel: string;
+  detail: string;
+  percent: number;
+  error?: string;
 }
 
 // 백엔드 SourceDetailView = SourceView + content.
@@ -70,6 +94,31 @@ export interface Citation {
   lines?: [number, number]; // [시작, 끝] 줄 범위
   snippet?: string; // 인용 미리보기
   externalUrl?: string; // 외부에서 열기
+}
+
+export interface NotebookChatCitation {
+  source_id: string;
+  source_title: string;
+  path: string | null;
+  snippet: string;
+}
+
+export interface NotebookChatResponse {
+  answer: string;
+  citations: NotebookChatCitation[];
+}
+
+export interface NotebookChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations: NotebookChatCitation[];
+  source_ids: string[] | null;
+  created_at: string;
+}
+
+export interface NotebookChatMessageList {
+  messages: NotebookChatMessage[];
 }
 
 // 답변 그래프의 판별 유니온. kind로 렌더를 분기한다.

@@ -47,7 +47,7 @@ export function Modal({
         )}
       >
         <header className="flex items-center justify-between border-b border-border px-5 py-3.5">
-          <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
+          <h2 className="text-[15px] font-semibold">{title}</h2>
           <IconButton name="close" label="닫기" size={16} onClick={onClose} />
         </header>
         <div className="scroll-thin overflow-y-auto p-5">{children}</div>
