@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import FontInfoPopover from "../components/FontInfoPopover";
 
@@ -34,6 +35,19 @@ const postDetail = {
 function PostDetail() {
   const navigate = useNavigate();
   const { postId } = useParams();
+  const [comments, setComments] = useState(postDetail.comments);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const handleDeleteComment = (commentId) => {
+    setComments((currentComments) =>
+      currentComments.filter((comment) => comment.id !== commentId),
+    );
+  };
+
+  const handleDeletePost = () => {
+    setIsDeleteDialogOpen(false);
+    navigate("/");
+  };
 
   return (
     <main className="p-6">
@@ -102,6 +116,7 @@ function PostDetail() {
               </button>
               <button
                 className="cursor-pointer text-xs text-black transition-colors hover:text-[#d4d4d4]"
+                onClick={() => setIsDeleteDialogOpen(true)}
                 type="button"
               >
                 삭제
@@ -113,7 +128,7 @@ function PostDetail() {
         <section className="mt-5 border-t border-black pt-4">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-black">comment</h2>
-            <span className="text-sm text-black">{postDetail.comments.length}</span>
+            <span className="text-sm text-black">{comments.length}</span>
           </div>
 
           <div className="mt-3 flex items-center gap-3">
@@ -129,8 +144,9 @@ function PostDetail() {
             </button>
           </div>
 
-          <ul className="mt-8 space-y-5">
-            {postDetail.comments.map((comment) => (
+          {comments.length > 0 ? (
+            <ul className="mt-8 space-y-5">
+              {comments.map((comment) => (
               <li
                 className="grid grid-cols-[120px_1fr_auto_auto] items-start gap-4 text-xs"
                 key={comment.id}
@@ -145,13 +161,19 @@ function PostDetail() {
                 <button
                   aria-label="댓글 삭제"
                   className="cursor-pointer text-black transition-opacity hover:opacity-50"
+                  onClick={() => handleDeleteComment(comment.id)}
                   type="button"
                 >
                   x
                 </button>
               </li>
-            ))}
-          </ul>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-8 text-center text-sm text-[#9ca3af]">
+              첫 댓글을 달아보세요!
+            </p>
+          )}
         </section>
 
         <div className="mt-16 flex justify-end">
@@ -165,6 +187,36 @@ function PostDetail() {
 
         <p className="sr-only">현재 게시글 ID는 {postId}입니다.</p>
       </section>
+
+      {isDeleteDialogOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/10 px-6 backdrop-blur-[1px]">
+          <div
+            aria-modal="true"
+            className="w-full max-w-[320px] rounded-md border border-gray-200 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.14)]"
+            role="dialog"
+          >
+            <p className="text-base font-semibold text-black">
+              게시물을 삭제할까요?
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                className="cursor-pointer px-2 py-1 text-sm text-black transition-colors hover:text-[#d4d4d4]"
+                onClick={() => setIsDeleteDialogOpen(false)}
+                type="button"
+              >
+                취소
+              </button>
+              <button
+                className="cursor-pointer rounded-md border border-gray-300 px-4 py-1.5 text-sm text-black transition-colors hover:bg-black hover:text-white"
+                onClick={handleDeletePost}
+                type="button"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
