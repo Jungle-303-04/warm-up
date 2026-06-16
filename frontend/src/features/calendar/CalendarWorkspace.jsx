@@ -6,8 +6,6 @@ import {
   PROCEEDINGS_BOARD_TYPE,
   SCHEDULE_BOARD_TYPE,
   calculateScheduleTaskProgress,
-  formatDateTime,
-  getBoardTypeLabel,
 } from '../board/boardForm'
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
@@ -43,7 +41,6 @@ export function CalendarWorkspace({
   const monthEvents = calendarEvents.filter((event) =>
     isEventVisibleInMonth(event, visibleMonth),
   )
-  const visibleBoardCards = buildVisibleBoardCards(filteredBoards)
   const scheduleCount = monthEvents.filter((event) => event.type === 'schedule').length
   const meetingCount = monthEvents.filter((event) => event.type === 'meeting').length
 
@@ -156,80 +153,8 @@ export function CalendarWorkspace({
           이번 달 달력에 표시할 일정이나 회의록이 없습니다.
         </p>
       ) : null}
-
-      <section className="calendar-board-card-section" aria-labelledby="calendar-board-card-title">
-        <div className="calendar-board-card-header">
-          <div>
-            <p className="eyebrow">게시글 보기</p>
-            <h3 id="calendar-board-card-title">게시글 카드</h3>
-          </div>
-          <span>{filteredBoards.length}개</span>
-        </div>
-
-        {visibleBoardCards.length ? (
-          <ul className="calendar-board-card-list">
-            {visibleBoardCards.map((board) => (
-              <li key={board.id}>
-                <button type="button" onClick={() => onOpenBoard(board.id)}>
-                  <span className="board-search-type">
-                    {getBoardTypeLabel(board.board_type)}
-                  </span>
-                  <strong>{board.title}</strong>
-                  <p>{buildBoardExcerpt(board.content)}</p>
-                  <dl className="board-search-meta" aria-label={`${board.title} 게시글 정보`}>
-                    <div>
-                      <dt>작성일</dt>
-                      <dd>{formatDateTime(board.created_at)}</dd>
-                    </div>
-                    <div>
-                      <dt>태그</dt>
-                      <dd>{board.tag ? `#${board.tag}` : '-'}</dd>
-                    </div>
-                    {board.board_type === SCHEDULE_BOARD_TYPE ? (
-                      <div>
-                        <dt>진행률</dt>
-                        <dd>
-                          {formatProgress(calculateScheduleTaskProgress(
-                            board.schedule_board_tasks,
-                          ))}
-                        </dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="calendar-empty">조건에 맞는 게시글 카드가 없습니다.</p>
-        )}
-      </section>
     </section>
   )
-}
-
-function buildVisibleBoardCards(boards) {
-  return [...boards]
-    .sort((left, right) => {
-      const leftTime = new Date(left.created_at).getTime() || 0
-      const rightTime = new Date(right.created_at).getTime() || 0
-      return rightTime - leftTime
-    })
-    .slice(0, 6)
-}
-
-function buildBoardExcerpt(content) {
-  const normalizedContent = String(content || '').trim().replace(/\s+/g, ' ')
-
-  if (normalizedContent.length <= 90) {
-    return normalizedContent || '본문 없음'
-  }
-
-  return `${normalizedContent.slice(0, 90)}...`
-}
-
-function formatProgress(progressPercent) {
-  return Number.isInteger(progressPercent) ? `${progressPercent}%` : '-'
 }
 
 function CalendarWeek({ week, segments, visibleMonth, onStartCreateBoard, onOpenBoard }) {
