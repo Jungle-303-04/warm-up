@@ -20,16 +20,16 @@ export function CitationChip({
       type="button"
       title={label}
       onClick={onClick}
-      className="interactive inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground"
+      className="transition-all duration-200 ease-in-out inline-flex max-w-full items-center gap-1.5 rounded-lg border border-border bg-secondary/60 px-2.5 py-0.75 text-[11px] font-medium text-muted-foreground hover:border-primary/30 hover:bg-accent/60 hover:text-foreground shadow-sm"
     >
       <SourceIcon
         iconName={icon}
         url={url}
         isUrl={isUrl}
-        size={12}
-        className="shrink-0 text-muted-foreground"
+        size={11.5}
+        className="shrink-0 text-muted-foreground/85"
       />
-      <span className="truncate font-mono">{label}</span>
+      <span className="truncate font-sans tracking-tight">{label}</span>
     </button>
   );
 }

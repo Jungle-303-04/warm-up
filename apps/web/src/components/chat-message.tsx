@@ -62,7 +62,7 @@ function CitationChips({ citations }: { citations: Citation[] }) {
 function UserBubble({ content }: { content: string }) {
   return (
     <div className="flex justify-end">
-      <div className="w-fit max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-[13px] leading-relaxed text-primary-foreground shadow-elev-1">
+      <div className="w-fit max-w-[85%] whitespace-pre-wrap break-words rounded-[20px] rounded-br-[4px] bg-primary px-4 py-2.5 text-[13px] leading-relaxed text-primary-foreground shadow-sm">
         {content}
       </div>
     </div>
@@ -170,7 +170,7 @@ function ActionButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="interactive grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+      className="transition-all duration-200 ease-in-out grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
     >
       <Icon name={icon} size={14} />
     </button>
@@ -185,7 +185,7 @@ export function ChatMessageView({
   onRegenerate?: () => void;
 }) {
   return (
-    <div className="message-in">
+    <div>
       {message.role === "user" ? (
         <UserBubble content={message.content} />
       ) : (

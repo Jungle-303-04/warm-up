@@ -272,13 +272,13 @@ export function ChatView() {
 
   return (
     <>
-      <div ref={scrollRef} onScroll={onScroll} className="scroll-thin flex-1 overflow-y-auto">
+      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
         {/* 콘텐츠를 패널 폭 전체로 사용(중앙 정렬·max-width 제거, 좌우 패딩만). */}
         <div className="w-full px-6 py-5">
           {/* 헤더 카드 */}
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-elev-1">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-elev-1">
+              <span className="grid h-9 w-9 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-sm">
                 <Icon name="hub" size={19} />
               </span>
               <div className="min-w-0 flex-1">
@@ -335,7 +335,7 @@ export function ChatView() {
                     type="button"
                     onClick={() => send(q)}
                     disabled={scopeCount === 0}
-                    className="interactive group flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-left text-[13px] text-foreground hover:border-primary/40 hover:bg-secondary hover:shadow-elev-1 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="transition-all duration-200 ease-in-out group flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-left text-[13px] text-foreground hover:border-primary/40 hover:bg-secondary hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <span className="flex-1 leading-snug">{q}</span>
                     <Icon
@@ -365,16 +365,16 @@ export function ChatView() {
 
             {/* 생각 중 표시(점 애니메이션). */}
             {sending && pendingQuestion ? (
-              <div className="message-in flex items-center gap-2.5 text-[12.5px] text-muted-foreground">
+              <div className="transition-all duration-200 flex items-center gap-2.5 text-[12.5px] text-muted-foreground">
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
                   <Icon name="hub" size={15} />
                 </span>
-                <div className="rounded-2xl rounded-tl-md border border-border bg-card px-3 py-2 shadow-elev-1">
+                <div className="rounded-2xl rounded-tl-md border border-border bg-card px-3 py-2 shadow-sm">
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1" aria-hidden>
-                      <span className="thinking-dot" />
-                      <span className="thinking-dot" />
-                      <span className="thinking-dot" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
                     </span>
                     <span>근거를 찾고 답변을 조립하는 중</span>
                     <Button
@@ -399,9 +399,9 @@ export function ChatView() {
         </div>
       </div>
 
-      {/* 하단 입력바 */}
-      <div className="shrink-0 px-5 pb-4">
-        <div className="flex w-full items-end gap-2 rounded-[24px] border border-border bg-card px-2.5 py-2 shadow-elev-2 focus-within:border-primary/50">
+      {/* 하단 입력바 - 중앙 플로팅 알약형 캡슐 */}
+      <div className="shrink-0 px-6 pb-6 pt-2">
+        <div className="mx-auto flex max-w-2xl w-full items-end gap-2.5 rounded-[28px] border border-border/70 bg-card/85 px-4 py-2.5 shadow-md backdrop-blur-md focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
           <textarea
             rows={1}
             value={query}
@@ -421,26 +421,26 @@ export function ChatView() {
                   : "무엇이든 물어보세요 (Enter 전송 · Shift+Enter 줄바꿈)"
             }
             aria-label="메시지 입력"
-            className="max-h-32 flex-1 resize-none self-center bg-transparent py-1.5 pl-2 text-[13px] leading-relaxed outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+            className="max-h-32 flex-1 resize-none self-center bg-transparent py-1.5 pl-1.5 text-[13px] leading-relaxed outline-none placeholder:text-muted-foreground/75 disabled:cursor-not-allowed"
           />
-          <div className="flex shrink-0 items-center gap-2 self-end pb-0.5">
-            <span className="hidden items-center gap-1 text-[11px] text-muted-foreground sm:inline-flex">
-              <Icon name="description" size={12} />
-              소스 {scopeCount}/{sourceCount}개
+          <div className="flex shrink-0 items-center gap-2.5 self-end pb-0.5">
+            <span className="hidden items-center gap-1 text-[11px] font-medium text-muted-foreground/80 sm:inline-flex">
+              <Icon name="description" size={13} />
+              소스 {scopeCount}/{sourceCount}
             </span>
             <button
               type="button"
               onClick={() => send()}
               disabled={!canSend}
               aria-label="보내기"
-              className="interactive grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
+              className="transition-all duration-200 ease-in-out grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:scale-105 hover:opacity-95 active:scale-95 disabled:opacity-35 disabled:hover:scale-100 disabled:active:scale-100"
             >
-              <Icon name="arrow_upward" size={17} />
+              <Icon name="arrow_upward" size={16} />
             </button>
           </div>
         </div>
-        <p className="mt-1.5 w-full text-center text-[11px] text-muted-foreground">
-          RepoLM의 답변은 부정확할 수 있으니 출처를 확인하세요.
+        <p className="mt-2.5 w-full text-center text-[10.5px] font-medium text-muted-foreground/70">
+          RepoLM의 답변은 부정확할 수 있으니 반드시 출처를 확인하세요.
         </p>
       </div>
     </>
