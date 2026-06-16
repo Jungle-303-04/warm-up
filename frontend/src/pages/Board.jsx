@@ -8,6 +8,7 @@ const posts = [
     title: "Boost your conversion rate",
     nickname: "Jisoo Kim",
     previewText: "hello world",
+    previewFontClass: "font-['Zodiak'] font-extrabold italic",
   },
   {
     id: 2,
@@ -15,7 +16,8 @@ const posts = [
     fontName: "어그로체",
     title: "Boost your conversion rate",
     nickname: "Min Park",
-    previewText: "hello world",
+    previewText: "세상에 이런 폰트가 나오다니",
+    previewFontClass: "font-['Pretendard'] font-normal",
   },
   {
     id: 3,
@@ -24,6 +26,7 @@ const posts = [
     title: "my board",
     nickname: "Yuna Lee",
     previewText: "hello world",
+    previewFontClass: "font-['Zodiak'] font-extrabold italic",
   },
 ];
 
@@ -111,7 +114,9 @@ function Board() {
             </h2>
 
             <div className="mt-3 h-24 overflow-hidden rounded-md border border-gray-200 px-4 py-3">
-              <p className="font-['Zodiak'] text-[22px] font-extrabold italic leading-tight text-black">
+              <p
+                className={`${post.previewFontClass} text-[22px] leading-tight text-black`}
+              >
                 {post.previewText}
               </p>
             </div>
