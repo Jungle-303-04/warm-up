@@ -3,12 +3,10 @@ import { Link, useLocation } from "react-router-dom";
 function Header({ onLoginClick, user }) {
   const location = useLocation();
   const accountLabel = user?.nickname ?? "로그인";
-  const navLabel =
-    location.pathname === "/login"
-      ? "Sign in"
-      : location.pathname === "/signup"
-        ? "Sign up"
-        : "Board";
+  const navItems = [
+    { label: "Board", path: "/" },
+    { label: "글쓰기", path: "/write" },
+  ];
 
   return (
     <header className="relative rounded-t-md bg-white px-6 py-5 shadow-[0_4px_4px_-4px_rgba(15,23,42,0.18)]">
@@ -20,18 +18,29 @@ function Header({ onLoginClick, user }) {
           >
             f
           </Link>
-          <span className="text-[30px] font-normal leading-none text-black">
-            {navLabel}
-          </span>
+          <nav className="flex items-center gap-7">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+
+              return (
+                <Link
+                  className={[
+                    "text-[30px] font-normal leading-none no-underline transition-colors",
+                    isActive
+                      ? "text-black [text-shadow:0_1px_3px_rgba(0,0,0,0.14)]"
+                      : "text-[#d4d4d4] hover:text-black",
+                  ].join(" ")}
+                  key={item.path}
+                  to={item.path}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
 
         <div className="flex items-center gap-5">
-          <button
-            className="h-11 cursor-pointer rounded-md border border-gray-200 px-8 text-sm font-normal text-black transition-colors hover:bg-[#d4d4d4]"
-            type="button"
-          >
-            글쓰기
-          </button>
           <button
             className="cursor-pointer text-[10px] font-semibold text-black transition-colors hover:text-[#d4d4d4]"
             onClick={onLoginClick}
@@ -41,8 +50,6 @@ function Header({ onLoginClick, user }) {
           </button>
         </div>
       </div>
-
-      <span className="absolute bottom-0 left-[110px] h-px w-20 bg-gray-500" />
     </header>
   );
 }
