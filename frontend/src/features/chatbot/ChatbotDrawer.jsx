@@ -3,14 +3,20 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 const INITIAL_SESSION_ID = 1
 const MOCK_RESPONSE_DELAY_MS = 900
 
-export function ChatbotDrawer({ indexResult, isIndexing, repositoryRuns }) {
+export function ChatbotDrawer({
+  indexResult,
+  isIndexing,
+  repositoryRuns,
+  selectedRunIds = [],
+  onSelectedRunIdsChange = () => undefined,
+}) {
   const responseTimerIds = useRef(new Map())
+  const messagesEndRef = useRef(null)
   const sessionIdRef = useRef(INITIAL_SESSION_ID + 1)
   const messageIdRef = useRef(100)
   const [isOpen, setIsOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [draftError, setDraftError] = useState('')
-  const [selectedRunIds, setSelectedRunIds] = useState([])
   const [isBasisPickerOpen, setIsBasisPickerOpen] = useState(false)
   const [activeSessionId, setActiveSessionId] = useState(INITIAL_SESSION_ID)
   const [sessions, setSessions] = useState(() => [
@@ -46,6 +52,14 @@ export function ChatbotDrawer({ indexResult, isIndexing, repositoryRuns }) {
       document.body.classList.remove('chatbot-drawer-open')
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    messagesEndRef.current?.scrollIntoView({ block: 'end' })
+  }, [activeSessionId, messages.length, activeSession.isGenerating, isOpen])
 
   function createNewSession() {
     const nextSession = createChatSession(sessionIdRef.current, '새 대화')
@@ -89,11 +103,11 @@ export function ChatbotDrawer({ indexResult, isIndexing, repositoryRuns }) {
   }
 
   function toggleSelectedRun(runId) {
-    setSelectedRunIds((currentRunIds) => (
-      currentRunIds.includes(runId)
-        ? currentRunIds.filter((currentRunId) => currentRunId !== runId)
-        : [...currentRunIds, runId]
-    ))
+    onSelectedRunIdsChange(
+      selectedRunIds.includes(runId)
+        ? selectedRunIds.filter((currentRunId) => currentRunId !== runId)
+        : [...selectedRunIds, runId],
+    )
   }
 
   function sendMockMessage() {
@@ -253,7 +267,24 @@ export function ChatbotDrawer({ indexResult, isIndexing, repositoryRuns }) {
               <p className="chatbot-context-warning">{chatContext.warning}</p>
             ) : null}
             <div className="chatbot-basis-summary">
-              <span>{chatContext.modeLabel}</span>
+              <div className="chatbot-basis-chips" aria-label="선택된 분석 기준">
+                {chatContext.selectedRuns.length ? (
+                  <>
+                    {chatContext.selectedRuns.slice(0, 2).map((run) => (
+                      <span className="chatbot-basis-chip" key={run.id}>
+                        {formatRunChipLabel(run)}
+                      </span>
+                    ))}
+                    {chatContext.selectedRuns.length > 2 ? (
+                      <span className="chatbot-basis-chip">
+                        +{chatContext.selectedRuns.length - 2}
+                      </span>
+                    ) : null}
+                  </>
+                ) : (
+                  <span className="chatbot-basis-chip">대화로 선택</span>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => setIsBasisPickerOpen((current) => !current)}
@@ -268,7 +299,7 @@ export function ChatbotDrawer({ indexResult, isIndexing, repositoryRuns }) {
                   <input
                     type="checkbox"
                     checked={selectedRunIds.length === 0}
-                    onChange={() => setSelectedRunIds([])}
+                    onChange={() => onSelectedRunIdsChange([])}
                   />
                   <span>대화로 선택</span>
                 </label>
@@ -348,6 +379,7 @@ export function ChatbotDrawer({ indexResult, isIndexing, repositoryRuns }) {
                   </div>
                 </div>
               ) : null}
+              <span ref={messagesEndRef} aria-hidden="true" />
             </div>
           </div>
 
@@ -429,6 +461,7 @@ function buildChatContext(selectedRuns, isIndexing) {
       title: '시작 기준: 대화로 선택',
       modeLabel: '대화로 선택',
       hasSelectedRuns: false,
+      selectedRuns: [],
       detail: isIndexing
         ? '새 분석이 진행 중입니다. 질문은 가능하고, 완료되면 분석 기준이 자동으로 잡힙니다.'
         : '질문과 대화 맥락에서 필요한 레포를 찾습니다.',
@@ -447,6 +480,7 @@ function buildChatContext(selectedRuns, isIndexing) {
       title: `시작 기준: ${run.repository_full_name}`,
       modeLabel: '선택한 레포',
       hasSelectedRuns: true,
+      selectedRuns,
       detail,
       warning: isIndexing
         ? '새 분석이 진행 중입니다. 완료 전까지는 선택한 완료 분석 기준으로 답변합니다.'
@@ -458,6 +492,7 @@ function buildChatContext(selectedRuns, isIndexing) {
     title: `시작 기준: ${selectedRuns.length}개 레포`,
     modeLabel: '여러 레포 선택',
     hasSelectedRuns: true,
+    selectedRuns,
     detail: selectedRuns.map((run) => run.repository_full_name).join(', '),
     warning: isIndexing
       ? '새 분석이 진행 중입니다. 완료 전까지는 선택한 완료 분석 기준으로 답변합니다.'
@@ -501,4 +536,10 @@ function formatRunOptionLabel(run) {
   const branch = run.branch || '기본 브랜치'
   const commit = run.commit_sha ? ` · ${run.commit_sha.slice(0, 7)}` : ''
   return `${run.repository_full_name} / ${branch}${commit}`
+}
+
+function formatRunChipLabel(run) {
+  const branch = run.branch || '기본'
+  const commit = run.commit_sha ? ` · ${run.commit_sha.slice(0, 7)}` : ''
+  return `${run.repository_full_name} · ${branch}${commit}`
 }

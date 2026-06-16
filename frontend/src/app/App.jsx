@@ -41,6 +41,7 @@ function App() {
   const [branch, setBranch] = useState('')
   const [indexResult, setIndexResult] = useState(null)
   const [repositoryRuns, setRepositoryRuns] = useState([])
+  const [chatSelectedRunIds, setChatSelectedRunIds] = useState([])
   const [boards, setBoards] = useState([])
   const [selectedBoard, setSelectedBoard] = useState(null)
   const [isCreatingBoard, setIsCreatingBoard] = useState(false)
@@ -301,6 +302,7 @@ function App() {
         setUser(null)
         setBoards([])
         setRepositoryRuns([])
+        setChatSelectedRunIds([])
         setSelectedBoard(null)
         setIsCreatingBoard(false)
         setBoardCreateInitialDate(null)
@@ -326,6 +328,7 @@ function App() {
       setIndexResult(null)
       setBoards([])
       setRepositoryRuns([])
+      setChatSelectedRunIds([])
       setSelectedBoard(null)
       setIsCreatingBoard(false)
       setBoardCreateInitialDate(null)
@@ -687,7 +690,9 @@ function App() {
       )
       const latestRuns = await loadRepositoryRuns()
       const latestRun = findRepositoryRunByIndexResult(latestRuns, payload)
-      setIndexResult(buildIndexResultForUi(payload, latestRun))
+      const nextIndexResult = buildIndexResultForUi(payload, latestRun)
+      setIndexResult(nextIndexResult)
+      setChatSelectedRunIds(nextIndexResult.run_id ? [nextIndexResult.run_id] : [])
       const statusMessage = payload.reused
         ? '이미 등록된 레포지토리입니다.'
         : '레포지토리를 등록했습니다.'
@@ -710,7 +715,7 @@ function App() {
   function selectRepositoryRun(run) {
     setRepositoryFullName(run.repository_full_name || '')
     setBranch(run.branch || '')
-    setIndexResult({
+    const nextIndexResult = {
       run_id: run.id,
       reused: true,
       repository_full_name: run.repository_full_name,
@@ -721,7 +726,9 @@ function App() {
       vector_chunk_count: run.total_chunks,
       pipeline_result: null,
       indexed_at: run.indexed_at,
-    })
+    }
+    setIndexResult(nextIndexResult)
+    setChatSelectedRunIds(run.id ? [run.id] : [])
   }
 
   useEffect(() => {
@@ -894,6 +901,8 @@ function App() {
               indexResult={indexResult}
               isIndexing={isIndexing}
               repositoryRuns={repositoryRuns}
+              selectedRunIds={chatSelectedRunIds}
+              onSelectedRunIdsChange={setChatSelectedRunIds}
             />
           </>
         ) : null}
