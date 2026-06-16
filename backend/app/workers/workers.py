@@ -35,11 +35,11 @@ class HeartbeatWorker:
 
     def run(self, should_stop: StopPredicate | None = None) -> None:
         should_stop = should_stop or _never
-        self.log(f"RepoPilot worker started (placeholder): {self.kind}")
+        self.log(f"RepoLM worker started (placeholder): {self.kind}")
         while not should_stop():
             self.sleep(self.interval)
-            self.log(f"RepoPilot worker heartbeat: {self.kind}")
-        self.log(f"RepoPilot worker stopped: {self.kind}")
+            self.log(f"RepoLM worker heartbeat: {self.kind}")
+        self.log(f"RepoLM worker stopped: {self.kind}")
 
 
 @dataclass
@@ -50,9 +50,9 @@ class SyncPollingWorker:
     log: Callable[[str], None] = print
 
     def run(self, should_stop: StopPredicate | None = None) -> None:
-        self.log("RepoPilot worker started: repo-sync (sync 큐 폴링)")
+        self.log("RepoLM worker started: repo-sync (sync 큐 폴링)")
         self.poller.run_forever(should_stop)  # type: ignore[attr-defined]
-        self.log("RepoPilot worker stopped: repo-sync")
+        self.log("RepoLM worker stopped: repo-sync")
 
 
 def build_worker(

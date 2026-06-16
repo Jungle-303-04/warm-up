@@ -2,7 +2,7 @@
 
 ## MVP 목표
 
-첫 빌드는 사용자가 GitHub로 로그인해 repo를 선택하면 RepoPilot이 branch, docs, code, issue, PR, commit을 자동 분석하고 finding/proposal을 보여줄 수 있음을 증명해야 한다.
+첫 빌드는 사용자가 GitHub로 로그인해 repo를 선택하면 RepoLM이 branch, docs, code, issue, PR, commit을 자동 분석하고 finding/proposal을 보여줄 수 있음을 증명해야 한다.
 
 Repo RAG 구현의 최신 기준은 `16-repo-rag-implementation-plan.md`다. 이 문서는
 제품 로드맵을 유지하고, 세부 구현 순서는 16번 문서에 위임한다.

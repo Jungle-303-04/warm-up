@@ -2,7 +2,7 @@
 
 ## 요약
 
-RepoPilot은 GitHub repo 연결을 시작점으로 하는 web-first 애플리케이션이다. 사용자는 GitHub OAuth로 로그인해 repo를 선택하고, RepoPilot은 branch, docs, code, issue, PR, commit을 자동 분석해 repo dashboard와 approval-based proposal을 제공한다.
+RepoLM은 GitHub repo 연결을 시작점으로 하는 web-first 애플리케이션이다. 사용자는 GitHub OAuth로 로그인해 repo를 선택하고, RepoLM은 branch, docs, code, issue, PR, commit을 자동 분석해 repo dashboard와 approval-based proposal을 제공한다.
 
 Repo RAG의 구체적인 구현 순서와 현재 P0 상태는
 `16-repo-rag-implementation-plan.md`를 기준으로 한다. 현재 `/pipeline/sync`는
@@ -40,7 +40,7 @@ Storage
 
 ## Repository 모델
 
-MVP에서 `RepositoryConnection`은 사용자가 선택한 GitHub repo 하나를 나타낸다. RepoPilot은 코드를 소유하지 않고 GitHub OAuth/App 권한으로 읽고 인덱싱한다. 여러 repo를 하나로 묶는 `ProjectGroup`은 후속 확장으로 둔다.
+MVP에서 `RepositoryConnection`은 사용자가 선택한 GitHub repo 하나를 나타낸다. RepoLM은 코드를 소유하지 않고 GitHub OAuth/App 권한으로 읽고 인덱싱한다. 여러 repo를 하나로 묶는 `ProjectGroup`은 후속 확장으로 둔다.
 
 아카이브 산출물은 별도로 관리한다.
 

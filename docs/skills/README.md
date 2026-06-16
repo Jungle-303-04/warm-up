@@ -9,7 +9,7 @@
 | --- | --- | --- | --- |
 | Full-stack | 언어 기초, 프론트엔드, 백엔드, 데이터 계층, 아키텍처 | `docs/woonyong/full-stack-tech-loadmap/` | 팀원이 기술 키워드의 의미와 사용 장면을 맞출 때 |
 | AI Implementation | LLM Runtime, RAG, MCP, Agent, Memory, Evaluation, Python Architecture | `docs/woonyong/ai-implementation/` | AI 기능을 실제 구현 단위로 설계할 때 |
-| Product | RepoPilot 제품 기획, 요구사항, 정보 구조, 로드맵 | `docs/woonyong/ai-dev-workspace/` | 제품 방향, MVP 범위, 기능 우선순위를 정할 때 |
+| Product | RepoLM 제품 기획, 요구사항, 정보 구조, 로드맵 | `docs/woonyong/ai-dev-workspace/` | 제품 방향, MVP 범위, 기능 우선순위를 정할 때 |
 | Operations | Notion 프로젝트, 회의, 작업 관리 | `docs/skills/notion-project-ops/SKILL.md` 및 Notion 팀 협업 허브 | 팀 일감과 회의 흐름을 관리할 때 |
 | Operations | Notion 개인 계획과 코드 동기화 | `docs/skills/notion-personal-plan-sync/SKILL.md` | 내 작업노트, 현재 브랜치, 실제 구현 상태를 맞출 때 |
 | Git Workflow | 커밋, 브랜치, PR, 리뷰 기준 | `docs/skills/commit-convention/SKILL.md` | 협업 변경사항을 기록하고 병합할 때 |
@@ -47,9 +47,9 @@ AI 기능은 모델 호출 자체보다 입력, 상태, 도구, 평가, 관측 �
 - Memory and Evaluation: Short-term Memory, Long-term Memory, Golden Dataset, Trace, Metrics, Cost Tracking
 - Python Architecture: Modular Monolith, Ports and Adapters, Domain Model, Use Case, Repository, Unit of Work
 
-## RepoPilot Product Skills
+## RepoLM Product Skills
 
-RepoPilot 관련 문서는 Notion, GitHub, 코드, 정적 뷰어를 연결하는 제품 관점에서 읽는다.
+RepoLM 관련 문서는 Notion, GitHub, 코드, 정적 뷰어를 연결하는 제품 관점에서 읽는다.
 
 - Product Planning: 문제 정의, 사용자, MVP 컷라인
 - Information Architecture: 페이지, 일감, 일정, 회의록, 위키의 공통 모델

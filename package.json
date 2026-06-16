@@ -1,5 +1,5 @@
 {
-  "name": "repopilot-workspace",
+  "name": "repolm-workspace",
   "private": true,
   "packageManager": "pnpm@10.17.0",
   "engines": {
@@ -7,9 +7,9 @@
   },
   "scripts": {
     "api:typecheck": "pyright --project pyrightconfig.json",
-    "dev": "pnpm --filter @repopilot/web dev",
-    "build": "pnpm --filter @repopilot/web build",
-    "typecheck": "pnpm --filter @repopilot/web typecheck"
+    "dev": "pnpm --filter @repolm/web dev",
+    "build": "pnpm --filter @repolm/web build",
+    "typecheck": "pnpm --filter @repolm/web typecheck"
   },
   "devDependencies": {
     "pyright": "1.1.410"

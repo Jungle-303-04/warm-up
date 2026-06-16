@@ -1,10 +1,10 @@
-# RepoPilot Bruno API Collection
+# RepoLM Bruno API Collection
 
-Bruno collection for the local RepoPilot FastAPI server.
+Bruno collection for the local RepoLM FastAPI server.
 
 ## Environment
 
-- Collection path: `backend/bruno/repopilot-api`
+- Collection path: `backend/bruno/repolm-api`
 - Environment: `local`
 - `baseUrl`: `http://localhost:8000`
 - `githubRepositoryUrl`: `https://github.com/Jungle-303-04/warm-up.git`

@@ -112,6 +112,6 @@ shadcn 스타일 HSL 토큰: `background foreground card primary secondary muted
 ## 현재 git 상태
 
 - 브랜치 `woonyong`(origin 대비 다수 앞섬, 푸시는 로컬에서 `git push origin woonyong`).
-- 백엔드 pytest 128 passed/6 skipped, 프론트 `pnpm --filter @repopilot/web typecheck`(tsc) green 기준 유지.
+- 백엔드 pytest 128 passed/6 skipped, 프론트 `pnpm --filter @repolm/web typecheck`(tsc) green 기준 유지.
 
 ---

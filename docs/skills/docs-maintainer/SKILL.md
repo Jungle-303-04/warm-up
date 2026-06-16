@@ -19,7 +19,7 @@ description: Use when adding, moving, renaming, deleting, or reorganizing projec
 - 팀 공유 스킬: `docs/skills/`
 - 풀스택 학습 문서: `docs/woonyong/full-stack-tech-loadmap/`
 - AI 구현 학습 문서: `docs/woonyong/ai-implementation/`
-- RepoPilot 제품 기획: `docs/woonyong/ai-dev-workspace/`
+- RepoLM 제품 기획: `docs/woonyong/ai-dev-workspace/`
 
 새 문서 위치가 애매하면 먼저 가장 가까운 기존 README의 분류를 따른다.
 

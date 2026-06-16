@@ -1,6 +1,6 @@
 # 현재 구현 클래스 UML
 
-이 문서는 2026-06-13 기준 RepoPilot 최소 구현의 Python 백엔드 클래스와 서비스 관계를 한눈에 보기 위한 UML이다. 다음 구현 순서는 `16-repo-rag-implementation-plan.md`를 기준으로 한다.
+이 문서는 2026-06-13 기준 RepoLM 최소 구현의 Python 백엔드 클래스와 서비스 관계를 한눈에 보기 위한 UML이다. 다음 구현 순서는 `16-repo-rag-implementation-plan.md`를 기준으로 한다.
 
 현재 구현은 두 흐름으로 나뉜다.
 

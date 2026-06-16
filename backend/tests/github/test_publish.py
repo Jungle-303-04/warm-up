@@ -49,4 +49,4 @@ def test_publish_posts_formatted_comment() -> None:
     repository, issue_number, body = client.calls[0]
     assert repository == "o/r"
     assert issue_number == 7
-    assert "RepoPilot 제안" in body
+    assert "RepoLM 제안" in body

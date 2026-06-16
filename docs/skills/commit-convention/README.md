@@ -16,7 +16,7 @@ Codex 스킬로 사용할 때는 같은 폴더의 [SKILL.md](./SKILL.md)를 기�
 
 ```text
 docs: 문서 구조를 docs 하위 폴더로 정리
-feat: RepoPilot 최소 파이프라인 API를 추가
+feat: RepoLM 최소 파이프라인 API를 추가
 fix: draft 저장 응답의 상태 필드를 보정
 ```
 

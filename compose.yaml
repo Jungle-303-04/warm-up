@@ -1,9 +1,9 @@
-name: repopilot
+name: repolm
 
 x-backend-env: &backend-env
-  REPOPILOT_ENV: ${REPOPILOT_ENV:-local}
+  REPOLM_ENV: ${REPOLM_ENV:-local}
   PYTHONPATH: /app
-  POSTGRES_DATABASE_URL: ${POSTGRES_DATABASE_URL:-postgresql+psycopg://repopilot:repopilot@postgres:5432/repopilot}
+  POSTGRES_DATABASE_URL: ${POSTGRES_DATABASE_URL:-postgresql+psycopg://repolm:repolm@postgres:5432/repolm}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
   GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
@@ -12,7 +12,7 @@ x-backend-env: &backend-env
   WEB_APP_URL: ${WEB_APP_URL:-http://localhost:3000}
 
 x-backend-service: &backend-service
-  image: repopilot-api:local
+  image: repolm-api:local
   build:
     context: ./backend
   environment:
@@ -83,16 +83,16 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-repopilot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-repopilot}
-      POSTGRES_DB: ${POSTGRES_DB:-repopilot}
+      POSTGRES_USER: ${POSTGRES_USER:-repolm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-repolm}
+      POSTGRES_DB: ${POSTGRES_DB:-repolm}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-repopilot} -d ${POSTGRES_DB:-repopilot}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-repolm} -d ${POSTGRES_DB:-repolm}"]
       interval: 5s
       timeout: 5s
       retries: 10

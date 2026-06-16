@@ -1,1 +1,1 @@
-"""RepoPilot FastAPI application package."""
+"""RepoLM FastAPI application package."""

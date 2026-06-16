@@ -2,7 +2,7 @@
 
 ## 저장소 계약
 
-RepoPilot은 책임별로 저장소를 나눈다.
+RepoLM은 책임별로 저장소를 나눈다.
 
 ```text
 PostgreSQL
@@ -79,9 +79,9 @@ Public anonymous user는 항상 read-only이며, published content만 볼 수 �
 
 ## GitHub Access
 
-MVP는 GitHub OAuth 로그인으로 시작한다. 사용자는 GitHub에서 권한을 승인하고, RepoPilot은 GitHub access token으로 사용자가 접근 가능한 repo 목록과 repo content, issue, PR을 읽는다.
+MVP는 GitHub OAuth 로그인으로 시작한다. 사용자는 GitHub에서 권한을 승인하고, RepoLM은 GitHub access token으로 사용자가 접근 가능한 repo 목록과 repo content, issue, PR을 읽는다.
 
-브라우저 로그인 유지는 RepoPilot 자체 session cookie로 처리한다.
+브라우저 로그인 유지는 RepoLM 자체 session cookie로 처리한다.
 
 ```text
 GitHub OAuth access token
@@ -89,8 +89,8 @@ GitHub OAuth access token
 -> backend에 암호화 저장
 -> browser에 직접 노출하지 않음
 
-RepoPilot session cookie
--> RepoPilot 로그인 유지용
+RepoLM session cookie
+-> RepoLM 로그인 유지용
 -> HttpOnly Secure SameSite cookie
 -> sessions table에서 revoke/expire 관리
 ```
@@ -112,7 +112,7 @@ Write action은 명시적 사용자 승인이 필요하다.
 
 ## GitHub 권한 상태
 
-RepoPilot은 repo sync 전과 주기적 background check에서 GitHub 권한 상태를 확인한다.
+RepoLM은 repo sync 전과 주기적 background check에서 GitHub 권한 상태를 확인한다.
 
 확인할 것:
 
@@ -169,7 +169,7 @@ limited
 revoked
 ```
 
-사용자가 RepoPilot에 초대되었지만 GitHub repo access가 없으면 repo-aware docs, issues, code search, RAG context를 잠근다.
+사용자가 RepoLM에 초대되었지만 GitHub repo access가 없으면 repo-aware docs, issues, code search, RAG context를 잠근다.
 
 ## RAG 권한 규칙
 

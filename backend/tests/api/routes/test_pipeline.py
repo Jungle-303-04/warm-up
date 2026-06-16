@@ -102,7 +102,7 @@ def test_pipeline_run_route_syncs_repository_url(
 ) -> None:
     source_repo_path = create_git_repo(tmp_path)
     remote_path = create_bare_remote(source_repo_path, tmp_path)
-    monkeypatch.setenv("REPOPILOT_ALLOW_FILE_REPOSITORY_URL", "1")
+    monkeypatch.setenv("REPOLM_ALLOW_FILE_REPOSITORY_URL", "1")
 
     response = client.post("/pipeline/run", json={"repository_url": remote_path.as_uri()})
 

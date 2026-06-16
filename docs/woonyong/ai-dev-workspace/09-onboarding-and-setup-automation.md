@@ -68,7 +68,7 @@ Initial indexing은 다음을 수행한다.
 
 ## 팀 초대
 
-Invite UX는 RepoPilot 접근 권한과 GitHub 접근 권한이 다르다는 것을 설명해야 한다.
+Invite UX는 RepoLM 접근 권한과 GitHub 접근 권한이 다르다는 것을 설명해야 한다.
 
 사용자에게 GitHub access가 없을 때:
 

@@ -41,7 +41,7 @@
 
 - 루트 문서는 길게 늘리지 않는다. 루트에는 프로젝트 목적과 실행 입구만 둔다.
 - 학습과 기술 설명은 `docs/woonyong/full-stack-tech-loadmap/` 또는 `docs/woonyong/ai-implementation/`에 둔다.
-- RepoPilot 제품 기획은 `docs/woonyong/ai-dev-workspace/`에 둔다.
+- RepoLM 제품 기획은 `docs/woonyong/ai-dev-workspace/`에 둔다.
 - 스킬 지도는 `docs/skills/README.md`에 둔다.
 - 운영/문서/Git 규칙은 `docs/config/`에 둔다.
 - 문서는 한국어로 작성하되, 기술명과 API 이름은 공식 영문 표기를 유지한다.

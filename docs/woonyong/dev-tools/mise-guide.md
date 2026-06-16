@@ -44,11 +44,11 @@ description = "Validate Docker Compose configuration"
 run = "docker compose config --quiet"
 
 [tasks."compose:up"]
-description = "Start the local RepoPilot pipeline"
+description = "Start the local RepoLM pipeline"
 run = "docker compose up --build"
 
 [tasks."compose:down"]
-description = "Stop the local RepoPilot pipeline"
+description = "Stop the local RepoLM pipeline"
 run = "docker compose down"
 
 [tasks."compose:logs"]
@@ -62,7 +62,7 @@ run = "uv run pytest"
 
 [tasks."web:typecheck"]
 description = "Type-check the web app"
-run = "pnpm --filter @repopilot/web typecheck"
+run = "pnpm --filter @repolm/web typecheck"
 
 [tasks.check]
 description = "Run lightweight local checks"
@@ -186,7 +186,7 @@ run = "docker compose config --quiet"
 19줄은 `mise run compose:up` task를 정의한다.
 
 ```toml
-description = "Start the local RepoPilot pipeline"
+description = "Start the local RepoLM pipeline"
 ```
 
 20줄은 local pipeline을 시작한다는 설명이다.
@@ -207,7 +207,7 @@ run = "docker compose up --build"
 23줄은 `mise run compose:down` task를 정의한다.
 
 ```toml
-description = "Stop the local RepoPilot pipeline"
+description = "Stop the local RepoLM pipeline"
 ```
 
 24줄은 local pipeline을 멈춘다는 설명이다.
@@ -281,10 +281,10 @@ description = "Type-check the web app"
 37줄은 web app typecheck를 실행한다는 설명이다.
 
 ```toml
-run = "pnpm --filter @repopilot/web typecheck"
+run = "pnpm --filter @repolm/web typecheck"
 ```
 
-38줄은 pnpm workspace에서 `@repopilot/web` package만 골라 typecheck script를 실행한다.
+38줄은 pnpm workspace에서 `@repolm/web` package만 골라 typecheck script를 실행한다.
 
 ## 40-42줄: 전체 가벼운 검증
 

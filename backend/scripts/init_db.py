@@ -1,7 +1,7 @@
 """repo-rag Postgres 스키마 초기화.
 
 실행:
-    POSTGRES_DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/repopilot \
+    POSTGRES_DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/repolm \
         python -m scripts.init_db
 
 순서:

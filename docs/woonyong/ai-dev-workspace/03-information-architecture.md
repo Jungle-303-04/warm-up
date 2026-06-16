@@ -2,7 +2,7 @@
 
 ## 핵심 결정
 
-RepoPilot은 문서, 일감, 회의록, 일정, 결정, spec을 하나의 콘텐츠 모델로 다룬다. UI는 item type과 property에 따라 적절한 뷰를 선택한다.
+RepoLM은 문서, 일감, 회의록, 일정, 결정, spec을 하나의 콘텐츠 모델로 다룬다. UI는 item type과 property에 따라 적절한 뷰를 선택한다.
 
 이 방식은 wiki, task, calendar, issue 시스템을 각각 따로 만드는 것보다 단순하다.
 
@@ -46,7 +46,7 @@ AuditEvent
 - `status`: `active | disconnected | cleanup_pending | deleted`
 - `last_synced_at`
 
-repo 연결 해제는 GitHub 원본 repo를 삭제하지 않는다. RepoPilot 내부 source, chunk, embedding, finding, proposal을 inactive 처리하고 검색에서 제외한다.
+repo 연결 해제는 GitHub 원본 repo를 삭제하지 않는다. RepoLM 내부 source, chunk, embedding, finding, proposal을 inactive 처리하고 검색에서 제외한다.
 
 ## Source File과 Chunk
 

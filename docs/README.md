@@ -13,7 +13,7 @@
 
 - [풀스택 기술 로드맵](./woonyong/full-stack-tech-loadmap/README.md)
 - [AI 구현 로드맵](./woonyong/ai-implementation/README.md)
-- [AI 개발 워크스페이스 / RepoPilot](./woonyong/ai-dev-workspace/README.md)
+- [AI 개발 워크스페이스 / RepoLM](./woonyong/ai-dev-workspace/README.md)
 - [개발 도구 사용법](./woonyong/dev-tools/README.md)
 - [우현 warm-up 구현 분석](./woonyong/woohyun/README.md)
 
@@ -73,7 +73,7 @@ docs
 - [메모리, 평가, 관측성](./woonyong/ai-implementation/05-memory-evaluation-observability.md)
 - [Python 아키텍처](./woonyong/ai-implementation/06-python-architecture.md)
 
-## AI 개발 워크스페이스 / RepoPilot
+## AI 개발 워크스페이스 / RepoLM
 
 - [README](./woonyong/ai-dev-workspace/README.md)
 - [제품 기획서](./woonyong/ai-dev-workspace/00-product-plan.md)

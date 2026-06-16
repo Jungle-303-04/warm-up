@@ -2,7 +2,7 @@
 
 ## 제품 표면 분리
 
-RepoPilot은 두 가지 UI 모드를 가진다.
+RepoLM은 두 가지 UI 모드를 가진다.
 
 ```text
 Workspace App
@@ -155,6 +155,6 @@ P1 extension 기능:
 - 현재 file/symbol과 관련된 문서 표시
 - 코드 옆 stale status 표시
 - 선택한 코드로 related-code link 생성
-- RepoPilot page 열기
+- RepoLM page 열기
 
 강한 차별점이지만, MVP에서는 브라우저 기반 code-link navigation이면 충분하다.

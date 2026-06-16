@@ -17,11 +17,11 @@ description = "Validate Docker Compose configuration"
 run = "docker compose config --quiet"
 
 [tasks."compose:up"]
-description = "Start the local RepoPilot pipeline"
+description = "Start the local RepoLM pipeline"
 run = "docker compose up --build"
 
 [tasks."compose:debug"]
-description = "Start the local RepoPilot pipeline with VS Code debug ports"
+description = "Start the local RepoLM pipeline with VS Code debug ports"
 run = "docker compose -f compose.yaml -f compose.debug.yaml up --build"
 
 [tasks."compose:debug:api"]
@@ -29,7 +29,7 @@ description = "Start the FastAPI debug target with backing services"
 run = "docker compose -f compose.yaml -f compose.debug.yaml up --build api postgres redis"
 
 [tasks."compose:down"]
-description = "Stop the local RepoPilot pipeline"
+description = "Stop the local RepoLM pipeline"
 run = "docker compose down"
 
 [tasks."compose:logs"]
@@ -54,7 +54,7 @@ run = [
 
 [tasks."web:typecheck"]
 description = "Type-check the web app"
-run = "pnpm --filter @repopilot/web typecheck"
+run = "pnpm --filter @repolm/web typecheck"
 
 [tasks.check]
 description = "Run lightweight local checks"

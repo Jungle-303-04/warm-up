@@ -1,6 +1,6 @@
 # SW_AI-W15 Warm-up
 
-문서 기반으로 기술 로드맵, AI 구현 구조, RepoPilot 제품 기획을 정리하는 워크스페이스다.
+문서 기반으로 기술 로드맵, AI 구현 구조, RepoLM 제품 기획을 정리하는 워크스페이스다.
 
 ## Documentation
 
@@ -12,11 +12,11 @@
 
 - [풀스택 기술 로드맵](./docs/woonyong/full-stack-tech-loadmap/README.md)
 - [AI 구현 로드맵](./docs/woonyong/ai-implementation/README.md)
-- [AI 개발 워크스페이스 / RepoPilot](./docs/woonyong/ai-dev-workspace/README.md)
+- [AI 개발 워크스페이스 / RepoLM](./docs/woonyong/ai-dev-workspace/README.md)
 
 ## Local Pipeline
 
-RepoPilot의 최소 실행 골격은 Docker Compose와 `mise` 기준으로 관리한다.
+RepoLM의 최소 실행 골격은 Docker Compose와 `mise` 기준으로 관리한다.
 
 ```bash
 mise install

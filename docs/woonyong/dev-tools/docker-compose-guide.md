@@ -1,6 +1,6 @@
 # Docker Compose 사용법
 
-이 문서는 현재 RepoPilot 최소 구현의 `compose.yaml`을 이해하기 위한 설명이다.
+이 문서는 현재 RepoLM 최소 구현의 `compose.yaml`을 이해하기 위한 설명이다.
 
 핵심부터 말하면 `dockerfile:`과 `<<:`는 같은 기능이 아니다.
 
@@ -41,7 +41,7 @@ backend Dockerfile로 image 만들기
 
 Docker Compose는 여러 컨테이너를 한 번에 묶어서 실행하는 도구다.
 
-RepoPilot은 혼자 돌아가는 프로그램이 아니다.
+RepoLM은 혼자 돌아가는 프로그램이 아니다.
 
 ```text
 web
@@ -66,7 +66,7 @@ docker compose up --build
 현재 `compose.yaml`은 크게 네 부분이다.
 
 ```yaml
-name: repopilot
+name: repolm
 
 x-backend-env: &backend-env
   ...
@@ -99,8 +99,8 @@ Compose에서 `x-`로 시작하는 top-level key는 실행 대상이 아니다.
 
 ```yaml
 x-backend-env: &backend-env
-  REPOPILOT_ENV: ${REPOPILOT_ENV:-local}
-  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://repopilot:repopilot@postgres:5432/repopilot}
+  REPOLM_ENV: ${REPOLM_ENV:-local}
+  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://repolm:repolm@postgres:5432/repolm}
 ```
 
 이것은 실행할 서비스가 아니라 재사용할 메모장이다.
@@ -109,8 +109,8 @@ Python식으로 비유하면 다음에 가깝다.
 
 ```python
 backend_env = {
-    "REPOPILOT_ENV": "local",
-    "DATABASE_URL": "postgresql+asyncpg://repopilot:repopilot@postgres:5432/repopilot",
+    "REPOLM_ENV": "local",
+    "DATABASE_URL": "postgresql+asyncpg://repolm:repolm@postgres:5432/repolm",
 }
 ```
 
@@ -153,14 +153,14 @@ environment:
 ```yaml
 api:
   environment:
-    REPOPILOT_ENV: local
-    DATABASE_URL: postgresql+asyncpg://repopilot:repopilot@postgres:5432/repopilot
+    REPOLM_ENV: local
+    DATABASE_URL: postgresql+asyncpg://repolm:repolm@postgres:5432/repolm
     REDIS_URL: redis://redis:6379/0
 
 worker-repo-sync:
   environment:
-    REPOPILOT_ENV: local
-    DATABASE_URL: postgresql+asyncpg://repopilot:repopilot@postgres:5432/repopilot
+    REPOLM_ENV: local
+    DATABASE_URL: postgresql+asyncpg://repolm:repolm@postgres:5432/repolm
     REDIS_URL: redis://redis:6379/0
 ```
 
@@ -168,8 +168,8 @@ anchor와 merge를 쓰는 방식:
 
 ```yaml
 x-backend-env: &backend-env
-  REPOPILOT_ENV: local
-  DATABASE_URL: postgresql+asyncpg://repopilot:repopilot@postgres:5432/repopilot
+  REPOLM_ENV: local
+  DATABASE_URL: postgresql+asyncpg://repolm:repolm@postgres:5432/repolm
   REDIS_URL: redis://redis:6379/0
 
 api:
@@ -248,7 +248,7 @@ dockerfile: 이미지 빌드에 사용할 Dockerfile 경로
 다음 설정을 보자.
 
 ```yaml
-image: repopilot-api:local
+image: repolm-api:local
 build:
   context: ./backend
 ```
@@ -259,7 +259,7 @@ build:
 
 ```text
 build: ./backend/Dockerfile로 image를 만들어
-image: 그 image 이름은 repopilot-api:local로 해
+image: 그 image 이름은 repolm-api:local로 해
 ```
 
 `image`만 있고 `build`가 없으면 Docker Hub 같은 registry에서 이미지를 가져온다.
@@ -280,20 +280,20 @@ pgvector/pgvector:pg16 이미지를 받아서 실행한다.
 다음 문법을 자주 본다.
 
 ```yaml
-REPOPILOT_ENV: ${REPOPILOT_ENV:-local}
+REPOLM_ENV: ${REPOLM_ENV:-local}
 ```
 
 의미는 다음과 같다.
 
 ```text
-host 환경변수 REPOPILOT_ENV가 있으면 그 값을 사용한다.
+host 환경변수 REPOLM_ENV가 있으면 그 값을 사용한다.
 없으면 local을 사용한다.
 ```
 
 예를 들어 `.env`에 다음 값이 있으면:
 
 ```env
-REPOPILOT_ENV=dev
+REPOLM_ENV=dev
 ```
 
 Compose 안에서는 `dev`가 들어간다.
@@ -318,7 +318,7 @@ OPENAI_API_KEY가 있으면 사용한다.
 다음 DB URL을 보자.
 
 ```yaml
-DATABASE_URL: postgresql+asyncpg://repopilot:repopilot@postgres:5432/repopilot
+DATABASE_URL: postgresql+asyncpg://repolm:repolm@postgres:5432/repolm
 ```
 
 여기서 `postgres`는 인터넷 도메인이 아니다.
@@ -522,7 +522,7 @@ Postgres는 켜졌다고 바로 query를 받을 수 있는 것이 아니다.
 
 ```yaml
 healthcheck:
-  test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-repopilot} -d ${POSTGRES_DB:-repopilot}"]
+  test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-repolm} -d ${POSTGRES_DB:-repolm}"]
 ```
 
 이 명령이 성공해야 `postgres`는 healthy가 된다.
@@ -569,7 +569,7 @@ worker는 app.workers.runner 실행
 
 이렇게 역할을 나눈다.
 
-## 현재 RepoPilot Compose 실행 순서
+## 현재 RepoLM Compose 실행 순서
 
 실제로는 대략 이런 순서로 이해하면 된다.
 
@@ -655,7 +655,7 @@ DB 데이터가 날아갈 수 있으므로 조심해서 쓴다.
 | `<<:` | 참조한 설정을 현재 위치에 병합 | `environment`에 env 묶음 삽입 |
 | `build.context` | Docker build 기준 폴더 | `./backend`, `.` |
 | `build.dockerfile` | 사용할 Dockerfile 경로 | `apps/web/Dockerfile` |
-| `image` | 사용할 image 이름 | `repopilot-api:local`, `redis:7-alpine` |
+| `image` | 사용할 image 이름 | `repolm-api:local`, `redis:7-alpine` |
 | service name | Compose 내부 hostname | `postgres`, `redis`, `api` |
 | bind mount | host 폴더를 container에 연결 | `./backend/app:/app/app` |
 | named volume | Docker가 관리하는 저장공간 | `postgres_data` |

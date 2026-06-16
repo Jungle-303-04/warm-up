@@ -3,7 +3,7 @@
 POSTGRES_DATABASE_URL이 설정된 경우에만 실행된다.
 
 실행 예:
-    POSTGRES_DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/repopilot_test \
+    POSTGRES_DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/repolm_test \
         pytest tests/proposals/test_sql_integration.py
 """
 

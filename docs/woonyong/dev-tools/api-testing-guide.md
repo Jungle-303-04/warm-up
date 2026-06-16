@@ -1,6 +1,6 @@
 # API 테스트 방법
 
-이 문서는 RepoPilot API를 Postman 없이 테스트하는 방법을 정리한다.
+이 문서는 RepoLM API를 Postman 없이 테스트하는 방법을 정리한다.
 
 현재 FastAPI 서버는 실행되면 아래 주소를 제공한다.
 
@@ -85,7 +85,7 @@ Repo RAG sync 샘플 요청:
 Postman처럼 요청을 저장해두고 실행하려면 VS Code의 REST Client 확장을 쓴다.
 
 1. VS Code 확장 추천에서 `REST Client`를 설치한다.
-2. [repopilot.http](../../../backend/requests/repopilot.http)를 연다.
+2. [repolm.http](../../../backend/requests/repolm.http)를 연다.
 3. 각 요청 위의 `Send Request`를 누른다.
 
 이 파일에는 아래 요청이 들어 있다.

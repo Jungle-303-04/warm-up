@@ -1,6 +1,6 @@
 # pnpm 사용법과 관련 파일 라인별 해설
 
-이 문서는 현재 RepoPilot web workspace에서 pnpm이 어떻게 쓰이는지 설명한다.
+이 문서는 현재 RepoLM web workspace에서 pnpm이 어떻게 쓰이는지 설명한다.
 
 `pnom`이라고 부른 부분은 이 문서에서 `pnpm`으로 정리한다.
 
@@ -44,16 +44,16 @@ pnpm-lock.yaml
 
 ```json
 {
-  "name": "repopilot-workspace",
+  "name": "repolm-workspace",
   "private": true,
   "packageManager": "pnpm@10.17.0",
   "engines": {
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "pnpm --filter @repopilot/web dev",
-    "build": "pnpm --filter @repopilot/web build",
-    "typecheck": "pnpm --filter @repopilot/web typecheck"
+    "dev": "pnpm --filter @repolm/web dev",
+    "build": "pnpm --filter @repolm/web build",
+    "typecheck": "pnpm --filter @repolm/web typecheck"
   }
 }
 ```
@@ -68,19 +68,19 @@ pnpm-lock.yaml
 - 6: Node.js는 22.12 이상이어야 한다고 선언한다.
 - 7: `engines` 객체를 닫는다.
 - 8: root에서 실행할 script 목록을 시작한다.
-- 9: `pnpm dev`를 실행하면 `@repopilot/web` package의 `dev` script를 실행한다.
-- 10: `pnpm build`를 실행하면 `@repopilot/web` package의 `build` script를 실행한다.
-- 11: `pnpm typecheck`를 실행하면 `@repopilot/web` package의 `typecheck` script를 실행한다.
+- 9: `pnpm dev`를 실행하면 `@repolm/web` package의 `dev` script를 실행한다.
+- 10: `pnpm build`를 실행하면 `@repolm/web` package의 `build` script를 실행한다.
+- 11: `pnpm typecheck`를 실행하면 `@repolm/web` package의 `typecheck` script를 실행한다.
 - 12: `scripts` 객체를 닫는다.
 - 13: JSON 객체를 닫는다.
 
 핵심은 `--filter`다.
 
 ```bash
-pnpm --filter @repopilot/web dev
+pnpm --filter @repolm/web dev
 ```
 
-이 명령은 workspace 전체 중에서 이름이 `@repopilot/web`인 package만 골라 `dev`를 실행한다.
+이 명령은 workspace 전체 중에서 이름이 `@repolm/web`인 package만 골라 `dev`를 실행한다.
 
 ## `pnpm-workspace.yaml`
 
@@ -103,7 +103,7 @@ packages:
 
 ```text
 root package
-└── apps/web package = @repopilot/web
+└── apps/web package = @repolm/web
 ```
 
 ## `apps/web/package.json`
@@ -112,7 +112,7 @@ root package
 
 ```json
 {
-  "name": "@repopilot/web",
+  "name": "@repolm/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -139,7 +139,7 @@ root package
 라인별 설명:
 
 - 1: JSON 객체를 시작한다.
-- 2: web package 이름이다. root `package.json`의 `--filter @repopilot/web`이 이 이름을 찾는다.
+- 2: web package 이름이다. root `package.json`의 `--filter @repolm/web`이 이 이름을 찾는다.
 - 3: web package version이다.
 - 4: 이 package도 publish하지 않는다.
 - 5: JavaScript module 방식을 ESM으로 쓴다는 뜻이다.
@@ -174,12 +174,12 @@ RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
-RUN pnpm install --filter @repopilot/web --frozen-lockfile
+RUN pnpm install --filter @repolm/web --frozen-lockfile
 
 COPY apps/web apps/web
 
 EXPOSE 3000
-CMD ["pnpm", "--filter", "@repopilot/web", "dev", "--hostname", "0.0.0.0", "--port", "3000"]
+CMD ["pnpm", "--filter", "@repolm/web", "dev", "--hostname", "0.0.0.0", "--port", "3000"]
 ```
 
 라인별 설명:
@@ -190,7 +190,7 @@ CMD ["pnpm", "--filter", "@repopilot/web", "dev", "--hostname", "0.0.0.0", "--po
 - 4: 빈 줄이다.
 - 5: root package, pnpm lockfile, workspace 파일을 container로 복사한다.
 - 6: web package manifest를 container로 복사한다.
-- 7: `@repopilot/web` package에 필요한 의존성을 lockfile 기준으로 설치한다.
+- 7: `@repolm/web` package에 필요한 의존성을 lockfile 기준으로 설치한다.
 - 8: 빈 줄이다.
 - 9: 실제 web app source를 container에 복사한다.
 - 10: 빈 줄이다.
@@ -235,7 +235,7 @@ Corepack을 활성화해 `packageManager`에 적힌 pnpm을 안정적으로 쓰�
 workspace dependency를 설치한다.
 
 ```toml
-run = "pnpm --filter @repopilot/web typecheck"
+run = "pnpm --filter @repolm/web typecheck"
 ```
 
 web package만 골라 typecheck를 실행한다.
@@ -318,31 +318,31 @@ pnpm install
 workspace dependency를 설치한다.
 
 ```bash
-pnpm --filter @repopilot/web dev
+pnpm --filter @repolm/web dev
 ```
 
 web 개발 서버를 실행한다.
 
 ```bash
-pnpm --filter @repopilot/web build
+pnpm --filter @repolm/web build
 ```
 
 web production build를 만든다.
 
 ```bash
-pnpm --filter @repopilot/web typecheck
+pnpm --filter @repolm/web typecheck
 ```
 
 web TypeScript typecheck를 실행한다.
 
 ```bash
-pnpm add <package> --filter @repopilot/web
+pnpm add <package> --filter @repolm/web
 ```
 
 web package에 runtime dependency를 추가한다.
 
 ```bash
-pnpm add -D <package> --filter @repopilot/web
+pnpm add -D <package> --filter @repolm/web
 ```
 
 web package에 dev dependency를 추가한다.
@@ -362,13 +362,13 @@ apps/admin/package.json
 root script에서 실행하려면 root `package.json`에 script를 추가한다.
 
 ```json
-"admin:dev": "pnpm --filter @repopilot/admin dev"
+"admin:dev": "pnpm --filter @repolm/admin dev"
 ```
 
 dependency를 추가할 때는 root에 막 추가하지 말고, 실제로 필요한 package에 추가한다.
 
 ```bash
-pnpm add lucide-react --filter @repopilot/web
+pnpm add lucide-react --filter @repolm/web
 ```
 
 이렇게 해야 dependency 소유가 분명해진다.

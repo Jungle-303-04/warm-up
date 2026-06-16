@@ -8,12 +8,12 @@
 
 1. 사용자가 GitHub OAuth로 로그인한다.
 2. 접근 가능한 repo 목록에서 분석할 repo를 선택한다.
-3. RepoPilot이 default branch, open PR branch, 최근 active branch를 자동 sync한다.
-4. RepoPilot이 repo 파일, 문서, 이슈, PR, commit, label, milestone을 인덱싱한다.
-5. RepoPilot이 문서-코드 연결 후보, 작업 영역, stale 문서, missing evidence를 자동 생성한다.
+3. RepoLM이 default branch, open PR branch, 최근 active branch를 자동 sync한다.
+4. RepoLM이 repo 파일, 문서, 이슈, PR, commit, label, milestone을 인덱싱한다.
+5. RepoLM이 문서-코드 연결 후보, 작업 영역, stale 문서, missing evidence를 자동 생성한다.
 6. 사용자는 대시보드에서 finding과 proposal을 확인한다.
 7. 사용자는 GitHub issue 생성/상태 변경, 문서 수정, comment 작성 proposal을 승인하거나 보류한다.
-8. RepoPilot은 승인된 action을 GitHub나 문서에 반영한 뒤 다시 sync해 결과를 검증한다.
+8. RepoLM은 승인된 action을 GitHub나 문서에 반영한 뒤 다시 sync해 결과를 검증한다.
 
 ## 기능 요구사항
 
@@ -42,8 +42,8 @@
 
 ### GitHub
 
-- RepoPilot은 GitHub issue를 가져와 repo 기준 작업 view로 보여줄 수 있다.
-- RepoPilot은 missing evidence나 stale 문서를 근거로 GitHub issue draft를 만들 수 있다.
+- RepoLM은 GitHub issue를 가져와 repo 기준 작업 view로 보여줄 수 있다.
+- RepoLM은 missing evidence나 stale 문서를 근거로 GitHub issue draft를 만들 수 있다.
 - GitHub write action은 사용자 승인 이후에만 실행된다.
 - repo-specific data를 보여주기 전 GitHub permission check가 적용되어야 한다.
 

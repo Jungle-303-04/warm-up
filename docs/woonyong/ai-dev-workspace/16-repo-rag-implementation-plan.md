@@ -1,16 +1,16 @@
-# RepoPilot Repo RAG 구축 통합 계획서
+# RepoLM Repo RAG 구축 통합 계획서
 
 ## Summary
 
-목표는 GitHub OAuth로 선택한 repo를 기준으로 branch, 문서, 코드, 이슈, PR, 커밋을 자동 분석하는 **repo-first RAG 기반 프로젝트 지식 서비스**로 RepoPilot을 발전시키는 것이다.
+목표는 GitHub OAuth로 선택한 repo를 기준으로 branch, 문서, 코드, 이슈, PR, 커밋을 자동 분석하는 **repo-first RAG 기반 프로젝트 지식 서비스**로 RepoLM을 발전시키는 것이다.
 
-RepoPilot은 Notion 복제가 아니라, 사용자가 선택한 GitHub repo의 구현 문서, 작업 기록, 코드 참조, 이슈/PR/커밋을 연결해 **"현재 repo 상태에서 무엇이 구현됐고, 어떤 문서가 낡았고, 다음 action은 무엇인지"** 보여주는 도구다. 현재 구현은 `/pipeline/run` 데모 파이프라인과 `/pipeline/sync` Repo RAG P0 골격까지 들어와 있다. 다음 단계는 in-memory 저장소를 Postgres/pgvector 기반으로 바꾸고, GitHub repo 변경분을 안정적으로 저장/검색/검증하는 흐름을 완성하는 것이다.
+RepoLM은 Notion 복제가 아니라, 사용자가 선택한 GitHub repo의 구현 문서, 작업 기록, 코드 참조, 이슈/PR/커밋을 연결해 **"현재 repo 상태에서 무엇이 구현됐고, 어떤 문서가 낡았고, 다음 action은 무엇인지"** 보여주는 도구다. 현재 구현은 `/pipeline/run` 데모 파이프라인과 `/pipeline/sync` Repo RAG P0 골격까지 들어와 있다. 다음 단계는 in-memory 저장소를 Postgres/pgvector 기반으로 바꾸고, GitHub repo 변경분을 안정적으로 저장/검색/검증하는 흐름을 완성하는 것이다.
 
 이 문서는 Repo RAG 구현 순서의 기준 문서다. 제품 원칙은 `00-product-plan.md`, 시스템 큰 그림은 `04-system-architecture.md`, AI/RAG 원칙은 `11-ai-agent-rag-plan.md`, 현재 백엔드 클래스 구조는 `15-current-class-uml.md`를 함께 본다.
 
 ## 현재 상태 정리
 
-- 제품 방향: `RepoPilot`
+- 제품 방향: `RepoLM`
   - GitHub 로그인 후 repo를 선택하면 해당 repo의 branch, docs, code, issue, PR, commit을 자동 분석한다.
   - 핵심 차별점은 코드-문서 정합성 검증이다.
   - AI는 직접 write하지 않고 citation과 approval이 있는 proposal만 만든다.
@@ -105,8 +105,8 @@ RepoPilot은 Notion 복제가 아니라, 사용자가 선택한 GitHub repo의 �
 
 - API
   - `GET /auth/github/login`: GitHub OAuth 시작
-  - `GET /auth/github/callback`: OAuth code 교환, GitHub token 저장, RepoPilot session cookie 발급
-  - `GET /auth/me`: 현재 RepoPilot 사용자 조회
+  - `GET /auth/github/callback`: OAuth code 교환, GitHub token 저장, RepoLM session cookie 발급
+  - `GET /auth/me`: 현재 RepoLM 사용자 조회
   - `POST /auth/logout`: session revoke
   - `GET /github/repositories`: 로그인 사용자가 접근 가능한 repo 목록 조회
   - `POST /pipeline/sync`: repo sync job 생성 및 현재는 inline 실행

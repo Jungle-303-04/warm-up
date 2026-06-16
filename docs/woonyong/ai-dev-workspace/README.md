@@ -1,8 +1,8 @@
 # AI Dev Workspace
 
-현재 제품 기획명은 `RepoPilot`이다.
+현재 제품 기획명은 `RepoLM`이다.
 
-RepoPilot은 사용자가 GitHub로 로그인해 repo를 선택하면 branch, 문서, 코드, 이슈, PR, 커밋을 자동 분석하고, 작업 상태와 문서 최신성, 다음 action을 근거와 함께 제안하는 repo-first 협업툴이다.
+RepoLM은 사용자가 GitHub로 로그인해 repo를 선택하면 branch, 문서, 코드, 이슈, PR, 커밋을 자동 분석하고, 작업 상태와 문서 최신성, 다음 action을 근거와 함께 제안하는 repo-first 협업툴이다.
 
 ## 핵심 방향
 

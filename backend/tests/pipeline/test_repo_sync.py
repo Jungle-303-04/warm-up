@@ -89,7 +89,7 @@ def test_sync_clones_tracked_text_files_from_repository_url(
     source_repo_path = create_git_repo(tmp_path)
     remote_path = create_bare_remote(source_repo_path, tmp_path)
     service = RepoSyncService()
-    monkeypatch.setenv("REPOPILOT_ALLOW_FILE_REPOSITORY_URL", "1")
+    monkeypatch.setenv("REPOLM_ALLOW_FILE_REPOSITORY_URL", "1")
 
     snapshot = service.sync(PipelineRequest(repository_url=remote_path.as_uri()))
 

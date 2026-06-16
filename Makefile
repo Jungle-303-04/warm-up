@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 
 help:
-	@printf "RepoPilot commands\n"
+	@printf "RepoLM commands\n"
 	@printf "\n"
 	@printf "  make setup             Install project dependencies\n"
 	@printf "  make test              Run all local tests and type checks\n"
@@ -35,7 +35,7 @@ api-test:
 	cd backend && uv run pytest
 
 web-typecheck:
-	pnpm --filter @repopilot/web typecheck
+	pnpm --filter @repolm/web typecheck
 
 api-smoke:
 	curl -fsS http://localhost:8000/health

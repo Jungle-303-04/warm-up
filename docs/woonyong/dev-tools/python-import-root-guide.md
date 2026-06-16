@@ -2,7 +2,7 @@
 
 ## 기준
 
-RepoPilot backend의 Python import root는 `backend`다.
+RepoLM backend의 Python import root는 `backend`다.
 
 ```text
 backend

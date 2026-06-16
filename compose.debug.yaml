@@ -1,6 +1,6 @@
 services:
   api:
-    image: repopilot-api:debug
+    image: repolm-api:debug
     build:
       context: ./backend
       target: dev

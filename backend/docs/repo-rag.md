@@ -39,11 +39,11 @@ cd backend
 uv sync                      # 또는 pip install -e .
 
 # 2) Postgres + pgvector 준비 (예시: docker)
-docker run -d --name repopilot-pg -p 5432:5432 \
-  -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=repopilot \
+docker run -d --name repolm-pg -p 5432:5432 \
+  -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=repolm \
   pgvector/pgvector:pg16
 
-export POSTGRES_DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/repopilot"
+export POSTGRES_DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/repolm"
 export EMBEDDING_PROVIDER=openai
 export OPENAI_API_KEY=sk-...
 
@@ -82,7 +82,7 @@ curl -X POST localhost:8000/pipeline/search \
 pytest
 
 # Postgres 통합 테스트 (테스트 전용 DB 권장)
-POSTGRES_DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/repopilot_test" \
+POSTGRES_DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/repolm_test" \
   pytest tests/repo_rag/test_sql_integration.py
 ```
 

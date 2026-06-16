@@ -4,7 +4,7 @@ POSTGRES_DATABASE_URL이 설정된 경우에만 실행된다(예: 테스트 전�
 테이블을 생성하고 실제 sync + 하이브리드 검색을 end-to-end로 검증한다.
 
 실행 예:
-    POSTGRES_DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/repopilot_test \
+    POSTGRES_DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/repolm_test \
         pytest tests/repo_rag/test_sql_integration.py
 """
 

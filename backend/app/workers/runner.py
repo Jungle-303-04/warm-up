@@ -7,7 +7,7 @@ from app.workers.workers import build_worker
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run a RepoPilot worker.")
+    parser = argparse.ArgumentParser(description="Run a RepoLM worker.")
     parser.add_argument(
         "kind",
         choices=WORKER_IDS,

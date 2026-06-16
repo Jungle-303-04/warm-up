@@ -2,7 +2,7 @@
 
 ## GitHub 연동 범위
 
-RepoPilot은 GitHub를 대체하지 않고 연결한다.
+RepoLM은 GitHub를 대체하지 않고 연결한다.
 
 MVP에서 읽는 것:
 
@@ -20,7 +20,7 @@ MVP에서 승인 후 쓰는 것:
 - issue creation
 - issue comments
 - issue label/status metadata
-- RepoPilot item과 GitHub issue의 link
+- RepoLM item과 GitHub issue의 link
 
 ## Project와 Repository
 

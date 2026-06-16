@@ -15,7 +15,7 @@ from app.pipeline.api.schemas import (
 from app.validation import required_text
 
 MAX_BYTES = 200_000
-ALLOW_FILE_URL = "REPOPILOT_ALLOW_FILE_REPOSITORY_URL"
+ALLOW_FILE_URL = "REPOLM_ALLOW_FILE_REPOSITORY_URL"
 GIT_TIMEOUT = 30
 
 
@@ -54,7 +54,7 @@ class RepoSyncService:
 
         branch = None if request.branch == DEFAULT_BRANCH else request.branch
 
-        with TemporaryDirectory(prefix="repopilot-repo-") as temp_dir:
+        with TemporaryDirectory(prefix="repolm-repo-") as temp_dir:
             clone_path = Path(temp_dir) / "repo"
             self._clone_repository(repository_url, branch, clone_path)
             return self._snapshot_from_local_repository(
