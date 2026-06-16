@@ -110,6 +110,7 @@ function PostDetail() {
             <div className="flex items-center gap-4">
               <button
                 className="cursor-pointer text-xs text-black transition-colors hover:text-[#d4d4d4]"
+                onClick={() => navigate(`/posts/${postId}/edit`)}
                 type="button"
               >
                 수정
@@ -147,26 +148,26 @@ function PostDetail() {
           {comments.length > 0 ? (
             <ul className="mt-8 space-y-5">
               {comments.map((comment) => (
-              <li
-                className="grid grid-cols-[120px_1fr_auto_auto] items-start gap-4 text-xs"
-                key={comment.id}
-              >
-                <p className="text-sm font-extrabold text-black">
-                  {comment.nickname}
-                </p>
-                <p className="leading-relaxed text-black">{comment.content}</p>
-                <time className="text-[#d4d4d4]" dateTime="2026-03-16T10:24">
-                  {comment.date} · {comment.time}
-                </time>
-                <button
-                  aria-label="댓글 삭제"
-                  className="cursor-pointer text-black transition-opacity hover:opacity-50"
-                  onClick={() => handleDeleteComment(comment.id)}
-                  type="button"
+                <li
+                  className="grid grid-cols-[120px_1fr_auto_auto] items-start gap-4 text-xs"
+                  key={comment.id}
                 >
-                  x
-                </button>
-              </li>
+                  <p className="text-sm font-extrabold text-black">
+                    {comment.nickname}
+                  </p>
+                  <p className="leading-relaxed text-black">{comment.content}</p>
+                  <time className="text-[#d4d4d4]" dateTime="2026-03-16T10:24">
+                    {comment.date} · {comment.time}
+                  </time>
+                  <button
+                    aria-label="댓글 삭제"
+                    className="cursor-pointer text-black transition-opacity hover:opacity-50"
+                    onClick={() => handleDeleteComment(comment.id)}
+                    type="button"
+                  >
+                    x
+                  </button>
+                </li>
               ))}
             </ul>
           ) : (

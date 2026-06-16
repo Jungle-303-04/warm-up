@@ -24,6 +24,10 @@ function App() {
         <Route element={<PostDetail />} path="/posts/:postId" />
         <Route
           element={mockUser ? <Write /> : <Navigate replace to="/login" />}
+          path="/posts/:postId/edit"
+        />
+        <Route
+          element={mockUser ? <Write /> : <Navigate replace to="/login" />}
           path="/write"
         />
         <Route element={<Login />} path="/login" />

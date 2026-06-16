@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import FontInfoPopover from "../components/FontInfoPopover";
 
 const waitingMessages = [
@@ -20,6 +20,12 @@ const recommendedFont = {
   source: "Fontshare",
   previewText: "I want to play this game forever",
   usage: "인쇄, 웹사이트, 영상, BI/CI",
+};
+
+const editablePost = {
+  content:
+    "Once upon a time, in a quiet village beside a silver forest, a small lantern learned how to glow. Every night it listened to the wind, gathered stories from the stars, and lit a narrow path for children who dreamed of finding a hidden garden beyond the hill.",
+  font: recommendedFont,
 };
 
 function TypingWaitingMessage({ lines }) {
@@ -60,13 +66,18 @@ function TypingWaitingMessage({ lines }) {
 
 function Write() {
   const navigate = useNavigate();
+  const { postId } = useParams();
+  const isEditMode = Boolean(postId);
+  const initialContent = isEditMode ? editablePost.content : "";
+  const initialRecommendation = isEditMode ? editablePost.font : null;
   const [activeTab, setActiveTab] = useState("write");
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(initialContent);
   const [isRecommending, setIsRecommending] = useState(false);
-  const [recommendation, setRecommendation] = useState(null);
+  const [recommendation, setRecommendation] = useState(initialRecommendation);
   const waitingMessage = waitingMessages[0];
   const isPreviewTab = activeTab === "preview";
   const hasRecommendation = isPreviewTab && recommendation;
+  const previewText = isEditMode ? content : recommendation?.previewText;
 
   const handleRecommend = () => {
     setActiveTab("preview");
@@ -83,11 +94,31 @@ function Write() {
     navigate("/posts/1");
   };
 
+  const handleUpdatePost = () => {
+    navigate(`/posts/${postId}`);
+  };
+
   const isPreviewDisabled = !recommendation && !isRecommending;
 
   return (
     <main className="min-h-[620px] p-6">
-      <section className="mx-auto flex w-full max-w-[720px] flex-col pt-36 pb-10">
+      <section
+        className={[
+          "mx-auto flex w-full max-w-[720px] flex-col pb-10",
+          isEditMode ? "pt-8" : "pt-36",
+        ].join(" ")}
+      >
+        {isEditMode ? (
+          <button
+            aria-label="이전으로"
+            className="mb-16 w-fit cursor-pointer text-2xl leading-none text-black transition-colors hover:text-[#d4d4d4]"
+            onClick={() => navigate(-1)}
+            type="button"
+          >
+            &lt;-
+          </button>
+        ) : null}
+
         <div className="h-[132px]">
           <div className="h-full overflow-visible pr-2">
             <div className="grid h-full grid-cols-[1fr_auto] items-start gap-5 overflow-visible">
@@ -114,7 +145,7 @@ function Write() {
                       {recommendation.reason}
                     </p>
                   ) : (
-                    <p className="w-full text-right text-sm leading-relaxed text-[#9ca3af]">
+                    <p className="w-full text-right text-sm leading-relaxed text-[#d4d4d4]">
                       문장을 입력하고 폰트 추천을 눌러보세요.
                     </p>
                   )}
@@ -182,7 +213,7 @@ function Write() {
           {activeTab === "write" ? (
             <>
               <textarea
-                className="h-36 w-full resize-none overflow-y-auto rounded-md border border-gray-300 px-5 py-4 text-base leading-relaxed outline-none transition-colors placeholder:text-gray-300 focus:border-black"
+                className="thin-transparent-scrollbar h-36 w-full resize-none overflow-y-auto rounded-md border border-gray-300 px-5 py-4 text-base leading-relaxed outline-none transition-colors placeholder:text-gray-300 focus:border-black"
                 onChange={(event) => setContent(event.target.value)}
                 placeholder="게시글 내용을 입력하세요."
                 value={content}
@@ -211,9 +242,9 @@ function Write() {
                 {recommendation ? (
                   <div className="pr-2">
                     <div className="flex h-36 items-end border-b border-black">
-                      <div className="max-h-[calc(9rem-1px)] w-full overflow-y-auto pb-1.5">
+                      <div className="thin-transparent-scrollbar max-h-[calc(9rem-1px)] w-full overflow-y-auto pb-1.5">
                         <p className="font-['Zodiak'] text-[28px] font-extrabold italic leading-tight text-black">
-                          {recommendation.previewText}
+                          {previewText}
                         </p>
                       </div>
                     </div>
@@ -221,10 +252,10 @@ function Write() {
                     <div className="mt-6 flex justify-end">
                       <button
                         className="cursor-pointer rounded-md border border-gray-300 px-5 py-2 text-sm text-black transition-colors hover:bg-black hover:text-white"
-                        onClick={handleSubmitPost}
+                        onClick={isEditMode ? handleUpdatePost : handleSubmitPost}
                         type="button"
                       >
-                        등록 하기
+                        {isEditMode ? "수정하기" : "등록 하기"}
                       </button>
                     </div>
                   </div>

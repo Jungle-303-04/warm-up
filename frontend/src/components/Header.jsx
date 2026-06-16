@@ -3,13 +3,15 @@ import { Link, useLocation } from "react-router-dom";
 function Header({ onLoginClick, user }) {
   const location = useLocation();
   const accountLabel = user?.nickname ?? "로그인";
-  const isPostDetailPage = location.pathname.startsWith("/posts/");
+  const isPostPage = location.pathname.startsWith("/posts/");
+  const isPostEditPage = location.pathname.endsWith("/edit");
+  const postPageLabel = isPostEditPage ? "글수정" : "글보기";
   const navItems = [
     { label: "Board", path: "/" },
     {
-      isActive: isPostDetailPage || location.pathname === "/write",
-      label: isPostDetailPage ? "글보기" : "글쓰기",
-      path: isPostDetailPage ? location.pathname : user ? "/write" : "/login",
+      isActive: isPostPage || location.pathname === "/write",
+      label: isPostPage ? postPageLabel : "글쓰기",
+      path: isPostPage ? location.pathname : user ? "/write" : "/login",
     },
   ];
 
