@@ -39,6 +39,7 @@ import {
   StickyNote,
   Sun,
   Trash2,
+  UploadCloud,
   Workflow,
   X,
 } from "lucide-react";
@@ -81,6 +82,7 @@ const ICONS: Record<string, LucideIcon> = {
   text_snippet: AlignLeft, // 텍스트
   picture_as_pdf: FileType, // PDF
   link: Link2,
+  upload_file: UploadCloud, // 파일 드롭존 오버레이
   close: X, // 모달/다이얼로그 닫기
   more_vert: MoreVertical, // 카드 메뉴
   edit: Pencil, // 이름 변경

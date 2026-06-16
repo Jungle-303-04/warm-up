@@ -4,9 +4,10 @@ import { STUDIO_NOTES, STUDIO_TILES } from "../lib/fixtures";
 import { Icon } from "./icon";
 import { Panel } from "./ui/panel";
 
-export function StudioPanel() {
+// 우 패널. 너비는 workspace 에서 style 로 주입(동적 리사이즈).
+export function StudioPanel({ style }: { style?: React.CSSProperties }) {
   return (
-    <Panel as="aside" className="w-[316px] shrink-0">
+    <Panel as="aside" className="shrink-0" style={style}>
       <div className="flex items-center justify-between px-4 pt-4 pb-1">
         <h2 className="text-[15px] font-semibold tracking-tight">스튜디오</h2>
         <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">

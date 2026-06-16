@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { cn } from "../../lib/cn";
 
@@ -6,10 +6,13 @@ import { cn } from "../../lib/cn";
 export function Panel({
   as = "section",
   className,
+  style,
   children,
 }: {
   as?: "section" | "aside";
   className?: string;
+  // 동적 너비 등 불가피한 인라인 스타일 주입용.
+  style?: CSSProperties;
   children: ReactNode;
 }) {
   const Tag = as;
@@ -19,6 +22,7 @@ export function Panel({
         "flex flex-col overflow-hidden rounded-[16px] border border-border bg-card shadow-elev-1",
         className,
       )}
+      style={style}
     >
       {children}
     </Tag>
