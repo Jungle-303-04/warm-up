@@ -486,6 +486,7 @@ h1 {
 
 .workspace-panel {
   display: grid;
+  align-content: start;
   gap: 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
