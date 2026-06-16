@@ -336,12 +336,33 @@ h1 {
 
 .workspace-panel {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel);
-  padding-top: 22px;
-  padding: 16px;
+  padding: 14px;
+}
+
+.workspace-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.workspace-header .eyebrow {
+  margin-bottom: 4px;
+}
+
+.workspace-header span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 6px 10px;
 }
 
 .workspace-panel h2 {
@@ -354,6 +375,8 @@ h1 {
 .workspace-form {
   display: grid;
   gap: 12px;
+  grid-template-columns: minmax(180px, 1.35fr) minmax(150px, 0.8fr) 120px;
+  align-items: end;
 }
 
 .workspace-form label {
@@ -471,7 +494,7 @@ h1 {
 
 .run-summary {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
 }
@@ -498,34 +521,122 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.repository-run-panel {
+.repository-run-preview {
   display: grid;
-  gap: 10px;
+  grid-template-columns: minmax(120px, 0.75fr) minmax(0, 1.45fr) auto;
+  align-items: center;
+  gap: 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--field);
-  padding: 12px;
+  padding: 10px 12px;
 }
 
-.repository-run-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.repository-run-header h3 {
+.repository-run-preview h3 {
   margin: 0;
   color: var(--heading);
   font-size: 15px;
+}
+
+.repository-run-latest {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.repository-run-latest strong {
+  color: var(--heading);
+  font-size: 14px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.repository-run-latest span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.repository-run-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.repository-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: rgba(16, 24, 32, 0.42);
+  padding: 20px;
+}
+
+.repository-modal {
+  width: min(680px, 100%);
+  max-height: min(720px, calc(100svh - 40px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 24px 70px rgba(22, 32, 47, 0.22);
+  padding: 18px;
+}
+
+.repository-modal-header,
+.repository-modal-toolbar {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.repository-modal-header h3 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 20px;
+}
+
+.repository-modal-close {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+  color: var(--heading);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 0 12px;
+}
+
+.repository-modal-close:hover {
+  background: var(--panel);
+}
+
+.repository-modal-toolbar {
+  align-items: center;
+}
+
+.repository-modal-toolbar span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .repository-run-list {
   display: grid;
   gap: 8px;
   margin: 0;
+  min-height: 0;
+  overflow-y: auto;
   padding: 0;
+  padding-right: 4px;
   list-style: none;
 }
 
@@ -1204,6 +1315,7 @@ h1 {
   }
 
   .form-grid,
+  .workspace-form,
   .run-summary,
   .calendar-summary,
   .board-field-grid,
@@ -1213,6 +1325,17 @@ h1 {
 
   .repository-run-list button {
     grid-template-columns: 1fr;
+  }
+
+  .repository-run-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .repository-run-actions,
+  .repository-modal-header,
+  .repository-modal-toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .repository-run-list time {

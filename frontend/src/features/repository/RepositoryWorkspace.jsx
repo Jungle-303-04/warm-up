@@ -1,3 +1,5 @@
+import { useMemo, useState } from 'react'
+
 export function RepositoryWorkspace({
   repositoryFullName,
   branch,
@@ -12,16 +14,23 @@ export function RepositoryWorkspace({
   onReloadRepositoryRuns,
   onSelectRepositoryRun,
 }) {
+  const [isRunModalOpen, setIsRunModalOpen] = useState(false)
+  const latestRun = repositoryRuns[0] || null
+
+  function selectRun(run) {
+    onSelectRepositoryRun(run)
+    setIsRunModalOpen(false)
+  }
+
   return (
     <section className="workspace-panel" aria-labelledby="workspace-title">
-      <h2 id="workspace-title">레포지토리 분석</h2>
-
-      <RepositoryRunList
-        repositoryRuns={repositoryRuns}
-        isLoadingRepositoryRuns={isLoadingRepositoryRuns}
-        onReload={onReloadRepositoryRuns}
-        onSelectRepositoryRun={onSelectRepositoryRun}
-      />
+      <div className="workspace-header">
+        <div>
+          <p className="eyebrow">RAG index</p>
+          <h2 id="workspace-title">레포지토리 분석</h2>
+        </div>
+        <span>{repositoryRuns.length}개 분석됨</span>
+      </div>
 
       <RepositoryIndexForm
         repositoryFullName={repositoryFullName}
@@ -34,6 +43,24 @@ export function RepositoryWorkspace({
       />
 
       {indexResult ? <RunSummary indexResult={indexResult} /> : null}
+
+      <RepositoryRunPreview
+        latestRun={latestRun}
+        repositoryCount={repositoryRuns.length}
+        isLoadingRepositoryRuns={isLoadingRepositoryRuns}
+        onReload={onReloadRepositoryRuns}
+        onOpenAll={() => setIsRunModalOpen(true)}
+      />
+
+      {isRunModalOpen ? (
+        <RepositoryRunModal
+          repositoryRuns={repositoryRuns}
+          isLoadingRepositoryRuns={isLoadingRepositoryRuns}
+          onClose={() => setIsRunModalOpen(false)}
+          onReload={onReloadRepositoryRuns}
+          onSelectRepositoryRun={selectRun}
+        />
+      ) : null}
     </section>
   )
 }
@@ -125,10 +152,61 @@ function RunSummary({ indexResult }) {
   )
 }
 
-function RepositoryRunList({
+function RepositoryRunPreview({
+  latestRun,
+  repositoryCount,
+  isLoadingRepositoryRuns,
+  onReload,
+  onOpenAll,
+}) {
+  // App.jsx가 Backend GET /rag/runs 응답을 repository_full_name + branch 기준으로
+  // 최신 1개씩 정리해서 넘긴다. 여기서는 그중 가장 최근 항목 1개만 보여주고,
+  // 전체 목록은 RepositoryRunModal에서 같은 DTO 데이터를 사용한다.
+  return (
+    <section className="repository-run-preview" aria-labelledby="repository-run-preview-title">
+      <div>
+        <p className="eyebrow">분석된 레포</p>
+        <h3 id="repository-run-preview-title">최근 분석</h3>
+      </div>
+
+      {latestRun ? (
+        <div className="repository-run-latest">
+          <strong>{latestRun.repository_full_name}</strong>
+          <span>
+            {latestRun.branch || '기본 브랜치'} · {formatDateTime(latestRun.indexed_at)}
+          </span>
+        </div>
+      ) : (
+        <p className="repository-run-empty">아직 분석된 레포지토리가 없습니다.</p>
+      )}
+
+      <div className="repository-run-actions">
+        <button
+          type="button"
+          className="secondary-button compact"
+          onClick={onOpenAll}
+          disabled={!repositoryCount}
+        >
+          전체 보기
+        </button>
+        <button
+          type="button"
+          className="secondary-button compact"
+          onClick={onReload}
+          disabled={isLoadingRepositoryRuns}
+        >
+          {isLoadingRepositoryRuns ? '확인 중' : '새로고침'}
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function RepositoryRunModal({
   repositoryRuns,
   isLoadingRepositoryRuns,
   onReload,
+  onClose,
   onSelectRepositoryRun,
 }) {
   // Backend: GET /rag/runs
@@ -149,43 +227,69 @@ function RepositoryRunList({
   // }
   // App.jsx에서 repository_full_name + branch 기준 최신 run만 추려 넘긴다.
   // 사용자가 항목을 누르면 repository_full_name, branch, commit_sha를 질문 기준으로 사용한다.
-  return (
-    <section className="repository-run-panel" aria-labelledby="repository-run-title">
-      <div className="repository-run-header">
-        <div>
-          <p className="eyebrow">분석된 레포</p>
-          <h3 id="repository-run-title">마지막 분석 시각</h3>
-        </div>
-        <button
-          type="button"
-          className="secondary-button compact"
-          onClick={onReload}
-          disabled={isLoadingRepositoryRuns}
-        >
-          {isLoadingRepositoryRuns ? '확인 중' : '새로고침'}
-        </button>
-      </div>
+  const sortedRuns = useMemo(
+    () => [...repositoryRuns].sort(
+      (left, right) => new Date(right.indexed_at) - new Date(left.indexed_at),
+    ),
+    [repositoryRuns],
+  )
 
-      {repositoryRuns.length ? (
-        <ul className="repository-run-list">
-          {repositoryRuns.map((run) => (
-            <li key={`${run.repository_full_name}-${run.branch || ''}`}>
-              <button type="button" onClick={() => onSelectRepositoryRun(run)}>
-                <span>
-                  <strong>{run.repository_full_name}</strong>
-                  <small>{run.branch || '기본 브랜치'}</small>
-                </span>
-                <time dateTime={run.indexed_at}>{formatDateTime(run.indexed_at)}</time>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="repository-run-empty">
-          아직 분석된 레포지토리가 없습니다.
-        </p>
-      )}
-    </section>
+  return (
+    <div className="repository-modal-backdrop" role="presentation">
+      <section
+        className="repository-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="repository-modal-title"
+      >
+        <header className="repository-modal-header">
+          <div>
+            <p className="eyebrow">분석된 레포</p>
+            <h3 id="repository-modal-title">레포지토리 전체 보기</h3>
+          </div>
+          <button
+            type="button"
+            className="repository-modal-close"
+            onClick={onClose}
+            aria-label="레포지토리 목록 닫기"
+          >
+            닫기
+          </button>
+        </header>
+
+        <div className="repository-modal-toolbar">
+          <span>{repositoryRuns.length}개</span>
+          <button
+            type="button"
+            className="secondary-button compact"
+            onClick={onReload}
+            disabled={isLoadingRepositoryRuns}
+          >
+            {isLoadingRepositoryRuns ? '확인 중' : '새로고침'}
+          </button>
+        </div>
+
+        {sortedRuns.length ? (
+          <ul className="repository-run-list">
+            {sortedRuns.map((run) => (
+              <li key={`${run.repository_full_name}-${run.branch || ''}`}>
+                <button type="button" onClick={() => onSelectRepositoryRun(run)}>
+                  <span>
+                    <strong>{run.repository_full_name}</strong>
+                    <small>{run.branch || '기본 브랜치'}</small>
+                  </span>
+                  <time dateTime={run.indexed_at}>{formatDateTime(run.indexed_at)}</time>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="repository-run-empty">
+            아직 분석된 레포지토리가 없습니다.
+          </p>
+        )}
+      </section>
+    </div>
   )
 }
 
