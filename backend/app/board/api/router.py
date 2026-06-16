@@ -79,6 +79,7 @@ def read_boards(
 @inject
 def read_board(
     board_id: int,
+    user_id: int | None = None,
     authorization: str | None = Header(default=None),
     auth_cookie: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     db: Session = Depends(get_session),
@@ -93,7 +94,7 @@ def read_board(
         auth_service,
         authorization,
         auth_cookie,
-        fallback_user_id=board_response.user_id,
+        fallback_user_id=user_id,
     )
     assert_board_owner(board_response, user_id)
     return board_response
@@ -118,7 +119,7 @@ def update_board(
         auth_service,
         authorization,
         auth_cookie,
-        fallback_user_id=current_board.user_id,
+        fallback_user_id=request.user_id,
     )
     assert_board_owner(current_board, user_id)
     return board_service.update_board(
@@ -132,6 +133,7 @@ def update_board(
 @inject
 def delete_board(
     board_id: int,
+    user_id: int | None = None,
     authorization: str | None = Header(default=None),
     auth_cookie: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     db: Session = Depends(get_session),
@@ -146,7 +148,7 @@ def delete_board(
         auth_service,
         authorization,
         auth_cookie,
-        fallback_user_id=board_response.user_id,
+        fallback_user_id=user_id,
     )
     assert_board_owner(board_response, user_id)
     board_service.delete_board(db, board_id)
@@ -161,6 +163,12 @@ def resolve_board_user_id(
 ) -> int:
     """로그인 쿠키가 있으면 GitHub OAuth 계정의 내부 user_id를 보드 기준으로 사용한다."""
 
+    has_auth_token = bool(authorization and authorization.strip()) or bool(
+        auth_cookie and auth_cookie.strip()
+    )
+    if not has_auth_token and fallback_user_id is not None:
+        return fallback_user_id
+
     try:
         return resolve_github_account(
             db,
@@ -169,8 +177,6 @@ def resolve_board_user_id(
             auth_cookie,
         ).user_id
     except AuthTokenError as exc:
-        if fallback_user_id is not None:
-            return fallback_user_id
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),

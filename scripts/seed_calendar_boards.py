@@ -30,7 +30,8 @@ def delete_existing_demo_boards() -> None:
     payload = request_json("GET", f"/board/?{query}")
 
     for board in payload.get("items", []):
-        request_json("DELETE", f"/board/{board['id']}", expect_json=False)
+        delete_query = urlencode({"user_id": DEMO_USER_ID})
+        request_json("DELETE", f"/board/{board['id']}?{delete_query}", expect_json=False)
 
 
 def create_board(payload: dict) -> dict:

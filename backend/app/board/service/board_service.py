@@ -64,10 +64,18 @@ class BoardService:
     def validate_board_request(self, request: CreateBoard | UpdateBoard) -> None:
         """서로 다른 보드 타입의 상세 필드가 섞이지 않게 생성/수정 전에 검사한다."""
 
+        validate_board_user(request)
         validate_supported_board_type(request)
         validate_basic_board(request)
         validate_schedule_board(request)
         validate_proceedings_board(request)
+
+
+def validate_board_user(request: CreateBoard | UpdateBoard) -> None:
+    """라우터가 로그인 사용자 기준의 내부 user_id를 주입했는지 확인한다."""
+
+    if request.user_id is None:
+        raise_bad_request("user_id is required")
 
 
 def validate_supported_board_type(request: CreateBoard | UpdateBoard) -> None:

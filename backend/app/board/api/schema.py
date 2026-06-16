@@ -23,7 +23,7 @@ class CreateBoard(BaseModel):
     title: str
     content: str
     tag: str | None = None
-    user_id: int
+    user_id: int | None = None
 
     assignee_user_ids: list[int] = Field(default_factory=list)
     participant_user_ids: list[int] = Field(default_factory=list)
