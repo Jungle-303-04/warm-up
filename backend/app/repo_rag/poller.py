@@ -15,27 +15,29 @@ from app.repo_rag.application.service import RepoRagSyncService
 from app.repo_rag.application.types import UowFactory
 
 
-class SyncJobPoller:
+from app.repo_rag.application.worker_stages import PipelineStageProcessor
+
+class StageJobPoller:
     def __init__(
         self,
         uow_factory: UowFactory,
-        service: RepoRagSyncService,
+        processor: PipelineStageProcessor,
         *,
         idle_sleep: float = 2.0,
     ) -> None:
         self._uow_factory = uow_factory
-        self._service = service
+        self._processor = processor
         self._idle_sleep = idle_sleep
 
     def run_once(self) -> str | None:
         with self._uow_factory() as uow:
-            claimed = uow.repo_rag.claim_next_queued_job()
+            claimed = uow.repo_rag.claim_next_job_by_status(self._processor.target_status)
         if claimed is None:
             return None
 
-        # 실패는 process()가 별도 트랜잭션에 기록하므로 여기서는 삼킨다.
         with contextlib.suppress(Exception):
-            self._service.process(claimed.id)
+            with self._uow_factory() as uow:
+                self._processor.process(claimed.id, uow)
         return claimed.id
 
     def run_forever(self, should_stop: Callable[[], bool] | None = None) -> None:
@@ -45,6 +47,19 @@ class SyncJobPoller:
                     time.sleep(self._idle_sleep)
         except KeyboardInterrupt:
             pass
+
+
+class SyncJobPoller(StageJobPoller):
+    def __init__(
+        self,
+        uow_factory: UowFactory,
+        service: RepoRagSyncService,
+        *,
+        idle_sleep: float = 2.0,
+    ) -> None:
+        from app.repo_rag.application.worker_stages import RepoSyncStageProcessor
+        processor = RepoSyncStageProcessor()
+        super().__init__(uow_factory, processor, idle_sleep=idle_sleep)
 
 
 def main() -> None:

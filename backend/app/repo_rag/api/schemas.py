@@ -12,7 +12,16 @@ from app.pipeline.api.schemas import (
 )
 
 SyncTriggerType = Literal["manual", "schedule", "webhook"]
-SyncJobStatus = Literal["queued", "running", "succeeded", "failed"]
+SyncJobStatus = Literal[
+    "queued",
+    "running",
+    "running_sync",
+    "running_code_index",
+    "running_rag_index",
+    "running_agent_proposal",
+    "succeeded",
+    "failed",
+]
 RepoFileChangeStatus = Literal["added", "modified", "deleted", "unchanged"]
 
 

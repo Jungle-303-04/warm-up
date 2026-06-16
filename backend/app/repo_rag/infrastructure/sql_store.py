@@ -14,7 +14,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
-from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest
+from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest, SyncJobStatus
 from app.repo_rag.domain.identity import (
     file_hash,
     hash_text,
@@ -61,7 +61,14 @@ from app.repo_rag.infrastructure.models import (
     active_filters,
 )
 
-ACTIVE_JOB_STATUSES = ("queued", "running")
+ACTIVE_JOB_STATUSES = (
+    "queued",
+    "running",
+    "running_sync",
+    "running_code_index",
+    "running_rag_index",
+    "running_agent_proposal",
+)
 
 
 class SqlRepoRagStore:
@@ -108,18 +115,39 @@ class SqlRepoRagStore:
             return _to_job_record(job)
 
     def claim_next_queued_job(self) -> SyncJobRecord | None:
+         return self.claim_next_job_by_status("queued")
+
+    def claim_next_job_by_status(self, status: str) -> SyncJobRecord | None:
         with self._session() as session:
             job = session.scalars(
                 select(JobModel)
-                .where(JobModel.status == "queued")
+                .where(JobModel.status == status)
                 .order_by(JobModel.created_at)
                 .with_for_update(skip_locked=True)
                 .limit(1)
             ).first()
             if job is None:
                 return None
-            job.status = "running"
-            self._add_event(session, job.id, "job_claimed", "claimed by worker")
+            
+            # 선점 상태 천이 표시
+            if status == "queued":
+                job.status = "running_sync"
+            elif status == "running_sync":
+                job.status = "running_code_index"
+            elif status == "running_code_index":
+                job.status = "running_rag_index"
+            elif status == "running_rag_index":
+                job.status = "running_agent_proposal"
+                
+            self._add_event(session, job.id, f"job_claimed_{status}", f"claimed stage {status}")
+            session.flush()
+            return _to_job_record(job)
+
+    def update_job_status(self, job_id: str, status: str) -> SyncJobRecord:
+        with self._session() as session:
+            job = self._require_job(session, job_id)
+            job.status = status
+            self._add_event(session, job.id, f"status_changed", f"job status changed to {status}")
             session.flush()
             return _to_job_record(job)
 
@@ -130,9 +158,20 @@ class SqlRepoRagStore:
     def start_job(self, job_id: str) -> SyncJobRecord:
         with self._session() as session:
             job = self._require_job(session, job_id)
-            job.status = "running"
+            if job.status == "queued":
+                job.status = "running_sync"
             job.started_at = job.started_at or utcnow()
             self._add_event(session, job.id, "job_started", "sync worker started")
+            session.flush()
+            return _to_job_record(job)
+
+    def start_job_stage(self, job_id: str, status: str) -> SyncJobRecord:
+        with self._session() as session:
+            job = self._require_job(session, job_id)
+            job.status = status
+            job.started_at = job.started_at or utcnow()
+            self._add_event(session, job.id, f"stage_started_{status}", f"started stage {status}")
+            session.flush()
             return _to_job_record(job)
 
     def claim_job_lock(self, job_id: str) -> None:

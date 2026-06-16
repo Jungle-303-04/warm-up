@@ -13,6 +13,7 @@ from app.pipeline.api.schemas import (
     RepoSnapshot,
 )
 from app.validation import required_text
+from app.repository_source.fetcher import RepositoryFetcher, GitSubprocessFetcher
 
 MAX_BYTES = 200_000
 ALLOW_FILE_URL = "REPOLM_ALLOW_FILE_REPOSITORY_URL"
@@ -20,6 +21,9 @@ GIT_TIMEOUT = 30
 
 
 class RepoSyncService:
+    def __init__(self, fetcher: RepositoryFetcher | None = None) -> None:
+        self._fetcher = fetcher or GitSubprocessFetcher()
+
     def sync(self, request: PipelineRequest) -> RepoSnapshot:
         if request.repository_url is not None:
             return self._sync_remote_repository(request)
@@ -54,14 +58,18 @@ class RepoSyncService:
 
         branch = None if request.branch == DEFAULT_BRANCH else request.branch
 
-        with TemporaryDirectory(prefix="repolm-repo-") as temp_dir:
-            clone_path = Path(temp_dir) / "repo"
-            self._clone_repository(repository_url, branch, clone_path)
-            return self._snapshot_from_local_repository(
-                clone_path,
-                request.repository,
-                repository_url,
-            )
+        import hashlib
+        url_hash = hashlib.sha256(repository_url.encode("utf-8")).hexdigest()[:16]
+        # data/git_cache 디렉토리를 사용해 영구 보존 캐시 구성
+        cache_base = Path("data/git_cache")
+        clone_path = cache_base / url_hash
+
+        self._fetcher.fetch(repository_url, branch, clone_path)
+        return self._snapshot_from_local_repository(
+            clone_path,
+            request.repository,
+            repository_url,
+        )
 
     def _snapshot_from_local_repository(
         self,

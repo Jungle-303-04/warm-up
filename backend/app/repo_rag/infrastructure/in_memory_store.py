@@ -21,7 +21,14 @@ from app.repo_rag.domain.records import (
     SyncJobRecord,
 )
 
-ACTIVE_JOB_STATUSES: set[SyncJobStatus] = {"queued", "running"}
+ACTIVE_JOB_STATUSES: set[SyncJobStatus] = {
+    "queued",
+    "running",
+    "running_sync",
+    "running_code_index",
+    "running_rag_index",
+    "running_agent_proposal",
+}
 
 
 class InMemoryRepoRagStore:
@@ -32,6 +39,7 @@ class InMemoryRepoRagStore:
         self.files: dict[str, FileRecord] = {}
         self.active_file_ids_by_path: dict[tuple[str, str], str] = {}
         self.chunks: dict[str, ChunkRecord] = {}
+        self.embeddings: dict[str, list[float]] = {}
         self.jobs: dict[str, SyncJobRecord] = {}
         self.active_job_ids_by_key: dict[str, str] = {}
         self.active_job_ids_by_lock_key: dict[str, str] = {}
@@ -69,12 +77,32 @@ class InMemoryRepoRagStore:
         return job
 
     def claim_next_queued_job(self) -> SyncJobRecord | None:
-        queued = [job for job in self.jobs.values() if job.status == "queued"]
+        return self.claim_next_job_by_status("queued")
+
+    def claim_next_job_by_status(self, status: str) -> SyncJobRecord | None:
+        queued = [job for job in self.jobs.values() if job.status == status]
         if not queued:
             return None
         job = min(queued, key=lambda job: job.created_at)
-        job.status = "running"
-        self.record_event(job.id, "job_claimed", "claimed by worker")
+        # 선점한 상태를 running_* 등 다음 상태로 업데이트할 수 있도록, 여기서는 직접 바꾸지 않고
+        # 프로세서 호출 전에 start_job_stage에서 바꾸게 하거나 혹은 default running으로 바꿉니다.
+        # 비동기 분산 워커 파이프라인 상 선점을 위해 running_... 상태로 선점 표시를 해 둡니다.
+        if status == "queued":
+            job.status = "running_sync"
+        elif status == "running_sync":
+            job.status = "running_code_index"
+        elif status == "running_code_index":
+            job.status = "running_rag_index"
+        elif status == "running_rag_index":
+            job.status = "running_agent_proposal"
+        self.record_event(job.id, f"job_claimed_{status}", f"claimed stage {status}")
+        return job
+
+    def update_job_status(self, job_id: str, status: str) -> SyncJobRecord:
+        job = self.get_job(job_id)
+        from typing import cast
+        job.status = cast(SyncJobStatus, status)
+        self.record_event(job.id, f"status_changed", f"job status changed to {status}")
         return job
 
     def get_job(self, job_id: str) -> SyncJobRecord:
@@ -82,9 +110,18 @@ class InMemoryRepoRagStore:
 
     def start_job(self, job_id: str) -> SyncJobRecord:
         job = self.get_job(job_id)
-        job.status = "running"
+        if job.status == "queued":
+            job.status = "running_sync"
         job.started_at = job.started_at or utcnow()
         self.record_event(job.id, "job_started", "sync worker started")
+        return job
+
+    def start_job_stage(self, job_id: str, status: str) -> SyncJobRecord:
+        job = self.get_job(job_id)
+        from typing import cast
+        job.status = cast(SyncJobStatus, status)
+        job.started_at = job.started_at or utcnow()
+        self.record_event(job.id, f"stage_started_{status}", f"started stage {status}")
         return job
 
     def claim_job_lock(self, job_id: str) -> None:
@@ -278,6 +315,8 @@ class InMemoryRepoRagStore:
                 language=chunk.language,
             )
             self.chunks[record.id] = record
+            if embedded.embedding is not None:
+                self.embeddings[record.id] = embedded.embedding
             records.append(record)
 
         return records
@@ -298,6 +337,7 @@ class InMemoryRepoRagStore:
                 return deleted
             if not chunk.is_active and chunk.deleted_at and chunk.deleted_at <= cutoff:
                 del self.chunks[chunk_id]
+                self.embeddings.pop(chunk_id, None)
                 deleted += 1
 
         active_chunk_file_ids = {chunk.file_id for chunk in self.chunks.values()}

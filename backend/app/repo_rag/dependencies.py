@@ -63,15 +63,13 @@ def build_embedding_client(settings: Settings) -> EmbeddingClient:
 
 def get_embedder(
     settings: Settings = Depends(get_settings),
-) -> EmbeddingClient | None:
-    if not settings.uses_postgres:
-        return None
+) -> EmbeddingClient:
     return build_embedding_client(settings)
 
 
 def get_repo_rag_sync_service(
     uow_factory: UowFactory = Depends(get_uow_factory),
-    embedder: EmbeddingClient | None = Depends(get_embedder),
+    embedder: EmbeddingClient = Depends(get_embedder),
 ) -> RepoRagSyncService:
     return RepoRagSyncService(uow_factory=uow_factory, embedder=embedder)
 
@@ -79,13 +77,22 @@ def get_repo_rag_sync_service(
 def get_repo_rag_search_service(
     settings: Settings = Depends(get_settings),
     uow_factory: UowFactory = Depends(get_uow_factory),
-    embedder: EmbeddingClient | None = Depends(get_embedder),
+    embedder: EmbeddingClient = Depends(get_embedder),
 ):
-    if not settings.uses_postgres or embedder is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="하이브리드 검색은 Postgres 저장소에서만 지원됩니다",
-        )
+    if not settings.uses_postgres:
+        from app.repo_rag.application.search_service import RepoRagSearchService
+        from app.repo_rag.infrastructure.in_memory_retriever import InMemoryHybridRetriever
+
+        store = _in_memory_store()
+        def in_memory_retriever_factory(_session):
+            return InMemoryHybridRetriever(
+                store,
+                embedder,
+                vector_weight=settings.hybrid_vector_weight,
+                keyword_weight=settings.hybrid_keyword_weight,
+                candidate_limit=settings.search_candidate_limit,
+            )
+        return RepoRagSearchService(uow_factory=uow_factory, retriever_factory=in_memory_retriever_factory)
 
     from app.repo_rag.application.search_service import RepoRagSearchService
     from app.repo_rag.infrastructure.sql_retriever import SqlHybridRetriever

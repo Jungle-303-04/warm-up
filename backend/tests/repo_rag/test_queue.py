@@ -24,7 +24,7 @@ def test_claim_marks_job_running() -> None:
 
     assert claimed is not None
     assert claimed.id == job.id
-    assert store.get_job(job.id).status == "running"
+    assert store.get_job(job.id).status == "running_sync"
 
 
 def test_claim_skips_already_claimed_job() -> None:
