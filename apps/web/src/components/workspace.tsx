@@ -240,11 +240,9 @@ function CollapsedPanelRail({
         className="interactive flex h-full w-full flex-col items-center gap-3 px-2 py-3.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
       >
         <Icon name={side === "left" ? "dock_left_open" : "dock_right_open"} size={17} />
+        {/* 접힘 레일은 세로 라벨 텍스트 없이 아이콘만 표시(라벨은 title/aria-label로만 제공). */}
         <span className="grid h-8 w-8 place-items-center rounded-xl bg-accent text-accent-foreground">
           <Icon name={icon} size={17} />
-        </span>
-        <span className="[writing-mode:vertical-rl] text-[11.5px] font-semibold tracking-normal">
-          {label}
         </span>
       </button>
     </Panel>

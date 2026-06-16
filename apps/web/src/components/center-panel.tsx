@@ -21,7 +21,8 @@ export function CenterPanel() {
         aria-label="중앙 패널 보기"
         className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-3"
       >
-        <div className="flex items-center gap-1 rounded-full bg-secondary p-1">
+        {/* 토글: 높이/패딩/폰트를 줄여 더 콤팩트하게(11~12px). */}
+        <div className="flex items-center gap-0.5 rounded-full bg-secondary p-0.5">
           {TABS.map((t) => (
             <button
               key={t}
@@ -32,19 +33,19 @@ export function CenterPanel() {
               aria-controls={`panel-${t}`}
               onClick={() => setTab(t)}
               className={cn(
-                "interactive rounded-full px-3.5 py-1 text-[12.5px]",
+                "interactive rounded-full px-2.5 py-0.5 text-[11.5px]",
                 tab === t
                   ? "bg-card font-semibold text-foreground shadow-elev-1"
-                  : "text-muted-foreground hover:text-foreground",
+                  : "font-medium text-muted-foreground hover:text-foreground",
               )}
             >
               {t === "대화" ? (
-                <span className="flex items-center gap-1.5">
-                  <Icon name="chat_bubble_outline" size={14} /> {t}
+                <span className="flex items-center gap-1">
+                  <Icon name="chat_bubble_outline" size={13} /> {t}
                 </span>
               ) : (
-                <span className="flex items-center gap-1.5">
-                  <Icon name="description" size={14} /> {t}
+                <span className="flex items-center gap-1">
+                  <Icon name="description" size={13} /> {t}
                 </span>
               )}
             </button>

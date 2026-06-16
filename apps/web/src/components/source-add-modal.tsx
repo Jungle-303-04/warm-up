@@ -448,8 +448,9 @@ function BranchDropdown({
   );
 }
 
+// 입력 텍스트는 다른 버튼/필과 일관되게 12px medium으로 통일.
 const inputCls =
-  "interactive w-full rounded-xl border border-border bg-background px-3.5 py-2 text-[13px] outline-none placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15";
+  "interactive w-full rounded-xl border border-border bg-background px-3.5 py-2 text-[12px] font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

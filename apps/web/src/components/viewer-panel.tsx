@@ -12,6 +12,7 @@ import type { Source } from "../lib/types";
 import { CodeView } from "./code-view";
 import { Icon } from "./icon";
 import { MarkdownView } from "./markdown-view";
+import { SourceIcon } from "./source-icon";
 
 // 코드 뷰어로 강조해 보여줄 확장자. 마크다운/PDF는 제외(별도 분기).
 const CODE_EXTENSIONS = new Set([
@@ -111,21 +112,22 @@ function UrlPreview({ source }: { source: Source }) {
   }, [url]);
 
   return (
-    <div className="space-y-3">
-      {/* URL/호스트/제목 카드 */}
-      <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground">
-          <Icon name="link" size={16} />
+    // iframe 자체가 콘텐츠이므로 카드는 최소화: 상단에 얇은 배지 줄 + 본문은 평면 iframe.
+    <div className="space-y-2.5">
+      {/* URL/호스트/제목 배지 줄(카드 테두리 없이 한 줄로 단정하게) */}
+      <div className="flex items-center gap-2">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground">
+          <SourceIcon iconName="link" url={url} isUrl size={14} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-semibold leading-tight">{source.title}</p>
+          <p className="truncate text-[12px] font-medium leading-tight">{source.title}</p>
           <p className="truncate text-[11px] text-muted-foreground">{host}</p>
         </div>
         <a
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="interactive inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11.5px] font-medium text-primary-foreground hover:opacity-90"
+          className="interactive inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[12px] font-medium text-primary-foreground hover:opacity-90"
         >
           <Icon name="north_east" size={13} /> 새 탭에서 열기
         </a>
@@ -135,12 +137,12 @@ function UrlPreview({ source }: { source: Source }) {
       {blocked ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-secondary/40 px-4 py-8 text-center">
           <Icon name="public" size={22} className="text-muted-foreground" />
-          <p className="text-[12.5px] font-medium">여기서 미리보기를 제공하지 않는 사이트입니다.</p>
+          <p className="text-[12px] font-medium">여기서 미리보기를 제공하지 않는 사이트입니다.</p>
           <a
             href={url}
             target="_blank"
             rel="noreferrer"
-            className="interactive inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+            className="interactive inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[12px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <Icon name="north_east" size={13} /> 새 탭에서 열기
           </a>
@@ -154,7 +156,7 @@ function UrlPreview({ source }: { source: Source }) {
           referrerPolicy="no-referrer"
           onLoad={() => setLoaded(true)}
           onError={() => setBlocked(true)}
-          className="h-[60vh] w-full rounded-xl border border-border bg-card"
+          className="h-[70vh] w-full rounded-lg border border-border bg-card"
         />
       )}
     </div>
@@ -194,23 +196,21 @@ function Body({
     return <CodeView content={content} filePath={filePath} />;
   }
 
-  // PDF 소스(파일 미선택): 추출 텍스트를 읽기 좋은 문서형 뷰로 표시(상단 PDF 배지 + 파일명).
+  // PDF 소스(파일 미선택): 추출 텍스트를 평면 문서형 뷰로 표시.
+  // 카드 대신 상단에 작은 배지 줄만 두고, 본문은 패널에 직접 평면 렌더.
   if (source?.kind === "pdf" && !filePath) {
     return (
-      <div className="rounded-xl border border-border bg-card px-5 py-4">
-        <div className="mb-3 flex items-center gap-2 border-b border-border pb-3">
+      <div>
+        <div className="mb-3 flex items-center gap-2 border-b border-border pb-2.5">
           <span
             className={cn(
-              "grid h-7 w-7 shrink-0 place-items-center rounded-lg",
+              "grid h-6 w-6 shrink-0 place-items-center rounded-md",
               "bg-[#FCEBEB] text-[#A32D2D]",
             )}
           >
-            <Icon name="picture_as_pdf" size={15} />
+            <Icon name="picture_as_pdf" size={14} />
           </span>
-          <div className="min-w-0">
-            <p className="truncate text-[12.5px] font-semibold leading-tight">{source.title}</p>
-            <p className="text-[10.5px] text-muted-foreground">PDF · 추출 텍스트</p>
-          </div>
+          <span className="text-[11px] font-medium text-muted-foreground">PDF · 추출 텍스트</span>
         </div>
         <article className="whitespace-pre-wrap break-words font-sans text-[13px] leading-relaxed text-foreground">
           {content}
@@ -301,6 +301,12 @@ export function ViewerPanel() {
   const headerSub = filePath ? source.title : cfg.label;
   const externalUrl = source.url ?? source.repository_url ?? null;
 
+  // 코드 뷰어/URL 프리뷰는 본문이 패널 폭을 직접 채우도록 좌우 패딩을 최소화한다.
+  // 그 외(마크다운/텍스트/PDF)는 가독성을 위해 좌우 패딩만 둔다.
+  const isCodeBody = isCodePath(filePath);
+  const isUrlBody = source.kind === "url" && !filePath;
+  const bodyPadding = isCodeBody ? "px-0 py-3" : isUrlBody ? "px-3 py-3" : "px-5 py-4";
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center gap-2.5 border-b border-border px-3 py-2">
@@ -308,7 +314,16 @@ export function ViewerPanel() {
           className="grid h-7 w-7 shrink-0 place-items-center rounded-lg"
           style={{ background: cfg.chipBg, color: cfg.chipFg }}
         >
-          <Icon name={filePath ? "file" : cfg.icon} size={15} />
+          {filePath ? (
+            <Icon name="file" size={15} />
+          ) : (
+            <SourceIcon
+              iconName={cfg.icon}
+              url={source.url}
+              isUrl={source.kind === "url"}
+              size={15}
+            />
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12.5px] font-semibold leading-tight">{headerTitle}</p>
@@ -327,8 +342,8 @@ export function ViewerPanel() {
       </div>
 
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-        {/* 콘텐츠를 가로로 넓게 사용(좌우 여백만, 상한은 4xl). */}
-        <div className="mx-auto w-full max-w-4xl px-5 py-5">
+        {/* 본문을 패널 폭 전체로 사용(중앙 정렬·max-width 제거, 종류별 좌우 패딩만). */}
+        <div className={cn("w-full", bodyPadding)}>
           {loading ? (
             <div className="grid place-items-center py-12 text-muted-foreground">
               <Icon name="progress_activity" size={22} className="animate-spin" />

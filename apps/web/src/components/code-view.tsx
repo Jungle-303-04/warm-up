@@ -103,29 +103,28 @@ export function CodeView({ content, filePath }: { content: string; filePath?: st
   const gutterDigits = Math.max(2, String(lineCount).length);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <div className="scroll-thin flex overflow-x-auto">
-        {/* 줄 번호 거터: user-select:none으로 복사 시 번호 제외. sticky로 가로 스크롤 시 고정. */}
-        <pre
-          aria-hidden
-          className="sticky left-0 shrink-0 select-none border-r border-border bg-card py-3 pl-3 pr-2 text-right font-mono text-[12.5px] leading-[1.6] text-muted-foreground/70"
-          style={{ minWidth: `calc(${gutterDigits}ch + 1.25rem)` }}
-        >
-          {Array.from({ length: lineCount }, (_, i) => i + 1).join("\n")}
-        </pre>
-        {/* 코드 본문: 강조 HTML 전체를 한 번에 렌더. 가로 스크롤·고정폭 폰트. */}
-        <pre className="hljs w-full min-w-0 bg-transparent py-3 pl-4 pr-4 font-mono text-[12.5px] leading-[1.6]">
-          {highlightedHtml !== null ? (
-            <code
-              // highlight.js 토큰 span. 색은 globals.css의 .hljs-* 스코프가 담당.
-              // eslint-disable-next-line react/no-danger
-              dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-            />
-          ) : (
-            <code>{content}</code>
-          )}
-        </pre>
-      </div>
+    // 외곽 카드/테두리 없이 패널에 직접 평면 렌더(줄번호 거터 + 코드만, 패널 폭 전체 사용).
+    <div className="scroll-thin flex overflow-x-auto">
+      {/* 줄 번호 거터: user-select:none으로 복사 시 번호 제외. sticky로 가로 스크롤 시 고정. */}
+      <pre
+        aria-hidden
+        className="sticky left-0 shrink-0 select-none border-r border-border bg-card pr-3 text-right font-mono text-[12.5px] leading-[1.6] text-muted-foreground/70"
+        style={{ minWidth: `calc(${gutterDigits}ch + 0.75rem)` }}
+      >
+        {Array.from({ length: lineCount }, (_, i) => i + 1).join("\n")}
+      </pre>
+      {/* 코드 본문: 강조 HTML 전체를 한 번에 렌더. 가로 스크롤·고정폭 폰트. */}
+      <pre className="hljs w-full min-w-0 bg-transparent pl-4 pr-4 font-mono text-[12.5px] leading-[1.6]">
+        {highlightedHtml !== null ? (
+          <code
+            // highlight.js 토큰 span. 색은 globals.css의 .hljs-* 스코프가 담당.
+            // eslint-disable-next-line react/no-danger
+            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+          />
+        ) : (
+          <code>{content}</code>
+        )}
+      </pre>
     </div>
   );
 }

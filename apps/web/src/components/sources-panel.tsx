@@ -157,7 +157,7 @@ export function SourcesPanel({
               onChange={(e) => setFilter(e.target.value)}
               placeholder={empty ? "소스를 추가하면 검색할 수 있어요" : "소스에서 검색…"}
               aria-label="소스 검색"
-              className="min-w-0 flex-1 bg-transparent text-[11px] leading-4 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+              className="min-w-0 flex-1 bg-transparent text-[12px] font-medium leading-4 outline-none placeholder:font-normal placeholder:text-muted-foreground disabled:cursor-not-allowed"
             />
             {filter ? (
               <button

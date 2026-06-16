@@ -54,14 +54,21 @@ function CitationChips({ citations }: { citations: Citation[] }) {
 
   return (
     <div className="flex flex-wrap gap-1">
-      {citations.map((c, i) => (
-        <CitationChip
-          key={`${c.sourceId}-${i}`}
-          icon={iconFor(c)}
-          label={citationLabel(c)}
-          onClick={() => open(c)}
-        />
-      ))}
+      {citations.map((c, i) => {
+        // 파일 경로가 없는 URL 소스 인용은 favicon을 쓰도록 소스 정보를 넘긴다.
+        const src = sources.find((s) => s.id === c.sourceId);
+        const isUrl = !c.path && src?.kind === "url";
+        return (
+          <CitationChip
+            key={`${c.sourceId}-${i}`}
+            icon={iconFor(c)}
+            label={citationLabel(c)}
+            url={isUrl ? src?.url : null}
+            isUrl={isUrl}
+            onClick={() => open(c)}
+          />
+        );
+      })}
     </div>
   );
 }

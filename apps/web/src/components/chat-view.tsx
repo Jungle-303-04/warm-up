@@ -265,8 +265,8 @@ export function ChatView() {
   return (
     <>
       <div ref={scrollRef} onScroll={onScroll} className="scroll-thin flex-1 overflow-y-auto">
-        {/* 가운데 콘텐츠를 가로로 넓게 사용(좌우 여백만, 큰 화면 상한은 4xl). */}
-        <div className="mx-auto w-full max-w-4xl px-6 py-5">
+        {/* 콘텐츠를 패널 폭 전체로 사용(중앙 정렬·max-width 제거, 좌우 패딩만). */}
+        <div className="w-full px-6 py-5">
           {/* 헤더 카드 */}
           <div className="rounded-2xl border border-border bg-card p-4 shadow-elev-1">
             <div className="flex items-center gap-2.5">
@@ -392,7 +392,7 @@ export function ChatView() {
 
       {/* 하단 입력바 */}
       <div className="shrink-0 px-5 pb-4">
-        <div className="mx-auto flex max-w-4xl items-end gap-2 rounded-[24px] border border-border bg-card px-2.5 py-2 shadow-elev-2 focus-within:border-primary/50">
+        <div className="flex w-full items-end gap-2 rounded-[24px] border border-border bg-card px-2.5 py-2 shadow-elev-2 focus-within:border-primary/50">
           <textarea
             rows={1}
             value={query}
@@ -430,7 +430,7 @@ export function ChatView() {
             </button>
           </div>
         </div>
-        <p className="mx-auto mt-1.5 max-w-4xl text-center text-[11px] text-muted-foreground">
+        <p className="mt-1.5 w-full text-center text-[11px] text-muted-foreground">
           RepoLM의 답변은 부정확할 수 있으니 출처를 확인하세요.
         </p>
       </div>

@@ -15,6 +15,7 @@ import {
 import { useWorkspace } from "../lib/store";
 import type { IndexFile, IndexProgress, Source, TreeNode } from "../lib/types";
 import { Icon } from "./icon";
+import { SourceIcon } from "./source-icon";
 
 // 파일 단위 인덱싱 상태 → 아이콘/색.
 function fileStatusIcon(status: IndexFile["status"]): { icon: string; spin: boolean; className: string } {
@@ -466,7 +467,13 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
             className="grid h-6 w-6 shrink-0 place-items-center rounded-md"
             style={{ background: cfg.chipBg, color: cfg.chipFg }}
           >
-            <Icon name={cfg.icon} size={14} />
+            {/* URL 소스는 favicon, 그 외는 정적 아이콘(SourceIcon이 폴백까지 처리). */}
+            <SourceIcon
+              iconName={cfg.icon}
+              url={source.url}
+              isUrl={source.kind === "url"}
+              size={14}
+            />
           </span>
           <span className="min-w-0 flex-1">
             <span
