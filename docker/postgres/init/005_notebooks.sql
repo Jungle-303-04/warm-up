@@ -25,3 +25,16 @@ CREATE TABLE IF NOT EXISTS notebook_sources (
 
 CREATE INDEX IF NOT EXISTS notebook_sources_notebook_id_idx
 ON notebook_sources(notebook_id);
+
+CREATE TABLE IF NOT EXISTS notebook_chat_messages (
+    id text PRIMARY KEY,
+    notebook_id text NOT NULL REFERENCES notebooks(id) ON DELETE CASCADE,
+    role text NOT NULL,
+    content text NOT NULL,
+    citations jsonb NOT NULL DEFAULT '[]'::jsonb,
+    source_ids jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS notebook_chat_messages_notebook_id_idx
+ON notebook_chat_messages(notebook_id);
