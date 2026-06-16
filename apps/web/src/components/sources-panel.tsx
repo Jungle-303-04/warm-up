@@ -5,16 +5,13 @@ import { useState } from "react";
 import { useWorkspace } from "../lib/store";
 import { Icon } from "./icon";
 import { SourceAddModal } from "./source-add-modal";
-import { Checkbox, SourceRow } from "./source-row";
+import { SourceRow } from "./source-row";
 import { IconButton } from "./ui/icon-button";
 import { Panel } from "./ui/panel";
 
 export function SourcesPanel({ notebookId }: { notebookId: string }) {
   const [addOpen, setAddOpen] = useState(false);
   const sources = useWorkspace((s) => s.sources);
-  const selected = useWorkspace((s) => s.selected);
-  const setAllSources = useWorkspace((s) => s.setAllSources);
-  const allOn = sources.length > 0 && sources.every((s) => selected[s.id]);
 
   return (
     <Panel as="aside" className="w-[320px] shrink-0">
@@ -43,16 +40,10 @@ export function SourcesPanel({ notebookId }: { notebookId: string }) {
           </div>
         ) : (
           <>
-            <button
-              type="button"
-              aria-pressed={allOn}
-              onClick={() => setAllSources(!allOn)}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-secondary"
-            >
-              모든 소스 선택
-              <Checkbox checked={allOn} />
-            </button>
-            <div className="mt-1 space-y-0.5">
+            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">
+              모든 소스가 자동으로 답변 근거에 포함됩니다.
+            </p>
+            <div className="mt-0.5 space-y-0.5">
               {sources.map((s) => (
                 <SourceRow key={s.id} source={s} notebookId={notebookId} />
               ))}

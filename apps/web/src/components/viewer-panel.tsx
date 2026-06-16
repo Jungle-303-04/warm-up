@@ -55,8 +55,6 @@ export function ViewerPanel() {
   const viewer = useWorkspace((s) => s.viewer);
   const notebookId = useWorkspace((s) => s.notebookId);
   const sources = useWorkspace((s) => s.sources);
-  const selected = useWorkspace((s) => s.selected);
-  const toggleSource = useWorkspace((s) => s.toggleSource);
 
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -89,7 +87,6 @@ export function ViewerPanel() {
   if (!viewer || !source) return <EmptyState />;
 
   const cfg = SOURCE_KINDS[source.kind];
-  const inScope = !!selected[source.id];
   const headerTitle = filePath ?? source.title;
   const headerSub = filePath ? source.title : cfg.label;
   const externalUrl = source.url ?? source.repository_url ?? null;
@@ -107,19 +104,6 @@ export function ViewerPanel() {
           <p className="truncate text-[13px] font-semibold leading-tight">{headerTitle}</p>
           <p className="truncate text-[11px] text-muted-foreground">{headerSub}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => toggleSource(source.id)}
-          aria-pressed={inScope}
-          className={
-            inScope
-              ? "inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[12px] text-primary transition-colors"
-              : "inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-secondary"
-          }
-        >
-          <Icon name={inScope ? "check_circle" : "add_circle"} size={14} />
-          {inScope ? "범위에 포함됨" : "범위에 추가"}
-        </button>
         {externalUrl ? (
           <a
             href={externalUrl}

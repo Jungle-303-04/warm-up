@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 // 페인트 전에 테마 클래스를 결정해 FOUC(깜빡임) 방지. 기본값 = 시스템(O3).
-const themeBootstrap = `(function(){try{var p=localStorage.getItem("repolm-theme")||"system";var d=p==="dark"||(p==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.add(d?"dark":"light");}catch(e){document.documentElement.classList.add("light");}})();`;
+const themeBootstrap = `(function(){try{var p=localStorage.getItem("repolm-theme")||"light";var d=p==="dark";var el=document.documentElement;el.classList.toggle("dark",d);el.classList.toggle("light",!d);}catch(e){document.documentElement.classList.add("light");}})();`;
 
 export default function RootLayout({
   children,

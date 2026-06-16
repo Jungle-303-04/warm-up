@@ -4,39 +4,32 @@ import { useEffect, useState } from "react";
 
 import { IconButton } from "./ui/icon-button";
 
-type Mode = "system" | "light" | "dark";
+type Mode = "light" | "dark";
 
-const ICON: Record<Mode, string> = {
-  system: "theme_system",
-  light: "light_mode",
-  dark: "dark_mode",
-};
-const NEXT: Record<Mode, Mode> = { system: "light", light: "dark", dark: "system" };
-const LABEL: Record<Mode, string> = { system: "시스템", light: "라이트", dark: "다크" };
+// 현재 모드 기준, 누르면 갈 방향을 안내(라이트면 달=다크로, 다크면 해=라이트로).
+const ICON: Record<Mode, string> = { light: "dark_mode", dark: "light_mode" };
+const LABEL: Record<Mode, string> = { light: "다크로", dark: "라이트로" };
 
 function apply(mode: Mode) {
-  const dark =
-    mode === "dark" ||
-    (mode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const el = document.documentElement;
-  el.classList.toggle("dark", dark);
-  el.classList.toggle("light", !dark);
+  el.classList.toggle("dark", mode === "dark");
+  el.classList.toggle("light", mode === "light");
 }
 
-// 시스템→라이트→다크 순환. localStorage("repolm-theme")에 저장(부트스트랩이 첫 페인트에 사용).
+// 라이트↔다크 토글(기본 라이트). localStorage("repolm-theme")에 저장.
 export function ThemeToggle() {
-  const [mode, setMode] = useState<Mode>("system");
+  const [mode, setMode] = useState<Mode>("light");
 
   useEffect(() => {
-    setMode((localStorage.getItem("repolm-theme") as Mode) || "system");
+    setMode(localStorage.getItem("repolm-theme") === "dark" ? "dark" : "light");
   }, []);
 
-  const cycle = () => {
-    const next = NEXT[mode];
+  const toggle = () => {
+    const next: Mode = mode === "light" ? "dark" : "light";
     setMode(next);
     localStorage.setItem("repolm-theme", next);
     apply(next);
   };
 
-  return <IconButton name={ICON[mode]} label={`테마: ${LABEL[mode]}`} onClick={cycle} />;
+  return <IconButton name={ICON[mode]} label={`테마: ${LABEL[mode]}`} onClick={toggle} />;
 }

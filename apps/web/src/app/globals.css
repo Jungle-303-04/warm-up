@@ -83,6 +83,7 @@
 
 html {
   min-width: 320px;
+  background: hsl(var(--background));
 }
 
 body {

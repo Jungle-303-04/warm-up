@@ -9,22 +9,6 @@ import { useWorkspace } from "../lib/store";
 import type { Source, TreeNode } from "../lib/types";
 import { Icon } from "./icon";
 
-export function Checkbox({ checked }: { checked: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "grid h-4 w-4 shrink-0 place-items-center rounded-[5px] border transition-colors",
-        checked
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-input text-transparent",
-      )}
-    >
-      <Icon name="check" size={11} strokeWidth={3} />
-    </span>
-  );
-}
-
 // 재귀 파일 트리. 디렉터리는 펼침/접힘, 파일 클릭은 뷰어로 연다.
 function TreeView({
   nodes,
@@ -118,13 +102,12 @@ function TreeItem({
   );
 }
 
-// 한 행: 체크박스(범위) + 본문(뷰어 열기) + 삭제. repo는 펼쳐 파일 트리 표시.
+// 한 행: 본문(뷰어 열기) + 삭제. 모든 소스는 자동으로 답변 범위에 포함된다(선택 없음).
+// repo는 펼쳐 파일 트리 표시.
 export function SourceRow({ source, notebookId }: { source: Source; notebookId: string }) {
-  const checked = useWorkspace((s) => !!s.selected[source.id]);
   const focused = useWorkspace(
     (s) => s.viewer?.sourceId === source.id && !s.viewer?.path,
   );
-  const toggleSource = useWorkspace((s) => s.toggleSource);
   const openSource = useWorkspace((s) => s.openSource);
   const removeSource = useWorkspace((s) => s.removeSource);
 
@@ -167,21 +150,10 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
     <div>
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-lg pr-1 transition-colors",
+          "group flex items-center gap-1 rounded-lg pl-2 pr-1 transition-colors",
           focused ? "bg-secondary" : "hover:bg-secondary",
         )}
       >
-        <button
-          type="button"
-          onClick={() => toggleSource(source.id)}
-          role="checkbox"
-          aria-checked={checked}
-          aria-label={`${source.title} 범위 ${checked ? "제외" : "포함"}`}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
-        >
-          <Checkbox checked={checked} />
-        </button>
-
         <button
           type="button"
           onClick={() => (isRepo ? toggleExpand() : openSource(source.id))}
