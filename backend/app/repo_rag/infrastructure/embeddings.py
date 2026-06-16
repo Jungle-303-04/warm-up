@@ -11,6 +11,7 @@ import math
 import re
 from collections.abc import Iterator, Sequence
 from hashlib import sha256
+from typing import Any
 
 import tenacity
 
@@ -106,10 +107,10 @@ class OpenAIEmbeddingClient:
             except ImportError as exc:  # pragma: no cover - 의존성 미설치 환경
                 raise RuntimeError("OpenAI 임베딩을 쓰려면 langchain-openai가 필요합니다") from exc
 
-            kwargs: dict[str, object] = {"model": self._model}
+            kwargs: dict[str, Any] = {"model": self._model}
             if self._api_key:
                 kwargs["api_key"] = self._api_key
-            self._client = OpenAIEmbeddings(**kwargs)
+            self._client = OpenAIEmbeddings(**kwargs)  # type: ignore
 
         return self._client
 

@@ -26,7 +26,7 @@ def build_chat_model(
     if provider == OPENAI:
         from langchain_openai import ChatOpenAI
 
-        return ChatOpenAI(model=model, api_key=api_key, temperature=temperature)
+        return ChatOpenAI(model=model, api_key=api_key, temperature=temperature)  # type: ignore
 
     raise ValueError(
         f"지원하지 않는 LLM provider: {provider!r} (가능: {', '.join(SUPPORTED_PROVIDERS)})"

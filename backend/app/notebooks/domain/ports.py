@@ -6,7 +6,7 @@ get류는 없는 id에 대해 KeyError를 던진다(API에서 404로 변환).
 
 from typing import Protocol
 
-from app.notebooks.domain.records import NotebookRecord, SourceRecord
+from app.notebooks.domain.records import ChatMessageRecord, NotebookRecord, SourceRecord
 
 
 class NotebookStore(Protocol):
@@ -27,3 +27,7 @@ class NotebookStore(Protocol):
     def get_source(self, notebook_id: str, source_id: str) -> SourceRecord: ...
 
     def delete_source(self, notebook_id: str, source_id: str) -> None: ...
+
+    def add_chat_message(self, record: ChatMessageRecord) -> None: ...
+
+    def list_chat_messages(self, notebook_id: str) -> list[ChatMessageRecord]: ...

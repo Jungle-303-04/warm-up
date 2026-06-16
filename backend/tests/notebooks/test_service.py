@@ -135,7 +135,7 @@ def test_add_repo_source_uses_injected_sync() -> None:
     counter = count(1)
     service = NotebookService(
         store=InMemoryNotebookStore(),
-        repo_sync=FakeSync(),
+        repo_sync=FakeSync(),  # type: ignore
         clock=lambda: FIXED_NOW,
         id_factory=lambda: f"id-{next(counter)}",
     )

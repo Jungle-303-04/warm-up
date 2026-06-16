@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.api.errors import http_error
 from app.api.responses import BAD_REQUEST_RESPONSE
+from app.auth.dependencies import get_current_claims
 from app.pipeline.api.schemas import ProposalStatus
 from app.proposals.api.schemas import (
     GenerateProposalsRequest,
@@ -12,10 +13,13 @@ from app.proposals.api.schemas import (
 from app.proposals.application.service import ProposalReviewService
 from app.proposals.dependencies import get_proposal_review_service
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_claims)])
 
-NOT_FOUND = {KeyError: status.HTTP_404_NOT_FOUND}
-NOT_FOUND_OR_CONFLICT = {KeyError: status.HTTP_404_NOT_FOUND, ValueError: status.HTTP_409_CONFLICT}
+NOT_FOUND: dict[type[Exception], int] = {KeyError: status.HTTP_404_NOT_FOUND}
+NOT_FOUND_OR_CONFLICT: dict[type[Exception], int] = {
+    KeyError: status.HTTP_404_NOT_FOUND,
+    ValueError: status.HTTP_409_CONFLICT,
+}
 
 
 @router.post(

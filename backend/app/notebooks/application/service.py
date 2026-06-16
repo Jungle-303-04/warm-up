@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from subprocess import CalledProcessError
 from uuid import uuid4
 
+from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import (
     NotebookRecord,
     SourceKind,
@@ -34,7 +35,7 @@ _CONTENT_KINDS = ("md", "text", "pdf")
 
 @dataclass(slots=True)
 class NotebookService:
-    store: object  # NotebookStore (Protocol) — 런타임 의존성은 덕타이핑
+    store: NotebookStore
     repo_sync: RepoSyncService = field(default_factory=RepoSyncService)
     clock: Callable[[], datetime] = _utcnow
     id_factory: Callable[[], str] = _new_id
