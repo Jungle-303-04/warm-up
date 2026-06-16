@@ -1,65 +1,171 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-const INITIAL_MESSAGES = [
-  {
-    id: 1,
-    sender: 'assistant',
-    text: '레포지토리 분석 결과를 기준으로 질문을 도와드릴게요. 지금은 화면 흐름을 확인하기 위한 목업입니다.',
-  },
-]
+const INITIAL_SESSION_ID = 1
+const MOCK_RESPONSE_DELAY_MS = 900
 
 export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
+  const responseTimerIds = useRef(new Map())
+  const sessionIdRef = useRef(INITIAL_SESSION_ID + 1)
+  const messageIdRef = useRef(100)
   const [isOpen, setIsOpen] = useState(false)
   const [draft, setDraft] = useState('')
-  const [messages, setMessages] = useState(INITIAL_MESSAGES)
+  const [activeSessionId, setActiveSessionId] = useState(INITIAL_SESSION_ID)
+  const [sessions, setSessions] = useState(() => [
+    createChatSession(INITIAL_SESSION_ID, '새 대화'),
+  ])
 
   const chatContext = useMemo(
     () => buildChatContext(repositoryFullName, branch, indexResult),
     [repositoryFullName, branch, indexResult],
   )
+  const activeSession = sessions.find((session) => session.id === activeSessionId)
+    || sessions[0]
+  const messages = activeSession?.messages || []
+
+  useEffect(() => () => {
+    responseTimerIds.current.forEach((timerId) => window.clearTimeout(timerId))
+    responseTimerIds.current.clear()
+  }, [])
+
+  useEffect(() => {
+    document.body.classList.toggle('chatbot-drawer-open', isOpen)
+
+    return () => {
+      document.body.classList.remove('chatbot-drawer-open')
+    }
+  }, [isOpen])
+
+  function createNewSession() {
+    const nextSession = createChatSession(sessionIdRef.current, '새 대화')
+    sessionIdRef.current += 1
+    setSessions((currentSessions) => [nextSession, ...currentSessions])
+    setActiveSessionId(nextSession.id)
+    setDraft('')
+  }
+
+  function deleteSession(sessionId) {
+    const timerId = responseTimerIds.current.get(sessionId)
+    if (timerId) {
+      window.clearTimeout(timerId)
+      responseTimerIds.current.delete(sessionId)
+    }
+
+    if (sessions.length === 1) {
+      const nextSession = createChatSession(sessionIdRef.current, '새 대화')
+      sessionIdRef.current += 1
+      setSessions([nextSession])
+      setActiveSessionId(nextSession.id)
+      setDraft('')
+      return
+    }
+
+    const nextSessions = sessions.filter((session) => session.id !== sessionId)
+    setSessions(nextSessions)
+
+    if (sessionId === activeSessionId) {
+      setActiveSessionId(nextSessions[0].id)
+      setDraft('')
+    }
+  }
 
   function submitMockMessage(event) {
     event.preventDefault()
+    sendMockMessage()
+  }
 
+  function sendMockMessage() {
     const nextQuestion = draft.trim()
-    if (!nextQuestion) {
+    if (!nextQuestion || activeSession.isGenerating) {
       return
     }
 
     // Future backend connection:
-    // POST /rag/ask 또는 별도 chatbot endpoint로 연결한다.
-    // Expected request DTO:
+    // POST /rag/ask 또는 별도 chatbot session endpoint로 연결한다.
+    // Expected request DTO per session:
     // {
+    //   session_id: number | string,
     //   question: string,
     //   repository_full_name: string,
     //   branch?: string | null,
     //   commit_sha?: string | null,
     //   limit: number
     // }
-    // Current implementation is a frontend mock, so it does not send an API request yet.
+    // Current implementation is a frontend mock, so session/message state stays in React only.
+    // Real backend connection should keep the loading state until the API response arrives.
     const userMessage = {
-      id: Date.now(),
+      id: messageIdRef.current,
       sender: 'user',
       text: nextQuestion,
     }
+    messageIdRef.current += 1
     const assistantMessage = {
-      id: Date.now() + 1,
+      id: messageIdRef.current,
       sender: 'assistant',
       text: chatContext.repositoryName
         ? `${chatContext.repositoryName} 기준으로 답변이 생성될 예정입니다. 실제 연결 시 저장된 RAG 근거와 함께 LLM으로 전달됩니다.`
         : '먼저 레포지토리를 분석하거나 분석된 레포를 선택하면, 그 결과를 기준으로 답변이 생성될 예정입니다.',
     }
+    messageIdRef.current += 1
 
-    setMessages((currentMessages) => [
-      ...currentMessages,
-      userMessage,
-      assistantMessage,
-    ])
+    setSessions((currentSessions) =>
+      currentSessions.map((session) => {
+        if (session.id !== activeSession.id) {
+          return session
+        }
+
+        return {
+          ...session,
+          isGenerating: true,
+          title: resolveSessionTitle(session, nextQuestion),
+          updatedAt: new Date().toISOString(),
+          messages: [
+            ...session.messages,
+            userMessage,
+          ],
+        }
+      }),
+    )
     setDraft('')
+    scheduleMockResponse(activeSession.id, assistantMessage)
   }
 
-  function clearMessages() {
-    setMessages(INITIAL_MESSAGES)
+  function submitOnEnter(event) {
+    if (event.key !== 'Enter' || event.shiftKey) {
+      return
+    }
+
+    event.preventDefault()
+    sendMockMessage()
+  }
+
+  function scheduleMockResponse(sessionId, assistantMessage) {
+    const existingTimerId = responseTimerIds.current.get(sessionId)
+    if (existingTimerId) {
+      window.clearTimeout(existingTimerId)
+    }
+
+    const timerId = window.setTimeout(() => {
+      setSessions((currentSessions) =>
+        currentSessions.map((session) => {
+          if (session.id !== sessionId) {
+            return session
+          }
+
+          return {
+            ...session,
+            isGenerating: false,
+            updatedAt: new Date().toISOString(),
+            messages: [
+              ...session.messages,
+              assistantMessage,
+            ],
+          }
+        }),
+      )
+      responseTimerIds.current.delete(sessionId)
+    }, MOCK_RESPONSE_DELAY_MS)
+
+    responseTimerIds.current.set(sessionId, timerId)
   }
 
   return (
@@ -98,16 +204,64 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
           <span>{chatContext.detail}</span>
         </section>
 
-        <div className="chatbot-messages" aria-live="polite">
-          {messages.map((message) => (
-            <article
-              key={message.id}
-              className={`chatbot-message ${message.sender}`}
+        <div className="chatbot-body">
+          <nav className="chatbot-session-panel" aria-label="챗봇 대화 세션">
+            <button
+              type="button"
+              className="secondary-button compact"
+              onClick={createNewSession}
             >
-              <span>{message.sender === 'user' ? '나' : 'LLM'}</span>
-              <p>{message.text}</p>
-            </article>
-          ))}
+              새 대화
+            </button>
+            <ul className="chatbot-session-list">
+              {sessions.map((session) => (
+                <li key={session.id}>
+                  <div className="chatbot-session-item">
+                    <button
+                      type="button"
+                      className={session.id === activeSession.id ? 'active' : ''}
+                      onClick={() => {
+                        setActiveSessionId(session.id)
+                        setDraft('')
+                      }}
+                    >
+                      <strong>{session.title}</strong>
+                      <span>{formatSessionTime(session.updatedAt)}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="chatbot-session-delete"
+                      onClick={() => deleteSession(session.id)}
+                      aria-label={`${session.title} 채팅방 삭제`}
+                    >
+                      <span aria-hidden="true" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <div className="chatbot-messages" aria-live="polite">
+            {messages.map((message) => (
+              <article
+                key={message.id}
+                className={`chatbot-message ${message.sender}`}
+              >
+                <span>{message.sender === 'user' ? '나' : 'LLM'}</span>
+                <p>{message.text}</p>
+              </article>
+            ))}
+
+            {activeSession.isGenerating ? (
+              <div className="chatbot-loading" role="status">
+                <span>답변 생성 중</span>
+                <div className="chatbot-loading-track" aria-hidden="true">
+                  <i />
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <form className="chatbot-form" onSubmit={submitMockMessage}>
@@ -116,25 +270,55 @@ export function ChatbotDrawer({ repositoryFullName, branch, indexResult }) {
             id="chatbot-question"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={submitOnEnter}
             placeholder="이 레포 기준으로 다음 구현 계획을 제안해줘"
             rows="4"
+            disabled={activeSession.isGenerating}
           />
           <div className="chatbot-actions">
             <button
-              type="button"
-              className="secondary-button compact"
-              onClick={clearMessages}
+              type="submit"
+              className="primary-action"
+              disabled={activeSession.isGenerating}
             >
-              비우기
-            </button>
-            <button type="submit" className="primary-action">
-              보내기
+              {activeSession.isGenerating ? '생성 중' : '보내기'}
             </button>
           </div>
         </form>
       </aside>
     </>
   )
+}
+
+function createChatSession(id, title) {
+  return {
+    id,
+    title,
+    isGenerating: false,
+    updatedAt: new Date().toISOString(),
+    messages: [
+      {
+        id: `intro-${id}`,
+        sender: 'assistant',
+        text: '레포지토리 분석 결과를 기준으로 질문을 도와드릴게요. 지금은 화면 흐름을 확인하기 위한 목업입니다.',
+      },
+    ],
+  }
+}
+
+function resolveSessionTitle(session, question) {
+  if (session.title !== '새 대화') {
+    return session.title
+  }
+
+  return question.length > 18 ? `${question.slice(0, 18)}...` : question
+}
+
+function formatSessionTime(value) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
 }
 
 function buildChatContext(repositoryFullName, branch, indexResult) {
