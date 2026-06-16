@@ -12,6 +12,7 @@ export function ChatbotDrawer({
 }) {
   const responseTimerIds = useRef(new Map())
   const messagesEndRef = useRef(null)
+  const selectedRunIdsSignatureRef = useRef(createRunIdsSignature(selectedRunIds))
   const sessionIdRef = useRef(INITIAL_SESSION_ID + 1)
   const messageIdRef = useRef(100)
   const [isOpen, setIsOpen] = useState(false)
@@ -39,6 +40,7 @@ export function ChatbotDrawer({
     || sessions[0]
   const messages = activeSession?.messages || []
   const isChatInputDisabled = activeSession.isGenerating
+  const hasMultipleSessions = sessions.length > 1
 
   useEffect(() => () => {
     responseTimerIds.current.forEach((timerId) => window.clearTimeout(timerId))
@@ -61,12 +63,64 @@ export function ChatbotDrawer({
     messagesEndRef.current?.scrollIntoView({ block: 'end' })
   }, [activeSessionId, messages.length, activeSession.isGenerating, isOpen])
 
+  useEffect(() => {
+    const nextSignature = createRunIdsSignature(selectedRunIds)
+    if (selectedRunIdsSignatureRef.current === nextSignature) {
+      return
+    }
+
+    selectedRunIdsSignatureRef.current = nextSignature
+    const basisMessage = {
+      id: messageIdRef.current,
+      sender: 'system',
+      text: buildBasisChangedMessage(selectedRuns),
+    }
+    messageIdRef.current += 1
+
+    setSessions((currentSessions) =>
+      currentSessions.map((session) => {
+        if (session.id !== activeSessionId) {
+          return session
+        }
+
+        return {
+          ...session,
+          updatedAt: new Date().toISOString(),
+          messages: [
+            ...session.messages,
+            basisMessage,
+          ],
+        }
+      }),
+    )
+  }, [activeSessionId, selectedRunIds, selectedRuns])
+
   function createNewSession() {
     const nextSession = createChatSession(sessionIdRef.current, '새 대화')
     sessionIdRef.current += 1
     setSessions((currentSessions) => [nextSession, ...currentSessions])
     setActiveSessionId(nextSession.id)
     setDraft('')
+    setDraftError('')
+  }
+
+  function openDrawer() {
+    setIsOpen(true)
+    setDraftError('')
+  }
+
+  function closeDrawer() {
+    setIsOpen(false)
+    setDraftError('')
+  }
+
+  function toggleBasisPicker() {
+    setIsBasisPickerOpen((current) => !current)
+    setDraftError('')
+  }
+
+  function selectConversationBasis() {
+    onSelectedRunIdsChange([])
     setDraftError('')
   }
 
@@ -108,6 +162,7 @@ export function ChatbotDrawer({
         ? selectedRunIds.filter((currentRunId) => currentRunId !== runId)
         : [...selectedRunIds, runId],
     )
+    setDraftError('')
   }
 
   function sendMockMessage() {
@@ -223,7 +278,7 @@ export function ChatbotDrawer({
       <button
         type="button"
         className="chatbot-launcher"
-        onClick={() => setIsOpen(true)}
+        onClick={openDrawer}
         aria-label="챗봇 열기"
         aria-controls="rag-chatbot-drawer"
         aria-expanded={isOpen}
@@ -245,29 +300,43 @@ export function ChatbotDrawer({
               <p className="eyebrow">RAG Chat</p>
               <h2>레포지토리 질문</h2>
             </div>
-            <button
-              type="button"
-              className="chatbot-close"
-              onClick={() => setIsOpen(false)}
-              aria-label="챗봇 닫기"
-            >
-              닫기
-            </button>
+            <div className="chatbot-header-actions">
+              <button
+                type="button"
+                className="chatbot-new-session"
+                onClick={createNewSession}
+              >
+                새 대화
+              </button>
+              <button
+                type="button"
+                className="chatbot-close"
+                onClick={closeDrawer}
+                aria-label="챗봇 닫기"
+              >
+                닫기
+              </button>
+            </div>
           </header>
 
           <section className="chatbot-context" aria-label="현재 질문 기준">
-            <strong>
-              {chatContext.title}
-            </strong>
-            <span>{chatContext.detail}</span>
-            <p className="chatbot-context-note">
-              대화 중 다른 레포를 말하면 기준을 추가하거나 전환할 수 있습니다.
-            </p>
+            <div className="chatbot-context-main">
+              <div>
+                <strong>
+                  {chatContext.title}
+                </strong>
+                <span>{chatContext.detail}</span>
+                {chatContext.technicalDetail ? (
+                  <span>{chatContext.technicalDetail}</span>
+                ) : null}
+              </div>
+              <span className="chatbot-dev-badge">LLM 미연결</span>
+            </div>
             {chatContext.warning ? (
               <p className="chatbot-context-warning">{chatContext.warning}</p>
             ) : null}
             <div className="chatbot-basis-summary">
-              <div className="chatbot-basis-chips" aria-label="선택된 분석 기준">
+              <div className="chatbot-basis-chips" aria-label="선택된 답변 기준">
                 {chatContext.selectedRuns.length ? (
                   <>
                     {chatContext.selectedRuns.slice(0, 2).map((run) => (
@@ -287,19 +356,19 @@ export function ChatbotDrawer({
               </div>
               <button
                 type="button"
-                onClick={() => setIsBasisPickerOpen((current) => !current)}
+                onClick={toggleBasisPicker}
               >
                 {isBasisPickerOpen ? '닫기' : '기준 변경'}
               </button>
             </div>
             {isBasisPickerOpen ? (
               <fieldset className="chatbot-basis-picker">
-                <legend>분석 기준 선택</legend>
+                <legend>답변 기준 선택</legend>
                 <label>
                   <input
                     type="checkbox"
                     checked={selectedRunIds.length === 0}
-                    onChange={() => onSelectedRunIdsChange([])}
+                    onChange={selectConversationBasis}
                   />
                   <span>대화로 선택</span>
                 </label>
@@ -315,50 +384,41 @@ export function ChatbotDrawer({
                 ))}
               </fieldset>
             ) : null}
-            <p>
-              아직 실제 LLM API와 연결되지 않았습니다. 현재 대화는 화면 흐름을 확인하기 위한
-              목업 응답입니다.
-            </p>
           </section>
 
-          <div className="chatbot-body">
-            <nav className="chatbot-session-panel" aria-label="챗봇 대화 세션">
-              <button
-                type="button"
-                className="secondary-button compact"
-                onClick={createNewSession}
-              >
-                새 대화
-              </button>
-              <ul className="chatbot-session-list">
-                {sessions.map((session) => (
-                  <li key={session.id}>
-                    <div className="chatbot-session-item">
-                      <button
-                        type="button"
-                        className={session.id === activeSession.id ? 'active' : ''}
-                        onClick={() => {
-                          setActiveSessionId(session.id)
-                          setDraft('')
-                          setDraftError('')
-                        }}
-                      >
-                        <strong>{session.title}</strong>
-                        <span>{formatSessionTime(session.updatedAt)}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="chatbot-session-delete"
-                        onClick={() => deleteSession(session.id)}
-                        aria-label={`${session.title} 채팅방 삭제`}
-                      >
-                        <span aria-hidden="true" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+          <div className={`chatbot-body ${hasMultipleSessions ? '' : 'single-session'}`}>
+            {hasMultipleSessions ? (
+              <nav className="chatbot-session-panel" aria-label="챗봇 대화 세션">
+                <ul className="chatbot-session-list">
+                  {sessions.map((session) => (
+                    <li key={session.id}>
+                      <div className="chatbot-session-item">
+                        <button
+                          type="button"
+                          className={session.id === activeSession.id ? 'active' : ''}
+                          onClick={() => {
+                            setActiveSessionId(session.id)
+                            setDraft('')
+                            setDraftError('')
+                          }}
+                        >
+                          <strong>{session.title}</strong>
+                          <span>{formatSessionTime(session.updatedAt)}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="chatbot-session-delete"
+                          onClick={() => deleteSession(session.id)}
+                          aria-label={`${session.title} 채팅방 삭제`}
+                        >
+                          <span aria-hidden="true" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ) : null}
 
             <div className="chatbot-messages" aria-live="polite">
               {messages.map((message) => (
@@ -366,7 +426,7 @@ export function ChatbotDrawer({
                   key={message.id}
                   className={`chatbot-message ${message.sender}`}
                 >
-                  <span>{message.sender === 'user' ? '나' : 'LLM'}</span>
+                  <span>{getMessageSenderLabel(message.sender)}</span>
                   <p>{message.text}</p>
                 </article>
               ))}
@@ -440,6 +500,33 @@ function createChatSession(id, title) {
   }
 }
 
+function createRunIdsSignature(runIds) {
+  return [...runIds].sort((left, right) => Number(left) - Number(right)).join('|')
+}
+
+function buildBasisChangedMessage(selectedRuns) {
+  if (!selectedRuns.length) {
+    return '답변 기준이 대화로 선택으로 변경됨'
+  }
+
+  const basisLabel = selectedRuns
+    .map((run) => formatRunChipLabel(run))
+    .join(', ')
+  return `답변 기준이 ${basisLabel}으로 변경됨`
+}
+
+function getMessageSenderLabel(sender) {
+  if (sender === 'user') {
+    return '나'
+  }
+
+  if (sender === 'system') {
+    return '기준'
+  }
+
+  return 'LLM'
+}
+
 function resolveSessionTitle(session, question) {
   if (session.title !== '새 대화') {
     return session.title
@@ -458,54 +545,53 @@ function formatSessionTime(value) {
 function buildChatContext(selectedRuns, isIndexing) {
   if (!selectedRuns.length) {
     return {
-      title: '시작 기준: 대화로 선택',
+      title: '답변 기준: 대화로 선택',
       modeLabel: '대화로 선택',
       hasSelectedRuns: false,
       selectedRuns: [],
       detail: isIndexing
-        ? '새 분석이 진행 중입니다. 질문은 가능하고, 완료되면 분석 기준이 자동으로 잡힙니다.'
+        ? '새 분석이 진행 중입니다. 질문은 가능하고, 완료되면 답변 기준이 자동으로 잡힙니다.'
         : '질문과 대화 맥락에서 필요한 레포를 찾습니다.',
+      technicalDetail: '',
       warning: '',
     }
   }
 
   if (selectedRuns.length === 1) {
     const run = selectedRuns[0]
-    const shortCommitSha = run.commit_sha ? run.commit_sha.slice(0, 7) : ''
-    const detail = shortCommitSha
-      ? `${run.branch || '기본 브랜치'} · commit ${shortCommitSha}`
-      : `${run.branch || '기본 브랜치'} · run #${run.id}`
 
     return {
-      title: `시작 기준: ${run.repository_full_name}`,
+      title: '답변 기준: 마지막 완료 분석본',
       modeLabel: '선택한 레포',
       hasSelectedRuns: true,
       selectedRuns,
-      detail,
+      detail: `${run.repository_full_name} · ${run.branch || '기본'}`,
+      technicalDetail: formatRunDetailLabel(run),
       warning: isIndexing
-        ? '새 분석이 진행 중입니다. 완료 전까지는 선택한 완료 분석 기준으로 답변합니다.'
+        ? '새 분석이 진행 중입니다. 완료 전까지는 선택한 완료 답변 기준으로 답변합니다.'
         : '',
     }
   }
 
   return {
-    title: `시작 기준: ${selectedRuns.length}개 레포`,
+    title: `답변 기준: 마지막 완료 분석본 ${selectedRuns.length}개`,
     modeLabel: '여러 레포 선택',
     hasSelectedRuns: true,
     selectedRuns,
-    detail: selectedRuns.map((run) => run.repository_full_name).join(', '),
+    detail: selectedRuns.map((run) => formatRunReferenceLabel(run)).join(', '),
+    technicalDetail: '내부 검색은 각 분석본의 repository_full_name, branch, commit_sha로 고정됩니다.',
     warning: isIndexing
-      ? '새 분석이 진행 중입니다. 완료 전까지는 선택한 완료 분석 기준으로 답변합니다.'
+      ? '새 분석이 진행 중입니다. 완료 전까지는 선택한 완료 답변 기준으로 답변합니다.'
       : '',
   }
 }
 
 function buildMockAssistantText(chatContext) {
   if (!chatContext.hasSelectedRuns) {
-    return '현재 고정된 분석 기준은 없습니다. 실제 연결 시에는 사용자의 질문과 대화 맥락에서 레포를 파악하고, 해당 레포의 가장 최신 완료 분석 기준으로 답변합니다.'
+    return '현재 고정된 답변 기준은 없습니다. 실제 연결 시에는 사용자의 질문과 대화 맥락에서 레포를 파악하고, 해당 레포의 가장 최신 완료 답변 기준으로 답변합니다.'
   }
 
-  return `${chatContext.title.replace('시작 기준: ', '')} / ${chatContext.detail} 기준으로 답변이 생성될 예정입니다. 실제 연결 시 선택된 RAG 근거와 대화 중 추가된 레포 맥락을 함께 사용합니다.`
+  return `${chatContext.detail} 기준으로 답변이 생성될 예정입니다. 실제 연결 시 내부 검색은 repository_full_name, branch, commit_sha로 고정하고 선택된 RAG 근거와 대화 중 추가된 레포 맥락을 함께 사용합니다.`
 }
 
 function buildChatBasisOptions(repositoryRuns, indexResult) {
@@ -533,13 +619,44 @@ function buildChatBasisOptions(repositoryRuns, indexResult) {
 }
 
 function formatRunOptionLabel(run) {
-  const branch = run.branch || '기본 브랜치'
-  const commit = run.commit_sha ? ` · ${run.commit_sha.slice(0, 7)}` : ''
-  return `${run.repository_full_name} / ${branch}${commit}`
+  return formatRunReferenceLabel(run)
 }
 
 function formatRunChipLabel(run) {
+  return formatRunReferenceLabel(run)
+}
+
+function formatRunReferenceLabel(run) {
   const branch = run.branch || '기본'
-  const commit = run.commit_sha ? ` · ${run.commit_sha.slice(0, 7)}` : ''
-  return `${run.repository_full_name} · ${branch}${commit}`
+  const indexedAt = formatIndexedAt(run.indexed_at)
+  const analysis = indexedAt ? ` · 마지막 분석 ${indexedAt}` : ' · 마지막 분석 시각 없음'
+  return `${run.repository_full_name} · ${branch}${analysis}`
+}
+
+function formatRunTechnicalLabel(run) {
+  if (run.commit_sha) {
+    return `코드 버전 ${run.commit_sha.slice(0, 7)}`
+  }
+
+  return `run #${run.id}`
+}
+
+function formatRunDetailLabel(run) {
+  const indexedAt = formatIndexedAt(run.indexed_at)
+  const analysis = indexedAt ? `분석 완료: ${indexedAt}` : '분석 완료 시각 없음'
+  return `${analysis} · ${formatRunTechnicalLabel(run)}`
+}
+
+function formatIndexedAt(value) {
+  if (!value) {
+    return ''
+  }
+
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
 }

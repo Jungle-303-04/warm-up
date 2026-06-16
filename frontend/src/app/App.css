@@ -250,7 +250,7 @@
 
 .brand-button:hover {
   background: transparent;
-  color: #1f7658;
+  color: var(--accent);
 }
 
 .brand-button:active {
@@ -418,7 +418,7 @@ h1 {
 .status-box.success {
   border-color: rgba(38, 130, 99, 0.28);
   background: rgba(38, 130, 99, 0.1);
-  color: #1f7658;
+  color: var(--accent);
 }
 
 .status-box.error {
@@ -580,9 +580,9 @@ h1 {
 .primary-action {
   width: 100%;
   min-height: 44px;
-  border: 1px solid #1f7658;
+  border: 1px solid var(--accent);
   border-radius: 6px;
-  background: #1f7658;
+  background: var(--accent);
   color: #fff;
   font: inherit;
   font-size: 14px;
@@ -610,9 +610,9 @@ h1 {
 .progress-panel {
   display: grid;
   gap: 10px;
-  border: 1px solid rgba(31, 118, 88, 0.3);
+  border: 1px solid var(--accent-border);
   border-radius: 6px;
-  background: rgba(31, 118, 88, 0.1);
+  background: var(--accent-soft);
   padding: 12px;
 }
 
@@ -628,7 +628,7 @@ h1 {
 
 .progress-header strong {
   flex: 0 0 auto;
-  color: #1f7658;
+  color: var(--accent);
 }
 
 .progress-track {
@@ -637,7 +637,7 @@ h1 {
   width: 100%;
   height: 8px;
   border-radius: 999px;
-  background: rgba(31, 118, 88, 0.18);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .progress-track span {
@@ -647,7 +647,7 @@ h1 {
   left: -42%;
   width: 42%;
   border-radius: inherit;
-  background: #1f7658;
+  background: var(--accent);
   animation: progress-slide 1.15s ease-in-out infinite;
 }
 
@@ -895,8 +895,8 @@ h1 {
 }
 
 .calendar-actions .primary-calendar-action {
-  border-color: #1f7658;
-  background: #1f7658;
+  border-color: var(--accent);
+  background: var(--accent);
   color: #fff;
 }
 
@@ -971,7 +971,7 @@ h1 {
 }
 
 .legend-schedule {
-  background: #1f7658;
+  background: var(--accent);
 }
 
 .legend-meeting {
@@ -1016,9 +1016,9 @@ h1 {
 }
 
 .calendar-type-filter input:checked + span {
-  border-color: rgba(31, 118, 88, 0.34);
-  background: rgba(31, 118, 88, 0.12);
-  color: #1f7658;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .calendar-search-panel {
@@ -1173,7 +1173,7 @@ h1 {
 }
 
 .calendar-event-schedule {
-  background: #1f7658;
+  background: var(--accent);
 }
 
 .calendar-event-meeting {
@@ -1248,10 +1248,10 @@ h1 {
 
 .board-search-type {
   width: fit-content;
-  border: 1px solid rgba(31, 118, 88, 0.28);
+  border: 1px solid var(--accent-border);
   border-radius: 999px;
-  background: rgba(31, 118, 88, 0.1);
-  color: #1f7658;
+  background: var(--accent-soft);
+  color: var(--accent);
   font-size: 12px;
   font-weight: 900;
   padding: 4px 9px;
@@ -1653,14 +1653,14 @@ h1 {
   overflow: hidden;
   height: 8px;
   border-radius: 999px;
-  background: rgba(31, 118, 88, 0.14);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .board-task-progress span {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: inherit;
-  background: #1f7658;
+  background: var(--accent);
 }
 
 .schedule-progress-summary {
@@ -1782,6 +1782,13 @@ h1 {
   line-height: 1.25;
 }
 
+.chatbot-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chatbot-new-session,
 .chatbot-close {
   min-height: 34px;
   border: 1px solid var(--line);
@@ -1795,6 +1802,11 @@ h1 {
   padding: 0 12px;
 }
 
+.chatbot-new-session:hover,
+.chatbot-close:hover {
+  border-color: var(--line-strong);
+}
+
 .chatbot-context {
   display: grid;
   gap: 4px;
@@ -1804,7 +1816,22 @@ h1 {
   padding: 12px;
 }
 
+.chatbot-context-main {
+  min-width: 0;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.chatbot-context-main > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
 .chatbot-context strong {
+  display: block;
   color: var(--heading);
   font-size: 14px;
   font-weight: 900;
@@ -1816,6 +1843,19 @@ h1 {
   font-size: 12px;
   font-weight: 800;
   overflow-wrap: anywhere;
+}
+
+.chatbot-context .chatbot-dev-badge {
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--warning) 62%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warning) 28%, var(--panel));
+  color: var(--warning-strong);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
 }
 
 .chatbot-context p {
@@ -1919,11 +1959,13 @@ h1 {
   gap: 10px;
 }
 
+.chatbot-body.single-session {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .chatbot-session-panel {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 8px;
 }
 
 .chatbot-session-list {
@@ -1959,8 +2001,8 @@ h1 {
 
 .chatbot-session-item > button:first-child:hover,
 .chatbot-session-item > button:first-child.active {
-  border-color: rgba(31, 118, 88, 0.34);
-  background: rgba(31, 118, 88, 0.1);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
 }
 
 .chatbot-session-list strong {
@@ -2046,6 +2088,12 @@ h1 {
   align-self: end;
 }
 
+.chatbot-message.system {
+  max-width: 100%;
+  align-self: center;
+  justify-items: center;
+}
+
 .chatbot-message span {
   color: var(--muted);
   font-size: 11px;
@@ -2054,6 +2102,10 @@ h1 {
 
 .chatbot-message.user span {
   text-align: right;
+}
+
+.chatbot-message.system span {
+  color: var(--muted);
 }
 
 .chatbot-message p {
@@ -2069,18 +2121,29 @@ h1 {
 }
 
 .chatbot-message.user p {
-  border-color: rgba(31, 118, 88, 0.28);
-  background: #1f7658;
+  border-color: var(--accent-border);
+  background: var(--accent);
   color: #fff;
+}
+
+.chatbot-message.system p {
+  border-color: rgba(100, 116, 139, 0.22);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--field) 78%, var(--panel));
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 11px;
+  text-align: center;
 }
 
 .chatbot-loading {
   width: min(220px, 86%);
   display: grid;
   gap: 8px;
-  border: 1px solid rgba(31, 118, 88, 0.24);
+  border: 1px solid var(--accent-border);
   border-radius: 8px;
-  background: rgba(31, 118, 88, 0.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--heading);
   font-size: 12px;
   font-weight: 900;
@@ -2092,7 +2155,7 @@ h1 {
   overflow: hidden;
   height: 7px;
   border-radius: 999px;
-  background: rgba(31, 118, 88, 0.16);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .chatbot-loading-track i {
@@ -2102,7 +2165,7 @@ h1 {
   left: -46%;
   width: 46%;
   border-radius: inherit;
-  background: #1f7658;
+  background: var(--accent);
   animation: progress-slide 1s ease-in-out infinite;
 }
 
