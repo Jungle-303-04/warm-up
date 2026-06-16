@@ -6,7 +6,7 @@ import { deleteSource, getTree } from "../lib/api";
 import { cn } from "../lib/cn";
 import { SOURCE_KINDS } from "../lib/fixtures";
 import { useWorkspace } from "../lib/store";
-import type { Source, TreeNode } from "../lib/types";
+import type { Source, SourceSyncProgress, TreeNode } from "../lib/types";
 import { Icon } from "./icon";
 
 // 재귀 파일 트리. 디렉터리는 펼침/접힘, 파일 클릭은 뷰어로 연다.
@@ -116,6 +116,9 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   );
   const openSource = useWorkspace((s) => s.openSource);
   const removeSource = useWorkspace((s) => s.removeSource);
+  const selected = useWorkspace((s) => s.selectedSourceIds.has(source.id));
+  const toggleSelected = useWorkspace((s) => s.toggleSourceSelected);
+  const syncStatus = useWorkspace((s) => s.sourceSyncStatuses[source.id]);
 
   const [expanded, setExpanded] = useState(false);
   const [tree, setTree] = useState<TreeNode[] | null>(null);
@@ -158,8 +161,31 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
         className={cn(
           "group interactive flex items-center gap-1 rounded-xl pl-2 pr-1",
           focused ? "bg-accent" : "hover:bg-secondary",
+          !selected && "opacity-65",
         )}
       >
+        <label
+          className="interactive grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-card/70"
+          title={selected ? "소스 범위에서 제외" : "소스 범위에 포함"}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => toggleSelected(source.id)}
+            aria-label={`${source.title} 선택`}
+            className="peer sr-only"
+          />
+          <span
+            aria-hidden
+            className={cn(
+              "grid h-[18px] w-[18px] place-items-center rounded-[5px] border border-input bg-card",
+              selected && "border-primary bg-primary text-primary-foreground",
+            )}
+          >
+            {selected ? <Icon name="check" size={13} strokeWidth={2.5} /> : null}
+          </span>
+        </label>
         <button
           type="button"
           onClick={() => (isRepo ? toggleExpand() : openSource(source.id))}
@@ -221,22 +247,52 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
         </button>
       </div>
 
-      {isRepo && expanded ? (
+      {isRepo ? (
         <div className="ml-[18px] mt-0.5 border-l border-border pl-1.5">
-          {treeLoading ? (
-            <p className="flex items-center gap-1.5 px-2 py-1.5 text-[11.5px] text-muted-foreground">
-              <Icon name="progress_activity" size={13} className="animate-spin" />
-              불러오는 중…
-            </p>
-          ) : treeError ? (
-            <p className="px-2 py-1.5 text-[11.5px] text-destructive">{treeError}</p>
-          ) : tree && tree.length > 0 ? (
-            <TreeView nodes={tree} notebookId={notebookId} sourceId={source.id} />
-          ) : (
-            <p className="px-2 py-1.5 text-[11.5px] text-muted-foreground">파일이 없습니다</p>
-          )}
+          {syncStatus ? (
+            <SyncStatusRow syncStatus={syncStatus} />
+          ) : treeError && !expanded ? null : null}
+
+          {expanded ? (
+            treeLoading ? (
+              <p className="flex items-center gap-1.5 px-2 py-1.5 text-[11.5px] text-muted-foreground">
+                <Icon name="progress_activity" size={13} className="animate-spin" />
+                불러오는 중…
+              </p>
+            ) : treeError ? (
+              <p className="px-2 py-1.5 text-[11.5px] text-destructive">{treeError}</p>
+            ) : tree && tree.length > 0 ? (
+              <TreeView nodes={tree} notebookId={notebookId} sourceId={source.id} />
+            ) : (
+              <p className="px-2 py-1.5 text-[11.5px] text-muted-foreground">
+                파일이 없습니다
+              </p>
+            )
+          ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function SyncStatusRow({ syncStatus }: { syncStatus: SourceSyncProgress }) {
+  return (
+    <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+      <p className="flex items-center gap-1.5">
+        <Icon
+          name={syncStatus.status === "failed" ? "report" : "progress_activity"}
+          size={12}
+          className={syncStatus.status === "running" ? "animate-spin" : undefined}
+        />
+        <span>{syncStatus.stageLabel}</span>
+      </p>
+      <div className="mt-1 h-1.5 rounded-full bg-secondary">
+        <div
+          className="h-full rounded-full bg-primary/85 transition-all duration-200"
+          style={{ width: `${syncStatus.percent}%` }}
+        />
+      </div>
+      <p className="mt-1 line-clamp-2 text-[10px]">{syncStatus.detail}</p>
     </div>
   );
 }

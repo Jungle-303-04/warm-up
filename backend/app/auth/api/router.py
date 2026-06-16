@@ -23,6 +23,7 @@ def github_login(service: AuthService = Depends(get_auth_service)) -> RedirectRe
         httponly=True,
         samesite="lax",
         max_age=STATE_TTL_SECONDS,
+        path="/",
     )
     return response
 
@@ -54,8 +55,9 @@ def github_callback(
         httponly=True,
         samesite="lax",
         max_age=settings.session_ttl_seconds,
+        path="/",
     )
-    response.delete_cookie(STATE_COOKIE)
+    response.delete_cookie(STATE_COOKIE, path="/")
     return response
 
 
