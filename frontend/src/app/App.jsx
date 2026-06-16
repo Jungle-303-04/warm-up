@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { AuthSection } from '../features/auth/AuthSection'
+import { BoardDetailPage } from '../features/board/BoardDetailPage'
 import { CalendarWorkspace } from '../features/calendar/CalendarWorkspace'
 import { RepositoryWorkspace } from '../features/repository/RepositoryWorkspace'
 import { fetchJson, postJson, toKoreanErrorMessage } from '../shared/api/http'
@@ -19,9 +20,6 @@ import './App.css'
 
 function App() {
   const [status, setStatus] = useState(INITIAL_STATUS)
-  const [oauthState, setOauthState] = useState(
-    window.localStorage.getItem(OAUTH_STATE_STORAGE_KEY) || '',
-  )
   const [user, setUser] = useState(null)
   const [repositoryFullName, setRepositoryFullName] = useState('')
   const [branch, setBranch] = useState('')
@@ -29,7 +27,7 @@ function App() {
   const [question, setQuestion] = useState('')
   const [answerResult, setAnswerResult] = useState(null)
   const [boards, setBoards] = useState([])
-  const [selectedCalendarEvent, setSelectedCalendarEvent] = useState(null)
+  const [selectedBoard, setSelectedBoard] = useState(null)
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const [isLoadingBoards, setIsLoadingBoards] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -46,7 +44,12 @@ function App() {
     try {
       await callback()
     } catch (error) {
-      setStatus({ type: 'error', message: toKoreanErrorMessage(error.message) })
+      const errorMessage = toKoreanErrorMessage(error.message)
+      setStatus({ type: 'error', message: errorMessage })
+
+      if (action !== 'auth' && action !== 'login') {
+        window.alert(errorMessage)
+      }
     } finally {
       setIsLoading(false)
       setActiveAction('')
@@ -55,18 +58,25 @@ function App() {
 
   async function startGithubLogin() {
     await runAction('login', '깃허브 로그인 주소를 요청하는 중입니다.', async () => {
+      // Backend: GET /auth/github/login
+      // Request body 없음.
+      // Response DTO:
+      // {
+      //   authorize_url: string,
+      //   state: string,
+      //   scope: string
+      // }
+      // state는 OAuth callback 검증용으로 브라우저 localStorage에 잠시 보관한다.
       const payload = await fetchJson(`${API_BASE_URL}/auth/github/login`)
-      setOauthState(payload.state)
       window.localStorage.setItem(OAUTH_STATE_STORAGE_KEY, payload.state)
       setStatus({ type: 'success', message: '깃허브 로그인 페이지로 이동합니다.' })
       window.location.assign(payload.authorize_url)
     })
   }
 
-  const loadBoards = useCallback(async (currentUser) => {
+  const loadBoards = useCallback(async (currentUser, options = {}) => {
     if (!currentUser?.user_id) {
       setBoards([])
-      setSelectedCalendarEvent(null)
       return
     }
 
@@ -77,12 +87,13 @@ function App() {
       // Backend: GET /board/
       // Expected query:
       // {
-      //   user_id?: number,
       //   title?: string | null,
       //   tag?: string | null,
       //   page: number,
       //   size: number
       // }
+      // Logged-in browser requests do not send user_id.
+      // The backend resolves board.user_id from the auth cookie's internal DB user id.
       // Response:
       // {
       //   items: Array<{
@@ -106,19 +117,24 @@ function App() {
       //   size: number
       // }
       const params = new URLSearchParams({
-        user_id: String(currentUser.user_id),
         page: '1',
         size: '100',
       })
       const payload = await fetchJson(`${API_BASE_URL}/board/?${params}`)
       setBoards(payload.items || [])
-      setSelectedCalendarEvent(null)
-      setStatus({
-        type: 'success',
-        message: `게시글 ${payload.items?.length || 0}개를 캘린더에 반영했습니다.`,
-      })
+      const successMessage = `게시글 ${payload.items?.length || 0}개를 캘린더에 반영했습니다.`
+      setStatus({ type: 'success', message: successMessage })
+
+      if (options.notify) {
+        window.alert(successMessage)
+      }
     } catch (error) {
-      setStatus({ type: 'error', message: toKoreanErrorMessage(error.message) })
+      const errorMessage = toKoreanErrorMessage(error.message)
+      setStatus({ type: 'error', message: errorMessage })
+
+      if (options.notify) {
+        window.alert(errorMessage)
+      }
     } finally {
       setIsLoadingBoards(false)
     }
@@ -127,10 +143,28 @@ function App() {
   const loadAuthenticatedUser = useCallback(async (message, options = {}) => {
     await runAction('auth', message, async () => {
       try {
+        // Backend: GET /auth/me
+        // Request body 없음. 브라우저가 auth cookie를 credentials: include로 함께 보낸다.
+        // Response DTO:
+        // {
+        //   user: {
+        //     user_id: number,
+        //     github_user_id: number,
+        //     login: string,
+        //     name?: string | null,
+        //     email?: string | null,
+        //     avatar_url?: string | null
+        //   }
+        // }
+        // user_id는 DB 내부 사용자 id이고, board.user_id와 매칭되는 기준이다.
         const payload = await fetchJson(`${API_BASE_URL}/auth/me`)
         setUser(payload.user)
         setStatus({ type: 'success', message: '깃허브 로그인이 완료되었습니다.' })
         void loadBoards(payload.user)
+        const boardId = parseBoardIdFromHash()
+        if (boardId) {
+          void openBoardDetail(boardId, { pushUrl: false })
+        }
       } catch (error) {
         if (options.silentUnauthenticated) {
           setStatus(INITIAL_STATUS)
@@ -139,13 +173,15 @@ function App() {
         }
         setUser(null)
         setBoards([])
-        setSelectedCalendarEvent(null)
+        setSelectedBoard(null)
       }
     })
   }, [loadBoards, runAction])
 
   async function logout() {
     await runAction('logout', '로그아웃하는 중입니다.', async () => {
+      // Backend: POST /auth/logout
+      // Request body 없음. 서버가 auth cookie를 만료시키는 응답을 내려준다.
       await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
@@ -153,11 +189,11 @@ function App() {
 
       clearSession()
       setUser(null)
-      setOauthState('')
       setIndexResult(null)
       setAnswerResult(null)
       setBoards([])
-      setSelectedCalendarEvent(null)
+      setSelectedBoard(null)
+      window.history.replaceState(null, '', window.location.pathname)
       setStatus({ type: 'muted', message: '로그아웃되었습니다.' })
     })
   }
@@ -182,7 +218,9 @@ function App() {
     setVisibleMonth(new Date())
   }
 
-  async function openBoardDetail(boardId) {
+  async function openBoardDetail(boardId, options = {}) {
+    const shouldPushUrl = options.pushUrl ?? true
+
     setStatus({ type: 'muted', message: '게시글 상세를 불러오는 중입니다.' })
 
     try {
@@ -198,30 +236,40 @@ function App() {
       //   title: string,
       //   content: string,
       //   tag?: string | null,
+      //   user_id: number,
+      //   created_at: string,
+      //   updated_at: string,
+      //   assignee_user_ids: number[],
+      //   participant_user_ids: number[],
+      //   carbon_copy_user_ids: number[],
       //   schedule_board_detail?: {
       //     start_at: string,
       //     end_at: string,
       //     importance: number
       //   } | null,
+      //   schedule_board_tasks?: Array<{
+      //     id: number,
+      //     task_name: string,
+      //     task_status: 1 | 2 | 3 | 4
+      //   }> | null,
       //   proceedings_board_detail?: {
       //     meeting_date: string
       //   } | null
       // }
       const board = await fetchJson(`${API_BASE_URL}/board/${boardId}`)
-      setSelectedCalendarEvent((current) =>
-        current
-          ? {
-              ...current,
-              title: board.title,
-              content: board.content,
-              tag: board.tag,
-            }
-          : null,
-      )
+      setSelectedBoard(board)
+      if (shouldPushUrl) {
+        window.history.pushState({ boardId }, '', `#board/${boardId}`)
+      }
       setStatus({ type: 'success', message: '게시글 상세를 열었습니다.' })
     } catch (error) {
       setStatus({ type: 'error', message: toKoreanErrorMessage(error.message) })
     }
+  }
+
+  function closeBoardDetail() {
+    setSelectedBoard(null)
+    window.history.replaceState(null, '', window.location.pathname)
   }
 
   async function indexRepository(event) {
@@ -238,6 +286,25 @@ function App() {
 
     await runAction('index', '레포지토리를 분석하고 DB에 저장하는 중입니다.', async () => {
       setAnswerResult(null)
+      // Backend: POST /rag/github/repository/index/store
+      // Request DTO:
+      // {
+      //   repository_full_name: string, // "owner/repo"
+      //   branch?: string | null
+      // }
+      // Response DTO:
+      // {
+      //   run_id: number,
+      //   reused: boolean,
+      //   repository_full_name?: string | null,
+      //   branch?: string | null,
+      //   commit_sha: string,
+      //   vector_collection: string,
+      //   sql_chunk_count: number,
+      //   vector_chunk_count: number,
+      //   pipeline_result?: object | null
+      // }
+      // 이후 질문 요청에서는 commit_sha를 같은 분석 결과 안에서 검색하는 근거 범위로 사용한다.
       const payload = await postJson(
         `${API_BASE_URL}/rag/github/repository/index/store`,
         {
@@ -253,6 +320,7 @@ function App() {
         type: 'success',
         message: statusMessage,
       })
+      window.alert(statusMessage)
     })
   }
 
@@ -278,6 +346,29 @@ function App() {
 
     const repositoryName = repositoryFullName.trim()
     await runAction('ask', '저장된 근거로 답변을 생성하는 중입니다.', async () => {
+      // Backend: POST /rag/ask
+      // Request DTO:
+      // {
+      //   question: string,
+      //   repository_full_name: string,
+      //   branch?: string | null,
+      //   commit_sha?: string | null,
+      //   limit: number
+      // }
+      // Response DTO:
+      // {
+      //   answer: string,
+      //   repository_full_name?: string | null,
+      //   branch?: string | null,
+      //   commit_sha?: string | null,
+      //   run_id?: number | null,
+      //   sources: Array<{
+      //     citation: string,
+      //     path: string,
+      //     chunk_type: string,
+      //     distance?: number | null
+      //   }>
+      // }
       const payload = await postJson(`${API_BASE_URL}/rag/ask`, {
         question,
         repository_full_name: repositoryName,
@@ -286,7 +377,9 @@ function App() {
         limit: 5,
       })
       setAnswerResult(payload)
-      setStatus({ type: 'success', message: 'LLM 액션이 완료되었습니다.' })
+      const successMessage = 'LLM 액션이 완료되었습니다.'
+      setStatus({ type: 'success', message: successMessage })
+      window.alert(successMessage)
     })
   }
 
@@ -308,45 +401,64 @@ function App() {
     return () => window.clearTimeout(timerId)
   }, [loadAuthenticatedUser])
 
+  useEffect(() => {
+    function handleBrowserNavigation() {
+      const boardId = parseBoardIdFromHash()
+
+      if (!boardId) {
+        setSelectedBoard(null)
+        return
+      }
+
+      void openBoardDetail(boardId, { pushUrl: false })
+    }
+
+    window.addEventListener('popstate', handleBrowserNavigation)
+    return () => window.removeEventListener('popstate', handleBrowserNavigation)
+  }, [])
+
   return (
     <div className="auth-shell">
       <AuthSection
         user={user}
         status={status}
-        oauthState={oauthState}
         isLoading={isLoading}
         onLogin={startGithubLogin}
         onLogout={logout}
       >
         {user ? (
           <>
-            <CalendarWorkspace
-              boards={boards}
-              selectedEvent={selectedCalendarEvent}
-              visibleMonth={visibleMonth}
-              isLoadingBoards={isLoadingBoards}
-              onPreviousMonth={showPreviousMonth}
-              onNextMonth={showNextMonth}
-              onCurrentMonth={showCurrentMonth}
-              onReloadBoards={() => void loadBoards(user)}
-              onSelectEvent={setSelectedCalendarEvent}
-              onOpenBoard={(boardId) => void openBoardDetail(boardId)}
-            />
-            <RepositoryWorkspace
-              repositoryFullName={repositoryFullName}
-              branch={branch}
-              indexResult={indexResult}
-              question={question}
-              answerResult={answerResult}
-              isLoading={isLoading}
-              isIndexing={isIndexing}
-              isAsking={isAsking}
-              onRepositoryChange={updateRepositoryFullName}
-              onBranchChange={updateBranch}
-              onQuestionChange={setQuestion}
-              onIndexRepository={indexRepository}
-              onAskRepository={askRepository}
-            />
+            {selectedBoard ? (
+              <BoardDetailPage board={selectedBoard} onBack={closeBoardDetail} />
+            ) : (
+              <>
+                <CalendarWorkspace
+                  boards={boards}
+                  visibleMonth={visibleMonth}
+                  isLoadingBoards={isLoadingBoards}
+                  onPreviousMonth={showPreviousMonth}
+                  onNextMonth={showNextMonth}
+                  onCurrentMonth={showCurrentMonth}
+                  onReloadBoards={() => void loadBoards(user, { notify: true })}
+                  onOpenBoard={(boardId) => void openBoardDetail(boardId)}
+                />
+                <RepositoryWorkspace
+                  repositoryFullName={repositoryFullName}
+                  branch={branch}
+                  indexResult={indexResult}
+                  question={question}
+                  answerResult={answerResult}
+                  isLoading={isLoading}
+                  isIndexing={isIndexing}
+                  isAsking={isAsking}
+                  onRepositoryChange={updateRepositoryFullName}
+                  onBranchChange={updateBranch}
+                  onQuestionChange={setQuestion}
+                  onIndexRepository={indexRepository}
+                  onAskRepository={askRepository}
+                />
+              </>
+            )}
           </>
         ) : null}
       </AuthSection>
@@ -355,3 +467,8 @@ function App() {
 }
 
 export default App
+
+function parseBoardIdFromHash() {
+  const match = window.location.hash.match(/^#board\/(\d+)$/)
+  return match ? Number(match[1]) : null
+}

@@ -1,9 +1,6 @@
-import { API_BASE_URL } from '../../app/config'
-
 export function AuthSection({
   user,
   status,
-  oauthState,
   isLoading,
   onLogin,
   onLogout,
@@ -39,13 +36,6 @@ export function AuthSection({
             </button>
           </div>
         </header>
-
-        <aside className="dashboard-meta" aria-label="연결 상태">
-          <div className={`status-box ${status.type}`} role="status">
-            {status.message}
-          </div>
-          <ConnectionStatus user={user} oauthState={oauthState} />
-        </aside>
 
         <main className="dashboard-main">{children}</main>
       </>
@@ -86,8 +76,6 @@ export function AuthSection({
       <div className={`status-box ${status.type}`} role="status">
         {status.message}
       </div>
-
-      <ConnectionStatus user={user} oauthState={oauthState} />
     </main>
   )
 }
@@ -105,24 +93,5 @@ function UserProfile({ user }) {
         <span>{user.email || '이메일 비공개'}</span>
       </div>
     </div>
-  )
-}
-
-function ConnectionStatus({ user, oauthState }) {
-  return (
-    <dl className="connection-list">
-      <div>
-        <dt>API 주소</dt>
-        <dd>{API_BASE_URL}</dd>
-      </div>
-      <div>
-        <dt>로그인 상태</dt>
-        <dd>{user ? '쿠키 세션 확인됨' : '로그인 필요'}</dd>
-      </div>
-      <div>
-        <dt>OAuth 상태</dt>
-        <dd>{oauthState ? '상태값 발급됨' : '대기 중'}</dd>
-      </div>
-    </dl>
   )
 }

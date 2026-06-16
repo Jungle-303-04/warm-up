@@ -4,14 +4,12 @@ const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 
 export function CalendarWorkspace({
   boards,
-  selectedEvent,
   visibleMonth,
   isLoadingBoards,
   onPreviousMonth,
   onNextMonth,
   onCurrentMonth,
   onReloadBoards,
-  onSelectEvent,
   onOpenBoard,
 }) {
   const calendarEvents = boards.flatMap(mapBoardToCalendarEvents)
@@ -89,7 +87,7 @@ export function CalendarWorkspace({
             week={week}
             segments={weekSegments[weekIndex]}
             visibleMonth={visibleMonth}
-            onSelectEvent={onSelectEvent}
+            onOpenBoard={onOpenBoard}
           />
         ))}
       </div>
@@ -99,16 +97,11 @@ export function CalendarWorkspace({
           이번 달에 표시할 일정형 게시글이나 회의록 게시글이 없습니다.
         </p>
       ) : null}
-
-      <CalendarEventDetail
-        selectedEvent={selectedEvent}
-        onOpenBoard={onOpenBoard}
-      />
     </section>
   )
 }
 
-function CalendarWeek({ week, segments, visibleMonth, onSelectEvent }) {
+function CalendarWeek({ week, segments, visibleMonth, onOpenBoard }) {
   return (
     <div className="calendar-week" role="row">
       {week.map((day) => (
@@ -133,55 +126,13 @@ function CalendarWeek({ week, segments, visibleMonth, onSelectEvent }) {
               gridColumn: `${segment.startColumn} / span ${segment.span}`,
               gridRow: segment.row,
             }}
-            onClick={() => onSelectEvent(segment.event)}
+            onClick={() => onOpenBoard(segment.event.boardId)}
           >
             {segment.label}
           </button>
         ))}
       </div>
     </div>
-  )
-}
-
-function CalendarEventDetail({ selectedEvent, onOpenBoard }) {
-  if (!selectedEvent) {
-    return (
-      <aside className="calendar-detail" aria-label="선택한 게시글">
-        <strong>선택한 게시글 없음</strong>
-        <p>일정이나 회의록 게시글 정보가 여기에 표시됩니다.</p>
-      </aside>
-    )
-  }
-
-  return (
-    <aside className="calendar-detail" aria-label="선택한 게시글">
-      <div className="calendar-detail-header">
-        <span>{selectedEvent.type === 'schedule' ? '일정' : '회의록'}</span>
-        <strong>{selectedEvent.title}</strong>
-      </div>
-      <dl>
-        <div>
-          <dt>게시글 ID</dt>
-          <dd>{selectedEvent.boardId}</dd>
-        </div>
-        <div>
-          <dt>기간</dt>
-          <dd>{formatEventRange(selectedEvent)}</dd>
-        </div>
-        <div>
-          <dt>태그</dt>
-          <dd>{selectedEvent.tag || '-'}</dd>
-        </div>
-      </dl>
-      <p>{selectedEvent.content}</p>
-      <button
-        type="button"
-        className="calendar-open-button"
-        onClick={() => onOpenBoard(selectedEvent.boardId)}
-      >
-        게시글 상세 불러오기
-      </button>
-    </aside>
   )
 }
 
@@ -205,6 +156,7 @@ function mapBoardToCalendarEvents(board) {
 //   title: string,
 //   content: string,
 //   tag?: string | null,
+//   user_id: number,
 //   schedule_board_detail: {
 //     start_at: string,
 //     end_at: string,
@@ -212,6 +164,7 @@ function mapBoardToCalendarEvents(board) {
 //   }
 // }
 // 화면에서는 start_at부터 end_at까지 이어지는 일정 막대로 표시한다.
+// 사용자가 막대를 클릭하면 board.id를 GET /board/{board_id} 상세 조회에 넘긴다.
 function mapScheduleBoardToCalendarEvent(board) {
   return {
     id: `schedule-${board.id}`,
@@ -234,11 +187,13 @@ function mapScheduleBoardToCalendarEvent(board) {
 //   title: string,
 //   content: string,
 //   tag?: string | null,
+//   user_id: number,
 //   proceedings_board_detail: {
 //     meeting_date: string
 //   }
 // }
 // 화면에서는 meeting_date 하루에 회의록 이벤트로 표시한다.
+// 사용자가 이벤트를 클릭하면 board.id를 GET /board/{board_id} 상세 조회에 넘긴다.
 function mapProceedingsBoardToCalendarEvent(board) {
   return {
     id: `meeting-${board.id}`,
@@ -330,12 +285,6 @@ function findAvailableRow(usedRows, segment) {
 
 function formatMonthLabel(date) {
   return `${date.getFullYear()}년 ${date.getMonth() + 1}월`
-}
-
-function formatEventRange(event) {
-  const start = toDateKey(new Date(event.startAt))
-  const end = toDateKey(new Date(event.endAt))
-  return start === end ? start : `${start} ~ ${end}`
 }
 
 function startOfDay(date) {

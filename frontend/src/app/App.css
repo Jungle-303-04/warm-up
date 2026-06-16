@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   padding: 32px 16px;
   background:
     linear-gradient(135deg, rgba(32, 115, 113, 0.1), transparent 34%),
@@ -71,22 +71,10 @@
   gap: 10px;
 }
 
-.dashboard-meta {
-  width: min(1180px, 100%);
-  display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
-}
-
 .dashboard-main {
   width: min(1180px, 100%);
   display: grid;
-  gap: 22px;
-}
-
-.dashboard-meta .status-box,
-.dashboard-meta .connection-list {
-  margin-top: 0;
+  gap: 18px;
 }
 
 .brand-row {
@@ -260,37 +248,6 @@ h1 {
   border-color: rgba(191, 73, 73, 0.28);
   background: rgba(191, 73, 73, 0.1);
   color: #b23b3b;
-}
-
-.connection-list {
-  display: grid;
-  gap: 10px;
-  margin: 18px 0 0;
-}
-
-.connection-list div {
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--field);
-  padding: 10px;
-}
-
-.connection-list dt {
-  margin-bottom: 4px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.connection-list dd {
-  overflow: hidden;
-  margin: 0;
-  color: var(--heading);
-  font-family: var(--mono);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .secondary-button {
@@ -729,55 +686,91 @@ h1 {
   padding: 12px;
 }
 
-.calendar-detail {
+.board-detail-page {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 18px;
+}
+
+.board-detail-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.board-detail-toolbar span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 6px 10px;
+}
+
+.board-detail-header {
   display: grid;
   gap: 12px;
+}
+
+.board-detail-header h2 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.board-detail-section {
+  display: grid;
+  gap: 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--field);
   padding: 14px;
 }
 
-.calendar-detail strong {
+.board-detail-section h3 {
+  margin: 0;
   color: var(--heading);
+  font-size: 15px;
+  font-weight: 900;
 }
 
-.calendar-detail p {
+.board-detail-section p {
   margin: 0;
   color: var(--text);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
 }
 
-.calendar-detail-header {
-  display: grid;
-  gap: 4px;
-}
-
-.calendar-detail-header span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.calendar-detail dl {
+.board-detail-meta {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 0;
 }
 
-.calendar-detail div {
+.board-detail-meta div {
   min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+  padding: 10px;
 }
 
-.calendar-detail dt {
+.board-detail-meta dt {
   color: var(--muted);
   font-size: 11px;
   font-weight: 800;
 }
 
-.calendar-detail dd {
+.board-detail-meta dd {
   overflow-wrap: anywhere;
   margin: 2px 0 0;
   color: var(--heading);
@@ -786,22 +779,32 @@ h1 {
   font-weight: 800;
 }
 
-.calendar-open-button {
-  justify-self: start;
-  min-height: 34px;
-  border: 1px solid #315f9c;
-  border-radius: 6px;
-  background: #315f9c;
-  color: #fff;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  padding: 0 12px;
+.board-task-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.calendar-open-button:hover {
-  background: #264f84;
+.board-task-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--heading);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 10px;
+}
+
+.board-task-list strong {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 @media (max-width: 560px) {
@@ -810,7 +813,6 @@ h1 {
   }
 
   .app-header,
-  .dashboard-meta,
   .dashboard-account {
     grid-template-columns: 1fr;
   }
@@ -826,7 +828,7 @@ h1 {
   .form-grid,
   .run-summary,
   .calendar-summary,
-  .calendar-detail dl {
+  .board-detail-meta {
     grid-template-columns: 1fr;
   }
 
