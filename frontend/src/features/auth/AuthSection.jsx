@@ -11,7 +11,7 @@ export function AuthSection({
 }) {
   if (user) {
     return (
-      <section className="login-panel dashboard-panel" aria-label="대시보드">
+      <>
         <header className="app-header">
           <div className="brand-row">
             <span className="brand-mark" aria-hidden="true">
@@ -40,20 +40,20 @@ export function AuthSection({
           </div>
         </header>
 
-        <div className="dashboard-meta">
+        <aside className="dashboard-meta" aria-label="연결 상태">
           <div className={`status-box ${status.type}`} role="status">
             {status.message}
           </div>
           <ConnectionStatus user={user} oauthState={oauthState} />
-        </div>
+        </aside>
 
         <main className="dashboard-main">{children}</main>
-      </section>
+      </>
     )
   }
 
   return (
-    <main className="login-panel" aria-labelledby="login-title">
+    <main className="login-panel login-main" aria-labelledby="login-title">
       <div className="brand-row">
         <span className="brand-mark" aria-hidden="true">
           <svg>
