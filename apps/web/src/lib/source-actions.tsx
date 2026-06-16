@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,17 +14,16 @@ import { createSource } from "./api";
 import { fileToSourceCreate } from "./file-source";
 import { useWorkspace } from "./store";
 
-// 소스 추가 흐름(파일선택·링크)을 한 곳에서 소유한다.
+// 소스 추가 흐름(파일·URL·GitHub)을 한 곳에서 소유한다.
 // 좌측 소스 패널과 가운데 온보딩 히어로가 동일한 흐름을 호출할 수 있도록
 // context로 노출한다(기능 계약 유지: createSource → addSource).
-// URL과 GitHub 레포는 단일 "링크 추가" 모달로 통합됐다.
+// 파일/URL/GitHub 레포는 단일 "소스 추가" 모달로 통합됐다(진입점 일원화).
 
 interface SourceActions {
-  openFilePicker: () => void; // 숨긴 file input 트리거
-  openLink: () => void; // 링크(URL·GitHub) 추가 모달
+  openAddSource: () => void; // 통합 소스 추가 모달(파일 드롭존 + URL/GitHub 입력)
   busy: boolean; // 파일 처리 중
   error: string | null;
-  // 드래그앤드롭에서 파일 일괄 처리(소스 패널이 직접 호출).
+  // 드래그앤드롭에서 파일 일괄 처리(소스 패널 전역 드롭존이 직접 호출).
   processFiles: (files: FileList | File[]) => Promise<void>;
 }
 
@@ -45,7 +43,6 @@ export function SourceActionsProvider({
   children: ReactNode;
 }) {
   const addSource = useWorkspace((s) => s.addSource);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -73,18 +70,9 @@ export function SourceActionsProvider({
     [notebookId, addSource],
   );
 
-  const onPick = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files) await processFiles(e.target.files);
-      e.target.value = ""; // 같은 파일 재선택 허용
-    },
-    [processFiles],
-  );
-
   const value = useMemo<SourceActions>(
     () => ({
-      openFilePicker: () => fileInputRef.current?.click(),
-      openLink: () => setModalOpen(true),
+      openAddSource: () => setModalOpen(true),
       busy,
       error,
       processFiles,
@@ -94,21 +82,14 @@ export function SourceActionsProvider({
 
   return (
     <Ctx.Provider value={value}>
-      {/* 시각적으로 숨긴 파일 input(어디서든 openFilePicker로 트리거) */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept=".pdf,.md,.markdown,.txt,text/plain,text/markdown,application/pdf"
-        className="hidden"
-        onChange={onPick}
-      />
       {children}
-      {/* 링크(URL·GitHub) 추가 모달은 흐름의 단일 소유자인 Provider가 렌더한다. */}
+      {/* 통합 소스 추가 모달(파일 드롭존 + URL/GitHub)은 흐름의 단일 소유자인 Provider가 렌더한다. */}
       <SourceAddModal
         open={modalOpen}
         notebookId={notebookId}
         onClose={() => setModalOpen(false)}
+        processFiles={processFiles}
+        busy={busy}
       />
     </Ctx.Provider>
   );

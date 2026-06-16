@@ -28,7 +28,8 @@ export function SourcesPanel({
   const selectedCount = useWorkspace((s) => s.selectedSourceIds.size);
   const setAllSourcesSelected = useWorkspace((s) => s.setAllSourcesSelected);
   // 소스 추가 흐름은 공용 컨텍스트에서 가져온다(온보딩 히어로와 공유).
-  const { openFilePicker, openLink, busy, error, processFiles } = useSourceActions();
+  // 파일/URL/GitHub는 단일 "소스 추가" 모달로 일원화됐다.
+  const { openAddSource, busy, error, processFiles } = useSourceActions();
 
   // 드래그 깜빡임 방지용 enter/leave 카운터.
   const dragDepth = useRef(0);
@@ -126,25 +127,15 @@ export function SourcesPanel({
           </div>
         </div>
 
-        {/* 액션: 파일 선택(주) + 링크(보조: URL·GitHub 통합) */}
-        <div className="flex gap-2 px-3 pb-2 pt-3">
+        {/* 액션: 단일 "소스 추가" 진입점(통합 모달 → 파일·URL·GitHub). 단정한 크기. */}
+        <div className="px-3 pb-2 pt-2.5">
           <button
             type="button"
-            onClick={openFilePicker}
-            className="interactive flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-[12.5px] font-semibold text-primary-foreground hover:opacity-90 hover:shadow-elev-2 active:scale-[0.99]"
+            onClick={openAddSource}
+            className="interactive flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground hover:opacity-90 hover:shadow-elev-1 active:scale-[0.99]"
           >
-            <Icon name="add" size={16} />
+            <Icon name="add" size={14} />
             소스 추가
-          </button>
-          <button
-            type="button"
-            onClick={openLink}
-            title="링크 추가 (URL · GitHub)"
-            aria-label="링크 추가"
-            className="interactive flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-[12.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground hover:shadow-elev-1 active:scale-[0.97]"
-          >
-            <Icon name="link" size={16} />
-            링크
           </button>
         </div>
 
@@ -158,7 +149,7 @@ export function SourcesPanel({
                 : "bg-secondary/60 focus-within:border-primary/50 focus-within:bg-card",
             )}
           >
-            <Icon name="travel_explore" size={13} className="shrink-0 text-muted-foreground" />
+            <Icon name="travel_explore" size={12} className="shrink-0 text-muted-foreground" />
             <input
               type="text"
               value={filter}
@@ -166,7 +157,7 @@ export function SourcesPanel({
               onChange={(e) => setFilter(e.target.value)}
               placeholder={empty ? "소스를 추가하면 검색할 수 있어요" : "소스에서 검색…"}
               aria-label="소스 검색"
-              className="min-w-0 flex-1 bg-transparent text-[11.5px] leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+              className="min-w-0 flex-1 bg-transparent text-[11px] leading-4 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
             />
             {filter ? (
               <button
@@ -204,14 +195,14 @@ export function SourcesPanel({
                 <br />
                 위의 버튼으로 소스를 추가하세요.
               </p>
-              {/* 끌어다 놓기 힌트(점선존) */}
+              {/* 끌어다 놓기 힌트(점선존) → 통합 소스 추가 모달 */}
               <button
                 type="button"
-                onClick={openFilePicker}
+                onClick={openAddSource}
                 className="interactive mt-3.5 flex w-full flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-border px-4 py-4 text-muted-foreground hover:border-primary/40 hover:bg-secondary/50 hover:text-foreground"
               >
                 <Icon name="add" size={18} className="text-primary" />
-                <span className="text-[12px] font-medium">PDF · Markdown · 텍스트 추가</span>
+                <span className="text-[12px] font-medium">파일 · URL · GitHub 추가</span>
               </button>
             </div>
           ) : (

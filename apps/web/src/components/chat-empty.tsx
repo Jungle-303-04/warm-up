@@ -10,39 +10,32 @@ interface QuickCard {
   tint: string; // .studio-tint-* 키
   title: string;
   desc: string;
-  action: "link" | "file";
 }
 
+// 빠른 시작 카드 3개 모두 단일 통합 소스 추가 모달을 연다(진입점 일원화).
 const CARDS: QuickCard[] = [
   {
     icon: "github",
     tint: "teal",
     title: "GitHub 저장소 연결",
     desc: "URL을 붙여넣으면 브랜치를 인식해 코드 근거로 답합니다.",
-    action: "link",
   },
   {
     icon: "description",
     tint: "blue",
     title: "문서 · PDF 업로드",
     desc: "PDF · Markdown · 텍스트를 끌어다 놓거나 선택하세요.",
-    action: "file",
   },
   {
     icon: "link",
     tint: "violet",
     title: "링크 추가",
     desc: "문서 페이지·위키 링크나 GitHub 주소를 소스로 등록합니다.",
-    action: "link",
   },
 ];
 
 export function ChatEmpty() {
-  const { openFilePicker, openLink } = useSourceActions();
-  const run = (action: QuickCard["action"]) => {
-    if (action === "file") openFilePicker();
-    else openLink();
-  };
+  const { openAddSource } = useSourceActions();
 
   return (
     <div className="scroll-thin flex-1 overflow-y-auto">
@@ -65,7 +58,7 @@ export function ChatEmpty() {
             <button
               key={c.title}
               type="button"
-              onClick={() => run(c.action)}
+              onClick={openAddSource}
               className="interactive group flex flex-col items-start gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-left hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2 active:scale-[0.99]"
             >
               <span

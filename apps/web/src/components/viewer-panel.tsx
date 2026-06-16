@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { cn } from "../lib/cn";
+
 import { getFile, getSource } from "../lib/api";
 import { SOURCE_KINDS } from "../lib/fixtures";
 import { classifyLink } from "../lib/links";
@@ -80,7 +82,87 @@ function EmptyState() {
   );
 }
 
-// markdown은 렌더, 코드 파일은 GitHub풍 코드 뷰어, 그 외(text/pdf/추출)는 원문 텍스트로 표시.
+// URL 소스 미리보기. 상단에 URL/호스트/제목 카드 + "새 탭에서 열기", 본문은 iframe 임베드 시도.
+// 다수 사이트가 X-Frame-Options/CSP로 임베드를 막으므로 onError/타임아웃으로 폴백 안내를 띄운다.
+function UrlPreview({ source }: { source: Source }) {
+  const url = source.url ?? "";
+  const [blocked, setBlocked] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  let host = url;
+  try {
+    host = new URL(url.includes("://") ? url : `https://${url}`).hostname;
+  } catch {
+    // URL 파싱 실패는 원문 그대로 표시.
+  }
+
+  // 일정 시간 안에 load 이벤트가 없으면 차단으로 간주(많은 사이트가 조용히 막는다).
+  useEffect(() => {
+    if (!url) return;
+    setBlocked(false);
+    setLoaded(false);
+    const t = setTimeout(() => {
+      setLoaded((done) => {
+        if (!done) setBlocked(true);
+        return done;
+      });
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [url]);
+
+  return (
+    <div className="space-y-3">
+      {/* URL/호스트/제목 카드 */}
+      <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground">
+          <Icon name="link" size={16} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[12.5px] font-semibold leading-tight">{source.title}</p>
+          <p className="truncate text-[11px] text-muted-foreground">{host}</p>
+        </div>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="interactive inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11.5px] font-medium text-primary-foreground hover:opacity-90"
+        >
+          <Icon name="north_east" size={13} /> 새 탭에서 열기
+        </a>
+      </div>
+
+      {/* iframe 임베드 시도 + 차단 시 폴백 안내 */}
+      {blocked ? (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-secondary/40 px-4 py-8 text-center">
+          <Icon name="public" size={22} className="text-muted-foreground" />
+          <p className="text-[12.5px] font-medium">여기서 미리보기를 제공하지 않는 사이트입니다.</p>
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="interactive inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            <Icon name="north_east" size={13} /> 새 탭에서 열기
+          </a>
+        </div>
+      ) : (
+        <iframe
+          src={url}
+          title={source.title}
+          // 보안: 외부 페이지를 격리 샌드박스로 임베드(스크립트/폼만 허용).
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+          referrerPolicy="no-referrer"
+          onLoad={() => setLoaded(true)}
+          onError={() => setBlocked(true)}
+          className="h-[60vh] w-full rounded-xl border border-border bg-card"
+        />
+      )}
+    </div>
+  );
+}
+
+// markdown은 렌더, 코드 파일은 GitHub풍 코드 뷰어, PDF는 문서형 텍스트 뷰,
+// URL은 링크 프리뷰, 그 외(text/추출)는 원문 텍스트로 표시.
 function Body({
   source,
   content,
@@ -92,6 +174,11 @@ function Body({
   filePath?: string;
   onLinkClick: (href: string) => void;
 }) {
+  // URL 소스(파일 미선택 상태)는 링크 프리뷰로 표시.
+  if (source?.kind === "url" && !filePath) {
+    return <UrlPreview source={source} />;
+  }
+
   const lowerPath = filePath?.toLowerCase() ?? "";
   const isMarkdown =
     source?.kind === "md" || lowerPath.endsWith(".md") || lowerPath.endsWith(".markdown");
@@ -106,18 +193,36 @@ function Body({
   if (isCodePath(filePath)) {
     return <CodeView content={content} filePath={filePath} />;
   }
-  return (
-    <>
-      {source?.kind === "pdf" ? (
-        <div className="mb-3 flex items-center gap-1.5 rounded-lg bg-secondary/60 px-3 py-1.5 text-[11px] text-muted-foreground">
-          <Icon name="picture_as_pdf" size={13} />
-          PDF는 추출 텍스트로 인덱싱·표시됩니다.
+
+  // PDF 소스(파일 미선택): 추출 텍스트를 읽기 좋은 문서형 뷰로 표시(상단 PDF 배지 + 파일명).
+  if (source?.kind === "pdf" && !filePath) {
+    return (
+      <div className="rounded-xl border border-border bg-card px-5 py-4">
+        <div className="mb-3 flex items-center gap-2 border-b border-border pb-3">
+          <span
+            className={cn(
+              "grid h-7 w-7 shrink-0 place-items-center rounded-lg",
+              "bg-[#FCEBEB] text-[#A32D2D]",
+            )}
+          >
+            <Icon name="picture_as_pdf" size={15} />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[12.5px] font-semibold leading-tight">{source.title}</p>
+            <p className="text-[10.5px] text-muted-foreground">PDF · 추출 텍스트</p>
+          </div>
         </div>
-      ) : null}
-      <pre className="whitespace-pre-wrap break-words font-sans text-[12.5px] leading-relaxed">
-        {content}
-      </pre>
-    </>
+        <article className="whitespace-pre-wrap break-words font-sans text-[13px] leading-relaxed text-foreground">
+          {content}
+        </article>
+      </div>
+    );
+  }
+
+  return (
+    <pre className="whitespace-pre-wrap break-words font-sans text-[12.5px] leading-relaxed">
+      {content}
+    </pre>
   );
 }
 
@@ -222,7 +327,8 @@ export function ViewerPanel() {
       </div>
 
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-2xl px-5 py-5">
+        {/* 콘텐츠를 가로로 넓게 사용(좌우 여백만, 상한은 4xl). */}
+        <div className="mx-auto w-full max-w-4xl px-5 py-5">
           {loading ? (
             <div className="grid place-items-center py-12 text-muted-foreground">
               <Icon name="progress_activity" size={22} className="animate-spin" />

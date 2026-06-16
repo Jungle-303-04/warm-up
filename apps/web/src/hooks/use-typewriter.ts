@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 // 한 글자/청크씩 텍스트를 출력하는 타이핑 효과.
 // enabled=false면 즉시 전체를 보여준다(기록 복원/접근성용).
 // 반환: 현재까지 출력된 텍스트, 진행 여부, 즉시 완료(stop).
-const CHARS_PER_TICK = 3; // 틱당 출력 글자 수(체감 속도).
-const TICK_MS = 16; // 약 60fps.
+// 타이핑을 더 느리고 자연스럽게: 틱당 글자 수↓ + 간격↑.
+const CHARS_PER_TICK = 1; // 틱당 1글자.
+const TICK_MS = 28; // 약 36글자/초.
 
 export function useTypewriter(
   full: string,

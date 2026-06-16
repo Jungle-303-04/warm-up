@@ -26,7 +26,6 @@ export function StudioPanel({
   const [status, setStatus] = useState<string | null>(null);
   // 생성 진입점을 하나로 통합한 메뉴 열림 상태.
   const [menuOpen, setMenuOpen] = useState(false);
-  const empty = sourceCount === 0;
   const canCreate = sourceCount > 0 && scopeCount > 0;
 
   const create = (tile: StudioTile) => {
@@ -86,22 +85,9 @@ export function StudioPanel({
       </div>
 
       <div className="scroll-thin relative flex-1 overflow-y-auto px-3 pb-3 pt-1">
-        {/* 안내문은 평소엔 숨기고, 선택 소스가 0개일 때만 작게 노출. */}
-        {scopeCount === 0 ? (
-          <div className="mb-2 mt-2.5 flex items-start gap-2 rounded-lg border border-dashed border-border bg-secondary/40 px-3 py-1.5 text-[11px] leading-snug text-muted-foreground">
-            <Icon name={empty ? "check_circle" : "label_auto"} size={12} className="mt-0.5 shrink-0" />
-            <span>{empty ? "소스를 추가하면 산출물을 만들 수 있어요." : "선택된 소스가 있어야 산출물을 만들 수 있어요."}</span>
-          </div>
-        ) : null}
-
         <div>
-          {/* 히어로 설명은 한 줄로 축약. */}
-          <p className="t-section mt-2.5 flex items-center gap-1.5">
-            <Icon name="layers" size={14} className="text-primary" />
-            코드 이해 산출물
-          </p>
-
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          {/* 기능 카드 그리드(히어로/안내 문구는 제거하고 카드만 남긴다). */}
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
             {STUDIO_TILES.map((t) => (
               <button
                 key={t.label}
@@ -169,9 +155,9 @@ export function StudioPanel({
                   type="button"
                   onClick={createNote}
                   title="메모 추가"
-                  className="interactive inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  className="interactive inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
                 >
-                  <Icon name="note_add" size={13} /> 메모 추가
+                  <Icon name="note_add" size={12} /> 메모 추가
                 </button>
               </div>
             )}
@@ -216,9 +202,9 @@ function CreateMenu({
         title="추가"
         aria-haspopup="menu"
         aria-expanded={open}
-        className="interactive inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+        className="interactive inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
       >
-        <Icon name="add" size={14} /> 추가
+        <Icon name="add" size={12} /> 추가
       </button>
       {open ? (
         <div

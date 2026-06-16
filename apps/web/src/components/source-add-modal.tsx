@@ -15,18 +15,24 @@ import { Collapse } from "./ui/collapse";
 import { Icon } from "./icon";
 import { Modal } from "./ui/modal";
 
-// 링크(URL · GitHub) 통합 추가 모달.
-// 입력은 URL 하나. 값이 github.com/{owner}/{repo} 형태이면 디바운스로 GitHub
-// 공개 API를 조회해 브랜치 목록을 인식하고, 인식되면 브랜치 드롭다운이 열린다.
+// 통합 소스 추가 모달.
+// 한 모달 안에서 (a) 파일 드롭존(드래그앤드롭 + 클릭 선택) + (b) URL/GitHub 입력을 모두 처리한다.
+// 입력 URL이 github.com/{owner}/{repo} 형태이면 디바운스로 GitHub 공개 API를 조회해
+// 브랜치 목록을 인식하고, 인식되면 커스텀 브랜치 드롭다운이 입력란 "아래로" 펼쳐진다.
 // 제출 시 GitHub면 kind="repo"(repository_url+branch), 아니면 kind="url".
 export function SourceAddModal({
   open,
   onClose,
   notebookId,
+  processFiles,
+  busy,
 }: {
   open: boolean;
   onClose: () => void;
   notebookId: string;
+  // 파일 일괄 처리(소스 추가 흐름의 단일 소유자에서 주입).
+  processFiles: (files: FileList | File[]) => Promise<void>;
+  busy: boolean;
 }) {
   const addSource = useWorkspace((s) => s.addSource);
 
@@ -37,20 +43,135 @@ export function SourceAddModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="링크 추가">
-      <p className="mb-4 text-[12.5px] leading-relaxed text-muted-foreground">
-        문서 페이지·위키 링크나 GitHub 저장소 주소를 붙여넣으세요. GitHub 주소면 브랜치를
-        자동으로 인식합니다. 파일(PDF · Markdown · 텍스트)은 패널에 끌어다 놓거나 “소스 추가”로
-        선택하세요.
-      </p>
-      {open ? <LinkForm onSubmit={submitSource} onClose={onClose} /> : null}
+    <Modal open={open} onClose={onClose} title="소스 추가">
+      {open ? (
+        <div className="space-y-4">
+          {/* (a) 파일 드롭존 */}
+          <FileDropzone
+            processFiles={processFiles}
+            busy={busy}
+            onDone={onClose}
+          />
+
+          {/* 구분선 */}
+          <div className="flex items-center gap-3 text-[11px] font-medium text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            또는 링크로 추가
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          {/* (b) URL/GitHub 입력 */}
+          <LinkForm onSubmit={submitSource} onClose={onClose} />
+        </div>
+      ) : null}
     </Modal>
   );
 }
 
-function inferRepoTitle(url: string) {
-  const m = url.match(/github\.com\/(?:[^/]+\/)?([^/]+\/.+?)(?:\.git)?\/?$/);
-  return m ? m[1] : url;
+// 파일 드롭존: 드래그앤드롭 + 클릭하여 선택. 처리 성공 시 모달을 닫는다.
+function FileDropzone({
+  processFiles,
+  busy,
+  onDone,
+}: {
+  processFiles: (files: FileList | File[]) => Promise<void>;
+  busy: boolean;
+  onDone: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const dragDepth = useRef(0);
+  const [dragActive, setDragActive] = useState(false);
+
+  // 파일을 처리하고 끝나면 모달을 닫는다.
+  const handle = async (files: FileList | File[]) => {
+    if (!files || (files as FileList).length === 0) return;
+    await processFiles(files);
+    onDone();
+  };
+
+  const onDragEnter = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragActive(true);
+  };
+  const onDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragDepth.current -= 1;
+    if (dragDepth.current <= 0) {
+      dragDepth.current = 0;
+      setDragActive(false);
+    }
+  };
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragActive(false);
+    if (e.dataTransfer.files?.length) await handle(e.dataTransfer.files);
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        className={cn(
+          "interactive flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-4 py-6 text-center",
+          dragActive
+            ? "border-primary bg-accent/70 text-accent-foreground"
+            : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/40 hover:bg-secondary/60 hover:text-foreground",
+        )}
+      >
+        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-primary-foreground">
+          <Icon name={busy ? "progress_activity" : "upload_file"} size={20} className={busy ? "animate-spin" : ""} />
+        </span>
+        <span className="text-[12.5px] font-semibold text-foreground">
+          {busy ? "파일 처리 중…" : "파일을 끌어다 놓거나 클릭하여 선택"}
+        </span>
+        <span className="text-[11px]">PDF · Markdown · 텍스트</span>
+      </button>
+      {/* 시각적으로 숨긴 파일 input(클릭/드롭존 공용) */}
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept=".pdf,.md,.markdown,.txt,text/plain,text/markdown,application/pdf"
+        className="hidden"
+        onChange={async (e) => {
+          if (e.target.files) await handle(e.target.files);
+          e.target.value = ""; // 같은 파일 재선택 허용
+        }}
+      />
+    </div>
+  );
+}
+
+// GitHub면 owner/repo, 일반 URL이면 호스트+마지막 경로 세그먼트로 제목을 자동 도출.
+// 주의: 실제 HTML <title>은 CORS로 브라우저에서 직접 fetch할 수 없으므로 URL 기반으로만 채운다.
+function inferTitleFromUrl(raw: string): string {
+  const url = raw.trim();
+  if (!url) return "";
+  // GitHub: owner/repo
+  const gh = parseGitHubRepo(url);
+  if (gh) return `${gh.owner}/${gh.repo}`;
+  // 일반 URL: 호스트 + 마지막 경로 세그먼트
+  try {
+    const u = new URL(url.includes("://") ? url : `https://${url}`);
+    const segs = u.pathname.split("/").filter(Boolean);
+    const last = segs.length > 0 ? segs[segs.length - 1] : "";
+    return last ? `${u.hostname} · ${decodeURIComponent(last)}` : u.hostname;
+  } catch {
+    return url;
+  }
 }
 
 // GitHub 인식 상태(머신).
@@ -69,6 +190,8 @@ function LinkForm({
 }) {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
+  // 사용자가 제목을 직접 수정했는지(수정했다면 자동 채움을 멈춘다).
+  const [titleEdited, setTitleEdited] = useState(false);
   const [branch, setBranch] = useState(""); // 선택/수동 입력 브랜치
   const [gh, setGh] = useState<GhState>({ kind: "none" });
 
@@ -79,8 +202,11 @@ function LinkForm({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // URL 변경 → github 형태이면 디바운스로 브랜치 인식.
+  // URL 변경 → 제목 자동 채움(사용자가 직접 수정 전까지) + github 형태이면 브랜치 인식.
   useEffect(() => {
+    // 제목 자동 채움: URL 기반으로만(실제 <title>은 CORS로 불가).
+    if (!titleEdited) setTitle(inferTitleFromUrl(url));
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
     abortRef.current?.abort();
 
@@ -115,7 +241,7 @@ function LinkForm({
       if (debounceRef.current) clearTimeout(debounceRef.current);
       controller.abort();
     };
-  }, [url]);
+  }, [url, titleEdited]);
 
   const isGitHub = gh.kind !== "none";
   // 브랜치 영역(드롭다운 또는 수동 입력)을 펼칠지 여부.
@@ -133,7 +259,7 @@ function LinkForm({
         const b = branch.trim() || (gh.kind === "ready" ? gh.info.defaultBranch : "main");
         body = {
           kind: "repo",
-          title: title.trim() || inferRepoTitle(trimmed),
+          title: title.trim() || inferTitleFromUrl(trimmed),
           repository_url: trimmed,
           branch: b,
         };
@@ -159,6 +285,11 @@ function LinkForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      {/* 상단 설명: 짧고 한 줄(줄바꿈 방지). */}
+      <p className="truncate text-[12px] text-muted-foreground">
+        문서·위키 URL이나 GitHub 저장소 주소를 붙여넣으세요.
+      </p>
+
       <Field label="URL">
         <div className="relative">
           <input
@@ -185,32 +316,18 @@ function LinkForm({
         </div>
       </Field>
 
-      {/* GitHub로 인식되면 애니메이션으로 늘어나며 브랜치 선택 영역이 나타난다. */}
+      {/* GitHub로 인식되면 애니메이션으로 늘어나며 브랜치 선택 영역이 입력란 바로 아래에 나타난다. */}
       <Collapse open={branchOpen}>
         <div className="space-y-3 pt-0.5">
           {gh.kind === "ready" ? (
             <Field label="브랜치">
-              {/* 인식된 브랜치 리스트박스. 기본=default_branch 미리선택. */}
-              <div className="relative">
-                <select
-                  value={branch || gh.info.defaultBranch}
-                  onChange={(e) => setBranch(e.target.value)}
-                  className={cn(inputCls, "appearance-none pr-9")}
-                  aria-label="브랜치 선택"
-                >
-                  {gh.info.branches.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                      {b === gh.info.defaultBranch ? " (기본)" : ""}
-                    </option>
-                  ))}
-                </select>
-                <Icon
-                  name="unfold_more"
-                  size={15}
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-              </div>
+              {/* 커스텀 드롭다운: 입력란 바로 "아래로" 펼쳐진다(네이티브 select 중앙팝업 회피). */}
+              <BranchDropdown
+                branches={gh.info.branches}
+                defaultBranch={gh.info.defaultBranch}
+                value={branch || gh.info.defaultBranch}
+                onChange={setBranch}
+              />
               <p className="text-[11.5px] text-muted-foreground">
                 {gh.info.branches.length}개 브랜치를 인식했어요. 선택한 브랜치를 인덱싱합니다.
               </p>
@@ -238,18 +355,14 @@ function LinkForm({
       <Field label="제목 (선택)">
         <input
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setTitleEdited(true); // 직접 수정 시 자동 채움 중단.
+          }}
           placeholder={isGitHub ? "비우면 레포 이름을 사용" : "비우면 URL을 제목으로 사용"}
           className={inputCls}
         />
       </Field>
-
-      {isGitHub ? (
-        <p className="text-[12px] text-muted-foreground">
-          등록하면 해당 브랜치를 백그라운드로 인덱싱합니다. 진행 상황은 소스 목록에서 실시간으로
-          확인할 수 있어요.
-        </p>
-      ) : null}
 
       {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
 
@@ -260,13 +373,88 @@ function LinkForm({
   );
 }
 
+// 커스텀 브랜치 드롭다운. 트리거 클릭 시 옵션 목록이 입력란 바로 아래로 Collapse 애니메이션과
+// 함께 펼쳐진다. 바깥 클릭으로 닫힌다(네이티브 select의 화면 중앙 팝업 문제 해결).
+function BranchDropdown({
+  branches,
+  defaultBranch,
+  value,
+  onChange,
+}: {
+  branches: string[];
+  defaultBranch: string;
+  value: string;
+  onChange: (b: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={cn(inputCls, "flex items-center justify-between text-left")}
+      >
+        <span className="truncate">
+          {value}
+          {value === defaultBranch ? " (기본)" : ""}
+        </span>
+        <Icon
+          name="unfold_more"
+          size={15}
+          className="ml-2 shrink-0 text-muted-foreground"
+        />
+      </button>
+      {/* 입력란 바로 아래에서 height/opacity로 부드럽게 펼침. */}
+      <Collapse open={open} className="absolute left-0 right-0 top-full z-20 mt-1">
+        <div className="scroll-thin max-h-52 overflow-y-auto rounded-xl border border-border bg-card py-1 shadow-elev-2">
+          {branches.map((b) => (
+            <button
+              key={b}
+              type="button"
+              role="option"
+              aria-selected={b === value}
+              onClick={() => {
+                onChange(b);
+                setOpen(false);
+              }}
+              className={cn(
+                "interactive flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[12.5px] hover:bg-secondary",
+                b === value ? "font-semibold text-foreground" : "text-muted-foreground",
+              )}
+            >
+              <span className="truncate">
+                {b}
+                {b === defaultBranch ? " (기본)" : ""}
+              </span>
+              {b === value ? <Icon name="check" size={14} className="shrink-0 text-primary" /> : null}
+            </button>
+          ))}
+        </div>
+      </Collapse>
+    </div>
+  );
+}
+
 const inputCls =
-  "interactive w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[13px] outline-none placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15";
+  "interactive w-full rounded-xl border border-border bg-background px-3.5 py-2 text-[13px] outline-none placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-[13px] font-medium">{label}</span>
+      <span className="text-[12.5px] font-medium">{label}</span>
       {children}
     </label>
   );
@@ -283,7 +471,7 @@ function SubmitButton({
     <button
       type="submit"
       disabled={disabled}
-      className="interactive w-full rounded-full bg-primary py-2.5 text-[13px] font-medium text-primary-foreground hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
+      className="interactive w-full rounded-full bg-primary py-2 text-[12.5px] font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
     >
       {children}
     </button>
