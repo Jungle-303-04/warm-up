@@ -15,6 +15,8 @@ import { AuthMenu } from "./auth-menu";
 import { Icon } from "./icon";
 import { ThemeToggle } from "./theme-toggle";
 import { Modal } from "./ui/modal";
+import { ErrorRecoveryView } from "./ui/error-recovery-view";
+import { CreateNotebookModal } from "./create-notebook-modal";
 
 // 대시보드(홈): 노트북 카드 그리드 + 생성/이름변경/삭제(CRUD).
 export function Dashboard() {
@@ -23,26 +25,31 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [renaming, setRenaming] = useState<Notebook | null>(null);
 
-  useEffect(() => {
+  const loadNotebooks = () => {
+    setLoading(true);
+    setError(null);
     listNotebooks()
       .then((res) => setNotebooks(res.notebooks))
       .catch((e) => setError(e instanceof Error ? e.message : "불러오기 실패"))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadNotebooks();
   }, []);
 
-  // 생성 즉시 더미 제목으로 노트북을 만들고 바로 노트북 페이지로 진입한다.
-  // (제목은 노트북 안에서 또는 카드 메뉴 "이름 변경"으로 수정)
-  const handleCreate = async () => {
-    if (creating) return;
+  const handleCreate = async (title: string, summary: string) => {
     setCreating(true);
     try {
-      const nb = await createNotebook({ title: "제목 없는 노트북" });
+      const nb = await createNotebook({ title, summary });
       router.push(`/notebooks/${nb.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "생성 실패");
       setCreating(false);
+      throw e;
     }
   };
 
@@ -82,11 +89,11 @@ export function Dashboard() {
           </div>
           <button
             type="button"
-            onClick={handleCreate}
+            onClick={() => setIsCreateModalOpen(true)}
             disabled={creating}
-            className="interactive inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[12.5px] font-medium text-primary-foreground shadow-elev-1 hover:opacity-90 hover:shadow-elev-2 active:scale-[0.98] disabled:opacity-50"
+            className="transition-all duration-200 ease-in-out inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[12.5px] font-medium text-primary-foreground shadow-sm hover:opacity-90 hover:shadow active:scale-[0.98] disabled:opacity-50"
           >
-            <Icon name="add" size={17} /> {creating ? "만드는 중…" : "새 노트북 만들기"}
+            <Icon name="add" size={17} /> 새 노트북 만들기
           </button>
         </div>
 
@@ -95,9 +102,14 @@ export function Dashboard() {
             <Icon name="progress_activity" size={26} className="animate-spin" />
           </div>
         ) : error ? (
-          <p className="mt-20 text-center text-[13px] text-destructive">{error}</p>
+          <div className="mt-16">
+            <ErrorRecoveryView
+              message={error}
+              onRetry={loadNotebooks}
+            />
+          </div>
         ) : notebooks.length === 0 ? (
-          <EmptyState onCreate={handleCreate} />
+          <EmptyState onCreate={() => setIsCreateModalOpen(true)} />
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {notebooks.map((nb) => (
@@ -117,6 +129,12 @@ export function Dashboard() {
         notebook={renaming}
         onClose={() => setRenaming(null)}
         onRename={handleRename}
+      />
+
+      <CreateNotebookModal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreate={handleCreate}
       />
     </div>
   );
@@ -147,7 +165,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <button
         type="button"
         onClick={onCreate}
-        className="interactive mt-5 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[12.5px] font-medium text-primary-foreground shadow-elev-1 hover:opacity-90 hover:shadow-elev-2 active:scale-[0.98]"
+        className="transition-all duration-200 ease-in-out mt-5 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[12.5px] font-medium text-primary-foreground shadow-sm hover:opacity-90 hover:shadow active:scale-[0.98]"
       >
         <Icon name="add" size={17} /> 새 노트북 만들기
       </button>
@@ -169,28 +187,34 @@ function NotebookCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const dateLabel = formatDate(notebook.updated_at || notebook.created_at);
   return (
-    <div className="group interactive relative flex min-h-[156px] flex-col rounded-2xl border border-border bg-card p-4 shadow-elev-1 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elev-2">
+    <div className="group transition-all duration-200 ease-in-out relative flex min-h-[170px] overflow-hidden rounded-3xl border border-border bg-card shadow-sm hover:scale-[1.02] hover:-translate-y-1 hover:border-primary/30 hover:shadow-md">
+      {/* 책등을 시뮬레이트하는 세로 그라데이션 바 */}
+      <div className="w-3.5 bg-gradient-to-b from-primary via-primary/80 to-primary/60 shrink-0 opacity-85 group-hover:opacity-100 transition-opacity duration-200" />
+      
       <button
         type="button"
         onClick={onOpen}
-        className="flex flex-1 flex-col items-start text-left"
+        className="flex flex-1 flex-col items-start p-5 text-left"
       >
-        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-accent text-accent-foreground">
-          <Icon name="hub" size={19} />
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-accent-foreground">
+          <Icon name="book" size={17} />
         </span>
-        <h3 className="mt-3 line-clamp-2 text-[14px] font-semibold leading-snug">
+        <h3 className="mt-4 line-clamp-2 text-[14.5px] font-bold leading-snug text-foreground group-hover:text-primary transition-colors">
           {notebook.title}
         </h3>
         {notebook.summary ? (
-          <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground/90">
             {notebook.summary}
           </p>
         ) : null}
-        <span className="mt-auto flex items-center gap-1.5 pt-3.5 text-[11px] text-muted-foreground">
-          <span>소스 {notebook.source_count}개</span>
+        <span className="mt-auto flex items-center gap-1.5 pt-4 text-[11px] font-medium text-muted-foreground/75">
+          <span className="inline-flex items-center gap-1">
+            <Icon name="folder_open" size={12} />
+            소스 {notebook.source_count}개
+          </span>
           {dateLabel ? (
             <>
-              <span aria-hidden className="text-muted-foreground/50">
+              <span aria-hidden className="text-muted-foreground/35">
                 ·
               </span>
               <span>{dateLabel}</span>
@@ -199,13 +223,13 @@ function NotebookCard({
         </span>
       </button>
 
-      <div className="absolute right-2 top-2">
+      <div className="absolute right-3 top-3">
         <button
           type="button"
           aria-label="노트북 메뉴"
           onClick={() => setMenuOpen((o) => !o)}
           className={cn(
-            "interactive grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary group-hover:opacity-100",
+            "transition-all duration-200 ease-in-out grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary group-hover:opacity-100",
             menuOpen ? "opacity-100" : "opacity-0",
           )}
         >
@@ -214,7 +238,7 @@ function NotebookCard({
         {menuOpen ? (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-xl border border-border bg-card py-1.5 shadow-elev-3">
+            <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-2xl border border-border bg-card py-1.5 shadow-md">
               <MenuItem
                 icon="edit"
                 label="이름 변경"
@@ -256,7 +280,7 @@ function MenuItem({
       type="button"
       onClick={onClick}
       className={cn(
-        "interactive flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] hover:bg-secondary",
+        "transition-all duration-200 ease-in-out flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] hover:bg-secondary",
         destructive ? "text-destructive" : "text-foreground",
       )}
     >
@@ -306,13 +330,13 @@ function RenameModal({
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="interactive w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[13px] outline-none placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
+          className="transition-all duration-200 ease-in-out w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-[13px] outline-none placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
         />
         {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
         <button
           type="submit"
           disabled={!title.trim() || busy}
-          className="interactive w-full rounded-full bg-primary py-2.5 text-[13px] font-medium text-primary-foreground hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
+          className="transition-all duration-200 ease-in-out w-full rounded-full bg-primary py-2.5 text-[13px] font-medium text-primary-foreground hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
         >
           {busy ? "저장 중…" : "저장"}
         </button>
