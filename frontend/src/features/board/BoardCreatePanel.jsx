@@ -21,6 +21,30 @@ export function BoardCreatePanel({ isSaving, onCancel, onCreate }) {
 
   async function submitCreate(event) {
     event.preventDefault()
+    // Backend: POST /board/
+    // buildCreatePayload(form)은 CreateBoard DTO 모양으로 값을 변환한다.
+    // {
+    //   board_type: 1 | 2 | 3,
+    //   title: string,
+    //   content: string,
+    //   tag?: string | null,
+    //   assignee_user_ids: number[],
+    //   participant_user_ids: number[],
+    //   carbon_copy_user_ids: number[],
+    //   schedule_board_detail?: {
+    //     start_at: string,
+    //     end_at: string,
+    //     importance: number
+    //   } | null,
+    //   schedule_board_tasks: Array<{
+    //     task_name: string,
+    //     task_status: 1 | 2 | 3 | 4
+    //   }>,
+    //   proceedings_board_detail?: {
+    //     meeting_date: string
+    //   } | null
+    // }
+    // 로그인 사용자는 user_id를 직접 보내지 않고, 백엔드가 auth cookie로 해석한다.
     const didCreate = await onCreate(buildCreatePayload(form))
     if (didCreate) {
       setForm(buildCreateForm())

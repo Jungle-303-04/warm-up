@@ -493,9 +493,101 @@ h1 {
 .run-summary dd {
   margin: 3px 0 0;
   color: var(--heading);
-  font-family: var(--mono);
   font-size: 14px;
   font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.repository-run-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+  padding: 12px;
+}
+
+.repository-run-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.repository-run-header h3 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 15px;
+}
+
+.repository-run-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.repository-run-list button {
+  width: 100%;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 10px 12px;
+}
+
+.repository-run-list button:hover {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--field) 72%, var(--panel));
+}
+
+.repository-run-list span,
+.repository-run-list strong,
+.repository-run-list small {
+  min-width: 0;
+  display: block;
+}
+
+.repository-run-list strong {
+  color: var(--heading);
+  font-size: 14px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.repository-run-list small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.repository-run-list time {
+  color: var(--heading);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.repository-run-empty {
+  margin: 0;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 12px;
 }
 
 .answer-panel {
@@ -960,6 +1052,14 @@ h1 {
   .board-field-grid,
   .board-detail-meta {
     grid-template-columns: 1fr;
+  }
+
+  .repository-run-list button {
+    grid-template-columns: 1fr;
+  }
+
+  .repository-run-list time {
+    white-space: normal;
   }
 
   .calendar-toolbar {

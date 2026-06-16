@@ -31,6 +31,7 @@ function App() {
   const [repositoryFullName, setRepositoryFullName] = useState('')
   const [branch, setBranch] = useState('')
   const [indexResult, setIndexResult] = useState(null)
+  const [repositoryRuns, setRepositoryRuns] = useState([])
   const [question, setQuestion] = useState('')
   const [answerResult, setAnswerResult] = useState(null)
   const [boards, setBoards] = useState([])
@@ -38,6 +39,7 @@ function App() {
   const [isCreatingBoard, setIsCreatingBoard] = useState(false)
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const [isLoadingBoards, setIsLoadingBoards] = useState(false)
+  const [isLoadingRepositoryRuns, setIsLoadingRepositoryRuns] = useState(false)
   const [boardAction, setBoardAction] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [activeAction, setActiveAction] = useState('')
@@ -62,6 +64,52 @@ function App() {
     } finally {
       setIsLoading(false)
       setActiveAction('')
+    }
+  }, [])
+
+  const loadRepositoryRuns = useCallback(async (options = {}) => {
+    setIsLoadingRepositoryRuns(true)
+
+    try {
+      // Backend: GET /rag/runs
+      // Expected query:
+      // {
+      //   limit: number
+      // }
+      // Response DTO:
+      // {
+      //   items: Array<{
+      //     id: number,
+      //     repository_full_name?: string | null,
+      //     branch?: string | null,
+      //     commit_sha: string,
+      //     indexed_at: string,
+      //     total_files: number,
+      //     indexed_files: number,
+      //     skipped_files: number,
+      //     total_chunks: number
+      //   }>,
+      //   total: number
+      // }
+      // 화면에서는 repository_full_name + branch 기준 최신 indexed_at만 보여준다.
+      const payload = await fetchJson(`${API_BASE_URL}/rag/runs?limit=50`)
+      const latestRuns = buildLatestRepositoryRuns(payload.items || [])
+      setRepositoryRuns(latestRuns)
+
+      if (options.notify) {
+        window.alert('분석된 레포지토리 목록을 새로고침했습니다.')
+      }
+
+      return latestRuns
+    } catch (error) {
+      const errorMessage = toKoreanErrorMessage(error.message)
+      if (options.notify) {
+        setStatus({ type: 'error', message: errorMessage })
+        window.alert(errorMessage)
+      }
+      return []
+    } finally {
+      setIsLoadingRepositoryRuns(false)
     }
   }, [])
 
@@ -171,6 +219,7 @@ function App() {
         setUser(payload.user)
         setStatus({ type: 'success', message: '깃허브 로그인이 완료되었습니다.' })
         void loadBoards(payload.user)
+        void loadRepositoryRuns()
         const boardId = parseBoardIdFromHash()
         if (isCreateBoardHash()) {
           setSelectedBoard(null)
@@ -189,11 +238,12 @@ function App() {
         }
         setUser(null)
         setBoards([])
+        setRepositoryRuns([])
         setSelectedBoard(null)
         setIsCreatingBoard(false)
       }
     })
-  }, [loadBoards, runAction])
+  }, [loadBoards, loadRepositoryRuns, runAction])
 
   async function logout() {
     await runAction('logout', '로그아웃하는 중입니다.', async () => {
@@ -209,6 +259,7 @@ function App() {
       setIndexResult(null)
       setAnswerResult(null)
       setBoards([])
+      setRepositoryRuns([])
       setSelectedBoard(null)
       setIsCreatingBoard(false)
       window.history.replaceState(null, '', window.location.pathname)
@@ -476,10 +527,12 @@ function App() {
           branch: branch.trim() || null,
         },
       )
-      setIndexResult(payload)
+      const latestRuns = await loadRepositoryRuns()
+      const latestRun = findRepositoryRunByIndexResult(latestRuns, payload)
+      setIndexResult(buildIndexResultForUi(payload, latestRun))
       const statusMessage = payload.reused
-        ? `이미 분석된 커밋을 재사용합니다: SQL ${payload.sql_chunk_count}개, Vector ${payload.vector_chunk_count}개`
-        : `분석 완료: SQL ${payload.sql_chunk_count}개, Vector ${payload.vector_chunk_count}개 저장`
+        ? '이미 분석된 레포지토리 정보를 재사용했습니다.'
+        : '레포지토리 분석 정보를 저장했습니다.'
       setStatus({
         type: 'success',
         message: statusMessage,
@@ -497,6 +550,24 @@ function App() {
   function updateBranch(value) {
     setBranch(value)
     setIndexResult(null)
+    setAnswerResult(null)
+  }
+
+  function selectRepositoryRun(run) {
+    setRepositoryFullName(run.repository_full_name || '')
+    setBranch(run.branch || '')
+    setIndexResult({
+      run_id: run.id,
+      reused: true,
+      repository_full_name: run.repository_full_name,
+      branch: run.branch,
+      commit_sha: run.commit_sha,
+      vector_collection: '',
+      sql_chunk_count: run.total_chunks,
+      vector_chunk_count: run.total_chunks,
+      pipeline_result: null,
+      indexed_at: run.indexed_at,
+    })
     setAnswerResult(null)
   }
 
@@ -634,14 +705,18 @@ function App() {
                   indexResult={indexResult}
                   question={question}
                   answerResult={answerResult}
+                  repositoryRuns={repositoryRuns}
                   isLoading={isLoading}
                   isIndexing={isIndexing}
                   isAsking={isAsking}
+                  isLoadingRepositoryRuns={isLoadingRepositoryRuns}
                   onRepositoryChange={updateRepositoryFullName}
                   onBranchChange={updateBranch}
                   onQuestionChange={setQuestion}
                   onIndexRepository={indexRepository}
                   onAskRepository={askRepository}
+                  onReloadRepositoryRuns={() => void loadRepositoryRuns({ notify: true })}
+                  onSelectRepositoryRun={selectRepositoryRun}
                 />
               </>
             )}
@@ -670,4 +745,36 @@ function getBoardCalendarFocusDate(board) {
     || board.created_at
 
   return calendarDate ? new Date(calendarDate) : new Date()
+}
+
+function buildLatestRepositoryRuns(runs) {
+  const latestRuns = new Map()
+
+  for (const run of runs) {
+    if (!run.repository_full_name) {
+      continue
+    }
+
+    const key = `${run.repository_full_name}:${run.branch || ''}`
+    const currentRun = latestRuns.get(key)
+
+    if (!currentRun || new Date(run.indexed_at) > new Date(currentRun.indexed_at)) {
+      latestRuns.set(key, run)
+    }
+  }
+
+  return Array.from(latestRuns.values()).sort(
+    (left, right) => new Date(right.indexed_at) - new Date(left.indexed_at),
+  )
+}
+
+function findRepositoryRunByIndexResult(runs, indexResult) {
+  return runs.find((run) => run.id === indexResult.run_id) || null
+}
+
+function buildIndexResultForUi(indexResult, latestRun) {
+  return {
+    ...indexResult,
+    indexed_at: latestRun?.indexed_at || null,
+  }
 }
