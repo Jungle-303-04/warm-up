@@ -17,6 +17,7 @@ export type CalendarPageItem = {
   date: string;
   start_time: string | null;
   end_time: string | null;
+  author_id: number;
 };
 
 // 작성 모달에서 입력하는 본문 블록 하나의 형태입니다.
@@ -24,6 +25,13 @@ export type BlockInput = {
   type: BlockType;
   content: string;
   checked: boolean | null;
+};
+
+export type BlockResponse = BlockInput & {
+  id: number;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
 };
 
 // 새 페이지를 만들 때 백엔드로 보내는 요청 형태입니다.
@@ -37,6 +45,22 @@ export type PageCreateRequest = {
   blocks: BlockInput[];
 };
 
+export type PageUpdateRequest = {
+  title?: string;
+  date?: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  participants?: string[];
+  blocks?: BlockInput[];
+  ai_summary?: string | null;
+};
+
+export type PageAuthor = {
+  id: number;
+  email: string;
+  nickname: string;
+};
+
 // 페이지 생성 후 백엔드가 돌려주는 저장 결과입니다.
 export type PageResponse = {
   id: number;
@@ -46,8 +70,10 @@ export type PageResponse = {
   start_time: string | null;
   end_time: string | null;
   author_id: number;
+  author: PageAuthor;
   participants: string[];
   ai_summary: string | null;
+  blocks: BlockResponse[];
   created_at: string;
   updated_at: string;
 };

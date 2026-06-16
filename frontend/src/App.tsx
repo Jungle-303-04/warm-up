@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
-import { getMe } from "./api/auth";
+import { getMe, type UserResponse } from "./api/auth";
 import { AuthPage } from "./pages/AuthPage";
 import { CalendarPage } from "./pages/CalendarPage";
 
@@ -24,6 +24,7 @@ function App() {
   // 로그인 여부와, 앱이 처음 켜질 때 토큰 확인이 끝났는지 관리합니다.
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -39,12 +40,14 @@ function App() {
 
       try {
         // 토큰이 있으면 백엔드에 내 정보를 요청해서 토큰이 유효한지 확인합니다.
-        await getMe();
+        const user = await getMe();
+        setCurrentUser(user);
         setIsAuthenticated(true);
       } catch (error) {
         console.error(error);
         // 토큰이 만료되었거나 잘못되었으면 저장된 토큰을 지우고 로그아웃 상태로 바꿉니다.
         localStorage.removeItem("access_token");
+        setCurrentUser(null);
         setIsAuthenticated(false);
       } finally {
         // 성공/실패와 관계없이 최초 인증 확인 로딩은 끝냅니다.
@@ -55,6 +58,7 @@ function App() {
     const handleForceLogout = () => {
       // API 요청 중 401 에러가 발생하면 client.ts에서 이 이벤트를 발생시켜 강제 로그아웃합니다.
       localStorage.removeItem("access_token");
+      setCurrentUser(null);
       setIsAuthenticated(false);
     };
 
@@ -69,14 +73,17 @@ function App() {
     };
   }, []);
 
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = async () => {
     // AuthPage에서 로그인이 성공하면 캘린더 화면으로 전환합니다.
+    const user = await getMe();
+    setCurrentUser(user);
     setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
     // 사용자가 직접 로그아웃하면 토큰을 삭제하고 로그인 화면으로 전환합니다.
     localStorage.removeItem("access_token");
+    setCurrentUser(null);
     setIsAuthenticated(false);
   };
 
@@ -103,7 +110,7 @@ function App() {
   }
 
   // 인증된 사용자는 메인 캘린더 화면을 봅니다.
-  return <CalendarPage onLogout={handleLogout} />;
+  return <CalendarPage currentUser={currentUser} onLogout={handleLogout} />;
 }
 
 export default App;

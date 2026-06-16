@@ -22,7 +22,7 @@ client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 # 후속 질문을 이해하기 위해 OpenAI/RAG 검색에 같이 넘길 최근 메시지 개수.
 # 예: 사용자가 "그 방식은?"이라고 물으면 직전 대화를 같이 봐야 의미를 알 수 있다.
-RECENT_CHAT_MESSAGE_LIMIT = 2
+RECENT_CHAT_MESSAGE_LIMIT = 4
 
 
 # AI에게 주는 시스템 지시문.

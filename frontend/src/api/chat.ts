@@ -3,7 +3,9 @@ import {api} from './client';
 export type ChatReference = {
   page_id: number;
   title: string;
-  date: string;
+  date?: string | null;
+  chunk_index?: number;
+  distance?: number;
 };
 
 export type ChatResponse = {

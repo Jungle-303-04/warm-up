@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from app.services.rag_service import delete_page_embeddings, try_refresh_page_embeddings
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -24,6 +25,8 @@ from app.schemas.page_schema import (
 # Page 관련 API를 /pages 경로 아래에 묶는다.
 router = APIRouter(prefix="/pages", tags=["Pages"])
 
+SERVICE_TIMEZONE = ZoneInfo("Asia/Seoul")
+
 
 def get_page_or_404(
     db: Session,
@@ -34,6 +37,7 @@ def get_page_or_404(
         select(Page)
         .options(
             selectinload(Page.blocks),
+            selectinload(Page.author),
         )
         .where(Page.id == page_id)
     ).scalar_one_or_none()
@@ -69,6 +73,14 @@ def create_page(
     db: Session = Depends(get_db),  # DB 작업에 사용할 세션
     current_user: User = Depends(get_current_user),  # 토큰으로 확인한 현재 사용자
 ):
+    today = datetime.now(SERVICE_TIMEZONE).date()
+
+    if payload.date != today:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="회의와 회고는 오늘 날짜에만 작성할 수 있습니다.",
+        )
+
     # 회의/회고 구분은 payload.type에 저장된다.
     page = Page(
         type=payload.type,
@@ -165,11 +177,10 @@ def get_calendar_pages(
     else:
         end_date = date(year, month + 1, 1)
 
-    # 현재 로그인한 사용자의 Page 중 해당 월에 속한 것만 가져온다.
+    # 팀 전체 Page 중 해당 월에 속한 것만 가져온다.
     items = (
         db.execute(
             select(Page)
-            .where(Page.author_id == current_user.id)
             .where(Page.date >= start_date)
             .where(Page.date < end_date)
             .order_by(Page.date.asc(), Page.start_time.asc())

@@ -139,6 +139,7 @@ export function PageEditorModal({
                 type="date"
                 value={date}
                 onChange={(event) => setDate(event.target.value)}
+                disabled
               />
             </label>
 

@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.models.page import Page
 from app.models.page_embedding import PageEmbedding
 
-SIMILARITY_DISTANCE_THRESHOLD = 0.45  # cosine_distance, 낮을수록 관련이 있다
+SIMILARITY_DISTANCE_THRESHOLD = 0.65  # cosine_distance, 낮을수록 관련이 있다
 MAX_CONTEXT_CHUNKS = 8  # 관련 있는 건 가져오되, 최대 8개까지만 사용
 
 
@@ -242,7 +242,6 @@ def search_relevant_chunks(
             distance_expr.label("distance"),
         )
         .join(Page, Page.id == PageEmbedding.page_id)
-        .where(Page.author_id == current_user_id)
         .where(distance_expr <= threshold)
         .order_by(distance_expr.asc())
         .limit(max_chunks)

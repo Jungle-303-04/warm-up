@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.routers import ai, auth, pages
+from app.routers import ai
 
 # FastAPI 앱을 만든다 -> 백엔드 서버의 중심 객체
 # FastAPI 앱 인스턴스를 만든다. 이 객체가 백엔드 서버의 중심 역할을 한다.

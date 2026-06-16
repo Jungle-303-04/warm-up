@@ -1,13 +1,16 @@
 import { ChevronDown, LogOut, Plus } from "lucide-react";
 import { useState } from "react";
 
+import type { UserResponse } from "../../api/auth";
 
-// CalendarPgae가 필요한 값을 준다
 type TopbarProps = {
-  currentMonthLabel: string; // 몇년 몇월인지
-  onCreateMeeting: () => void; // 회의 만들기 눌렀을 떄 할 일
-  onCreateRetrospective: () => void; // 회고 만들기 눌렀을 떄 할일
-  onLogout: () => void; // 로그아웃 눌렀을 때 할 일
+  currentMonthLabel: string;
+  onCreateMeeting: () => void;
+  onCreateRetrospective: () => void;
+  onLogout: () => void;
+  currentUser: UserResponse | null;
+  canCreatePage: boolean;
+  createDisabledMessage?: string;
 };
 
 export function Topbar({
@@ -15,22 +18,42 @@ export function Topbar({
   onCreateMeeting,
   onCreateRetrospective,
   onLogout,
+  currentUser,
+  canCreatePage,
+  createDisabledMessage = "오늘 날짜에만 작성할 수 있습니다.",
 }: TopbarProps) {
-  // 새로 만들기 버튼을 누르면 회의/회고 선택 드롭다운을 열고 닫습니다.
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // 처음엔 새로 만들기 메뉴 닫혀 있음 (false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const nickname = currentUser?.nickname ?? "사용자";
+  const initial = nickname.trim().charAt(0).toUpperCase() || "U";
 
- //회의 만들기 누르면 드롭다운 닫기, 회의 작성 모달 열기 두 개
+  const handleCreateButtonClick = () => {
+    if (!canCreatePage) {
+      setIsDropdownOpen(false);
+      alert(createDisabledMessage);
+      return;
+    }
+
+    setIsDropdownOpen((prev) => !prev);
+  };
 
   const handleCreateMeeting = () => {
-    // 드롭다운을 닫고 부모(CalendarPage)에게 회의 모달을 열라고 알립니다.
+    if (!canCreatePage) {
+      alert(createDisabledMessage);
+      return;
+    }
+
     setIsDropdownOpen(false);
-    onCreateMeeting(); // 부모에게 회의 모달 열라고 알림
+    onCreateMeeting();
   };
 
   const handleCreateRetrospective = () => {
-    // 드롭다운을 닫고 부모(CalendarPage)에게 회고 모달을 열라고 알립니다.
+    if (!canCreatePage) {
+      alert(createDisabledMessage);
+      return;
+    }
+
     setIsDropdownOpen(false);
-    onCreateRetrospective(); // 부모에게 회고 모달 열라고 알림
+    onCreateRetrospective();
   };
 
   return (
@@ -41,6 +64,11 @@ export function Topbar({
       </div>
 
       <div className="topbar-actions">
+        <div className="user-chip" title={currentUser?.email}>
+          <span className="user-chip-avatar">{initial}</span>
+          <strong className="user-chip-name">{nickname}</strong>
+        </div>
+
         <button className="logout-button" type="button" onClick={onLogout}>
           <LogOut size={16} />
           <span>로그아웃</span>
@@ -50,8 +78,10 @@ export function Topbar({
           <button
             className="create-button"
             type="button"
-            onClick={() => setIsDropdownOpen((prev) => !prev)}
+            onClick={handleCreateButtonClick}
             aria-expanded={isDropdownOpen}
+            aria-disabled={!canCreatePage}
+            title={canCreatePage ? undefined : createDisabledMessage}
           >
             <Plus size={18} />
             <span>새로 만들기</span>
@@ -65,7 +95,7 @@ export function Topbar({
                 <div>
                   <div className="dropdown-title">회의 만들기</div>
                   <div className="dropdown-description">
-                    회의록을 작성합니다.
+                    오늘 회의록을 작성합니다.
                   </div>
                 </div>
               </button>
@@ -75,7 +105,7 @@ export function Topbar({
                 <div>
                   <div className="dropdown-title">회고 만들기</div>
                   <div className="dropdown-description">
-                    하루 회고를 작성합니다.
+                    오늘 회고를 작성합니다.
                   </div>
                 </div>
               </button>
