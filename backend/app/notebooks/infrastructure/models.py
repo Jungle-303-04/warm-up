@@ -98,3 +98,27 @@ class NotebookChunkModel(Base):
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ArtifactModel(Base):
+    """산출물(다이어그램/요약/메모) ORM 모델.
+
+    source_ids는 생성 기준 소스 id 배열(note는 빈 배열). JSONB로 저장한다.
+    notebook_id FK(ON DELETE CASCADE)로 노트북에 종속된다.
+    """
+
+    __tablename__ = "notebook_artifacts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    notebook_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("notebooks.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

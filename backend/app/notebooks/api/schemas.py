@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.notebooks.application.chat_service import ChatCitation, ChatResult
+from app.notebooks.domain.artifact_records import ArtifactRecord, ArtifactType
 from app.notebooks.domain.records import (
     ChatMessageRecord,
     ChatRole,
@@ -264,3 +265,49 @@ class IndexProgressView(BaseModel):
             updated_at=view["updated_at"],
             last_synced_at=view.get("last_synced_at"),
         )
+
+
+# --- 산출물(artifacts) ---
+
+
+class GenerateArtifactRequest(BaseModel):
+    type: ArtifactType  # "uml" | "erd" | "dependency" | "change_summary"
+    source_ids: list[str] | None = None
+
+
+class CreateNoteRequest(BaseModel):
+    title: str | None = None
+    content: str
+
+
+class UpdateArtifactRequest(BaseModel):
+    title: str | None = None
+    content: str | None = None
+
+
+class ArtifactView(BaseModel):
+    id: str
+    notebook_id: str
+    type: ArtifactType
+    title: str
+    content: str
+    source_ids: list[str]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_record(cls, record: ArtifactRecord) -> "ArtifactView":
+        return cls(
+            id=record.id,
+            notebook_id=record.notebook_id,
+            type=record.type,
+            title=record.title,
+            content=record.content,
+            source_ids=record.source_ids,
+            created_at=record.created_at,  # type: ignore[arg-type]
+            updated_at=record.updated_at,  # type: ignore[arg-type]
+        )
+
+
+class ArtifactListResponse(BaseModel):
+    artifacts: list[ArtifactView]

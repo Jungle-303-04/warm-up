@@ -8,13 +8,17 @@ from app.api.errors import http_error
 from app.api.responses import BAD_REQUEST_RESPONSE
 from app.auth.dependencies import get_current_claims
 from app.notebooks.api.schemas import (
+    ArtifactListResponse,
+    ArtifactView,
     ChatMessageListResponse,
     ChatMessageView,
     ChatRequest,
     ChatResponse,
     CreateNotebookRequest,
+    CreateNoteRequest,
     CreateSourceRequest,
     FileResponse,
+    GenerateArtifactRequest,
     IndexProgressView,
     NotebookDetailView,
     NotebookListResponse,
@@ -24,12 +28,15 @@ from app.notebooks.api.schemas import (
     SourceView,
     TreeNode,
     TreeResponse,
+    UpdateArtifactRequest,
     UpdateNotebookRequest,
 )
+from app.notebooks.application.artifact_service import ArtifactService
 from app.notebooks.application.chat_service import ChatService
 from app.notebooks.application.indexing_service import IndexingService
 from app.notebooks.application.service import NotebookService
 from app.notebooks.dependencies import (
+    get_artifact_service,
     get_indexing_service,
     get_notebook_chat_service,
     get_notebook_service,
@@ -419,3 +426,128 @@ def reindex_source(
         return IndexProgressView.from_view(view)
 
     return http_error(run, NOT_FOUND)
+
+
+# --- 산출물(artifacts) ---
+
+
+@router.post(
+    "/notebooks/{notebook_id}/artifacts",
+    response_model=ArtifactView,
+    status_code=status.HTTP_201_CREATED,
+    responses=BAD_REQUEST_RESPONSE,
+    dependencies=[Depends(get_current_claims)],
+)
+def generate_artifact(
+    notebook_id: str,
+    request: GenerateArtifactRequest,
+    service: ArtifactService = Depends(get_artifact_service),
+) -> ArtifactView:
+    # 동기 처리. LLM 호출은 짧게 유지하며, 키가 없으면 결정론/골격으로 즉시 반환한다.
+    def run() -> ArtifactView:
+        record = service.generate(
+            notebook_id, type=request.type, source_ids=request.source_ids
+        )
+        return ArtifactView.from_record(record)
+
+    return http_error(run, NOT_FOUND_OR_BAD_REQUEST)
+
+
+@router.post(
+    "/notebooks/{notebook_id}/artifacts/note",
+    response_model=ArtifactView,
+    status_code=status.HTTP_201_CREATED,
+    responses=BAD_REQUEST_RESPONSE,
+    dependencies=[Depends(get_current_claims)],
+)
+def create_note(
+    notebook_id: str,
+    request: CreateNoteRequest,
+    service: ArtifactService = Depends(get_artifact_service),
+) -> ArtifactView:
+    def run() -> ArtifactView:
+        record = service.create_note(
+            notebook_id, content=request.content, title=request.title
+        )
+        return ArtifactView.from_record(record)
+
+    return http_error(run, NOT_FOUND_OR_BAD_REQUEST)
+
+
+@router.get(
+    "/notebooks/{notebook_id}/artifacts",
+    response_model=ArtifactListResponse,
+    responses=BAD_REQUEST_RESPONSE,
+    dependencies=[Depends(get_current_claims)],
+)
+def list_artifacts(
+    notebook_id: str,
+    service: ArtifactService = Depends(get_artifact_service),
+) -> ArtifactListResponse:
+    def run() -> ArtifactListResponse:
+        records = service.list_artifacts(notebook_id)
+        return ArtifactListResponse(
+            artifacts=[ArtifactView.from_record(record) for record in records]
+        )
+
+    return http_error(run, NOT_FOUND)
+
+
+@router.get(
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}",
+    response_model=ArtifactView,
+    responses=BAD_REQUEST_RESPONSE,
+    dependencies=[Depends(get_current_claims)],
+)
+def get_artifact(
+    notebook_id: str,
+    artifact_id: str,
+    service: ArtifactService = Depends(get_artifact_service),
+) -> ArtifactView:
+    return http_error(
+        lambda: ArtifactView.from_record(
+            service.get_artifact(notebook_id, artifact_id)
+        ),
+        NOT_FOUND,
+    )
+
+
+@router.patch(
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}",
+    response_model=ArtifactView,
+    responses=BAD_REQUEST_RESPONSE,
+    dependencies=[Depends(get_current_claims)],
+)
+def update_artifact(
+    notebook_id: str,
+    artifact_id: str,
+    request: UpdateArtifactRequest,
+    service: ArtifactService = Depends(get_artifact_service),
+) -> ArtifactView:
+    def run() -> ArtifactView:
+        record = service.update_artifact(
+            notebook_id,
+            artifact_id,
+            title=request.title,
+            content=request.content,
+        )
+        return ArtifactView.from_record(record)
+
+    return http_error(run, NOT_FOUND_OR_BAD_REQUEST)
+
+
+@router.delete(
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=BAD_REQUEST_RESPONSE,
+    dependencies=[Depends(get_current_claims)],
+)
+def delete_artifact(
+    notebook_id: str,
+    artifact_id: str,
+    service: ArtifactService = Depends(get_artifact_service),
+) -> Response:
+    http_error(
+        lambda: service.delete_artifact(notebook_id, artifact_id), NOT_FOUND
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

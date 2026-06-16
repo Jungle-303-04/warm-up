@@ -2,6 +2,7 @@
 
 from typing import cast
 
+from app.notebooks.domain.artifact_records import ArtifactRecord, ArtifactType
 from app.notebooks.domain.chunk_records import NotebookChunk
 from app.notebooks.domain.records import (
     ChatMessageRecord,
@@ -11,6 +12,7 @@ from app.notebooks.domain.records import (
     SourceRecord,
 )
 from app.notebooks.infrastructure.models import (
+    ArtifactModel,
     ChatMessageModel,
     NotebookChunkModel,
     NotebookModel,
@@ -118,4 +120,30 @@ def chunk_to_record(model: NotebookChunkModel) -> NotebookChunk:
         text=model.text,
         embedding=list(embedding) if embedding is not None else None,
         created_at=model.created_at,
+    )
+
+
+def artifact_to_model(record: ArtifactRecord) -> ArtifactModel:
+    return ArtifactModel(
+        id=record.id,
+        notebook_id=record.notebook_id,
+        type=record.type,
+        title=record.title,
+        content=record.content,
+        source_ids=record.source_ids,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
+def artifact_to_record(model: ArtifactModel) -> ArtifactRecord:
+    return ArtifactRecord(
+        id=model.id,
+        notebook_id=model.notebook_id,
+        type=cast(ArtifactType, model.type),
+        title=model.title,
+        content=model.content,
+        source_ids=list(model.source_ids or []),
+        created_at=model.created_at,
+        updated_at=model.updated_at,
     )
