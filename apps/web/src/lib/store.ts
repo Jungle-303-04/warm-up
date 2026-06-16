@@ -55,7 +55,9 @@ interface WorkspaceStore {
   setIndexProgress: (sourceId: string, progress: IndexProgress) => void;
   clearIndexProgress: (sourceId: string) => void;
   createArtifact: (artifact: Omit<StudioArtifact, "id" | "createdAt" | "sourceCount">) => void;
-  addNote: (title?: string, detail?: string) => void;
+  // 메모 생성. body(본문)를 주면 대화 답변 등 긴 내용을 함께 저장한다.
+  addNote: (input?: { title?: string; detail?: string; body?: string }) => void;
+  removeArtifact: (id: string) => void;
 }
 
 const makeId = () =>
@@ -259,22 +261,27 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
         ...state.artifacts,
       ],
     })),
-  addNote: (title = "새 메모", detail = "방금 전") =>
+  addNote: (input) =>
     set((state) => ({
       artifacts: [
         {
           id: makeId(),
           kind: "note",
-          title,
+          title: input?.title ?? "새 메모",
           typeLabel: "메모",
-          detail,
+          detail: input?.detail ?? "방금 전",
           icon: "sticky_note_2",
           tint: "grey",
           createdAt: Date.now(),
           sourceCount: state.selectedSourceIds.size || state.sources.length,
+          body: input?.body,
         },
         ...state.artifacts,
       ],
+    })),
+  removeArtifact: (id) =>
+    set((state) => ({
+      artifacts: state.artifacts.filter((a) => a.id !== id),
     })),
 }));
 

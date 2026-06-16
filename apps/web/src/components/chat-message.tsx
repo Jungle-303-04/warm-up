@@ -55,6 +55,8 @@ function AssistantBubble({
 }) {
   const { text, done, stop } = useTypewriter(message.content, Boolean(message.animate));
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const addNote = useWorkspace((s) => s.addNote);
 
   const copy = async () => {
     try {
@@ -64,6 +66,15 @@ function AssistantBubble({
     } catch {
       // 복사 실패는 조용히 무시.
     }
+  };
+
+  // 이 답변을 스튜디오 메모(kind:note)로 저장. 제목은 본문 첫 줄에서 추린다.
+  const saveToNote = () => {
+    const firstLine = message.content.trim().split("\n")[0]?.trim() ?? "";
+    const title = firstLine ? firstLine.slice(0, 40) : "대화 메모";
+    addNote({ title, detail: "대화에서 저장 · 방금 전", body: message.content });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
   };
 
   if (message.kind === "notice") {
@@ -96,6 +107,11 @@ function AssistantBubble({
         {/* 액션 줄: 호버 노출(복사·재생성·타이핑 건너뛰기). */}
         <div className="mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           <ActionButton icon={copied ? "check" : "copy"} label="복사" onClick={copy} />
+          <ActionButton
+            icon={saved ? "check" : "save_note"}
+            label="메모에 저장"
+            onClick={saveToNote}
+          />
           {onRegenerate ? (
             <ActionButton icon="progress_activity" label="재생성" onClick={onRegenerate} />
           ) : null}

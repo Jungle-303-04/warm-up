@@ -22,6 +22,8 @@ export interface StudioArtifact {
   tint: string;
   createdAt: number;
   sourceCount: number;
+  // 메모 본문(대화 답변을 메모로 저장할 때 사용). 없으면 메타 전용 항목.
+  body?: string;
 }
 
 // 백엔드 NotebookView.

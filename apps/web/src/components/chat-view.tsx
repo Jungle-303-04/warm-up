@@ -230,6 +230,23 @@ export function ChatView() {
     setQueuedQuestions([]);
   };
 
+  // 대화 초기화: 백엔드에 메시지 영속 삭제 엔드포인트가 없으므로 프론트만 비운다.
+  // 진행 중 요청 중단 + 화면 메시지/대기열/입력 초안(localStorage) 클리어.
+  const resetConversation = () => {
+    abortRef.current?.abort();
+    setQueuedQuestions([]);
+    setMessages([]);
+    setQuery("");
+    setHistoryError(null);
+    if (notebookId) {
+      try {
+        localStorage.removeItem(draftKey(notebookId));
+      } catch {
+        // 초안 삭제 실패는 초기화를 막지 않는다.
+      }
+    }
+  };
+
   // 마지막 사용자 질문으로 재생성.
   const regenerate = () => {
     if (sending) return;
@@ -265,6 +282,18 @@ export function ChatView() {
                 <Icon name="check_circle" size={13} />
                 {scopeCount}개 기준
               </span>
+              {/* 대화 초기화: 현재 노트북의 화면 메시지와 입력 초안을 비운다. */}
+              <button
+                type="button"
+                onClick={resetConversation}
+                disabled={messages.length === 0 && query.trim().length === 0}
+                title="대화 초기화"
+                aria-label="대화 초기화"
+                className="interactive inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Icon name="delete" size={13} />
+                초기화
+              </button>
             </div>
             <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
               연결된 저장소·문서를 근거로 질문에 답하고, 코드와 문서가 어긋난 부분을 찾습니다.
