@@ -11,7 +11,7 @@ const recommendedFont = {
   name: "Zodiak",
   tags: ["영문", "세리프", "강조"],
   reason:
-    "문장에 담긴 선명한 감정과 짧은 호흡이 잘 보여서, 인상이 강하게 남는 세리프 계열 폰트를 추천했어요.",
+    "입력한 문장은 짧지만 감정의 방향이 분명하고, 말의 끝에 힘이 남는 구조예요. 그래서 부드럽기보다는 인상이 또렷하게 남는 세리프 계열 폰트가 잘 어울려요. 특히 Zodiak은 문장의 리듬을 조금 더 극적으로 보여주면서도 과하게 장식적으로 느껴지지 않아, 제목이나 강조 문장에 사용하기 좋아요.",
   previewText: "I want to play this game forever",
 };
 
@@ -57,6 +57,8 @@ function Write() {
   const [isRecommending, setIsRecommending] = useState(false);
   const [recommendation, setRecommendation] = useState(null);
   const waitingMessage = waitingMessages[0];
+  const isPreviewTab = activeTab === "preview";
+  const hasRecommendation = isPreviewTab && recommendation;
 
   const handleRecommend = () => {
     setActiveTab("preview");
@@ -73,14 +75,14 @@ function Write() {
 
   return (
     <main className="min-h-[620px] p-6">
-      <section className="mx-auto flex w-full max-w-[560px] flex-col pt-16">
-        <div className="min-h-[112px]">
-          {activeTab === "preview" && recommendation ? (
-            <div className="max-h-28 overflow-y-auto pr-2">
-              <div className="flex items-center justify-between gap-5">
-                <div className="min-w-0 flex-1">
-                  <div className="ml-auto w-2/3">
-                    <div className="flex flex-wrap items-center gap-2">
+      <section className="mx-auto flex w-full max-w-[720px] flex-col pt-36 pb-10">
+        <div className="h-[132px]">
+          <div className="h-full overflow-visible pr-2">
+            <div className="grid h-full grid-cols-[1fr_auto] items-start gap-5 overflow-visible">
+              <div className="ml-auto flex h-full w-2/3 flex-col">
+                <div className="flex min-h-7 flex-wrap items-center gap-2">
+                  {hasRecommendation ? (
+                    <>
                       <button
                         className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md bg-black px-2 py-0.5 text-[10px] font-medium text-white transition-opacity hover:opacity-70"
                         type="button"
@@ -109,34 +111,53 @@ function Write() {
                           {tag}
                         </span>
                       ))}
-                    </div>
+                    </>
+                  ) : null}
+                </div>
 
-                    <p className="mt-3 text-left text-sm leading-relaxed text-black">
+                <div className="mt-3 flex min-h-16 items-center overflow-visible pr-1">
+                  {hasRecommendation ? (
+                    <p className="thin-transparent-scrollbar max-h-16 overflow-y-auto text-left text-sm leading-relaxed text-black">
                       {recommendation.reason}
                     </p>
-                  </div>
+                  ) : (
+                    <p className="w-full text-right text-sm leading-relaxed text-[#9ca3af]">
+                      문장을 입력하고 폰트 추천을 눌러보세요.
+                    </p>
+                  )}
                 </div>
-                <span className="animate-tilt-once mt-7 shrink-0 font-['Zodiak'] text-[28pt] font-extrabold italic leading-none text-black">
-                  f
-                </span>
+              </div>
+              <div className="flex h-full flex-col">
+                <div className="min-h-7" />
+                <div className="mt-3 flex min-h-16 items-center overflow-visible">
+                  <span
+                    className={[
+                      "shrink-0 font-['Zodiak'] text-[28pt] font-extrabold italic leading-none text-black",
+                      hasRecommendation ? "animate-tilt-once" : "",
+                    ].join(" ")}
+                  >
+                    f
+                  </span>
+                </div>
               </div>
             </div>
-          ) : (
-            <div className="flex justify-end">
-              <span className="font-['Zodiak'] text-[28pt] font-extrabold italic leading-none text-black">
-                f
-              </span>
-            </div>
-          )}
+          </div>
         </div>
 
-        <div className="mt-6 flex items-center gap-2">
+        <div
+          className={[
+            "relative z-10 mt-20 flex items-end gap-1 pl-2",
+            isPreviewTab ? "border-b border-gray-200" : "-mb-px",
+          ].join(" ")}
+        >
           <button
             className={[
-              "cursor-pointer rounded-md px-4 py-2 text-sm transition-colors",
+              "cursor-pointer rounded-t-md border px-4 py-2 text-sm transition-colors",
               activeTab === "write"
-                ? "bg-[#d4d4d4] text-black"
-                : "text-gray-500 hover:bg-[#d4d4d4] hover:text-black",
+                ? "border-gray-300 border-b-[#F8F9FA] bg-[#F8F9FA] text-black"
+                : isPreviewTab
+                  ? "border-transparent text-gray-500 hover:bg-[#F8F9FA] hover:text-black"
+                  : "border-transparent text-gray-500 hover:border-gray-200 hover:border-b-[#F8F9FA] hover:bg-[#F8F9FA] hover:text-black",
             ].join(" ")}
             onClick={() => setActiveTab("write")}
             type="button"
@@ -145,11 +166,17 @@ function Write() {
           </button>
           <button
             className={[
-              "rounded-md px-4 py-2 text-sm transition-colors",
+              "rounded-t-md border px-4 py-2 text-sm transition-colors",
               isPreviewDisabled
                 ? "cursor-not-allowed text-gray-300"
-                : "cursor-pointer hover:bg-[#d4d4d4] hover:text-black",
-              activeTab === "preview" ? "bg-[#d4d4d4] text-black" : "text-gray-500",
+                : isPreviewTab
+                  ? "cursor-pointer hover:bg-[#F8F9FA] hover:text-black"
+                  : "cursor-pointer hover:border-gray-200 hover:border-b-[#F8F9FA] hover:bg-[#F8F9FA] hover:text-black",
+              activeTab === "preview"
+                ? isPreviewTab
+                  ? "border-gray-300 border-b-[#F8F9FA] bg-[#F8F9FA] text-black"
+                  : "border-gray-300 border-b-[#F8F9FA] bg-[#F8F9FA] text-black"
+                : "border-transparent text-gray-500",
             ].join(" ")}
             disabled={isPreviewDisabled}
             onClick={() => setActiveTab("preview")}
@@ -158,19 +185,18 @@ function Write() {
             Preview
           </button>
         </div>
-
-        <div className="mt-3">
+        <div className="min-h-[340px]">
           {activeTab === "write" ? (
             <>
               <textarea
-                className="max-h-60 min-h-36 w-full resize-none overflow-y-auto rounded-md border border-gray-300 px-5 py-4 text-base leading-relaxed outline-none transition-colors placeholder:text-gray-300 focus:border-black"
+                className="h-36 w-full resize-none overflow-y-auto rounded-md border border-gray-300 px-5 py-4 text-base leading-relaxed outline-none transition-colors placeholder:text-gray-300 focus:border-black"
                 onChange={(event) => setContent(event.target.value)}
-                placeholder="Add your comment..."
+                placeholder="게시글 내용을 입력하세요."
                 value={content}
               />
               <div className="mt-3 flex justify-end">
                 <button
-                  className="cursor-pointer rounded-full border border-gray-300 px-5 py-2 text-sm text-black transition-colors hover:bg-black hover:text-white"
+                  className="cursor-pointer rounded-md border border-gray-300 px-5 py-2 text-sm text-black transition-colors hover:bg-black hover:text-white"
                   onClick={handleRecommend}
                   type="button"
                 >
@@ -182,7 +208,7 @@ function Write() {
               </p>
             </>
           ) : (
-            <div className="relative min-h-72">
+            <div className="relative min-h-[340px]">
               <div
                 className={[
                   "transition duration-300",
@@ -190,16 +216,18 @@ function Write() {
                 ].join(" ")}
               >
                 {recommendation ? (
-                  <div className="max-h-72 overflow-y-auto pr-2">
-                    <div className="mt-12">
-                      <p className="border-b border-black pb-2 font-['Zodiak'] text-[28px] font-extrabold italic leading-tight text-black">
-                        {recommendation.previewText}
-                      </p>
+                  <div className="pr-2">
+                    <div className="flex h-36 items-end border-b border-black">
+                      <div className="max-h-[calc(9rem-1px)] w-full overflow-y-auto pb-1.5">
+                        <p className="font-['Zodiak'] text-[28px] font-extrabold italic leading-tight text-black">
+                          {recommendation.previewText}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="mt-6 flex justify-end">
                       <button
-                        className="cursor-pointer rounded-full border border-gray-300 px-5 py-2 text-sm text-black transition-colors hover:bg-black hover:text-white"
+                        className="cursor-pointer rounded-md border border-gray-300 px-5 py-2 text-sm text-black transition-colors hover:bg-black hover:text-white"
                         type="button"
                       >
                         등록 하기
@@ -207,12 +235,12 @@ function Write() {
                     </div>
                   </div>
                 ) : (
-                  <div className="min-h-72 rounded-md border border-gray-200" />
+                  <div className="h-36 rounded-md border border-gray-200" />
                 )}
               </div>
 
               {isRecommending ? (
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-x-0 top-0 flex h-36 items-center justify-center">
                   <div className="rounded-md bg-white/80 px-8 py-6 text-center">
                     <TypingWaitingMessage lines={waitingMessage} />
                   </div>

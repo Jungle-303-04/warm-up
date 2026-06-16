@@ -61,11 +61,11 @@ select {
     }
 
     35% {
-      transform: rotate(-3deg);
+      transform: rotate(-10deg);
     }
 
     70% {
-      transform: rotate(3deg);
+      transform: rotate(8deg);
     }
 
     100% {
@@ -74,6 +74,25 @@ select {
   }
 
   .animate-tilt-once {
-    animation: tilt-once 480ms ease-in-out 1;
+    animation: tilt-once 680ms ease-in-out 1;
+    transform-origin: center;
+  }
+
+  .thin-transparent-scrollbar {
+    scrollbar-color: #d4d4d4 transparent;
+    scrollbar-width: thin;
+  }
+
+  .thin-transparent-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .thin-transparent-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .thin-transparent-scrollbar::-webkit-scrollbar-thumb {
+    background: #d4d4d4;
+    border-radius: 999px;
   }
 }
