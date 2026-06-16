@@ -2227,6 +2227,7 @@ h1 {
   line-height: 1.55;
   overflow-wrap: anywhere;
   padding: 10px 12px;
+  white-space: pre-wrap;
 }
 
 .chatbot-message.user p {

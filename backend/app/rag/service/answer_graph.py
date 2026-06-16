@@ -5,6 +5,7 @@ from langgraph.graph import END, StateGraph
 from app.rag.api.schema import (
     RagAskRequestDTO,
     RagAskResponseDTO,
+    RagAskRunReferenceDTO,
     RagAskSourceDTO,
 )
 from app.rag.domain.vector_result import VectorResultRow, parse_vector_result
@@ -83,22 +84,25 @@ class RagAnswerGraph:
         """질문과 확정된 commit 기준으로 vector DB에서 관련 청크를 찾는다."""
 
         request = state["request"]
-        index_run = state["index_run"]
+        index_runs = normalize_index_runs(state["index_run"])
 
         # 사용자가 임의로 적은 보드/질문 내용은 신뢰 기준이 아니다.
         # SQL에서 확정한 index_run의 repository_full_name, branch, commit_sha를 필터로 써서
         # 실제 저장된 코드 스냅샷 안의 chunk만 검색 후보로 둔다.
-        search_result = self.vector_repository.search(
-            query=request.question,
-            limit=request.limit,
-            repository_full_name=index_run.repository_full_name,
-            branch=index_run.branch,
-            commit_sha=index_run.commit_sha,
-        )
+        rows: list[VectorResultRow] = []
+        for index_run in index_runs:
+            search_result = self.vector_repository.search(
+                query=request.question,
+                limit=request.limit,
+                repository_full_name=index_run.repository_full_name,
+                branch=index_run.branch,
+                commit_sha=index_run.commit_sha,
+            )
+            rows.extend(parse_vector_result(search_result))
 
         # Chroma 결과는 ids/documents/metadatas/distances가 따로 오므로,
         # 다음 노드가 다루기 쉬운 row 목록으로 변환해서 state에 rows로 추가한다.
-        return {"rows": parse_vector_result(search_result)}
+        return {"rows": sort_rows_by_distance(rows)}
 
     def route_after_retrieval(self, state: RagAnswerState) -> EvidenceRoute:
         """검색 근거 존재 여부에 따라 LLM 호출 여부를 graph edge에서 결정한다."""
@@ -138,16 +142,26 @@ class RagAnswerGraph:
     def build_response(self, state: RagAnswerState) -> RagAnswerState:
         """Graph state를 API 응답 DTO로 포장한다."""
 
-        index_run = state["index_run"]
+        index_runs = normalize_index_runs(state["index_run"])
+        primary_run = index_runs[0]
         # run_id는 사용자가 질문할 때 고르는 기준이 아니라 추적용 번호다.
         # 응답에는 실제 답변 기준이 된 repository_full_name, branch, commit_sha를 함께 내려준다.
         return {
             "response": RagAskResponseDTO(
                 answer=state["answer"],
-                repository_full_name=index_run.repository_full_name,
-                branch=index_run.branch,
-                commit_sha=index_run.commit_sha,
-                run_id=index_run.id,
+                repository_full_name=primary_run.repository_full_name,
+                branch=primary_run.branch,
+                commit_sha=primary_run.commit_sha,
+                run_id=primary_run.id,
+                repository_refs=[
+                    RagAskRunReferenceDTO(
+                        run_id=index_run.id,
+                        repository_full_name=index_run.repository_full_name,
+                        branch=index_run.branch,
+                        commit_sha=index_run.commit_sha,
+                    )
+                    for index_run in index_runs
+                ],
                 sources=state.get("sources", []),
             )
         }
@@ -169,3 +183,21 @@ def build_sources(rows: list[VectorResultRow]) -> list[RagAskSourceDTO]:
             )
         )
     return sources
+
+
+def normalize_index_runs(index_run: Any) -> list[Any]:
+    """단일 run과 run 목록을 graph 내부 공통 형태로 맞춘다."""
+
+    if isinstance(index_run, list):
+        return index_run
+
+    return [index_run]
+
+
+def sort_rows_by_distance(rows: list[VectorResultRow]) -> list[VectorResultRow]:
+    """여러 레포 검색 결과를 LLM에 넘기기 전에 가까운 근거 순서로 정렬한다."""
+
+    return sorted(
+        rows,
+        key=lambda row: row.distance if row.distance is not None else float("inf"),
+    )

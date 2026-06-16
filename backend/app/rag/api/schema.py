@@ -1,7 +1,7 @@
 from datetime import datetime
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.github.api.schema import GitHubFileResponseDTO, GitHubFileSnapshotDTO
 
@@ -289,20 +289,10 @@ class RagVectorSearchResponseDTO(BaseModel):
     items: list[RagVectorSearchItemDTO]
 
 
-class RagAskRequestDTO(BaseModel):
-    question: str
+class RagAskRepositoryRefDTO(BaseModel):
     repository_full_name: str
     branch: str | None = None
     commit_sha: str | None = None
-    limit: int = Field(default=5, ge=1, le=MAX_SEARCH_LIMIT)
-
-    @field_validator("question")
-    @classmethod
-    def validate_question(cls, value: str) -> str:
-        question = value.strip()
-        if not question:
-            raise ValueError("question must not be empty")
-        return question
 
     @field_validator("repository_full_name")
     @classmethod
@@ -324,11 +314,62 @@ class RagAskRequestDTO(BaseModel):
         return text or None
 
 
+class RagAskRequestDTO(BaseModel):
+    question: str
+    repository_full_name: str | None = None
+    branch: str | None = None
+    commit_sha: str | None = None
+    repository_refs: list[RagAskRepositoryRefDTO] = Field(default_factory=list)
+    limit: int = Field(default=5, ge=1, le=MAX_SEARCH_LIMIT)
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        question = value.strip()
+        if not question:
+            raise ValueError("question must not be empty")
+        return question
+
+    @field_validator("repository_full_name")
+    @classmethod
+    def validate_repository_full_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        repository_full_name = normalize_repository_full_name(value)
+        if "/" not in repository_full_name:
+            raise ValueError("repository_full_name must use owner/repo format")
+        owner, repo = repository_full_name.split("/", 1)
+        if not owner.strip() or not repo.strip():
+            raise ValueError("repository_full_name must use owner/repo format")
+        return repository_full_name
+
+    @field_validator("branch", "commit_sha")
+    @classmethod
+    def validate_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        return text or None
+
+    @model_validator(mode="after")
+    def validate_repository_target(self) -> "RagAskRequestDTO":
+        if self.repository_refs or self.repository_full_name:
+            return self
+        raise ValueError("repository_full_name or repository_refs must be provided")
+
+
 class RagAskSourceDTO(BaseModel):
     citation: str
     path: str
     chunk_type: str
     distance: float | None = None
+
+
+class RagAskRunReferenceDTO(BaseModel):
+    run_id: int | None = None
+    repository_full_name: str | None = None
+    branch: str | None = None
+    commit_sha: str | None = None
 
 
 class RagAskResponseDTO(BaseModel):
@@ -337,4 +378,5 @@ class RagAskResponseDTO(BaseModel):
     branch: str | None = None
     commit_sha: str | None = None
     run_id: int | None = None
+    repository_refs: list[RagAskRunReferenceDTO] = Field(default_factory=list)
     sources: list[RagAskSourceDTO]

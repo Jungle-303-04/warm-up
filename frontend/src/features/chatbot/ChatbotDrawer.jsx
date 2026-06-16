@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { API_BASE_URL } from '../../app/config'
+import { postJson, toKoreanErrorMessage } from '../../shared/api/http'
+
 const INITIAL_SESSION_ID = 1
-const MOCK_RESPONSE_DELAY_MS = 900
 
 export function ChatbotDrawer({
   indexResult,
@@ -10,7 +12,6 @@ export function ChatbotDrawer({
   selectedRunIds = [],
   onSelectedRunIdsChange = () => undefined,
 }) {
-  const responseTimerIds = useRef(new Map())
   const messagesEndRef = useRef(null)
   const selectedRunIdsSignatureRef = useRef(createRunIdsSignature(selectedRunIds))
   const sessionIdRef = useRef(INITIAL_SESSION_ID + 1)
@@ -39,13 +40,8 @@ export function ChatbotDrawer({
   const activeSession = sessions.find((session) => session.id === activeSessionId)
     || sessions[0]
   const messages = activeSession?.messages || []
-  const isChatInputDisabled = activeSession.isGenerating
+  const isChatInputDisabled = Boolean(activeSession?.isGenerating)
   const hasMultipleSessions = sessions.length > 1
-
-  useEffect(() => () => {
-    responseTimerIds.current.forEach((timerId) => window.clearTimeout(timerId))
-    responseTimerIds.current.clear()
-  }, [])
 
   useEffect(() => {
     document.body.classList.toggle('chatbot-drawer-open', isOpen)
@@ -61,7 +57,7 @@ export function ChatbotDrawer({
     }
 
     messagesEndRef.current?.scrollIntoView({ block: 'end' })
-  }, [activeSessionId, messages.length, activeSession.isGenerating, isOpen])
+  }, [activeSessionId, messages.length, activeSession?.isGenerating, isOpen])
 
   useEffect(() => {
     const nextSignature = createRunIdsSignature(selectedRunIds)
@@ -125,12 +121,6 @@ export function ChatbotDrawer({
   }
 
   function deleteSession(sessionId) {
-    const timerId = responseTimerIds.current.get(sessionId)
-    if (timerId) {
-      window.clearTimeout(timerId)
-      responseTimerIds.current.delete(sessionId)
-    }
-
     if (sessions.length === 1) {
       const nextSession = createChatSession(sessionIdRef.current, '새 대화')
       sessionIdRef.current += 1
@@ -151,9 +141,9 @@ export function ChatbotDrawer({
     }
   }
 
-  function submitMockMessage(event) {
+  function submitChatMessage(event) {
     event.preventDefault()
-    sendMockMessage()
+    void sendChatMessage()
   }
 
   function toggleSelectedRun(runId) {
@@ -165,7 +155,7 @@ export function ChatbotDrawer({
     setDraftError('')
   }
 
-  function sendMockMessage() {
+  async function sendChatMessage() {
     const nextQuestion = draft.trim()
     if (!nextQuestion) {
       setDraftError('질문을 입력한 뒤 보내기를 눌러 주세요.')
@@ -176,44 +166,31 @@ export function ChatbotDrawer({
       return
     }
 
-    // Future backend connection:
-    // POST /rag/ask 또는 별도 chatbot session endpoint로 연결한다.
-    // Expected request DTO per session:
+    // Backend: POST /rag/ask
+    // Request DTO:
     // {
-    //   session_id: number | string,
     //   question: string,
-    //   selected_runs?: Array<{
-    //     run_id: number,
+    //   repository_refs: Array<{
     //     repository_full_name: string,
     //     branch?: string | null,
-    //     commit_sha?: string
+    //     commit_sha?: string | null
     //   }>,
     //   limit: number
     // }
-    // Backend에서 받아야 하는 정보:
-    // - 사용자의 질문과 대화 맥락에서 레포를 추론한 뒤 가장 최신 완료 run을 찾는 결과
-    // - 사용자가 선택한 레포가 있으면 여러 selected_runs를 기준으로 검색하는 기능
-    // - 선택된 레포가 없으면 질문에 나온 레포명으로 최신 pulling/run_id를 찾는 기능
-    // - 새 분석이 진행 중인지 여부와 진행 중인 요청의 repository_full_name/branch
-    // 현재는 App이 가진 repositoryRuns/indexResult와 isIndexing으로 더미처럼 동작하게 만든다.
-    // Current implementation is a frontend mock, so session/message state stays in React only.
-    // Real backend connection should keep the loading state until the API response arrives.
+    // TODO(backend): 대화 맥락 기반 레포 추론과 서버 저장 채팅 세션을 붙이면
+    // 프론트가 질문 문장에서 레포명을 직접 추론하지 않아도 된다.
     const userMessage = {
       id: messageIdRef.current,
       sender: 'user',
       text: nextQuestion,
     }
     messageIdRef.current += 1
-    const assistantMessage = {
-      id: messageIdRef.current,
-      sender: 'assistant',
-      text: buildMockAssistantText(chatContext),
-    }
-    messageIdRef.current += 1
+    const targetRuns = resolveQuestionRuns(nextQuestion, selectedRuns, chatBasisOptions)
+    const sessionId = activeSession.id
 
     setSessions((currentSessions) =>
       currentSessions.map((session) => {
-        if (session.id !== activeSession.id) {
+        if (session.id !== sessionId) {
           return session
         }
 
@@ -231,7 +208,15 @@ export function ChatbotDrawer({
     )
     setDraft('')
     setDraftError('')
-    scheduleMockResponse(activeSession.id, assistantMessage)
+
+    try {
+      const assistantText = targetRuns.length
+        ? await buildRagAssistantText(nextQuestion, targetRuns)
+        : buildMissingBasisMessage()
+      appendAssistantMessage(sessionId, assistantText)
+    } catch (error) {
+      appendAssistantMessage(sessionId, toKoreanErrorMessage(error.message))
+    }
   }
 
   function submitOnEnter(event) {
@@ -240,37 +225,34 @@ export function ChatbotDrawer({
     }
 
     event.preventDefault()
-    sendMockMessage()
+    void sendChatMessage()
   }
 
-  function scheduleMockResponse(sessionId, assistantMessage) {
-    const existingTimerId = responseTimerIds.current.get(sessionId)
-    if (existingTimerId) {
-      window.clearTimeout(existingTimerId)
+  function appendAssistantMessage(sessionId, text) {
+    const assistantMessage = {
+      id: messageIdRef.current,
+      sender: 'assistant',
+      text,
     }
+    messageIdRef.current += 1
 
-    const timerId = window.setTimeout(() => {
-      setSessions((currentSessions) =>
-        currentSessions.map((session) => {
-          if (session.id !== sessionId) {
-            return session
-          }
+    setSessions((currentSessions) =>
+      currentSessions.map((session) => {
+        if (session.id !== sessionId) {
+          return session
+        }
 
-          return {
-            ...session,
-            isGenerating: false,
-            updatedAt: new Date().toISOString(),
-            messages: [
-              ...session.messages,
-              assistantMessage,
-            ],
-          }
-        }),
-      )
-      responseTimerIds.current.delete(sessionId)
-    }, MOCK_RESPONSE_DELAY_MS)
-
-    responseTimerIds.current.set(sessionId, timerId)
+        return {
+          ...session,
+          isGenerating: false,
+          updatedAt: new Date().toISOString(),
+          messages: [
+            ...session.messages,
+            assistantMessage,
+          ],
+        }
+      }),
+    )
   }
 
   return (
@@ -293,7 +275,7 @@ export function ChatbotDrawer({
         <aside
           id="rag-chatbot-drawer"
           className="chatbot-drawer open"
-          aria-label="RAG 챗봇 목업"
+          aria-label="RAG 챗봇"
         >
           <header className="chatbot-header">
             <div>
@@ -330,7 +312,7 @@ export function ChatbotDrawer({
                   <span>{chatContext.technicalDetail}</span>
                 ) : null}
               </div>
-              <span className="chatbot-dev-badge">LLM 미연결</span>
+              <span className="chatbot-dev-badge">LLM 연결됨</span>
             </div>
             {chatContext.warning ? (
               <p className="chatbot-context-warning">{chatContext.warning}</p>
@@ -431,7 +413,7 @@ export function ChatbotDrawer({
                 </article>
               ))}
 
-              {activeSession.isGenerating ? (
+              {activeSession?.isGenerating ? (
                 <div className="chatbot-loading" role="status">
                   <span>답변 생성 중</span>
                   <div className="chatbot-loading-track" aria-hidden="true">
@@ -443,7 +425,7 @@ export function ChatbotDrawer({
             </div>
           </div>
 
-          <form className="chatbot-form" onSubmit={submitMockMessage}>
+          <form className="chatbot-form" onSubmit={submitChatMessage}>
             <label htmlFor="chatbot-question">질문</label>
             <textarea
               id="chatbot-question"
@@ -474,7 +456,7 @@ export function ChatbotDrawer({
                 className="primary-action"
                 disabled={isChatInputDisabled}
               >
-                {activeSession.isGenerating ? '생성 중' : '보내기'}
+                {activeSession?.isGenerating ? '생성 중' : '보내기'}
               </button>
             </div>
           </form>
@@ -494,7 +476,7 @@ function createChatSession(id, title) {
       {
         id: `intro-${id}`,
         sender: 'assistant',
-        text: '레포지토리 분석 결과를 기준으로 질문을 도와드릴게요. 지금은 화면 흐름을 확인하기 위한 목업입니다.',
+        text: '레포지토리 분석 결과를 기준으로 질문을 도와드릴게요. 기준을 선택하거나 질문에 레포 이름을 넣어 주세요.',
       },
     ],
   }
@@ -586,12 +568,132 @@ function buildChatContext(selectedRuns, isIndexing) {
   }
 }
 
-function buildMockAssistantText(chatContext) {
-  if (!chatContext.hasSelectedRuns) {
-    return '현재 고정된 답변 기준은 없습니다. 실제 연결 시에는 사용자의 질문과 대화 맥락에서 레포를 파악하고, 해당 레포의 가장 최신 완료 답변 기준으로 답변합니다.'
+function resolveQuestionRuns(question, selectedRuns, chatBasisOptions) {
+  if (selectedRuns.length) {
+    return selectedRuns
   }
 
-  return `${chatContext.detail} 기준으로 답변이 생성될 예정입니다. 실제 연결 시 내부 검색은 repository_full_name, branch, commit_sha로 고정하고 선택된 RAG 근거와 대화 중 추가된 레포 맥락을 함께 사용합니다.`
+  const inferredRuns = inferRunsFromQuestion(question, chatBasisOptions)
+  if (inferredRuns.length) {
+    return inferredRuns
+  }
+
+  if (chatBasisOptions.length === 1) {
+    return [chatBasisOptions[0]]
+  }
+
+  return []
+}
+
+function inferRunsFromQuestion(question, chatBasisOptions) {
+  const normalizedQuestion = normalizeLookupText(question)
+  const matchedRuns = chatBasisOptions.filter((run) => {
+    const repositoryFullName = normalizeLookupText(run.repository_full_name)
+    const repositoryName = normalizeLookupText(
+      String(run.repository_full_name || '').split('/').at(-1) || '',
+    )
+    const branch = normalizeLookupText(run.branch || '')
+
+    return (
+      repositoryFullName
+      && (
+        normalizedQuestion.includes(repositoryFullName)
+        || (repositoryName && normalizedQuestion.includes(repositoryName))
+        || (branch && normalizedQuestion.includes(`${repositoryName} ${branch}`))
+      )
+    )
+  })
+
+  return getLatestRunPerRepository(matchedRuns)
+}
+
+function getLatestRunPerRepository(runs) {
+  const latestRuns = new Map()
+
+  for (const run of runs) {
+    const key = run.repository_full_name
+    const currentRun = latestRuns.get(key)
+
+    if (
+      !currentRun
+      || new Date(run.indexed_at || 0) > new Date(currentRun.indexed_at || 0)
+    ) {
+      latestRuns.set(key, run)
+    }
+  }
+
+  return Array.from(latestRuns.values())
+}
+
+async function buildRagAssistantText(question, targetRuns) {
+  const response = await postJson(`${API_BASE_URL}/rag/ask`, {
+    question,
+    repository_refs: targetRuns.map(buildAskRepositoryRef),
+    limit: 5,
+  })
+
+  return formatRagAnswer(response)
+}
+
+function buildAskRepositoryRef(run) {
+  return {
+    repository_full_name: run.repository_full_name,
+    branch: run.branch || null,
+    commit_sha: run.commit_sha || null,
+  }
+}
+
+function formatRagAnswer(response) {
+  const basisText = formatRagResponseBasis(response)
+  const sourceText = formatRagSources(response.sources || [])
+  const answerText = basisText
+    ? `답변 기준\n${basisText}\n\n${response.answer}`
+    : response.answer
+
+  if (!sourceText) {
+    return answerText
+  }
+
+  return `${answerText}\n\n출처\n${sourceText}`
+}
+
+function formatRagResponseBasis(response) {
+  const responseRefs = response.repository_refs?.length
+    ? response.repository_refs
+    : [response]
+
+  return responseRefs
+    .filter((ref) => ref.repository_full_name)
+    .map((ref) => {
+      const branch = ref.branch || '기본'
+      const version = ref.commit_sha ? ` · 코드 버전 ${ref.commit_sha.slice(0, 7)}` : ''
+      return `${ref.repository_full_name} · ${branch}${version}`
+    })
+    .join('\n')
+}
+
+function formatRagSources(sources) {
+  return sources
+    .slice(0, 5)
+    .map((source, index) => {
+      const sourceLabel = source.citation || source.path || '출처 정보 없음'
+      const distanceLabel = Number.isFinite(source.distance)
+        ? ` · 거리 ${source.distance.toFixed(3)}`
+        : ''
+      return `${index + 1}. ${sourceLabel}${distanceLabel}`
+    })
+    .join('\n')
+}
+
+function buildMissingBasisMessage() {
+  return (
+    '어떤 레포지토리 기준으로 답해야 할지 찾지 못했습니다.\n'
+    + '기준 변경에서 등록된 레포지토리를 선택하거나, 질문에 owner/repo 형식의 레포 이름을 포함해 주세요.'
+  )
+}
+
+function normalizeLookupText(value) {
+  return String(value || '').trim().toLowerCase()
 }
 
 function buildChatBasisOptions(repositoryRuns, indexResult) {
