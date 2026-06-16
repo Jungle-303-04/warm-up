@@ -20,7 +20,14 @@ def check_database_connection() -> None:
 
 
 def check_github_app_configuration() -> None:
-    logger.info("GitHub App이 아직 설정되지 않아 GitHub 설정 확인을 건너뜁니다")
+    from app.github.verifier import RealGitHubAppConfigVerifier, MockGitHubAppConfigVerifier
+    settings = get_settings()
+    # local 또는 postgres가 활성화되지 않았을 때는 Mock 검증기, 상용 환경 등에서는 Real 검증기를 가동
+    if settings.repolm_env == "local":
+        verifier = MockGitHubAppConfigVerifier()
+    else:
+        verifier = RealGitHubAppConfigVerifier(settings)
+    verifier.verify()
 
 
 def check_embedding_provider_configuration() -> None:

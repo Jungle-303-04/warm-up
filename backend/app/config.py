@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     postgres_database_url: str | None = None
+    repolm_env: str = "local"
 
     # 임베딩
     embedding_provider: str = "deterministic"  # "deterministic" | "openai"
