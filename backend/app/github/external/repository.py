@@ -4,6 +4,7 @@ from app.external.http import HttpClientPort, HttpRequest, HttpRequestError
 from app.github.api.schema import GitHubFileResponseDTO
 from app.rag.api.schema import (
     GitHubRagPipelineRequestDTO,
+    GitHubRepositoryBranchDTO,
     GitHubRepositoryIndexRequestDTO,
     GitHubRepositoryRefDTO,
 )
@@ -103,6 +104,51 @@ class GitHubRepositoryClient:
         return self.get_json(
             access_token,
             f"/repos/{quote_repository_full_name(repository_full_name)}",
+        )
+
+    def list_repository_branches(
+        self,
+        access_token: str,
+        repository_full_name: str,
+    ) -> tuple[str | None, list[GitHubRepositoryBranchDTO]]:
+        """브랜치 입력 UI가 선택지를 보여줄 수 있게 레포의 브랜치 목록을 가져온다."""
+
+        repository = self.fetch_repository(access_token, repository_full_name)
+        default_branch = repository.get("default_branch")
+        payload = self.get_json_list(
+            access_token,
+            f"/repos/{quote_repository_full_name(repository_full_name)}/branches?per_page=100",
+        )
+        branches = [
+            self.build_branch_dto(item, default_branch)
+            for item in payload
+            if isinstance(item, dict)
+        ]
+
+        return (
+            default_branch if isinstance(default_branch, str) else None,
+            sorted(branches, key=lambda branch: (not branch.is_default, branch.name.lower())),
+        )
+
+    def build_branch_dto(
+        self,
+        payload: dict,
+        default_branch: str | None,
+    ) -> GitHubRepositoryBranchDTO:
+        """GitHub branch API 응답에서 프론트가 필요한 값만 추린다."""
+
+        name = payload.get("name")
+        commit_sha = payload.get("commit", {}).get("sha")
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError("github branch response does not contain branch name")
+        if not isinstance(commit_sha, str) or not commit_sha.strip():
+            raise ValueError("github branch response does not contain commit sha")
+
+        return GitHubRepositoryBranchDTO(
+            name=name,
+            commit_sha=commit_sha,
+            protected=bool(payload.get("protected")),
+            is_default=name == default_branch,
         )
 
     def fetch_branch_commit_sha(
@@ -205,6 +251,26 @@ class GitHubRepositoryClient:
             raise ValueError(str(exc)) from exc
 
         if not isinstance(payload, dict):
+            raise ValueError("github api response is invalid")
+
+        return payload
+
+    def get_json_list(self, access_token: str, path: str) -> list[dict]:
+        """GitHub API가 배열로 반환하는 응답을 가져온다."""
+
+        try:
+            payload = self.http_client.request_json(
+                HttpRequest(
+                    method="GET",
+                    url=f"{GITHUB_API_BASE_URL}{path}",
+                    headers=self.build_headers(access_token),
+                    timeout=REQUEST_TIMEOUT_SECONDS,
+                )
+            )
+        except HttpRequestError as exc:
+            raise ValueError(str(exc)) from exc
+
+        if not isinstance(payload, list):
             raise ValueError("github api response is invalid")
 
         return payload

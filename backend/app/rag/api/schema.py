@@ -114,6 +114,19 @@ def normalize_repository_full_name(value: str) -> str:
     return repository.strip("/")
 
 
+class GitHubRepositoryBranchDTO(BaseModel):
+    name: str
+    commit_sha: str
+    protected: bool = False
+    is_default: bool = False
+
+
+class GitHubRepositoryBranchListResponseDTO(BaseModel):
+    repository_full_name: str
+    default_branch: str | None = None
+    branches: list[GitHubRepositoryBranchDTO]
+
+
 class GitHubRagSkippedFileDTO(BaseModel):
     path: str
     reason: str

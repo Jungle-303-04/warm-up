@@ -8,6 +8,9 @@ export function RepositoryWorkspace({
   indexResult,
   isLoading,
   isIndexing,
+  branchOptions = [],
+  isLoadingBranches = false,
+  branchLookupMessage = '',
   onRepositoryChange,
   onBranchChange,
   onIndexRepository,
@@ -26,6 +29,9 @@ export function RepositoryWorkspace({
         branch={branch}
         isLoading={isLoading}
         isIndexing={isIndexing}
+        branchOptions={branchOptions}
+        isLoadingBranches={isLoadingBranches}
+        branchLookupMessage={branchLookupMessage}
         onRepositoryChange={onRepositoryChange}
         onBranchChange={onBranchChange}
         onSubmit={onIndexRepository}
@@ -151,10 +157,15 @@ function RepositoryIndexForm({
   branch,
   isLoading,
   isIndexing,
+  branchOptions,
+  isLoadingBranches,
+  branchLookupMessage,
   onRepositoryChange,
   onBranchChange,
   onSubmit,
 }) {
+  const hasBranchOptions = branchOptions.length > 0
+
   return (
     <form className="workspace-form" onSubmit={onSubmit}>
       <label className="repository-field-full">
@@ -176,10 +187,25 @@ function RepositoryIndexForm({
             type="text"
             value={branch}
             onChange={(event) => onBranchChange(event.target.value)}
-            placeholder="비워두면 기본 브랜치 전체 분석"
+            placeholder={isLoadingBranches ? '브랜치 목록 확인 중' : '비워두면 기본 브랜치 전체 분석'}
             autoComplete="off"
+            list={hasBranchOptions ? 'repository-branch-options' : undefined}
             disabled={isLoading}
           />
+          {hasBranchOptions ? (
+            <datalist id="repository-branch-options">
+              {branchOptions.map((branchOption) => (
+                <option key={branchOption.name} value={branchOption.name}>
+                  {buildBranchOptionLabel(branchOption)}
+                </option>
+              ))}
+            </datalist>
+          ) : null}
+          {branchLookupMessage ? (
+            <p className="repository-branch-message">
+              {branchLookupMessage}
+            </p>
+          ) : null}
         </label>
 
         <button
@@ -196,6 +222,20 @@ function RepositoryIndexForm({
       ) : null}
     </form>
   )
+}
+
+function buildBranchOptionLabel(branchOption) {
+  if (branchOption.is_default) {
+    return '기본 브랜치'
+  }
+
+  if (branchOption.protected) {
+    return '보호된 브랜치'
+  }
+
+  return branchOption.commit_sha
+    ? `코드 버전 ${branchOption.commit_sha.slice(0, 7)}`
+    : branchOption.name
 }
 
 function ProgressPanel({ message }) {

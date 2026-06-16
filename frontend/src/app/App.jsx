@@ -40,6 +40,9 @@ function App() {
   const [theme, setTheme] = useState(getInitialTheme)
   const [repositoryFullName, setRepositoryFullName] = useState('')
   const [branch, setBranch] = useState('')
+  const [repositoryBranches, setRepositoryBranches] = useState([])
+  const [isLoadingRepositoryBranches, setIsLoadingRepositoryBranches] = useState(false)
+  const [repositoryBranchMessage, setRepositoryBranchMessage] = useState('')
   const [indexResult, setIndexResult] = useState(null)
   const [repositoryRuns, setRepositoryRuns] = useState([])
   const [chatSelectedRunIds, setChatSelectedRunIds] = useState([])
@@ -303,6 +306,8 @@ function App() {
         setUser(null)
         setBoards([])
         setRepositoryRuns([])
+        setRepositoryBranches([])
+        setRepositoryBranchMessage('')
         setChatSelectedRunIds([])
         setSelectedBoard(null)
         setIsCreatingBoard(false)
@@ -329,6 +334,8 @@ function App() {
       setIndexResult(null)
       setBoards([])
       setRepositoryRuns([])
+      setRepositoryBranches([])
+      setRepositoryBranchMessage('')
       setChatSelectedRunIds([])
       setSelectedBoard(null)
       setIsCreatingBoard(false)
@@ -720,6 +727,9 @@ function App() {
 
   function updateRepositoryFullName(value) {
     setRepositoryFullName(value)
+    setBranch('')
+    setRepositoryBranches([])
+    setRepositoryBranchMessage('')
   }
 
   function updateBranch(value) {
@@ -744,6 +754,81 @@ function App() {
     setIndexResult(nextIndexResult)
     setChatSelectedRunIds(run.id ? [run.id] : [])
   }
+
+  useEffect(() => {
+    if (!user || !isRepositoryPageOpen) {
+      setRepositoryBranches([])
+      setRepositoryBranchMessage('')
+      setIsLoadingRepositoryBranches(false)
+      return undefined
+    }
+
+    const repositoryName = normalizeRepositoryInput(repositoryFullName)
+    if (!repositoryName) {
+      setRepositoryBranches([])
+      setRepositoryBranchMessage('')
+      setIsLoadingRepositoryBranches(false)
+      return undefined
+    }
+
+    let didCancel = false
+    const timerId = window.setTimeout(async () => {
+      setIsLoadingRepositoryBranches(true)
+      setRepositoryBranchMessage('브랜치 목록을 확인하는 중입니다.')
+
+      try {
+        // Backend: GET /rag/github/repository/branches
+        // Expected query:
+        // {
+        //   repository_full_name: string // "owner/repo" 또는 GitHub URL
+        // }
+        // Response DTO:
+        // {
+        //   repository_full_name: string,
+        //   default_branch?: string | null,
+        //   branches: Array<{
+        //     name: string,
+        //     commit_sha: string,
+        //     protected: boolean,
+        //     is_default: boolean
+        //   }>
+        // }
+        // 브랜치 입력은 datalist라서 사용자가 목록 선택과 직접 입력을 모두 할 수 있다.
+        const params = new URLSearchParams({ repository_full_name: repositoryName })
+        const payload = await fetchJson(`${API_BASE_URL}/rag/github/repository/branches?${params}`)
+        if (didCancel) {
+          return
+        }
+
+        const branches = payload.branches || []
+        setRepositoryBranches(branches)
+        setBranch((currentBranch) => currentBranch.trim()
+          ? currentBranch
+          : payload.default_branch || '')
+        setRepositoryBranchMessage(
+          branches.length
+            ? `브랜치 ${branches.length}개를 불러왔습니다.`
+            : '조회된 브랜치가 없습니다.',
+        )
+      } catch (error) {
+        if (didCancel) {
+          return
+        }
+
+        setRepositoryBranches([])
+        setRepositoryBranchMessage(toKoreanErrorMessage(error.message))
+      } finally {
+        if (!didCancel) {
+          setIsLoadingRepositoryBranches(false)
+        }
+      }
+    }, 350)
+
+    return () => {
+      didCancel = true
+      window.clearTimeout(timerId)
+    }
+  }, [isRepositoryPageOpen, repositoryFullName, user])
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -888,6 +973,9 @@ function App() {
                 indexResult={indexResult}
                 isLoading={isLoading}
                 isIndexing={isIndexing}
+                branchOptions={repositoryBranches}
+                isLoadingBranches={isLoadingRepositoryBranches}
+                branchLookupMessage={repositoryBranchMessage}
                 onRepositoryChange={updateRepositoryFullName}
                 onBranchChange={updateBranch}
                 onIndexRepository={indexRepository}

@@ -581,6 +581,14 @@ h1 {
   gap: 12px;
 }
 
+.repository-branch-message {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .form-grid {
   display: grid;
   gap: 12px;

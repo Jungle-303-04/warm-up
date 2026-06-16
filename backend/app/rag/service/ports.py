@@ -6,6 +6,7 @@ from app.github.api.schema import GitHubFileResponseDTO, GitHubFileSnapshotDTO
 from app.rag.api.schema import (
     GitHubRagPipelineRequestDTO,
     GitHubRagPipelineResultDTO,
+    GitHubRepositoryBranchDTO,
     GitHubRepositoryIndexRequestDTO,
     GitHubRepositoryRefDTO,
     RagAskRequestDTO,
@@ -60,6 +61,12 @@ class AnswerGraph(Protocol):
 
 
 class RepoSource(Protocol):
+    def list_repository_branches(
+        self,
+        access_token: str,
+        repository_full_name: str,
+    ) -> tuple[str | None, list[GitHubRepositoryBranchDTO]]: ...
+
     def resolve_repository_ref(
         self,
         access_token: str,

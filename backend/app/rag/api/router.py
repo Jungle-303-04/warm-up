@@ -8,6 +8,7 @@ from app.db.session import get_session
 from app.rag.api.schema import (
     GitHubRagPipelineRequestDTO,
     GitHubRagPipelineResultDTO,
+    GitHubRepositoryBranchListResponseDTO,
     GitHubRepositoryIndexRequestDTO,
     RagAskRequestDTO,
     RagAskResponseDTO,
@@ -19,7 +20,7 @@ from app.rag.api.schema import (
     RagVectorSearchResponseDTO,
 )
 from app.rag.service.pipeline import GitHubRagPipelineService
-from app.rag.service.ports import AnswerUseCase, IndexUseCase
+from app.rag.service.ports import AnswerUseCase, IndexUseCase, RepoSource
 
 rag = APIRouter(prefix="/rag")
 
@@ -80,6 +81,40 @@ def store_github_repository_rag_index(
             db=auth_context.db,
             request=request,
             github_access_token=account.access_token,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@rag.get(
+    "/github/repository/branches",
+    tags=["rag"],
+    response_model=GitHubRepositoryBranchListResponseDTO,
+)
+@inject
+def list_github_repository_branches(
+    repository_full_name: str = Query(min_length=1),
+    auth_context: AuthRequestContext = Depends(resolve_auth_context),
+    repository_source: RepoSource = Depends(Provide[AppContainer.github_repository_client]),
+) -> GitHubRepositoryBranchListResponseDTO:
+    """로그인 사용자의 GitHub 토큰으로 레포 브랜치 선택지를 조회한다."""
+
+    try:
+        account = auth_context.github_account()
+        request = GitHubRepositoryIndexRequestDTO(
+            repository_full_name=repository_full_name,
+        )
+        default_branch, branches = repository_source.list_repository_branches(
+            access_token=account.access_token,
+            repository_full_name=request.repository_full_name,
+        )
+        return GitHubRepositoryBranchListResponseDTO(
+            repository_full_name=request.repository_full_name,
+            default_branch=default_branch,
+            branches=branches,
         )
     except ValueError as exc:
         raise HTTPException(
