@@ -11,6 +11,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     # 실행 중 import가 아니라 타입 검사기/IDE 자동완성용 import다.
     from app.models.comment import Comment
+    from app.models.daily_message import DailyMessage
     from app.models.page import Page
 
 
@@ -52,6 +53,11 @@ class User(Base):
     pages: Mapped[list["Page"]] = relationship(
         back_populates="author",
         # User에서 빠진 페이지는 고아 데이터로 보고 같이 삭제한다.
+        cascade="all, delete-orphan",
+    )
+
+    daily_messages: Mapped[list["DailyMessage"]] = relationship(
+        back_populates="author",
         cascade="all, delete-orphan",
     )
 

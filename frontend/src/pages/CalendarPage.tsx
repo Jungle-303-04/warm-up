@@ -17,6 +17,7 @@ import type { CalendarPageItem, PageType } from "../types/page";
 type CalendarPageProps = {
   currentUser: UserResponse | null;
   onLogout: () => void;
+  onNavigate: (page: "calendar" | "daily-message") => void;
 };
 
 function toDateKey(date: Date) {
@@ -44,7 +45,11 @@ function getEventClassName(type: PageType) {
   return type === "MEETING" ? "teamlog-event-meeting" : "teamlog-event-retro";
 }
 
-export function CalendarPage({ currentUser, onLogout }: CalendarPageProps) {
+export function CalendarPage({
+  currentUser,
+  onLogout,
+  onNavigate,
+}: CalendarPageProps) {
   const todayKey = toDateKey(new Date());
   const calendarRef = useRef<FullCalendar | null>(null);
 
@@ -174,6 +179,8 @@ export function CalendarPage({ currentUser, onLogout }: CalendarPageProps) {
 
   return (
     <AppLayout
+      activePage="calendar"
+      onNavigate={onNavigate}
       topbar={
         <Topbar
           currentMonthLabel={currentMonthLabel}

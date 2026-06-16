@@ -1,26 +1,48 @@
-// 왼쪽 사이드바
-// └─ 캘린더
+import { CalendarDays, MessageSquareText } from "lucide-react";
 
-import { CalendarDays } from "lucide-react";
+import type { AppPage } from "./AppLayout";
 
-// 앱 왼쪽에 고정되는 사이드바입니다. 현재는 캘린더 메뉴만 있습니다.
-export function Sidebar() {
-    return (
-        <aside className="sidebar">
-            <div className="sidebar-logo">
-                <div className="sidebar-logo-icon">T</div>
-                <div>
-                    <div className="sidebar-logo-title">TeamLog</div>
-                    <div className="sidebar-logo-subtitle">협업 기록 도구</div>
-                </div>
-            </div>
+type SidebarProps = {
+  activePage: AppPage;
+  onNavigate: (page: AppPage) => void;
+};
 
-            <nav className="sidebar-nav">
-                <button className="sidebar-nav-item active">
-                    <CalendarDays size={18} />
-                    <span>캘린더</span>
-                </button>
-            </nav>
-        </aside>
-    );
+export function Sidebar({ activePage, onNavigate }: SidebarProps) {
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-icon">T</div>
+        <div>
+          <div className="sidebar-logo-title">TeamLog</div>
+          <div className="sidebar-logo-subtitle">협업 기록 도구</div>
+        </div>
+      </div>
+
+      <nav className="sidebar-nav">
+        {/* 캘린더 메뉴를 누르면 App.tsx가 CalendarPage를 렌더링한다. */}
+        <button
+          className={`sidebar-nav-item ${
+            activePage === "calendar" ? "active" : ""
+          }`}
+          type="button"
+          onClick={() => onNavigate("calendar")}
+        >
+          <CalendarDays size={18} />
+          <span>캘린더</span>
+        </button>
+
+        {/* 오늘의 한마디 메뉴를 누르면 App.tsx가 DailyMessagePage를 렌더링한다. */}
+        <button
+          className={`sidebar-nav-item ${
+            activePage === "daily-message" ? "active" : ""
+          }`}
+          type="button"
+          onClick={() => onNavigate("daily-message")}
+        >
+          <MessageSquareText size={18} />
+          <span>오늘의 한마디</span>
+        </button>
+      </nav>
+    </aside>
+  );
 }
