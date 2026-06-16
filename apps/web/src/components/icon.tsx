@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowUp,
   ArrowUpRight,
+  AudioLines,
   Bell,
   Boxes,
   Calendar,
@@ -39,6 +40,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Settings2,
   Share2,
   Sparkles,
   StickyNote,
@@ -83,6 +85,8 @@ const ICONS: Record<string, LucideIcon> = {
   code_tour: MapPinned, // 코드 투어 (스튜디오)
   diff: GitCompare, // 변경 요약 (스튜디오)
   test_map: FlaskConical, // 테스트맵 (스튜디오)
+  audio: AudioLines, // 오디오 개요 (스튜디오)
+  settings: Settings2, // 상단바 설정
   article: StickyNote,
   lightbulb: Lightbulb, // 추천 질문 칩
   note_add: NotebookPen, // 메모 추가

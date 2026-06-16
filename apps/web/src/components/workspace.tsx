@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { getNotebook } from "../lib/api";
+import { SourceActionsProvider } from "../lib/source-actions";
 import { useWorkspace } from "../lib/store";
 import { PANEL_LIMITS, usePanelSizes } from "../lib/use-panel-sizes";
 import type { NotebookDetail } from "../lib/types";
@@ -76,40 +77,43 @@ export function Workspace({ notebookId }: { notebookId: string }) {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
-      <TopBar notebookTitle={notebook.title} />
-      <main ref={mainRef} className="flex flex-1 gap-3 overflow-hidden px-3 pb-3 pt-0.5">
-        {/* 좌 패널: 동적 px 너비(불가피한 값 → style). */}
-        <SourcesPanel notebookId={notebook.id} style={{ width: `${sizes.left}px` }} />
+    // relative: 모달(absolute inset-0)이 화면 전체를 덮을 기준점.
+    <SourceActionsProvider notebookId={notebook.id}>
+      <div className="relative flex h-screen flex-col bg-background text-foreground">
+        <TopBar notebookId={notebook.id} notebookTitle={notebook.title} />
+        <main ref={mainRef} className="flex flex-1 gap-3 overflow-hidden px-3 pb-3 pt-0.5">
+          {/* 좌 패널: 동적 px 너비(불가피한 값 → style). */}
+          <SourcesPanel notebookId={notebook.id} style={{ width: `${sizes.left}px` }} />
 
-        {/* 좌-중 드래그 핸들 */}
-        <ResizeHandle
-          ariaLabel="소스 패널 너비 조절"
-          onResizeStart={() => {
-            baseRef.current.left = sizes.left;
-          }}
-          onResize={(delta) =>
-            setLeft(Math.min(baseRef.current.left + delta, maxLeftByCenter()))
-          }
-        />
+          {/* 좌-중 드래그 핸들 */}
+          <ResizeHandle
+            ariaLabel="소스 패널 너비 조절"
+            onResizeStart={() => {
+              baseRef.current.left = sizes.left;
+            }}
+            onResize={(delta) =>
+              setLeft(Math.min(baseRef.current.left + delta, maxLeftByCenter()))
+            }
+          />
 
-        {/* 가운데: 나머지 채움 */}
-        <CenterPanel />
+          {/* 가운데: 나머지 채움 */}
+          <CenterPanel />
 
-        {/* 중-우 드래그 핸들(우 패널은 왼쪽으로 끌면 넓어지므로 delta 부호 반전) */}
-        <ResizeHandle
-          ariaLabel="스튜디오 패널 너비 조절"
-          onResizeStart={() => {
-            baseRef.current.right = sizes.right;
-          }}
-          onResize={(delta) =>
-            setRight(Math.min(baseRef.current.right - delta, maxRightByCenter()))
-          }
-        />
+          {/* 중-우 드래그 핸들(우 패널은 왼쪽으로 끌면 넓어지므로 delta 부호 반전) */}
+          <ResizeHandle
+            ariaLabel="스튜디오 패널 너비 조절"
+            onResizeStart={() => {
+              baseRef.current.right = sizes.right;
+            }}
+            onResize={(delta) =>
+              setRight(Math.min(baseRef.current.right - delta, maxRightByCenter()))
+            }
+          />
 
-        {/* 우 패널: 동적 px 너비 */}
-        <StudioPanel style={{ width: `${sizes.right}px` }} />
-      </main>
-    </div>
+          {/* 우 패널: 동적 px 너비 */}
+          <StudioPanel style={{ width: `${sizes.right}px` }} />
+        </main>
+      </div>
+    </SourceActionsProvider>
   );
 }

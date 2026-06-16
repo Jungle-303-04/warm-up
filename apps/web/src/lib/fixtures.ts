@@ -40,15 +40,24 @@ export interface StudioTile {
 // 카드별 고유 색조 키. globals.css의 .studio-tint-* 클래스와 1:1.
 export type StudioTint = "blue" | "violet" | "teal" | "amber" | "rose" | "indigo" | "green" | "cyan";
 
+// 스튜디오 상단 와이드 히어로 카드(가장 강조되는 산출물).
+export const STUDIO_HERO = {
+  icon: "code_tour",
+  tint: "teal" as StudioTint,
+  label: "코드 투어",
+  hint: "핵심 경로를 따라가는 단계별 가이드",
+  meta: "소스 기반 · 베타",
+};
+
 export const STUDIO_TILES: StudioTile[] = [
   { icon: "account_tree", label: "UML", hint: "클래스·시퀀스 다이어그램", tint: "blue" },
   { icon: "schema", label: "ERD", hint: "데이터 모델 관계도", tint: "violet" },
-  { icon: "code_tour", label: "코드 투어", hint: "핵심 경로 가이드", tint: "teal", beta: true },
   { icon: "dependency", label: "의존성 그래프", hint: "모듈 의존 관계", tint: "amber" },
   { icon: "report", label: "보고서", hint: "근거 기반 문서", tint: "rose" },
   { icon: "mindmap", label: "마인드맵", hint: "개념 연결도", tint: "indigo" },
   { icon: "diff", label: "변경 요약", hint: "커밋·diff 정리", tint: "green", beta: true },
   { icon: "test_map", label: "테스트맵", hint: "커버리지 매핑", tint: "cyan" },
+  { icon: "audio", label: "오디오 개요", hint: "대화형 요약 음성", tint: "blue", beta: true },
 ];
 
 // 메모 데모: 제목 + 종류(서브텍스트) + 시간 + 아이콘.

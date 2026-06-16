@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { createSource } from "../lib/api";
 import { cn } from "../lib/cn";
@@ -17,18 +17,25 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "repo", label: "GitHub 레포", icon: "github" },
 ];
 
-// URL·레포 추가 전용 모달.
+// URL·레포 추가 전용 모달. initialTab으로 진입 탭을 지정(온보딩 카드에서 활용).
 export function SourceAddModal({
   open,
   onClose,
   notebookId,
+  initialTab = "url",
 }: {
   open: boolean;
   onClose: () => void;
   notebookId: string;
+  initialTab?: Tab;
 }) {
-  const [tab, setTab] = useState<Tab>("url");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const addSource = useWorkspace((s) => s.addSource);
+
+  // 모달이 열릴 때마다 요청된 진입 탭으로 동기화.
+  useEffect(() => {
+    if (open) setTab(initialTab);
+  }, [open, initialTab]);
 
   // 두 탭이 공유하는 제출 핸들러: 생성 → 스토어 반영 → 닫기.
   const submit = async (body: SourceCreate) => {

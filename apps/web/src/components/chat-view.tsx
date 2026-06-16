@@ -6,6 +6,7 @@ import { CHAT_SUMMARY, DEMO_RESPONSE, SUGGESTIONS } from "../lib/fixtures";
 import { selectScopeCount, useWorkspace } from "../lib/store";
 import type { AgentResponse } from "../lib/types";
 import { AgentMessage } from "./agent-message";
+import { ChatEmpty } from "./chat-empty";
 import { Icon } from "./icon";
 
 interface Turn {
@@ -34,23 +35,26 @@ export function ChatView() {
     setQuery("");
   };
 
+  // 소스 0개: 빈 채팅 대신 온보딩 히어로를 보여준다.
+  if (sourceCount === 0) return <ChatEmpty />;
+
   return (
     <>
       <div className="scroll-thin flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-2xl px-6 py-7">
+        <div className="mx-auto w-full max-w-2xl px-6 py-6">
           {/* 환영 카드 */}
           <div className="rounded-2xl border border-border bg-card p-5 shadow-elev-1">
             <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-accent text-accent-foreground">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-accent text-accent-foreground shadow-elev-1">
                 <Icon name="hub" size={22} />
               </span>
               <div className="min-w-0 flex-1">
                 <h1 className="truncate text-[16px] font-semibold tracking-tight">RepoLM 대화</h1>
-                <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+                <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
                   소스 {sourceCount}개 연결됨 · {today}
                 </p>
               </div>
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground">
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
                 <Icon name="check_circle" size={13} />
                 {scopeCount}개 기준
               </span>

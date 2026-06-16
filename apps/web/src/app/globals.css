@@ -142,68 +142,68 @@ textarea {
   color: var(--st-fg);
 }
 .studio-tint-blue {
-  --st-bg: #e6f1fb;
-  --st-fg: #185fa5;
+  --st-bg: #d4e6fb;
+  --st-fg: #11539e;
 }
 .studio-tint-violet {
-  --st-bg: #efeafb;
-  --st-fg: #6b3fa0;
+  --st-bg: #e4dafb;
+  --st-fg: #5f31a0;
 }
 .studio-tint-teal {
-  --st-bg: #e1f5ee;
-  --st-fg: #0f6e56;
+  --st-bg: #c9f0e2;
+  --st-fg: #0a6650;
 }
 .studio-tint-amber {
-  --st-bg: #fbf0dd;
-  --st-fg: #9a6312;
+  --st-bg: #fae3c2;
+  --st-fg: #8a560c;
 }
 .studio-tint-rose {
-  --st-bg: #fceaef;
-  --st-fg: #a8324e;
+  --st-bg: #fbdce5;
+  --st-fg: #9e2746;
 }
 .studio-tint-indigo {
-  --st-bg: #e7e9fc;
-  --st-fg: #3f4bb0;
+  --st-bg: #dcdffb;
+  --st-fg: #353fa8;
 }
 .studio-tint-green {
-  --st-bg: #e6f3e6;
-  --st-fg: #2c7a35;
+  --st-bg: #d5edd6;
+  --st-fg: #25702e;
 }
 .studio-tint-cyan {
-  --st-bg: #e0f3f5;
-  --st-fg: #0c6b75;
+  --st-bg: #cdeef1;
+  --st-fg: #08636d;
 }
 .dark .studio-tint-blue {
-  --st-bg: #1a2c42;
-  --st-fg: #9cc4f5;
+  --st-bg: #1d3654;
+  --st-fg: #aacdf8;
 }
 .dark .studio-tint-violet {
-  --st-bg: #2c2542;
-  --st-fg: #c6aef0;
+  --st-bg: #342a52;
+  --st-fg: #d0bbf5;
 }
 .dark .studio-tint-teal {
-  --st-bg: #14342b;
-  --st-fg: #8bd6bd;
+  --st-bg: #163e33;
+  --st-fg: #99dcc5;
 }
 .dark .studio-tint-amber {
-  --st-bg: #392c16;
-  --st-fg: #e3b266;
+  --st-bg: #43331a;
+  --st-fg: #ecbe74;
 }
 .dark .studio-tint-rose {
-  --st-bg: #3a1f28;
-  --st-fg: #efa3b6;
+  --st-bg: #45242f;
+  --st-fg: #f4adbe;
 }
 .dark .studio-tint-indigo {
-  --st-bg: #232542;
-  --st-fg: #aab2f0;
+  --st-bg: #292c52;
+  --st-fg: #b6bdf4;
 }
 .dark .studio-tint-green {
-  --st-bg: #1a3320;
-  --st-fg: #8fd196;
+  --st-bg: #1d3d25;
+  --st-fg: #9bd9a1;
 }
 .dark .studio-tint-cyan {
-  --st-bg: #123236;
-  --st-fg: #79cdd6;
+  --st-bg: #143b40;
+  --st-fg: #87d6de;
 }
 
 /* 공통 상호작용 전환: 색/그림자/transform을 부드럽게. */
@@ -214,6 +214,36 @@ textarea {
     box-shadow 200ms cubic-bezier(0.2, 0, 0, 1),
     color 150ms cubic-bezier(0.2, 0, 0, 1),
     transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ── 타이포 위계 유틸 ────────────────────────────────────────────────
+   패널/섹션/본문/캡션/히어로의 일관 스케일. 굵기·자간 대비를 또렷하게. */
+.t-hero {
+  font-size: 21px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.t-title {
+  font-size: 15px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.t-section {
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.t-body {
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.t-caption {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: hsl(var(--muted-foreground));
 }
 
 /* 커스텀 스크롤바: NotebookLM처럼 얇고 은은하게. */
