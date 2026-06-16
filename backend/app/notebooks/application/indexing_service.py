@@ -12,7 +12,7 @@ md/text/pdf 소스는 각각 마크다운 청커/텍스트 분할기로 처리�
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 from uuid import uuid4
 
 from app.notebooks.domain.chunk_records import NotebookChunk
@@ -57,7 +57,7 @@ class IndexingService:
     id_factory: Callable[[], str] = _new_id
     # repo 재풀링(재클론)용. None이면 재풀링 없이 기존 스냅샷으로 인덱싱한다.
     # 헥사고날 경계: NotebookService와 동일한 RepoSyncService 포트를 주입받는다.
-    repo_sync: "RepoSyncService | None" = None
+    repo_sync: "Any | None" = None
 
     def register(self, source: SourceRecord) -> None:
         """소스 생성 직후 큐 등록(BackgroundTasks 실행 전 호출)."""

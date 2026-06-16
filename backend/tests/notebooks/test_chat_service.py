@@ -7,6 +7,8 @@
 
 from datetime import UTC, datetime
 from itertools import count
+from typing import Any
+
 
 from app.notebooks.application.chat_service import ChatService
 from app.notebooks.application.indexing_service import IndexingService
@@ -223,7 +225,7 @@ def test_chat_uses_injected_answerer_for_answer_body() -> None:
     for source in notebook_service.list_sources(notebook.id):
         indexing.index_source(notebook.id, source.id)
 
-    captured: dict[str, object] = {}
+    captured: dict[str, Any] = {}
 
     def fake_answerer(question, chunks):
         captured["question"] = question
@@ -311,7 +313,7 @@ def test_chat_openai_answerer_formats_context_without_network() -> None:
 
     class _FakeModel:
         def __init__(self):
-            self.last_messages = None
+            self.last_messages: list[tuple[str, str]] | None = None
 
         def invoke(self, messages):
             self.last_messages = messages
@@ -332,6 +334,7 @@ def test_chat_openai_answerer_formats_context_without_network() -> None:
 
     assert answer == "근거 기반 답변"
     # system + human 메시지 구조.
+    assert model.last_messages is not None
     roles = [role for role, _ in model.last_messages]
     assert roles == ["system", "human"]
     human_content = model.last_messages[1][1]

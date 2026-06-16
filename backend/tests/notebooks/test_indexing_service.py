@@ -100,6 +100,7 @@ def test_md_source_indexes_and_completes() -> None:
     indexing.index_source(notebook.id, source.id)
 
     view = registry.get(source.id)
+    assert view is not None
     assert view["status"] == "done"
     assert view["percent"] == 100
     assert view["total_files"] == 1
@@ -120,6 +121,7 @@ def test_text_source_indexes_with_text_language() -> None:
     indexing.index_source(notebook.id, source.id)
 
     view = registry.get(source.id)
+    assert view is not None
     assert view["status"] == "done"
     assert chunk_store.count_by_source(source.id) > 0
     # text 소스 청크는 file_path 없이 language="text".
@@ -149,6 +151,7 @@ def test_url_source_done_with_zero_files() -> None:
     indexing.index_source(notebook.id, source.id)
 
     view = registry.get(source.id)
+    assert view is not None
     assert view["status"] == "done"
     assert view["total_files"] == 0
     assert view["percent"] == 100
@@ -216,10 +219,13 @@ def test_reindex_repo_repulls_and_updates_snapshot() -> None:
     assert fake_sync.calls == 1
     # 저장소 스냅샷이 최신 파일로 갱신됨.
     updated = store.get_source(notebook.id, repo.id)
+    assert updated is not None
+    assert updated.repo_snapshot is not None
     paths = {entry["path"] for entry in updated.repo_snapshot}
     assert paths == {"app/new.py"}
 
     view = registry.get(repo.id)
+    assert view is not None
     assert view["status"] == "done"
     assert view["last_synced_at"] is not None
     # 최신 파일 기준으로 인덱싱됨.
@@ -258,10 +264,13 @@ def test_reindex_repo_falls_back_when_resync_fails() -> None:
 
     # 재클론 실패 → 기존 스냅샷 유지, 인덱싱은 done, error에 사유 기록.
     updated = store.get_source(notebook.id, repo.id)
+    assert updated is not None
+    assert updated.repo_snapshot is not None
     paths = {entry["path"] for entry in updated.repo_snapshot}
     assert paths == {"app/keep.py"}
 
     view = registry.get(repo.id)
+    assert view is not None
     assert view["status"] == "done"
     assert view["error"] is not None
     assert "재동기화" in view["error"]
