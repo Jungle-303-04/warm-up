@@ -101,7 +101,7 @@ function FontInfoPopover({ font }) {
             ) : null}
             {hasText(downloadUrl) ? (
               <div>
-                <dt className="font-semibold">Download URL</dt>
+                <dt className="font-semibold">다운로드</dt>
                 <dd className="mt-1">
                   <a
                     className="text-[#6b7280] underline-offset-2 transition-colors hover:text-black hover:underline"
@@ -109,7 +109,7 @@ function FontInfoPopover({ font }) {
                     rel="noreferrer"
                     target="_blank"
                   >
-                    {downloadUrl}
+                    {font.name} 다운로드 하러가기
                   </a>
                 </dd>
               </div>
