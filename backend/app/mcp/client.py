@@ -1,9 +1,10 @@
-import asyncio
-from typing import Any, List
+from typing import Any
+
+from langchain_core.tools import StructuredTool
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from langchain_core.tools import StructuredTool
-from pydantic import create_model, Field
+from pydantic import Field, create_model
+
 
 class MCPClient:
     def __init__(self, server_path: str = "app.mcp.server"):
@@ -15,18 +16,18 @@ class MCPClient:
             args=["-m", server_path],
         )
 
-    async def list_tools_as_langchain(self) -> List[StructuredTool]:
+    async def list_tools_as_langchain(self) -> list[StructuredTool]:
         """Fetch tools from MCP server and convert them to LangChain StructuredTool objects."""
         try:
-            async with stdio_client(self.server_params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    mcp_tools = await session.list_tools()
-                    
-                    lc_tools = []
-                    for tool in mcp_tools.tools:
-                        lc_tools.append(self._to_langchain_tool(tool))
-                    return lc_tools
+            async with stdio_client(self.server_params) as (read, write), \
+                   ClientSession(read, write) as session:
+                await session.initialize()
+                mcp_tools = await session.list_tools()
+
+                lc_tools = []
+                for tool in mcp_tools.tools:
+                    lc_tools.append(self._to_langchain_tool(tool))
+                return lc_tools
         except Exception as e:
             print(f"Error fetching tools from MCP Server: {e}")
             return []
@@ -34,30 +35,35 @@ class MCPClient:
     async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> str:
         """Call a specific tool on the MCP server and return its string result."""
         try:
-            async with stdio_client(self.server_params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    result = await session.call_tool(tool_name, arguments)
-                    
-                    # content 결과 파싱 및 머징
-                    texts = []
-                    for content in result.content:
-                        if hasattr(content, "text"):
-                            texts.append(content.text)
-                        elif isinstance(content, dict) and "text" in content:
-                            texts.append(content["text"])
-                    return "\n".join(texts)
+            async with stdio_client(self.server_params) as (read, write), \
+                   ClientSession(read, write) as session:
+                await session.initialize()
+                result = await session.call_tool(tool_name, arguments)
+
+                # content 결과 파싱 및 머징
+                texts = []
+                for content in result.content:
+                    if hasattr(content, "text"):
+                        texts.append(content.text)
+                    elif isinstance(content, dict) and "text" in content:
+                        texts.append(content["text"])
+                return "\n".join(texts)
         except Exception as e:
-            return f"Error executing tool '{tool_name}' on MCP server: {str(e)}"
+            return f"Error executing tool '{tool_name}' on MCP server: {e!s}"
 
     def _to_langchain_tool(self, mcp_tool) -> StructuredTool:
-        # JSON Schema -> Pydantic Model 동적 변환
+        # JSON Schema -> Pydantic Model 동적 변환.
+        # inputSchema는 보통 dict(JSON Schema)지만,
+        # 드물게 Pydantic 모델로 올 수 있어 dict로 정규화한다.
         schema_dict = mcp_tool.inputSchema
-        if isinstance(schema_dict, hasattr(schema_dict, "dict") and schema_dict.__class__ or dict):
-            # inputSchema가 Pydantic 모델인 경우 dict로 변환
-            if not isinstance(schema_dict, dict):
-                schema_dict = schema_dict.model_dump() if hasattr(schema_dict, "model_dump") else schema_dict.__dict__
-        
+        if not isinstance(schema_dict, dict):
+            if hasattr(schema_dict, "model_dump"):
+                schema_dict = schema_dict.model_dump()
+            elif hasattr(schema_dict, "__dict__"):
+                schema_dict = dict(schema_dict.__dict__)
+            else:
+                schema_dict = {}
+
         args_schema = _json_schema_to_pydantic(mcp_tool.name, schema_dict)
         name = mcp_tool.name
         description = mcp_tool.description

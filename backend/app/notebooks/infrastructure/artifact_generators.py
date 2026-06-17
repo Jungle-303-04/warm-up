@@ -20,7 +20,11 @@ from __future__ import annotations
 import ast
 import re
 
-from app.notebooks.domain.artifact_ports import ArtifactContext, GenerationRequest, LlmArtifactGenerator
+from app.notebooks.domain.artifact_ports import (
+    ArtifactContext,
+    GenerationRequest,
+    LlmArtifactGenerator,
+)
 from app.notebooks.domain.artifact_records import ArtifactType
 from app.notebooks.infrastructure.code_scaffold import (
     build_erd_mermaid,
@@ -387,10 +391,9 @@ def _resolve_internal(imported: str, modules: set[str]) -> str | None:
         if imported == candidate or imported.startswith(candidate + "."):
             if best is None or len(candidate) > len(best):
                 best = candidate
-        elif candidate.startswith(imported + "."):
+        elif candidate.startswith(imported + ".") and best is None:
             # imported가 패키지이고 내부 모듈이 그 하위인 경우.
-            if best is None:
-                best = candidate
+            best = candidate
     return best
 
 
