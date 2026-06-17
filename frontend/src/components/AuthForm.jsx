@@ -30,7 +30,34 @@ function TypingText({ text }) {
   );
 }
 
-function AuthForm({ buttonLabel, description, linkLabel, linkTo }) {
+function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
+  const [nickname, setNickname] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleNicknameChange = (event) => {
+    setNickname(event.target.value);
+  };
+
+  const handlePasswordChange = (event) => {
+    setPassword(event.target.value);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await onSubmit({ nickname, password });
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <main className="flex min-h-[620px] items-center justify-center p-6">
       <section className="flex w-full max-w-[380px] flex-col items-center">
@@ -42,25 +69,34 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo }) {
           <TypingText key={description} text={description} />
         </p>
 
-        <form className="mt-10 w-full">
+        <form className="mt-10 w-full" onSubmit={handleSubmit}>
           <div className="overflow-hidden rounded-md border border-gray-300">
             <input
               className="h-10 w-full border-b border-gray-300 px-4 text-sm outline-none transition-colors placeholder:text-gray-300 focus:border-black"
+              onChange={handleNicknameChange}
               placeholder="닉네임을 입력하세요"
               type="text"
+              value={nickname}
             />
             <input
               className="h-10 w-full border-b border-transparent px-4 text-sm outline-none transition-colors placeholder:text-gray-300 focus:border-black"
+              onChange={handlePasswordChange}
               placeholder="패스워드를 입력하세요"
               type="password"
+              value={password}
             />
           </div>
 
+          {errorMessage && (
+            <p className="mt-3 text-sm text-red-500">{errorMessage}</p>
+          )}
+
           <button
-            className="mt-10 h-10 w-full cursor-pointer rounded-md border border-gray-300 text-sm font-normal text-black transition-colors hover:bg-black hover:text-white"
-            type="button"
+            className="mt-10 h-10 w-full cursor-pointer rounded-md border border-gray-300 text-sm font-normal text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-white disabled:hover:text-gray-300"
+            disabled={isSubmitting}
+            type="submit"
           >
-            {buttonLabel}
+            {isSubmitting ? "처리 중..." : buttonLabel}
           </button>
         </form>
 
