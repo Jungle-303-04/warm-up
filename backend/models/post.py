@@ -4,6 +4,11 @@ from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field
 from sqlalchemy import Column,String, Text
 
+class PostCreate(SQLModel):
+    title: str
+    content: str
+    font_id: int
+
 class Post(SQLModel, table=True):
     __tablename__ = "posts"
 

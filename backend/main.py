@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from database import engine
-from models.post import Post
+from models.post import Post, PostCreate
 from models.font import Font
 from models.user import User
 from models.recommend import (RecommendRequest, RecommendResponse)
@@ -66,24 +66,54 @@ def get_posts():
         return result
 
 @app.post("/posts")
-def create_post(post_data : Post):
+def create_post(post_data: PostCreate, request: Request):
 
-    if not post_data.title.strip():
+    current_user = get_current_user_from_access_token(request)
+    title = post_data.title.strip()
+    content = post_data.content.strip()
+
+    if not title:
         raise HTTPException(status_code=400, detail="제목은 필수 입력 항목입니다.")
 
-    if not post_data.content.strip():
+    if not content:
         raise HTTPException(status_code=400, detail="내용은 필수 입력 항목입니다.")
 
     # postgreSQL 연결 시작 수행 후 종료
     with Session(engine) as session:
+        font = session.get(Font, post_data.font_id)
+
+        if font is None:
+            raise HTTPException(status_code=400, detail="폰트 정보를 찾을 수 없습니다.")
+
+        post = Post(
+            title=title,
+            content=content,
+            font_id=post_data.font_id,
+            user_id=current_user.id
+        )
+
         # 객체 등록 (저장 대기열)
-        session.add(post_data)
+        session.add(post)
         # 객체 DB 반영
         session.commit()
         # DB 반영 조회 (최신 상태로 객체 갱신)
-        session.refresh(post_data)
+        session.refresh(post)
         # fast API 자동 json으로 변환해줌
-        return post_data
+        return {
+            "id": post.id,
+            "title": post.title,
+            "content": post.content,
+            "created_at": post.created_at,
+            "updated_at": post.updated_at,
+            "user": {
+                "id": current_user.id,
+                "nickname": current_user.nickname
+            },
+            "font": {
+                "name": font.name,
+                "tags": font.tags
+            }
+        }
 
 @app.get("/posts/{post_id}")
 def get_post(post_id : int): 

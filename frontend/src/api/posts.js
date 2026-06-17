@@ -45,6 +45,17 @@ export async function getPost(postId) {
   return requestPost(`/posts/${postId}`);
 }
 
+export async function createPost({ title, content, fontId }) {
+  return requestPost("/posts", {
+    method: "POST",
+    body: JSON.stringify({
+      title,
+      content,
+      font_id: fontId,
+    }),
+  });
+}
+
 export async function deletePost(postId) {
   return requestPost(`/posts/${postId}`, {
     method: "DELETE",

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { createPost } from "../api/posts";
 import FontInfoPopover from "../components/FontInfoPopover";
 import { ArrowLongLeftIcon } from "../components/icons";
 
@@ -12,6 +13,7 @@ const waitingMessages = [
 
 const recommendedFont = {
   downloadUrl: "https://www.fontshare.com/fonts/zodiak",
+  id: 1,
   license: "OFL",
   name: "Zodiak",
   notice: "브랜드 적용 전 라이선스 원문을 한 번 더 확인하세요.",
@@ -77,13 +79,26 @@ function Write() {
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
   const [isRecommending, setIsRecommending] = useState(false);
+  const [isSubmittingPost, setIsSubmittingPost] = useState(false);
+  const [postErrorMessage, setPostErrorMessage] = useState("");
   const [recommendation, setRecommendation] = useState(initialRecommendation);
   const waitingMessage = waitingMessages[0];
   const isPreviewTab = activeTab === "preview";
   const hasRecommendation = isPreviewTab && recommendation;
   const previewText = isEditMode ? content : recommendation?.previewText;
 
+  const handleTitleChange = (event) => {
+    setTitle(event.target.value);
+    setPostErrorMessage("");
+  };
+
+  const handleContentChange = (event) => {
+    setContent(event.target.value);
+    setPostErrorMessage("");
+  };
+
   const handleRecommend = () => {
+    setPostErrorMessage("");
     setActiveTab("preview");
     setIsRecommending(true);
     setRecommendation(null);
@@ -94,8 +109,42 @@ function Write() {
     }, 1800);
   };
 
-  const handleSubmitPost = () => {
-    navigate("/posts/1");
+  const handleSubmitPost = async () => {
+    const trimmedTitle = title.trim();
+    const trimmedContent = content.trim();
+    const selectedFontId = recommendation?.id;
+
+    if (!trimmedTitle) {
+      setPostErrorMessage("제목을 입력해주세요.");
+      return;
+    }
+
+    if (!trimmedContent) {
+      setPostErrorMessage("게시글 내용을 입력해주세요.");
+      return;
+    }
+
+    if (!selectedFontId) {
+      setPostErrorMessage("폰트 추천 후 등록할 수 있어요.");
+      return;
+    }
+
+    setIsSubmittingPost(true);
+    setPostErrorMessage("");
+
+    try {
+      const createdPost = await createPost({
+        title: trimmedTitle,
+        content: trimmedContent,
+        fontId: selectedFontId,
+      });
+
+      navigate(`/posts/${createdPost.id}`);
+    } catch (error) {
+      setPostErrorMessage(error.message);
+    } finally {
+      setIsSubmittingPost(false);
+    }
   };
 
   const handleUpdatePost = () => {
@@ -175,7 +224,7 @@ function Write() {
         <input
           className="mt-20 w-full border-b border-gray-200 px-1 py-2 text-base outline-none transition-colors placeholder:text-gray-300 focus:border-black"
           maxLength={100}
-          onChange={(event) => setTitle(event.target.value)}
+          onChange={handleTitleChange}
           placeholder="제목을 입력하세요."
           type="text"
           value={title}
@@ -227,7 +276,7 @@ function Write() {
             <>
               <textarea
                 className="thin-transparent-scrollbar h-36 w-full resize-none overflow-y-auto rounded-md border border-gray-300 px-5 py-4 text-base leading-relaxed outline-none transition-colors placeholder:text-gray-300 focus:border-black"
-                onChange={(event) => setContent(event.target.value)}
+                onChange={handleContentChange}
                 placeholder="게시글 내용을 입력하세요."
                 value={content}
               />
@@ -264,13 +313,21 @@ function Write() {
 
                     <div className="mt-6 flex justify-end">
                       <button
-                        className="cursor-pointer rounded-md border border-gray-300 px-5 py-2 text-sm text-black transition-colors hover:bg-black hover:text-white"
+                        className="cursor-pointer rounded-md border border-gray-300 px-5 py-2 text-sm text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-white disabled:hover:text-gray-300"
+                        disabled={isSubmittingPost}
                         onClick={isEditMode ? handleUpdatePost : handleSubmitPost}
                         type="button"
                       >
-                        {isEditMode ? "수정하기" : "등록 하기"}
+                        {isEditMode
+                          ? "수정하기"
+                          : isSubmittingPost
+                            ? "등록 중..."
+                            : "등록 하기"}
                       </button>
                     </div>
+                    <p className="mt-2 min-h-4 text-right text-xs text-black">
+                      {postErrorMessage}
+                    </p>
                   </div>
                 ) : (
                   <div className="h-36 rounded-md border border-gray-200" />
