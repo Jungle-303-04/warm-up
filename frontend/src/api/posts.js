@@ -37,8 +37,17 @@ async function requestPost(path, options = {}) {
   return response.json();
 }
 
-export async function getPosts() {
-  return requestPost("/posts");
+export async function getPosts({ page, pageSize, searchQuery }) {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+
+  if (searchQuery.trim()) {
+    searchParams.set("search", searchQuery.trim());
+  }
+
+  return requestPost(`/posts?${searchParams.toString()}`);
 }
 
 export async function getPost(postId) {

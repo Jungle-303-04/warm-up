@@ -6,6 +6,7 @@ import {
   XMarkIcon,
 } from "../components/icons";
 import { getPosts } from "../api/posts";
+import { createWebFontStyle } from "../utils/webFont";
 
 const postsPerPage = 9;
 const fallbackPageDescription =
@@ -25,14 +26,6 @@ function formatPostDate(createdAt) {
   }).format(date);
 }
 
-function getPreviewFontClass(fontName) {
-  if (fontName.toLowerCase() === "zodiak") {
-    return "font-['Zodiak'] font-extrabold italic";
-  }
-
-  return "font-['Pretendard'] font-normal";
-}
-
 function createBoardPostCardData(post) {
   const fontName = post.font?.name ?? "Unknown";
 
@@ -43,7 +36,7 @@ function createBoardPostCardData(post) {
     title: post.title,
     nickname: post.user?.nickname ?? post.nickname ?? "작성자",
     previewText: post.content,
-    previewFontClass: getPreviewFontClass(fontName),
+    previewFontStyle: createWebFontStyle(post.font),
   };
 }
 
@@ -51,29 +44,14 @@ function Board() {
   const [posts, setPosts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [postsErrorMessage, setPostsErrorMessage] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const shareMessageTimerRef = useRef(null);
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-  const filteredPosts = posts.filter((post) => {
-    if (!normalizedQuery) {
-      return true;
-    }
-
-    return [post.title, post.fontName].some((value) =>
-      value.toLowerCase().includes(normalizedQuery),
-    );
-  });
-  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / postsPerPage));
-  const firstPostIndex = (currentPage - 1) * postsPerPage;
-  const visiblePosts = filteredPosts.slice(
-    firstPostIndex,
-    firstPostIndex + postsPerPage,
-  );
   const isFirstPage = currentPage === 1;
   const isLastPage = currentPage === totalPages;
-  const hasVisiblePosts = visiblePosts.length > 0;
+  const hasVisiblePosts = posts.length > 0;
   const pageNumbers = Array.from(
     { length: totalPages },
     (_, pageIndex) => pageIndex + 1,
@@ -85,27 +63,37 @@ function Board() {
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
     setCurrentPage(1);
+    setIsLoadingPosts(true);
+    setPostsErrorMessage("");
   };
 
   const handleClearSearch = () => {
     setSearchQuery("");
     setCurrentPage(1);
+    setIsLoadingPosts(true);
+    setPostsErrorMessage("");
   };
 
   const handlePreviousPage = () => {
     if (!isFirstPage) {
       setCurrentPage((pageNumber) => pageNumber - 1);
+      setIsLoadingPosts(true);
+      setPostsErrorMessage("");
     }
   };
 
   const handleNextPage = () => {
     if (!isLastPage) {
       setCurrentPage((pageNumber) => pageNumber + 1);
+      setIsLoadingPosts(true);
+      setPostsErrorMessage("");
     }
   };
 
   const handleSelectPage = (pageNumber) => {
     setCurrentPage(pageNumber);
+    setIsLoadingPosts(true);
+    setPostsErrorMessage("");
   };
 
   const buildShareText = () => {
@@ -186,17 +174,22 @@ function Board() {
   useEffect(() => {
     let isMounted = true;
 
-    getPosts()
+    getPosts({
+      page: currentPage,
+      pageSize: postsPerPage,
+      searchQuery,
+    })
       .then((postResponse) => {
         if (!isMounted) {
           return;
         }
 
-        const boardPosts = postResponse.map((post) =>
+        const boardPosts = (postResponse.items ?? []).map((post) =>
           createBoardPostCardData(post),
         );
 
         setPosts(boardPosts);
+        setTotalPages(postResponse.total_pages ?? 1);
       })
       .catch((error) => {
         if (!isMounted) {
@@ -216,7 +209,7 @@ function Board() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [currentPage, searchQuery]);
 
   return (
     <main className="p-6">
@@ -259,7 +252,7 @@ function Board() {
       ) : hasVisiblePosts ? (
         <>
           <section className="mt-20 grid grid-cols-3 gap-x-6 gap-y-10">
-            {visiblePosts.map((post) => (
+            {posts.map((post) => (
               <article
                 key={post.id}
                 className="min-w-0 rounded-md shadow-[0_0_12px_rgba(15,23,42,0.06)] transition duration-200 ease-out hover:-translate-y-1 hover:shadow-[0_0_18px_rgba(15,23,42,0.1)]"
@@ -282,7 +275,8 @@ function Board() {
 
                   <div className="mt-3 h-24 overflow-hidden rounded-md border border-gray-200 px-4 py-3">
                     <p
-                      className={`${post.previewFontClass} text-[22px] leading-tight text-black`}
+                      className="text-[22px] leading-tight text-black"
+                      style={post.previewFontStyle}
                     >
                       {post.previewText}
                     </p>

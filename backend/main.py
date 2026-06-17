@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from database import engine
@@ -27,6 +28,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def build_font_response(font: Font):
+    return {
+        "id": font.id,
+        "name": font.name,
+        "source": font.source,
+        "license": font.license,
+        "category": font.category,
+        "tags": font.tags,
+        "description": font.description,
+        "weights": font.weights,
+        "download_url": font.download_url,
+        "source_url": font.source_url,
+        "license_summary": font.license_summary,
+        "webfonts": font.webfonts,
+    }
+
 @app.get("/")
 def home():
     return {"message" : "connected backend"}
@@ -36,11 +53,43 @@ def health_check():
     return {"status": "ok"}
 
 @app.get("/posts")
-def get_posts():
+def get_posts(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=9, ge=1, le=50),
+    search: str | None = None,
+):
 
     with Session(engine) as session:
-        # posts 테이블의 모든 row가져오기
-        posts = session.exec(select(Post)).all()
+        statement = select(Post).order_by(Post.created_at.desc())
+        count_statement = select(func.count(Post.id))
+        search_keyword = search.strip() if search is not None else ""
+
+        if search_keyword:
+            search_pattern = f"%{search_keyword}%"
+            statement = (
+                statement
+                .join(Font, Post.font_id == Font.id)
+                .where(
+                    or_(
+                        Post.title.ilike(search_pattern),
+                        Font.name.ilike(search_pattern),
+                    )
+                )
+            )
+            count_statement = (
+                count_statement
+                .join(Font, Post.font_id == Font.id)
+                .where(
+                    or_(
+                        Post.title.ilike(search_pattern),
+                        Font.name.ilike(search_pattern),
+                    )
+                )
+            )
+
+        total = session.exec(count_statement).one()
+        offset = (page - 1) * page_size
+        posts = session.exec(statement.offset(offset).limit(page_size)).all()
         result = []
         for post in posts:
 
@@ -57,15 +106,19 @@ def get_posts():
                     "user": {
                         "nickname": user.nickname
                     },
-                    "font": {
-                        "id": font.id,
-                        "name": font.name,
-                        "tags": font.tags
-                    } 
+                    "font": build_font_response(font) 
                 }
             )
         
-        return result
+        total_pages = max(1, (total + page_size - 1) // page_size)
+
+        return {
+            "items": result,
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": total_pages,
+        }
 
 @app.post("/posts")
 def create_post(post_data: PostCreate, request: Request):
@@ -117,11 +170,7 @@ def create_post(post_data: PostCreate, request: Request):
                 "id": current_user.id,
                 "nickname": current_user.nickname
             },
-            "font": {
-                "id": font.id,
-                "name": font.name,
-                "tags": font.tags
-            }
+            "font": build_font_response(font)
         }
 
 @app.get("/posts/{post_id}")
@@ -156,11 +205,7 @@ def get_post(post_id : int):
                         "id": user.id,
                         "nickname": user.nickname
                     },
-                    "font": {
-                        "id": font.id,
-                        "name": font.name,
-                        "tags": font.tags
-                    } 
+                    "font": build_font_response(font) 
                 }
 
 @app.put("/posts/{post_id}")
