@@ -136,6 +136,7 @@ function Board() {
   );
   const isFirstPage = currentPage === 1;
   const isLastPage = currentPage === totalPages;
+  const hasVisiblePosts = visiblePosts.length > 0;
   const pageNumbers = Array.from(
     { length: totalPages },
     (_, pageIndex) => pageIndex + 1,
@@ -193,98 +194,110 @@ function Board() {
         </label>
       </div>
 
-      <section className="mt-20 grid grid-cols-3 gap-x-6 gap-y-10">
-        {visiblePosts.map((post) => (
-          <article
-            key={post.id}
-            className="min-w-0 rounded-md shadow-[0_0_12px_rgba(15,23,42,0.06)] transition duration-200 ease-out hover:-translate-y-1 hover:shadow-[0_0_18px_rgba(15,23,42,0.1)]"
-          >
-            <Link
-              className="block cursor-pointer p-4"
-              to={`/posts/${post.id}`}
-            >
-              <div className="flex items-center gap-2 text-xs text-[#d4d4d4]">
-                <time dateTime="2026-03-16">{post.date}</time>
-                <span aria-hidden="true">•</span>
-                <span className="rounded-full border border-gray-200 bg-[#F8F9FA] px-2 py-0.5 text-[10px] font-medium text-black">
-                  {post.fontName}
-                </span>
-              </div>
-
-              <h2 className="mt-3 text-sm font-bold leading-tight text-black">
-                {post.title}
-              </h2>
-
-              <div className="mt-3 h-24 overflow-hidden rounded-md border border-gray-200 px-4 py-3">
-                <p
-                  className={`${post.previewFontClass} text-[22px] leading-tight text-black`}
-                >
-                  {post.previewText}
-                </p>
-              </div>
-
-              <p className="mt-3 text-xs font-semibold text-black">
-                {post.nickname}
-              </p>
-            </Link>
-          </article>
-        ))}
-      </section>
-
-      <nav
-        aria-label="게시글 페이지"
-        className="mt-12 flex items-center justify-center gap-4"
-      >
-        <button
-          className={[
-            "text-sm transition-colors",
-            isFirstPage
-              ? "cursor-not-allowed text-[#d4d4d4]"
-              : "cursor-pointer text-black hover:text-[#d4d4d4]",
-          ].join(" ")}
-          disabled={isFirstPage}
-          onClick={handlePreviousPage}
-          type="button"
-        >
-          이전
-        </button>
-        <div className="flex items-center gap-2">
-          {pageNumbers.map((pageNumber) => {
-            const isCurrentPage = pageNumber === currentPage;
-
-            return (
-              <button
-                aria-current={isCurrentPage ? "page" : undefined}
-                className={[
-                  "h-8 min-w-8 rounded-md border px-2 text-sm transition-colors",
-                  isCurrentPage
-                    ? "cursor-default border-black bg-white text-black"
-                    : "cursor-pointer border-transparent text-[#d4d4d4] hover:bg-[#F8F9FA] hover:text-black",
-                ].join(" ")}
-                disabled={isCurrentPage}
-                key={pageNumber}
-                onClick={() => handleSelectPage(pageNumber)}
-                type="button"
+      {hasVisiblePosts ? (
+        <>
+          <section className="mt-20 grid grid-cols-3 gap-x-6 gap-y-10">
+            {visiblePosts.map((post) => (
+              <article
+                key={post.id}
+                className="min-w-0 rounded-md shadow-[0_0_12px_rgba(15,23,42,0.06)] transition duration-200 ease-out hover:-translate-y-1 hover:shadow-[0_0_18px_rgba(15,23,42,0.1)]"
               >
-                {pageNumber}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          className={[
-            "text-sm transition-colors",
-            isLastPage
-              ? "cursor-not-allowed text-[#d4d4d4]"
-              : "cursor-pointer text-black hover:text-[#d4d4d4]",
-          ].join(" ")}
-          disabled={isLastPage}
-          onClick={handleNextPage}
-          type="button"
-        >
-          다음
-        </button>
-      </nav>
+                <Link
+                  className="block cursor-pointer p-4"
+                  to={`/posts/${post.id}`}
+                >
+                  <div className="flex items-center gap-2 text-xs text-[#d4d4d4]">
+                    <time dateTime="2026-03-16">{post.date}</time>
+                    <span aria-hidden="true">•</span>
+                    <span className="rounded-full border border-gray-200 bg-[#F8F9FA] px-2 py-0.5 text-[10px] font-medium text-black">
+                      {post.fontName}
+                    </span>
+                  </div>
+
+                  <h2 className="mt-3 text-sm font-bold leading-tight text-black">
+                    {post.title}
+                  </h2>
+
+                  <div className="mt-3 h-24 overflow-hidden rounded-md border border-gray-200 px-4 py-3">
+                    <p
+                      className={`${post.previewFontClass} text-[22px] leading-tight text-black`}
+                    >
+                      {post.previewText}
+                    </p>
+                  </div>
+
+                  <p className="mt-3 text-xs font-semibold text-black">
+                    {post.nickname}
+                  </p>
+                </Link>
+              </article>
+            ))}
+          </section>
+
+          <nav
+            aria-label="게시글 페이지"
+            className="mt-12 flex items-center justify-center gap-4"
+          >
+            <button
+              className={[
+                "text-sm transition-colors",
+                isFirstPage
+                  ? "cursor-not-allowed text-[#d4d4d4]"
+                  : "cursor-pointer text-black hover:text-[#d4d4d4]",
+              ].join(" ")}
+              disabled={isFirstPage}
+              onClick={handlePreviousPage}
+              type="button"
+            >
+              이전
+            </button>
+            <div className="flex items-center gap-2">
+              {pageNumbers.map((pageNumber) => {
+                const isCurrentPage = pageNumber === currentPage;
+
+                return (
+                  <button
+                    aria-current={isCurrentPage ? "page" : undefined}
+                    className={[
+                      "h-8 min-w-8 rounded-md border px-2 text-sm transition-colors",
+                      isCurrentPage
+                        ? "cursor-default border-black bg-white text-black"
+                        : "cursor-pointer border-transparent text-[#d4d4d4] hover:bg-[#F8F9FA] hover:text-black",
+                    ].join(" ")}
+                    disabled={isCurrentPage}
+                    key={pageNumber}
+                    onClick={() => handleSelectPage(pageNumber)}
+                    type="button"
+                  >
+                    {pageNumber}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              className={[
+                "text-sm transition-colors",
+                isLastPage
+                  ? "cursor-not-allowed text-[#d4d4d4]"
+                  : "cursor-pointer text-black hover:text-[#d4d4d4]",
+              ].join(" ")}
+              disabled={isLastPage}
+              onClick={handleNextPage}
+              type="button"
+            >
+              다음
+            </button>
+          </nav>
+        </>
+      ) : (
+        <section className="flex min-h-[360px] items-center justify-center text-center">
+          <p className="text-sm font-normal text-[#d4d4d4]">
+            아직 기록된 폰트 보드가 없어요.
+            <br />
+            첫 문장을 입력하고 어울리는 폰트를 찾아보세요.
+          </p>
+        </section>
+      )}
     </main>
   );
 }
