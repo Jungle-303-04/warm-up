@@ -41,6 +41,21 @@ from app.agent.service.agent_intent import (
     is_short_remove_request,
     normalize_text,
 )
+from app.agent.service.agent_tool_registry import (
+    TOOL_CHANGE_BASIS,
+    TOOL_CLARIFY,
+    TOOL_COMPARE_SNAPSHOTS,
+    TOOL_GENERAL_CHAT,
+    TOOL_LIST_BRANCHES,
+    TOOL_LIST_FILES,
+    TOOL_LIST_REPOSITORIES,
+    TOOL_RESOLVE_RAG_BASIS,
+    TOOL_RETRIEVE_RAG,
+    TOOL_SEARCH_REPOSITORY_TARGETS,
+    TOOL_SHOW_BASIS,
+    AgentTool,
+    AgentToolRegistry,
+)
 from app.agent.service.intent_resolver import FALLBACK_REASON_PREFIX
 from app.agent.service.ports import (
     IntentResolver,
@@ -98,6 +113,8 @@ class AgentGraphState(TypedDict, total=False):
     latest_runs: list[Any]
     intent: AgentIntent
     basis_mode: BasisMode
+    tool_queue: list[str]
+    last_tool_name: str
     target_runs: list[Any]
     final_refs: list[InferredRepositoryRef]
     rag_response: RagAskResponseDTO
@@ -123,6 +140,7 @@ class AgentGraph:
         self.repository_target_planner = repository_target_planner
         self.intent_resolver = intent_resolver
         self.path_target_resolver = path_target_resolver
+        self.tool_registry = self.build_tool_registry()
         self.graph = self.build_graph()
 
     def run(
@@ -153,52 +171,89 @@ class AgentGraph:
 
         graph.add_node("collect_repository_context", self.collect_repository_context)
         graph.add_node("classify_intent", self.classify_intent)
-        graph.add_node("answer_repository_metadata", self.answer_repository_metadata)
-        graph.add_node("answer_repository_files", self.answer_repository_files)
-        graph.add_node("answer_repository_comparison", self.answer_repository_comparison)
-        graph.add_node("change_repository_basis", self.change_repository_basis)
-        graph.add_node("resolve_rag_basis", self.resolve_rag_basis)
-        graph.add_node("retrieve_rag", self.retrieve_rag)
+        graph.add_node("select_agent_tool", self.select_agent_tool)
+        graph.add_node("run_agent_tool", self.run_agent_tool)
         graph.add_node("generate_answer", self.generate_answer)
-        graph.add_node("answer_general_chat", self.answer_general_chat)
-        graph.add_node("ask_clarification", self.ask_clarification)
 
         graph.set_entry_point("collect_repository_context")
         graph.add_edge("collect_repository_context", "classify_intent")
+        graph.add_edge("classify_intent", "select_agent_tool")
+        graph.add_edge("select_agent_tool", "run_agent_tool")
         graph.add_conditional_edges(
-            "classify_intent",
-            route_intent,
+            "run_agent_tool",
+            route_after_tool,
             {
-                INTENT_LIST_REPOSITORIES: "answer_repository_metadata",
-                INTENT_LIST_BRANCHES: "answer_repository_metadata",
-                INTENT_SEARCH_REPOSITORY_TARGETS: "answer_repository_metadata",
-                INTENT_LIST_FILES: "answer_repository_files",
-                INTENT_SHOW_BASIS: "answer_repository_metadata",
-                INTENT_CHANGE_BASIS: "change_repository_basis",
-                INTENT_RAG_ANSWER: "resolve_rag_basis",
-                INTENT_GENERAL_CHAT: "answer_general_chat",
-                INTENT_CLARIFY: "ask_clarification",
+                "run_tool": "run_agent_tool",
+                "generate_answer": "generate_answer",
+                "end": END,
             },
         )
-        graph.add_conditional_edges(
-            "resolve_rag_basis",
-            route_resolved_rag_basis,
-            {
-                "retrieve": "retrieve_rag",
-                "compare": "answer_repository_comparison",
-                "clarify": "ask_clarification",
-            },
-        )
-        graph.add_edge("retrieve_rag", "generate_answer")
-        graph.add_edge("answer_repository_metadata", END)
-        graph.add_edge("answer_repository_files", END)
-        graph.add_edge("answer_repository_comparison", END)
-        graph.add_edge("change_repository_basis", END)
         graph.add_edge("generate_answer", END)
-        graph.add_edge("answer_general_chat", END)
-        graph.add_edge("ask_clarification", END)
 
         return graph.compile()
+
+    def build_tool_registry(self) -> AgentToolRegistry:
+        """그래프가 실행할 수 있는 도구를 한 곳에서 조립한다."""
+
+        return AgentToolRegistry(
+            [
+                AgentTool(
+                    TOOL_LIST_REPOSITORIES,
+                    "SQL에 저장된 분석 레포지토리 목록을 보여준다.",
+                    self.list_repositories_tool,
+                ),
+                AgentTool(
+                    TOOL_LIST_BRANCHES,
+                    "선택된 레포지토리의 분석된 브랜치 목록을 보여준다.",
+                    self.list_branches_tool,
+                ),
+                AgentTool(
+                    TOOL_SEARCH_REPOSITORY_TARGETS,
+                    "사용자 표현과 관련된 레포/브랜치 후보를 검색한다.",
+                    self.search_repository_targets_tool,
+                ),
+                AgentTool(
+                    TOOL_SHOW_BASIS,
+                    "현재 대화의 답변 기준 레포/브랜치를 보여준다.",
+                    self.show_basis_tool,
+                ),
+                AgentTool(
+                    TOOL_LIST_FILES,
+                    "선택된 run의 SQL 파일 스냅샷에서 파일/폴더 목록을 보여준다.",
+                    self.list_files_tool,
+                ),
+                AgentTool(
+                    TOOL_CHANGE_BASIS,
+                    "답변 기준 레포/브랜치를 추가, 교체, 제거, 초기화한다.",
+                    self.change_basis_tool,
+                ),
+                AgentTool(
+                    TOOL_RESOLVE_RAG_BASIS,
+                    "RAG 검색 전에 어떤 분석 run을 쓸지 확정한다.",
+                    self.resolve_rag_basis_tool,
+                ),
+                AgentTool(
+                    TOOL_RETRIEVE_RAG,
+                    "확정된 분석 run 기준으로 vector RAG 근거를 찾는다.",
+                    self.retrieve_rag_tool,
+                ),
+                AgentTool(
+                    TOOL_COMPARE_SNAPSHOTS,
+                    "두 개 이상의 SQL 파일 스냅샷 차이를 비교한다.",
+                    self.compare_snapshots_tool,
+                ),
+                AgentTool(
+                    TOOL_GENERAL_CHAT,
+                    "레포 분석이 아닌 일반 대화에 짧게 답한다.",
+                    self.general_chat_tool,
+                ),
+                AgentTool(
+                    TOOL_CLARIFY,
+                    "도구 실행에 필요한 레포 기준을 찾지 못했을 때 되묻는다.",
+                    self.clarify_tool,
+                ),
+            ]
+        )
 
     def collect_repository_context(self, state: AgentGraphState) -> AgentGraphState:
         """SQL에 저장된 최신 레포/브랜치별 분석 run만 모아 다음 노드에 넘긴다."""
@@ -207,6 +262,27 @@ class AgentGraph:
             "latest_runs": get_latest_unique_runs_by_repository_branch(
                 self.sql_repository.list_runs(state["db"], limit=100)
             )
+        }
+
+    def select_agent_tool(self, state: AgentGraphState) -> AgentGraphState:
+        """분류된 intent를 실행 가능한 tool 이름으로 바꾼다."""
+
+        return {"tool_queue": [select_tool_name(state.get("intent", INTENT_CLARIFY))]}
+
+    def run_agent_tool(self, state: AgentGraphState) -> AgentGraphState:
+        """tool queue에서 하나를 꺼내 실행하고 남은 queue를 다음 노드에 넘긴다."""
+
+        tool_queue = list(state.get("tool_queue", []))
+        if not tool_queue:
+            return {"tool_queue": []}
+
+        tool_name = tool_queue.pop(0)
+        tool_result = self.tool_registry.run(tool_name, state)
+        next_tools = list(tool_result.pop("tool_queue", []))
+        return {
+            **tool_result,
+            "last_tool_name": tool_name,
+            "tool_queue": [*next_tools, *tool_queue],
         }
 
     def classify_intent(self, state: AgentGraphState) -> AgentGraphState:
@@ -412,39 +488,58 @@ class AgentGraph:
 
         return {"intent": INTENT_RAG_ANSWER}
 
-    def answer_repository_metadata(self, state: AgentGraphState) -> AgentGraphState:
-        """레포 목록, 브랜치 목록, 현재 기준은 RAG 없이 SQL 메타데이터만으로 답한다."""
+    def list_repositories_tool(self, state: AgentGraphState) -> AgentGraphState:
+        """SQL run 메타데이터를 레포지토리 단위 목록으로 답한다."""
 
-        intent = state["intent"]
-        latest_runs = state.get("latest_runs", [])
-        current_refs = list(state["turn"].repository_refs)
+        return self.build_static_tool_answer(
+            state,
+            build_repository_list_answer(state.get("latest_runs", [])),
+        )
 
-        if intent == INTENT_LIST_REPOSITORIES:
-            final_answer = build_repository_list_answer(latest_runs)
-        elif intent == INTENT_LIST_BRANCHES:
-            final_answer = build_branch_list_answer(
-                user_input=state["turn"].user_input,
-                latest_runs=latest_runs,
-                target_runs=state.get("target_runs", []),
-                current_refs=current_refs,
-                messages=state.get("messages", []),
-            )
-        elif intent == INTENT_SEARCH_REPOSITORY_TARGETS:
-            final_answer = build_repository_target_search_answer(
-                user_input=state["turn"].user_input,
-                latest_runs=latest_runs,
-                target_runs=state.get("target_runs", []),
-            )
-        else:
-            final_answer = build_current_basis_answer(current_refs)
+    def list_branches_tool(self, state: AgentGraphState) -> AgentGraphState:
+        """SQL run 메타데이터에서 특정 레포지토리의 브랜치 목록을 답한다."""
+
+        final_answer = build_branch_list_answer(
+            user_input=state["turn"].user_input,
+            latest_runs=state.get("latest_runs", []),
+            target_runs=state.get("target_runs", []),
+            current_refs=list(state["turn"].repository_refs),
+            messages=state.get("messages", []),
+        )
+        return self.build_static_tool_answer(state, final_answer)
+
+    def search_repository_targets_tool(self, state: AgentGraphState) -> AgentGraphState:
+        """사용자 표현에 맞는 레포/브랜치 후보를 SQL run 후보에서 찾아 답한다."""
+
+        final_answer = build_repository_target_search_answer(
+            user_input=state["turn"].user_input,
+            latest_runs=state.get("latest_runs", []),
+            target_runs=state.get("target_runs", []),
+        )
+        return self.build_static_tool_answer(state, final_answer)
+
+    def show_basis_tool(self, state: AgentGraphState) -> AgentGraphState:
+        """현재 대화 turn에 저장된 답변 기준을 보여준다."""
+
+        return self.build_static_tool_answer(
+            state,
+            build_current_basis_answer(list(state["turn"].repository_refs)),
+        )
+
+    def build_static_tool_answer(
+        self,
+        state: AgentGraphState,
+        final_answer: str,
+    ) -> AgentGraphState:
+        """기준을 바꾸지 않는 SQL 메타데이터 tool 응답 형태를 통일한다."""
 
         return {
             "final_answer": final_answer,
-            "final_refs": current_refs,
+            "final_refs": list(state["turn"].repository_refs),
             "repository_basis_changed": False,
         }
 
-    def answer_repository_files(self, state: AgentGraphState) -> AgentGraphState:
+    def list_files_tool(self, state: AgentGraphState) -> AgentGraphState:
         """폴더/파일 구조 질문은 vector 검색 대신 SQL 파일 스냅샷에서 답한다."""
 
         target_runs = state.get("target_runs", [])
@@ -480,7 +575,7 @@ class AgentGraph:
             "repository_basis_changed": bool(final_refs),
         }
 
-    def answer_repository_comparison(self, state: AgentGraphState) -> AgentGraphState:
+    def compare_snapshots_tool(self, state: AgentGraphState) -> AgentGraphState:
         """두 개 이상의 선택 기준은 SQL 파일 스냅샷으로 먼저 구조적 차이를 답한다."""
 
         target_runs = state.get("target_runs", [])
@@ -498,7 +593,7 @@ class AgentGraph:
             "repository_basis_changed": bool(final_refs),
         }
 
-    def change_repository_basis(self, state: AgentGraphState) -> AgentGraphState:
+    def change_basis_tool(self, state: AgentGraphState) -> AgentGraphState:
         """사용자가 지정한 레포 이름을 SQL run에 매핑해 다음 답변 기준으로 저장한다."""
 
         current_refs = list(state["turn"].repository_refs)
@@ -542,14 +637,22 @@ class AgentGraph:
             "repository_basis_changed": True,
         }
 
-    def resolve_rag_basis(self, state: AgentGraphState) -> AgentGraphState:
+    def resolve_rag_basis_tool(self, state: AgentGraphState) -> AgentGraphState:
         """RAG 검색 전에 질문이 어떤 분석 run을 기준으로 삼는지 확정한다."""
 
         current_refs = list(state["turn"].repository_refs)
         if current_refs:
+            target_runs = resolve_runs_from_refs(current_refs, state.get("latest_runs", []))
+            if not target_runs:
+                return {
+                    "target_runs": [],
+                    "final_refs": current_refs,
+                    "tool_queue": [TOOL_CLARIFY],
+                }
             return {
-                "target_runs": resolve_runs_from_refs(current_refs, state.get("latest_runs", [])),
+                "target_runs": target_runs,
                 "final_refs": current_refs,
+                "tool_queue": build_rag_next_tool_queue(state, target_runs),
             }
 
         target_runs = self.resolve_target_runs(
@@ -564,6 +667,7 @@ class AgentGraph:
                 "target_runs": target_runs,
                 "final_refs": [build_inferred_repository_ref(run) for run in target_runs],
                 "repository_basis_changed": True,
+                "tool_queue": build_rag_next_tool_queue(state, target_runs),
             }
 
         single_run = resolve_single_repository_fallback(state.get("latest_runs", []))
@@ -572,14 +676,16 @@ class AgentGraph:
                 "target_runs": [single_run],
                 "final_refs": [build_inferred_repository_ref(single_run)],
                 "repository_basis_changed": True,
+                "tool_queue": [TOOL_RETRIEVE_RAG],
             }
 
         return {
             "target_runs": [],
             "final_refs": current_refs,
+            "tool_queue": [TOOL_CLARIFY],
         }
 
-    def retrieve_rag(self, state: AgentGraphState) -> AgentGraphState:
+    def retrieve_rag_tool(self, state: AgentGraphState) -> AgentGraphState:
         """확정된 run 기준을 RAG DTO로 바꿔 vector 검색과 LLM용 근거 조회를 실행한다."""
 
         refs = [
@@ -810,7 +916,7 @@ class AgentGraph:
             "final_answer": final_answer,
         }
 
-    def answer_general_chat(self, state: AgentGraphState) -> AgentGraphState:
+    def general_chat_tool(self, state: AgentGraphState) -> AgentGraphState:
         """레포 검색이 아닌 짧은 대화는 LLM으로 자연스럽게 응답한다."""
 
         try:
@@ -831,7 +937,7 @@ class AgentGraph:
             "repository_basis_changed": False,
         }
 
-    def ask_clarification(self, state: AgentGraphState) -> AgentGraphState:
+    def clarify_tool(self, state: AgentGraphState) -> AgentGraphState:
         """검색 기준을 확정하지 못했을 때 가능한 레포 예시를 보여준다."""
 
         return {
@@ -841,19 +947,41 @@ class AgentGraph:
         }
 
 
-def route_intent(state: AgentGraphState) -> AgentIntent:
-    return state.get("intent", INTENT_CLARIFY)
+def select_tool_name(intent: AgentIntent) -> str:
+    """LLM이 분류한 intent를 실제 실행 가능한 agent tool 이름으로 바꾼다."""
+
+    return {
+        INTENT_LIST_REPOSITORIES: TOOL_LIST_REPOSITORIES,
+        INTENT_LIST_BRANCHES: TOOL_LIST_BRANCHES,
+        INTENT_SEARCH_REPOSITORY_TARGETS: TOOL_SEARCH_REPOSITORY_TARGETS,
+        INTENT_LIST_FILES: TOOL_LIST_FILES,
+        INTENT_SHOW_BASIS: TOOL_SHOW_BASIS,
+        INTENT_CHANGE_BASIS: TOOL_CHANGE_BASIS,
+        INTENT_RAG_ANSWER: TOOL_RESOLVE_RAG_BASIS,
+        INTENT_GENERAL_CHAT: TOOL_GENERAL_CHAT,
+        INTENT_CLARIFY: TOOL_CLARIFY,
+    }.get(intent, TOOL_CLARIFY)
 
 
-def route_resolved_rag_basis(state: AgentGraphState) -> str:
-    if state.get("target_runs"):
-        if (
-            len(state.get("target_runs", [])) >= 2
-            and is_snapshot_comparison_question(state["turn"].user_input)
-        ):
-            return "compare"
-        return "retrieve"
-    return "clarify"
+def route_after_tool(state: AgentGraphState) -> str:
+    """tool 실행 후 다음 tool, LLM 답변 생성, 종료 중 하나로 그래프를 이동한다."""
+
+    if state.get("tool_queue"):
+        return "run_tool"
+    if state.get("rag_response"):
+        return "generate_answer"
+    return "end"
+
+
+def build_rag_next_tool_queue(state: AgentGraphState, target_runs: list[Any]) -> list[str]:
+    """RAG 기준 확정 뒤 비교 tool과 vector 검색 tool 중 다음 행동을 고른다."""
+
+    if (
+        len(target_runs) >= 2
+        and is_snapshot_comparison_question(state["turn"].user_input)
+    ):
+        return [TOOL_COMPARE_SNAPSHOTS]
+    return [TOOL_RETRIEVE_RAG]
 
 
 def is_short_follow_up_selection(user_input: str) -> bool:
