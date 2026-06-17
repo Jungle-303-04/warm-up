@@ -14,7 +14,7 @@ function Header({ onAccountClick, user }) {
       ? [
           {
             isActive: true,
-            label: isLoginPage ? "Sign in" : "Sign up",
+            label: isLoginPage ? "Login" : "Signup",
             path: location.pathname,
           },
         ]
