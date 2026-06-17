@@ -166,3 +166,47 @@ def test_change_summary_fallback_returns_markdown() -> None:
 
     assert content.startswith("## 변경 요약")
     assert "LLM 키가 필요합니다" in content
+
+
+# ── 하이브리드(AST 골격): 키 없이도 Python 클래스/ORM이면 실제 다이어그램 ──
+
+
+def test_uml_from_python_classes_without_key() -> None:
+    """파이썬 클래스가 있으면 키 없이도 골격이 아닌 실제 classDiagram을 만든다."""
+    gen = DeterministicArtifactGenerator()
+    src = "class Base: ...\nclass App(Base):\n    state: int\n    def start(self): ...\n"
+
+    content = gen.generate(GenerationRequest(type="uml", contexts=[_ctx("app/app.py", src)]))
+
+    assert content.startswith("classDiagram")
+    assert "LLM 키가 필요합니다" not in content
+    assert "class App" in content
+    assert "+start()" in content
+    assert "Base <|-- App" in content  # 내부 클래스 상속 관계
+
+
+def test_erd_from_orm_models_without_key() -> None:
+    """ORM 모델(__tablename__/Column/ForeignKey)이면 키 없이도 실제 erDiagram을 만든다."""
+    gen = DeterministicArtifactGenerator()
+    src = (
+        'class User(Base):\n    __tablename__ = "users"\n    id = Column(Integer)\n'
+        'class Post(Base):\n    __tablename__ = "posts"\n'
+        '    id = Column(Integer)\n    user_id = Column(Integer, ForeignKey("users.id"))\n'
+    )
+
+    content = gen.generate(GenerationRequest(type="erd", contexts=[_ctx("app/models.py", src)]))
+
+    assert content.startswith("erDiagram")
+    assert "LLM 키가 필요합니다" not in content
+    assert "users" in content and "posts" in content
+    assert "}o--||" in content  # FK 관계
+
+
+def test_uml_without_extractable_symbols_falls_back_to_skeleton() -> None:
+    """추출할 클래스가 없으면 안내 골격으로 폴백한다."""
+    gen = DeterministicArtifactGenerator()
+
+    content = gen.generate(GenerationRequest(type="uml", contexts=[_ctx("a.py", "x = 1\n")]))
+
+    assert content.startswith("classDiagram")
+    assert "LLM 키가 필요합니다" in content

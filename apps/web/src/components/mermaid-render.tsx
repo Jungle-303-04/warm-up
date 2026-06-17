@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-import { cn } from "../lib/cn";
 import { Button } from "./ui/button";
 
 // svg-pan-zoom은 `export = svgPanZoom`(Instance 타입의 const)이라 기본 import 값의
@@ -27,6 +26,7 @@ function PanZoomCanvas({ svg }: { svg: string }) {
     const host = hostRef.current;
     if (!host || !svg) return;
     let disposed = false;
+    let resizeObs: ResizeObserver | null = null;
 
     // 주입된 SVG 요소를 찾아 pan-zoom을 적용한다.
     (async () => {
@@ -63,10 +63,32 @@ function PanZoomCanvas({ svg }: { svg: string }) {
         // pan-zoom 적용 실패해도 정적 SVG는 그대로 보인다(폴백).
         instanceRef.current = null;
       }
+
+      // 컨테이너 크기는 flex 레이아웃이 늦게 확정될 수 있다. 초기 fit이 작은
+      // 박스 기준으로 굳지 않도록, 크기 변화 때마다 resize→fit→center로 다시 맞춘다
+      // (세로로 꽉 차게 보이지 않던 문제 해결).
+      const refit = () => {
+        const inst = instanceRef.current;
+        if (!inst) return;
+        try {
+          inst.resize();
+          inst.fit();
+          inst.center();
+        } catch {
+          // 레이아웃 전환 중 일시적 실패는 무시.
+        }
+      };
+      // 다음 프레임에 한 번(초기 레이아웃 확정 후) + 이후 크기 변화마다.
+      requestAnimationFrame(refit);
+      if (typeof ResizeObserver !== "undefined") {
+        resizeObs = new ResizeObserver(refit);
+        resizeObs.observe(host);
+      }
     })();
 
     return () => {
       disposed = true;
+      resizeObs?.disconnect();
       try {
         instanceRef.current?.destroy();
       } catch {
@@ -88,12 +110,9 @@ function PanZoomCanvas({ svg }: { svg: string }) {
   };
 
   return (
-    <div
-      className={cn(
-        "relative w-full overflow-hidden rounded-xl border border-border bg-surface-raised",
-        "h-[64vh]",
-      )}
-    >
+    // 카드/테두리 없이 부모(relative) 영역을 absolute로 가로·세로 꽉 채운다.
+    // h-full 백분율 높이가 flex 체인에서 흔들리는 문제를 inset-0로 확실히 회피한다.
+    <div className="absolute inset-0 overflow-hidden">
       {/* 줌·팬 대상 SVG 호스트. svg는 신뢰된 mermaid 출력. */}
       <div
         ref={hostRef}

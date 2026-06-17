@@ -398,7 +398,7 @@ export function ChatView() {
   return (
     <>
       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto scroll-smooth">
-        <div className="mx-auto w-full max-w-3xl px-6 py-5">
+        <div className="w-full px-6 py-5">
           {/* 헤더 카드 */}
           <div className="rounded-2xl border border-border/50 bg-card/80 p-5">
             <div className="flex items-center gap-3">
@@ -510,7 +510,7 @@ export function ChatView() {
 
       {/* 하단 입력바 - 중앙 플로팅 알약형 캡슐 */}
       <div className="shrink-0 px-4 pb-4 pt-2">
-        <div className="mx-auto flex max-w-2xl w-full items-end gap-2.5 rounded-3xl border border-border/50 bg-card/90 px-4 py-2.5 shadow-sm focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/15 transition-all duration-150 backdrop-blur-sm">
+        <div className="flex w-full items-end gap-2.5 rounded-3xl border border-border/50 bg-card/90 px-4 py-2.5 shadow-sm focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/15 transition-all duration-150 backdrop-blur-sm">
           <textarea
             rows={1}
             value={query}

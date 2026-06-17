@@ -507,6 +507,47 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
     draft !== artifact.content ||
     (titleDraft.trim() !== "" && titleDraft.trim() !== artifact.title);
 
+  // 편집 패널(제목/본문 + 재렌더/저장). 다이어그램·마크다운 분기에서 공용으로 쓴다.
+  const editorPanel = showEditor ? (
+    <div className="border-t border-border px-4 py-3">
+      {/* 제목 편집(모든 산출물 공통). */}
+      <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">제목</label>
+      <input
+        value={titleDraft}
+        onChange={(e) => setTitleDraft(e.target.value)}
+        placeholder="제목"
+        className="mb-3 h-8 w-full rounded-lg border border-border bg-card px-3 text-[12.5px] font-medium text-foreground outline-none focus:border-primary/50"
+      />
+      <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+        {isMermaid ? "Mermaid 소스" : "본문(Markdown)"}
+      </label>
+      <textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        spellCheck={false}
+        className="h-40 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground outline-none focus:border-primary/50"
+      />
+      <div className="mt-2 flex items-center justify-end gap-2">
+        {isMermaid ? (
+          <Button variant="outline" size="sm" icon="refresh" onClick={rerender} title="재렌더">
+            재렌더
+          </Button>
+        ) : null}
+        <Button
+          variant="primary"
+          size="sm"
+          icon={saved ? "check" : "save_note"}
+          loading={saving}
+          onClick={() => void save()}
+          disabled={saving || !dirty}
+          title="저장"
+        >
+          {saving ? "저장 중…" : saved ? "저장됨" : "저장"}
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* 헤더: 아이콘·제목·종류 + 편집 토글 */}
@@ -550,62 +591,26 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="w-full px-4 py-4">
-          {/* 본문 렌더: Mermaid 다이어그램 또는 마크다운 */}
-          {isMermaid ? (
+      {/* 본문: Mermaid 다이어그램은 패널을 가로·세로로 꽉 채우고(카드 없음),
+          마크다운(변경요약/메모)은 가독성 패딩과 함께 세로 스크롤로 표시한다. */}
+      {isMermaid ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          {/* relative + 자식 absolute inset-0 으로 다이어그램이 영역을 꽉 채운다. */}
+          <div className="relative min-h-0 flex-1">
             <MermaidRender source={rendered} />
-          ) : (
-            <article className="markdown-body text-[13.5px] leading-relaxed">
-              {/* 산출물 마크다운(변경 요약/메모)의 절대 링크는 새 탭으로 실제 이동. */}
-              <MarkdownView source={rendered} onLinkClick={handleArtifactLink} />
-            </article>
-          )}
-
-          {/* 편집 영역: content 수정 → 재렌더(다이어그램만)/저장 */}
-          {showEditor ? (
-            <div className="mt-4 border-t border-border pt-3">
-              {/* 제목 편집(모든 산출물 공통). */}
-              <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
-                제목
-              </label>
-              <input
-                value={titleDraft}
-                onChange={(e) => setTitleDraft(e.target.value)}
-                placeholder="제목"
-                className="mb-3 h-8 w-full rounded-lg border border-border bg-card px-3 text-[12.5px] font-medium text-foreground outline-none focus:border-primary/50"
-              />
-              <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
-                {isMermaid ? "Mermaid 소스" : "본문(Markdown)"}
-              </label>
-              <textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                spellCheck={false}
-                className="h-56 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground outline-none focus:border-primary/50"
-              />
-              <div className="mt-2 flex items-center justify-end gap-2">
-                {isMermaid ? (
-                  <Button variant="outline" size="sm" icon="refresh" onClick={rerender} title="재렌더">
-                    재렌더
-                  </Button>
-                ) : null}
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={saved ? "check" : "save_note"}
-                  loading={saving}
-                  onClick={() => void save()}
-                  disabled={saving || !dirty}
-                  title="저장"
-                >
-                  {saving ? "저장 중…" : saved ? "저장됨" : "저장"}
-                </Button>
-              </div>
-            </div>
-          ) : null}
+          </div>
+          {/* 편집 패널은 다이어그램 아래에 고정(자체 스크롤). */}
+          {showEditor ? <div className="max-h-[45vh] shrink-0 overflow-y-auto">{editorPanel}</div> : null}
         </div>
-      </div>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <article className="markdown-body w-full px-5 py-4 text-[13.5px] leading-relaxed">
+            {/* 산출물 마크다운(변경 요약/메모)의 절대 링크는 새 탭으로 실제 이동. */}
+            <MarkdownView source={rendered} onLinkClick={handleArtifactLink} />
+          </article>
+          {editorPanel}
+        </div>
+      )}
     </div>
   );
 }

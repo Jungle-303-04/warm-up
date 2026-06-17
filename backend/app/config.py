@@ -21,8 +21,9 @@ class Settings(BaseSettings):
     embedding_dimension: int = 1536
     openai_api_key: str | None = None
 
-    # LLM 제안 (에이전트). "none"이면 휴리스틱 fallback으로 동작한다.
-    llm_provider: str = "none"  # "none" | "openai"
+    # LLM 제안 (에이전트). 기본 openai — OPENAI_API_KEY가 있으면 UML/ERD/변경요약을
+    # LLM으로 생성하고, 키가 없으면 자동으로 결정론(휴리스틱) 폴백으로 동작한다.
+    llm_provider: str = "openai"  # "none" | "openai"
     llm_model: str = "gpt-4o-mini"
 
     # GitHub 웹훅

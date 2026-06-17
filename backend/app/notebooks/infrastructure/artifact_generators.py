@@ -20,29 +20,44 @@ from __future__ import annotations
 import ast
 import re
 
-from app.notebooks.domain.artifact_ports import ArtifactContext, GenerationRequest
+from app.notebooks.domain.artifact_ports import ArtifactContext, GenerationRequest, LlmArtifactGenerator
 from app.notebooks.domain.artifact_records import ArtifactType
+from app.notebooks.infrastructure.code_scaffold import (
+    build_erd_mermaid,
+    build_uml_mermaid,
+    erd_facts_text,
+    uml_facts_text,
+)
+from app.notebooks.infrastructure.utils import coerce_text
 
 # 컨텍스트 토큰 과다 방지를 위한 상한(어댑터에서 자른다).
-MAX_CONTEXT_CHARS = 12000
+MAX_CONTEXT_CHARS = 16000
 
 # LLM 키가 없을 때 골격에 들어가는 안내 주석.
 _NEED_KEY_NOTE = "LLM 키가 필요합니다"
 
 
-class DeterministicArtifactGenerator:
+class DeterministicArtifactGenerator(LlmArtifactGenerator):
     """키 없이 동작하는 결정론 생성기.
 
-    dependency는 import 파싱으로 실제 그래프를 만들고, 나머지 타입은 골격을 돌려준다.
+    - dependency: import 파싱으로 실제 그래프.
+    - uml/erd: AST로 추출한 클래스/모델 골격으로 실제 Mermaid 생성(Python/ORM 한정).
+      추출 결과가 없으면 안내 골격(skeleton)으로 폴백한다.
+    - change_summary: 요약은 결정론으로 만들 수 없어 골격을 돌려준다.
     """
 
     def generate(self, request: GenerationRequest) -> str:
         if request.type == "dependency":
             return build_dependency_mermaid(request.contexts)
+        if request.type == "uml":
+            return build_uml_mermaid(request.contexts) or _skeleton("uml")
+        if request.type == "erd":
+            return build_erd_mermaid(request.contexts) or _skeleton("erd")
         return _skeleton(request.type)
 
 
-class ChatOpenAIArtifactGenerator:
+class ChatOpenAIArtifactGenerator(LlmArtifactGenerator):
+
     """LangChain ChatOpenAI 기반 생성기.
 
     타입별 system 프롬프트 + 컨텍스트로 Mermaid/마크다운만 출력하도록 유도한다.
@@ -62,7 +77,7 @@ class ChatOpenAIArtifactGenerator:
         try:
             prompt = _build_prompt(request)
             response = self._chat_model.invoke(prompt)  # type: ignore[attr-defined]
-            content = _coerce_text(getattr(response, "content", response))
+            content = coerce_text(getattr(response, "content", response))
             content = _strip_code_fence(content).strip()
             if content:
                 return content
@@ -99,7 +114,23 @@ def _build_prompt(request: GenerationRequest) -> str:
         "주어진 컨텍스트를 한국어로 요약하세요.",
     )
     context = _format_contexts(request.contexts)
-    return f"{system}\n\n[컨텍스트]\n{context}"
+    # 하이브리드: AST로 정적 추출한 사실(클래스/상속/모델/FK)을 근거로 주입한다.
+    facts = _facts_for(request)
+    facts_block = (
+        f"\n\n[정적 분석으로 추출한 사실 — 누락 없이 이 사실에 근거해 그려라]\n{facts}"
+        if facts
+        else ""
+    )
+    return f"{system}\n\n[컨텍스트]\n{context}{facts_block}"
+
+
+def _facts_for(request: GenerationRequest) -> str:
+    """타입별 AST 사실 텍스트(uml/erd만, 그 외 빈 문자열)."""
+    if request.type == "uml":
+        return uml_facts_text(request.contexts)
+    if request.type == "erd":
+        return erd_facts_text(request.contexts)
+    return ""
 
 
 def _format_contexts(contexts: list[ArtifactContext]) -> str:
@@ -357,12 +388,7 @@ def _resolve_internal(imported: str, modules: set[str]) -> str | None:
     return best
 
 
-def _coerce_text(content: object) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        return "\n".join(str(part) for part in content)
-    return str(content)
+
 
 
 def _strip_code_fence(text: str) -> str:
