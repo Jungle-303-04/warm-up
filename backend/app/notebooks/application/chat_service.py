@@ -14,10 +14,20 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from app.notebooks.application.intent_classifier import classify_intent, should_skip_rag
+from app.notebooks.application.result_combiner import combine_search_results
+from app.notebooks.application.search_planner import plan_search
 from app.notebooks.domain.chunk_records import ChunkSearchHit
 from app.notebooks.domain.ports import ChunkStore, NotebookStore
 from app.notebooks.domain.records import ChatMessageRecord, SourceRecord
 from app.repo_rag.domain.ports import EmbeddingClient
+from fastapi import Depends
+from app.notebooks.dependencies import (
+    get_notebook_store,
+    get_chunk_store,
+    get_embedding_client,
+    get_chat_answerer,
+)
 
 MAX_CHUNKS = 5
 SNIPPET_SIZE = 360
@@ -51,22 +61,29 @@ class ChatResult:
 ChatAnswerer = Callable[[str, list[TextChunk]], str]
 
 
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
+def get_clock() -> Callable[[], datetime]:
+    return lambda: datetime.now(UTC)
 
 
-def _new_id() -> str:
-    return uuid4().hex
+def get_id_factory() -> Callable[[], str]:
+    return lambda: uuid4().hex
 
 
 @dataclass(slots=True)
 class ChatService:
-    store: NotebookStore
-    chunk_store: ChunkStore
-    embedder: EmbeddingClient
-    answerer: ChatAnswerer | None = None
-    clock: Callable[[], datetime] = _utcnow
-    id_factory: Callable[[], str] = _new_id
+    store: NotebookStore = Depends(get_notebook_store)
+    chunk_store: ChunkStore = Depends(get_chunk_store)
+    embedder: EmbeddingClient = Depends(get_embedding_client)
+    answerer: ChatAnswerer | None = Depends(get_chat_answerer)
+    clock: Callable[[], datetime] = Depends(get_clock)
+    id_factory: Callable[[], str] = Depends(get_id_factory)
+
+    def __post_init__(self) -> None:
+        from fastapi.params import Depends as DependsClass
+        if isinstance(self.clock, DependsClass):
+            self.clock = self.clock.dependency()
+        if isinstance(self.id_factory, DependsClass):
+            self.id_factory = self.id_factory.dependency()
 
     def ask(
         self,
@@ -114,17 +131,46 @@ class ChatService:
                 except Exception:
                     pass
 
-            # 2) 재구성된 질문으로 RAG 검색 수행
-            query_embedding = self.embedder.embed_query(standalone_question)
-            hits = self.chunk_store.search(
-                notebook_id,
-                query_embedding=query_embedding,
-                query_text=standalone_question,
-                source_ids=search_source_ids,
-                top_k=MAX_CHUNKS,
-                file_paths=file_paths,
-            )
-            result = self._result_from_hits(normalized_question, hits, title_by_source, chat_history)
+            # 2) 의도 분류 (키워드 휴리스틱, LLM 불필요)
+            has_sources = len(selected) > 0
+            intent = classify_intent(standalone_question, has_sources=has_sources)
+
+            if should_skip_rag(intent, has_sources=has_sources):
+                # 인사/대화 또는 (소스 없을 때) 일반 지식 → RAG 생략, 바로 답변.
+                if self.answerer is not None:
+                    answer = self._answer(normalized_question, [], chat_history)
+                else:
+                    answer = (
+                        "안녕하세요! 연결된 소스에 대해 궁금한 점을 물어보시면 "
+                        "근거와 함께 답변해 드릴게요."
+                    )
+                result = ChatResult(answer=answer, citations=[])
+            else:
+                # 3) 검색 계획 수립 (의도별 전략 + 서브쿼리 + top_k)
+                plan = plan_search(
+                    standalone_question,
+                    intent_type=intent.value,
+                    source_count=len(selected),
+                )
+
+                # 4) 계획된 쿼리들로 다중 검색 (단일/다중 모두 동일 경로)
+                results_per_query = [
+                    self.chunk_store.search(
+                        notebook_id,
+                        query_embedding=self.embedder.embed_query(query),
+                        query_text=query,
+                        source_ids=search_source_ids,
+                        top_k=plan.top_k,
+                        file_paths=file_paths,
+                    )
+                    for query in plan.queries
+                ]
+
+                # 5) RRF로 다중 쿼리 결과를 병합·재랭킹.
+                hits = combine_search_results(results_per_query, top_k=plan.top_k)
+                result = self._result_from_hits(
+                    normalized_question, hits, title_by_source, chat_history
+                )
 
         self._record_turn(notebook_id, normalized_question, result, source_ids)
         return result
