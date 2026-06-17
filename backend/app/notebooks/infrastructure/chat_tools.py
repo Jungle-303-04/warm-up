@@ -134,10 +134,12 @@ def build_notebook_tools(
             return f"심볼 '{name}'의 정의를 찾지 못했습니다."
         return "정의 위치:\n" + "\n".join(results)
 
+    # 도구 이름은 ASCII만 허용된다(OpenAI 함수콜 규칙: ^[a-zA-Z0-9_-]{1,64}$).
+    # 따라서 name은 영문, 설명(description)만 한국어로 둔다.
     return [
         StructuredTool.from_function(
             func=read_source_file,
-            name="소스_파일_읽기",
+            name="read_source_file",
             description=(
                 "노트북에 연결된 저장소 소스에서 지정한 경로의 파일 원문을 읽는다. "
                 "RAG 청크로 잘리지 않은 전체 코드를 확인할 때 사용. 입력: path(파일 경로)."
@@ -145,7 +147,7 @@ def build_notebook_tools(
         ),
         StructuredTool.from_function(
             func=search_indexed_code,
-            name="코드_검색",
+            name="search_indexed_code",
             description=(
                 "이미 인덱싱된 코드/문서에서 의미·키워드로 관련 부분을 검색한다. "
                 "어떤 파일에 무엇이 있는지 모를 때 먼저 사용. 입력: query(검색어)."
@@ -153,7 +155,7 @@ def build_notebook_tools(
         ),
         StructuredTool.from_function(
             func=find_symbol,
-            name="심볼_찾기",
+            name="find_symbol",
             description=(
                 "클래스/함수 등 심볼의 정의 위치(파일:라인)를 찾는다. "
                 "특정 함수·클래스가 어디 정의됐는지 알 때 사용. 입력: name(심볼명)."
