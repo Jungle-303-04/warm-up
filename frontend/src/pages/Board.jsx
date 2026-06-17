@@ -1,6 +1,10 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
-import { MagnifyingGlassIcon, XMarkIcon } from "../components/icons";
+import { useEffect, useRef, useState } from "react";
+import {
+  MagnifyingGlassIcon,
+  ShareIcon,
+  XMarkIcon,
+} from "../components/icons";
 
 const posts = [
   {
@@ -114,10 +118,14 @@ const posts = [
 ];
 
 const postsPerPage = 9;
+const fallbackPageDescription =
+  "글의 분위기를 분석해 어울리는 폰트를 적용하고, 기록해보세요.";
 
 function Board() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [shareMessage, setShareMessage] = useState("");
+  const shareMessageTimerRef = useRef(null);
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredPosts = posts.filter((post) => {
     if (!normalizedQuery) {
@@ -167,6 +175,81 @@ function Board() {
   const handleSelectPage = (pageNumber) => {
     setCurrentPage(pageNumber);
   };
+
+  const buildShareText = () => {
+    const descriptionMetaTag = document.querySelector(
+      'meta[name="description"]',
+    );
+    const pageDescription =
+      descriptionMetaTag?.getAttribute("content") ?? fallbackPageDescription;
+
+    return `${window.location.href}\n${pageDescription}`;
+  };
+
+  const copyTextWithTextarea = (text) => {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-9999px";
+    textarea.style.left = "-9999px";
+
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    const isCopySuccessful = document.execCommand("copy");
+
+    document.body.removeChild(textarea);
+
+    if (!isCopySuccessful) {
+      throw new Error("텍스트 복사에 실패했습니다.");
+    }
+  };
+
+  const copyPageShareText = async () => {
+    const shareText = buildShareText();
+
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        return;
+      } catch {
+        copyTextWithTextarea(shareText);
+        return;
+      }
+    }
+
+    copyTextWithTextarea(shareText);
+  };
+
+  const showShareMessage = (message) => {
+    setShareMessage(message);
+
+    if (shareMessageTimerRef.current) {
+      clearTimeout(shareMessageTimerRef.current);
+    }
+
+    shareMessageTimerRef.current = setTimeout(() => {
+      setShareMessage("");
+    }, 1600);
+  };
+
+  const handleShareClick = async () => {
+    try {
+      await copyPageShareText();
+      showShareMessage("복사됐어요");
+    } catch {
+      showShareMessage("복사하지 못했어요");
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (shareMessageTimerRef.current) {
+        clearTimeout(shareMessageTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <main className="p-6">
@@ -298,6 +381,22 @@ function Board() {
           </p>
         </section>
       )}
+
+      <div className="fixed bottom-8 z-30 flex items-center gap-3 [right:max(1.5rem,calc((100vw-1024px)/2+1.5rem))]">
+        {shareMessage ? (
+          <p className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-black shadow-[0_6px_18px_rgba(15,23,42,0.08)]">
+            {shareMessage}
+          </p>
+        ) : null}
+        <button
+          aria-label="페이지 링크와 설명 복사"
+          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-transparent bg-transparent text-black transition-colors hover:border-gray-300 hover:bg-white focus:border-gray-300 focus:bg-white focus:outline-none"
+          onClick={handleShareClick}
+          type="button"
+        >
+          <ShareIcon className="h-5 w-5" />
+        </button>
+      </div>
     </main>
   );
 }
