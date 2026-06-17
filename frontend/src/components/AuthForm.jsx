@@ -36,6 +36,7 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [errorField, setErrorField] = useState("");
+  const [errorAnimationKey, setErrorAnimationKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [focusedField, setFocusedField] = useState("");
@@ -55,6 +56,13 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
   const guideMessage = getFocusedFieldGuideMessage();
   const helperMessage = errorMessage || guideMessage;
   const helperMessageColor = errorMessage ? "text-black" : "text-[#d4d4d4]";
+  const helperMessageAnimation = errorMessage ? "animate-shake-error" : "";
+
+  const showAuthError = (message, field) => {
+    setErrorMessage(message);
+    setErrorField(field);
+    setErrorAnimationKey((currentKey) => currentKey + 1);
+  };
 
   const validateAuthForm = () => {
     const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,20}$/;
@@ -122,8 +130,7 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
     const validationError = validateAuthForm();
 
     if (validationError) {
-      setErrorMessage(validationError.message);
-      setErrorField(validationError.field);
+      showAuthError(validationError.message, validationError.field);
       return;
     }
 
@@ -132,8 +139,7 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
     try {
       await onSubmit({ nickname, password });
     } catch (error) {
-      setErrorMessage(error.message);
-      setErrorField("form");
+      showAuthError(error.message, "form");
     } finally {
       setIsSubmitting(false);
     }
@@ -196,7 +202,14 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
             </div>
           </div>
 
-          <p className={`mt-3 min-h-5 text-right text-sm ${helperMessageColor}`}>
+          <p
+            className={[
+              "mt-3 min-h-5 text-right text-sm",
+              helperMessageColor,
+              helperMessageAnimation,
+            ].join(" ")}
+            key={errorAnimationKey}
+          >
             {helperMessage}
           </p>
 

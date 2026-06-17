@@ -77,9 +77,36 @@ select {
     }
   }
 
+  @keyframes shake-error {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+
+    20% {
+      transform: translateX(-3px);
+    }
+
+    40% {
+      transform: translateX(3px);
+    }
+
+    60% {
+      transform: translateX(-2px);
+    }
+
+    80% {
+      transform: translateX(2px);
+    }
+  }
+
   .animate-tilt-once {
     animation: tilt-once 680ms ease-in-out 1;
     transform-origin: center;
+  }
+
+  .animate-shake-error {
+    animation: shake-error 320ms ease-out 1;
   }
 
   .thin-transparent-scrollbar {
