@@ -147,6 +147,7 @@ def _build_llm_answerer(settings: Settings) -> "ChatAnswerer | None":
             settings.llm_model,
             settings.openai_api_key,
             temperature=0.0,
+            use_tools=settings.chat_use_tools,
         )
     return None
 

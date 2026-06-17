@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # 채팅 RAG 검색 top_k(.env로 오버라이드 가능). 의도별 검색 계획에서 상한으로 쓰인다.
     chat_default_top_k: int = 5  # 일반/코드/버그 질문 기본 top_k
     chat_architecture_top_k: int = 8  # 아키텍처 질문은 더 넓게 검색
+    # 채팅 답변기가 인프로세스 도구(노트북 소스 파일 읽기·인덱스 코드 검색·심볼 찾기)를
+    # 사용하는 에이전트 루프로 동작할지. 켜면 우리가 인덱싱한 레포를 라이브로 확인해 답함.
+    chat_use_tools: bool = True
+    chat_tool_max_steps: int = 4  # 에이전트 도구 호출 반복 상한(무한루프 방지)
 
     @property
     def uses_postgres(self) -> bool:

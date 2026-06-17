@@ -8,6 +8,7 @@
 근거(소스/청크)가 없으면 에러 대신 "근거 부족" 응답을 돌려준다.
 """
 
+import contextlib
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -15,21 +16,22 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
+from fastapi import Depends
+
+from app.config import Settings, get_settings
 from app.notebooks.application.intent_classifier import classify_intent, should_skip_rag
 from app.notebooks.application.result_combiner import combine_search_results
 from app.notebooks.application.search_planner import plan_search
+from app.notebooks.dependencies import (
+    get_chat_answerer,
+    get_chunk_store,
+    get_embedding_client,
+    get_notebook_store,
+)
 from app.notebooks.domain.chunk_records import ChunkSearchHit
 from app.notebooks.domain.ports import ChunkStore, NotebookStore
 from app.notebooks.domain.records import ChatMessageRecord, SourceRecord
 from app.repo_rag.domain.ports import EmbeddingClient
-from app.config import Settings, get_settings
-from fastapi import Depends
-from app.notebooks.dependencies import (
-    get_notebook_store,
-    get_chunk_store,
-    get_embedding_client,
-    get_chat_answerer,
-)
 
 SNIPPET_SIZE = 360
 TOKEN_RE = re.compile(r"[0-9A-Za-z가-힣_./-]+")
@@ -72,13 +74,13 @@ def get_id_factory() -> Callable[[], str]:
 
 @dataclass(slots=True)
 class ChatService:
-    store: NotebookStore = Depends(get_notebook_store)
-    chunk_store: ChunkStore = Depends(get_chunk_store)
-    embedder: EmbeddingClient = Depends(get_embedding_client)
-    answerer: ChatAnswerer | None = Depends(get_chat_answerer)
-    settings: Settings = Depends(get_settings)
-    clock: Any = Depends(get_clock)
-    id_factory: Any = Depends(get_id_factory)
+    store: NotebookStore = Depends(get_notebook_store)  # noqa: RUF009
+    chunk_store: ChunkStore = Depends(get_chunk_store)  # noqa: RUF009
+    embedder: EmbeddingClient = Depends(get_embedding_client)  # noqa: RUF009
+    answerer: ChatAnswerer | None = Depends(get_chat_answerer)  # noqa: RUF009
+    settings: Settings = Depends(get_settings)  # noqa: RUF009
+    clock: Any = Depends(get_clock)  # noqa: RUF009
+    id_factory: Any = Depends(get_id_factory)  # noqa: RUF009
 
     def __post_init__(self) -> None:
         from fastapi.params import Depends as DependsClass
@@ -130,10 +132,10 @@ class ChatService:
             # 1) 질문 재구성 (Query Reformulation)
             standalone_question = normalized_question
             if chat_history and self.answerer and hasattr(self.answerer, "reformulate"):
-                try:
-                    standalone_question = self.answerer.reformulate(normalized_question, chat_history)
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    standalone_question = self.answerer.reformulate(
+                        normalized_question, chat_history
+                    )
 
             # 2) 의도 분류 (키워드 휴리스틱, LLM 불필요)
             has_sources = len(selected) > 0
@@ -174,8 +176,10 @@ class ChatService:
 
                 # 5) RRF로 다중 쿼리 결과를 병합·재랭킹.
                 hits = combine_search_results(results_per_query, top_k=plan.top_k)
+                # 6) 에이전트 도구(우리 인덱스에 묶인 인프로세스 도구) 준비 후 답변.
+                tools = self._build_tools(notebook_id, search_source_ids)
                 result = self._result_from_hits(
-                    normalized_question, hits, title_by_source, chat_history
+                    normalized_question, hits, title_by_source, chat_history, tools=tools
                 )
 
         self._record_turn(notebook_id, normalized_question, result, source_ids)
@@ -193,11 +197,12 @@ class ChatService:
         hits: list[ChunkSearchHit],
         title_by_source: dict[str, str],
         history: list[ChatMessageRecord],
+        tools: list | None = None,
     ) -> ChatResult:
         if not hits:
             # RAG 검색 결과가 없어도 LLM이 자체 지식을 바탕으로 유연하게 대답할 수 있도록
-            # 빈 evidence를 전달하여 LLM 답변을 받아옵니다.
-            answer = self._answer(question, [], history)
+            # 빈 evidence를 전달하여 LLM 답변을 받아옵니다(이 경우에도 도구 사용 허용).
+            answer = self._answer(question, [], history, tools=tools)
             if answer.strip():
                 return ChatResult(answer=answer, citations=[])
             return ChatResult(
@@ -214,17 +219,43 @@ class ChatService:
             )
             for hit in hits
         ]
-        answer = self._answer(question, evidence, history)
+        answer = self._answer(question, evidence, history, tools=tools)
         citations = _dedupe_citations(
             [_citation_from_chunk(chunk, question) for chunk in evidence]
         )
         return ChatResult(answer=answer, citations=citations)
 
-    def _answer(self, question: str, evidence: list[TextChunk], history: list[ChatMessageRecord]) -> str:
+    def _build_tools(self, notebook_id: str, source_ids: list[str] | None) -> list | None:
+        """채팅 에이전트용 인프로세스 도구(우리 인덱스에 묶임). 설정이 꺼져 있으면 None."""
+        if not getattr(self.settings, "chat_use_tools", False):
+            return None
+        try:
+            from app.notebooks.infrastructure.chat_tools import build_notebook_tools
+
+            return build_notebook_tools(
+                notebook_id=notebook_id,
+                store=self.store,
+                chunk_store=self.chunk_store,
+                embedder=self.embedder,
+                source_ids=source_ids,
+            )
+        except Exception:
+            return None
+
+    def _answer(
+        self,
+        question: str,
+        evidence: list[TextChunk],
+        history: list[ChatMessageRecord],
+        tools: list | None = None,
+    ) -> str:
         if self.answerer is not None:
             try:
                 if hasattr(self.answerer, "answer"):
-                    answer = self.answerer.answer(question, evidence, history).strip()
+                    # 도구가 있으면 에이전트 루프로 답변(answerer가 지원). 없으면 단발.
+                    answer = self.answerer.answer(
+                        question, evidence, history, tools=tools
+                    ).strip()
                 else:
                     answer = self.answerer(question, evidence).strip()
                 if answer:
