@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getMyBoard } from "../api/auth";
-import { ArchiveBoxIcon } from "../components/icons";
+import { ArchiveBoxIcon, HandRaisedIcon } from "../components/icons";
 
 function createMyPostItem(post) {
   return {
@@ -89,8 +89,9 @@ function MyPage({ onLogout, user }) {
           f
         </span>
 
-        <p className="mt-4 min-h-6 text-center text-base font-normal text-black">
-          안녕하세요 {nickname} 님
+        <p className="mt-4 flex min-h-6 items-center justify-center gap-2 text-center text-base font-normal text-black">
+          <span>안녕하세요 {nickname} 님</span>
+          <HandRaisedIcon className="h-5 w-5" />
         </p>
 
         <button

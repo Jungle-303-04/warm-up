@@ -219,7 +219,10 @@ function Board() {
 
   return (
     <main className="p-6">
-      <div className="flex justify-center pt-10">
+      <div className="flex flex-col items-center pt-10">
+        <p className="mb-5 text-center text-base font-normal text-black">
+          글에 어울리는 폰트를 검색하고 기록해보세요
+        </p>
         <label className="relative w-full max-w-[360px]">
           <span className="sr-only">게시글 검색</span>
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />

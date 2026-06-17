@@ -340,7 +340,7 @@ function Write({ onAuthExpired = () => {} }) {
         </div>
 
         <input
-          className="mt-20 w-full border-b border-gray-200 px-1 py-2 text-base outline-none transition-colors placeholder:text-gray-300 focus:border-black"
+          className="mt-20 w-full border-b border-black px-1 py-2 text-base outline-none transition-colors placeholder:text-gray-300"
           maxLength={100}
           onChange={handleTitleChange}
           placeholder="제목을 입력하세요."
