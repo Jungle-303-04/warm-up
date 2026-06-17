@@ -1,3 +1,5 @@
+import { refreshLogin } from "./auth";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 class CommentRequestError extends Error {
@@ -20,7 +22,7 @@ async function parseCommentErrorMessage(response) {
 }
 
 async function requestComment(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  let response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: {
@@ -28,6 +30,22 @@ async function requestComment(path, options = {}) {
       ...options.headers,
     },
   });
+
+  if (response.status === 401) {
+    try {
+      await refreshLogin();
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      });
+    } catch {
+      throw new CommentRequestError("로그인이 필요해요.", 401);
+    }
+  }
 
   if (!response.ok) {
     const errorMessage = await parseCommentErrorMessage(response);

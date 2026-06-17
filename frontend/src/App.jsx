@@ -52,6 +52,11 @@ function App() {
     navigate("/");
   }, [navigate]);
 
+  const handleAuthExpired = useCallback(() => {
+    setUser(null);
+    navigate("/login");
+  }, [navigate]);
+
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen w-full max-w-[1024px] rounded-[10px] bg-white">
@@ -78,11 +83,23 @@ function App() {
         />
         <Route element={<PostDetail user={user} />} path="/posts/:postId" />
         <Route
-          element={user ? <Write /> : <Navigate replace to="/login" />}
+          element={
+            user ? (
+              <Write onAuthExpired={handleAuthExpired} />
+            ) : (
+              <Navigate replace to="/login" />
+            )
+          }
           path="/posts/:postId/edit"
         />
         <Route
-          element={user ? <Write /> : <Navigate replace to="/login" />}
+          element={
+            user ? (
+              <Write onAuthExpired={handleAuthExpired} />
+            ) : (
+              <Navigate replace to="/login" />
+            )
+          }
           path="/write"
         />
         <Route
