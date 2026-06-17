@@ -8,6 +8,7 @@ class PostCreate(SQLModel):
     title: str
     content: str
     font_id: int
+    recommend_reason: str
 
 class Post(SQLModel, table=True):
     __tablename__ = "posts"
@@ -16,6 +17,10 @@ class Post(SQLModel, table=True):
 
     title: str = Field(sa_column=Column(String(100), nullable=False))
     content: str = Field(sa_column=Column(Text, nullable=False))
+    recommend_reason: Optional[str] = Field(
+        default=None,
+        sa_column=Column(Text, nullable=True)
+    )
 
     font_id: int = Field(foreign_key="fonts.id")
     user_id: int = Field(foreign_key="users.id")

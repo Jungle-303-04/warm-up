@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { createPost } from "../api/posts";
+import { createPost, getPost, updatePost } from "../api/posts";
 import FontInfoPopover from "../components/FontInfoPopover";
 import { ArrowLongLeftIcon } from "../components/icons";
 
@@ -25,12 +25,15 @@ const recommendedFont = {
   usage: "인쇄, 웹사이트, 영상, BI/CI",
 };
 
-const editablePost = {
-  content:
-    "Once upon a time, in a quiet village beside a silver forest, a small lantern learned how to glow. Every night it listened to the wind, gathered stories from the stars, and lit a narrow path for children who dreamed of finding a hidden garden beyond the hill.",
-  font: recommendedFont,
-  title: "Boost your conversion rate",
-};
+function createRecommendationFromPost(post) {
+  return {
+    ...recommendedFont,
+    id: post.font?.id ?? recommendedFont.id,
+    name: post.font?.name ?? recommendedFont.name,
+    reason: post.recommend_reason ?? recommendedFont.reason,
+    tags: post.font?.tags ?? recommendedFont.tags,
+  };
+}
 
 function TypingWaitingMessage({ lines }) {
   const fixedLines = lines.slice(0, -1);
@@ -72,20 +75,58 @@ function Write() {
   const navigate = useNavigate();
   const { postId } = useParams();
   const isEditMode = Boolean(postId);
-  const initialTitle = isEditMode ? editablePost.title : "";
-  const initialContent = isEditMode ? editablePost.content : "";
-  const initialRecommendation = isEditMode ? editablePost.font : null;
   const [activeTab, setActiveTab] = useState("write");
-  const [title, setTitle] = useState(initialTitle);
-  const [content, setContent] = useState(initialContent);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [isLoadingPost, setIsLoadingPost] = useState(isEditMode);
   const [isRecommending, setIsRecommending] = useState(false);
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
   const [postErrorMessage, setPostErrorMessage] = useState("");
-  const [recommendation, setRecommendation] = useState(initialRecommendation);
+  const [recommendation, setRecommendation] = useState(null);
   const waitingMessage = waitingMessages[0];
   const isPreviewTab = activeTab === "preview";
   const hasRecommendation = isPreviewTab && recommendation;
   const previewText = isEditMode ? content : recommendation?.previewText;
+
+  useEffect(() => {
+    if (!isEditMode) {
+      return;
+    }
+
+    let shouldUpdateState = true;
+
+    const loadPostForEdit = async () => {
+      setIsLoadingPost(true);
+      setPostErrorMessage("");
+
+      try {
+        const post = await getPost(postId);
+
+        if (!shouldUpdateState) {
+          return;
+        }
+
+        setTitle(post.title ?? "");
+        setContent(post.content ?? "");
+        setRecommendation(createRecommendationFromPost(post));
+        setActiveTab("write");
+      } catch (error) {
+        if (shouldUpdateState) {
+          setPostErrorMessage(error.message);
+        }
+      } finally {
+        if (shouldUpdateState) {
+          setIsLoadingPost(false);
+        }
+      }
+    };
+
+    loadPostForEdit();
+
+    return () => {
+      shouldUpdateState = false;
+    };
+  }, [isEditMode, postId]);
 
   const handleTitleChange = (event) => {
     setTitle(event.target.value);
@@ -113,6 +154,7 @@ function Write() {
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
     const selectedFontId = recommendation?.id;
+    const recommendReason = recommendation?.reason?.trim();
 
     if (!trimmedTitle) {
       setPostErrorMessage("제목을 입력해주세요.");
@@ -129,6 +171,11 @@ function Write() {
       return;
     }
 
+    if (!recommendReason) {
+      setPostErrorMessage("추천 이유가 필요해요.");
+      return;
+    }
+
     setIsSubmittingPost(true);
     setPostErrorMessage("");
 
@@ -137,6 +184,7 @@ function Write() {
         title: trimmedTitle,
         content: trimmedContent,
         fontId: selectedFontId,
+        recommendReason,
       });
 
       navigate(`/posts/${createdPost.id}`);
@@ -147,8 +195,49 @@ function Write() {
     }
   };
 
-  const handleUpdatePost = () => {
-    navigate(`/posts/${postId}`);
+  const handleUpdatePost = async () => {
+    const trimmedTitle = title.trim();
+    const trimmedContent = content.trim();
+    const selectedFontId = recommendation?.id;
+    const recommendReason = recommendation?.reason?.trim();
+
+    if (!trimmedTitle) {
+      setPostErrorMessage("제목을 입력해주세요.");
+      return;
+    }
+
+    if (!trimmedContent) {
+      setPostErrorMessage("게시글 내용을 입력해주세요.");
+      return;
+    }
+
+    if (!selectedFontId) {
+      setPostErrorMessage("폰트 정보가 필요해요.");
+      return;
+    }
+
+    if (!recommendReason) {
+      setPostErrorMessage("추천 이유가 필요해요.");
+      return;
+    }
+
+    setIsSubmittingPost(true);
+    setPostErrorMessage("");
+
+    try {
+      await updatePost(postId, {
+        title: trimmedTitle,
+        content: trimmedContent,
+        fontId: selectedFontId,
+        recommendReason,
+      });
+
+      navigate(`/posts/${postId}`);
+    } catch (error) {
+      setPostErrorMessage(error.message);
+    } finally {
+      setIsSubmittingPost(false);
+    }
   };
 
   const isPreviewDisabled = !recommendation && !isRecommending;
@@ -171,6 +260,13 @@ function Write() {
             <ArrowLongLeftIcon className="h-6 w-8" />
           </button>
         ) : null}
+
+        {isLoadingPost ? (
+          <div className="flex min-h-[420px] items-center justify-center text-sm text-[#d4d4d4]">
+            게시글을 불러오는 중...
+          </div>
+        ) : (
+          <>
 
         <div className="h-[132px]">
           <div className="h-full overflow-visible pr-2">
@@ -318,10 +414,12 @@ function Write() {
                         onClick={isEditMode ? handleUpdatePost : handleSubmitPost}
                         type="button"
                       >
-                        {isEditMode
-                          ? "수정하기"
-                          : isSubmittingPost
-                            ? "등록 중..."
+                        {isSubmittingPost
+                          ? isEditMode
+                            ? "수정 중..."
+                            : "등록 중..."
+                          : isEditMode
+                            ? "수정하기"
                             : "등록 하기"}
                       </button>
                     </div>
@@ -344,6 +442,8 @@ function Write() {
             </div>
           )}
         </div>
+          </>
+        )}
       </section>
     </main>
   );

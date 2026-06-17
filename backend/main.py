@@ -52,11 +52,13 @@ def get_posts():
                     "id": post.id,
                     "title": post.title,
                     "content": post.content,
+                    "recommend_reason": post.recommend_reason,
                     "created_at": post.created_at,
                     "user": {
                         "nickname": user.nickname
                     },
                     "font": {
+                        "id": font.id,
                         "name": font.name,
                         "tags": font.tags
                     } 
@@ -71,12 +73,16 @@ def create_post(post_data: PostCreate, request: Request):
     current_user = get_current_user_from_access_token(request)
     title = post_data.title.strip()
     content = post_data.content.strip()
+    recommend_reason = post_data.recommend_reason.strip()
 
     if not title:
         raise HTTPException(status_code=400, detail="제목은 필수 입력 항목입니다.")
 
     if not content:
         raise HTTPException(status_code=400, detail="내용은 필수 입력 항목입니다.")
+
+    if not recommend_reason:
+        raise HTTPException(status_code=400, detail="추천 이유는 필수 입력 항목입니다.")
 
     # postgreSQL 연결 시작 수행 후 종료
     with Session(engine) as session:
@@ -88,6 +94,7 @@ def create_post(post_data: PostCreate, request: Request):
         post = Post(
             title=title,
             content=content,
+            recommend_reason=recommend_reason,
             font_id=post_data.font_id,
             user_id=current_user.id
         )
@@ -103,6 +110,7 @@ def create_post(post_data: PostCreate, request: Request):
             "id": post.id,
             "title": post.title,
             "content": post.content,
+            "recommend_reason": post.recommend_reason,
             "created_at": post.created_at,
             "updated_at": post.updated_at,
             "user": {
@@ -110,6 +118,7 @@ def create_post(post_data: PostCreate, request: Request):
                 "nickname": current_user.nickname
             },
             "font": {
+                "id": font.id,
                 "name": font.name,
                 "tags": font.tags
             }
@@ -140,6 +149,7 @@ def get_post(post_id : int):
                     "id": post.id,
                     "title": post.title,
                     "content": post.content,
+                    "recommend_reason": post.recommend_reason,
                     "created_at": post.created_at,
                     "updated_at": post.updated_at,
                     "user": {
@@ -147,19 +157,28 @@ def get_post(post_id : int):
                         "nickname": user.nickname
                     },
                     "font": {
+                        "id": font.id,
                         "name": font.name,
                         "tags": font.tags
                     } 
                 }
 
 @app.put("/posts/{post_id}")
-def update_post(post_id : int, post_data: Post):
+def update_post(post_id: int, post_data: PostCreate, request: Request):
 
-    if not post_data.title.strip():
+    current_user = get_current_user_from_access_token(request)
+    title = post_data.title.strip()
+    content = post_data.content.strip()
+    recommend_reason = post_data.recommend_reason.strip()
+
+    if not title:
         raise HTTPException(status_code=400, detail="제목은 필수 입력 항목입니다.")
 
-    if not post_data.content.strip():
-        raise HTTPException(status_code=400, detail="제목은 필수 입력 항목입니다.")
+    if not content:
+        raise HTTPException(status_code=400, detail="내용은 필수 입력 항목입니다.")
+
+    if not recommend_reason:
+        raise HTTPException(status_code=400, detail="추천 이유는 필수 입력 항목입니다.")
     
     with Session (engine) as session:
         post = session.get(Post, post_id)
@@ -168,9 +187,17 @@ def update_post(post_id : int, post_data: Post):
             # FastAPI 제공 예외 클래스로 정확한 상태코드 내려줌
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
 
-        post.title = post_data.title
-        post.content = post_data.content
-        post.user_id = post_data.user_id
+        if post.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="게시글 수정 권한이 없습니다.")
+
+        font = session.get(Font, post_data.font_id)
+
+        if font is None:
+            raise HTTPException(status_code=400, detail="폰트 정보를 찾을 수 없습니다.")
+
+        post.title = title
+        post.content = content
+        post.recommend_reason = recommend_reason
         post.font_id = post_data.font_id
         post.updated_at = datetime.now(timezone.utc)
 

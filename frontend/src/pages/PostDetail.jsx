@@ -90,7 +90,11 @@ function transformPostDetail(post) {
       name: fontName,
       notice:
         post.font?.notice ?? "브랜드 적용 전 라이선스 원문을 한 번 더 확인하세요.",
-      reason: post.font?.reason ?? post.reason ?? fallbackFontReason,
+      reason:
+        post.recommend_reason ??
+        post.font?.reason ??
+        post.reason ??
+        fallbackFontReason,
       source: post.font?.source ?? "",
       tags: post.font?.tags ?? [],
       usage: post.font?.usage ?? "",
