@@ -383,7 +383,7 @@ function Board() {
         ) : null}
         <button
           aria-label="페이지 링크와 설명 복사"
-          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-transparent bg-transparent text-black transition-colors hover:border-gray-300 hover:bg-white focus:border-gray-300 focus:bg-white focus:outline-none"
+          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-gray-300 bg-white text-black transition-colors hover:border-black hover:bg-black hover:text-white focus:border-black focus:bg-black focus:text-white focus:outline-none"
           onClick={handleShareClick}
           type="button"
         >

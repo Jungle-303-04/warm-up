@@ -27,6 +27,7 @@ function Write({ onAuthExpired = () => {} }) {
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
   const [postErrorMessage, setPostErrorMessage] = useState("");
   const [recommendation, setRecommendation] = useState(null);
+  const [typedRecommendationReason, setTypedRecommendationReason] = useState("");
   const [waitingMessageIndex, setWaitingMessageIndex] = useState(0);
   const [waitingMessageQueue, setWaitingMessageQueue] = useState(waitingMessages);
   const waitingMessage = waitingMessageQueue[waitingMessageIndex] ?? waitingMessages[0];
@@ -135,6 +136,31 @@ function Write({ onAuthExpired = () => {} }) {
       clearInterval(waitingMessageTimer);
     };
   }, [isRecommending, waitingMessageQueue.length]);
+
+  useEffect(() => {
+    const recommendationReason = recommendation?.reason ?? "";
+
+    if (!isPreviewTab || !recommendationReason) {
+      setTypedRecommendationReason("");
+      return undefined;
+    }
+
+    let currentIndex = 0;
+    setTypedRecommendationReason("");
+
+    const typingTimer = setInterval(() => {
+      currentIndex += 1;
+      setTypedRecommendationReason(recommendationReason.slice(0, currentIndex));
+
+      if (currentIndex >= recommendationReason.length) {
+        clearInterval(typingTimer);
+      }
+    }, 18);
+
+    return () => {
+      clearInterval(typingTimer);
+    };
+  }, [isPreviewTab, recommendation?.reason]);
 
   const handleSubmitPost = async () => {
     const trimmedTitle = title.trim();
@@ -264,10 +290,10 @@ function Write({ onAuthExpired = () => {} }) {
         ) : (
           <>
 
-        <div className="h-[132px]">
+        <div className="min-h-[148px]">
           <div className="h-full overflow-visible pr-2">
             <div className="grid h-full grid-cols-[1fr_auto] items-start gap-5 overflow-visible">
-              <div className="ml-auto flex h-full w-2/3 flex-col">
+              <div className="ml-auto flex h-full w-[68%] flex-col">
                 <div className="flex min-h-7 flex-wrap items-center gap-2">
                   {hasRecommendation ? (
                     <>
@@ -284,10 +310,10 @@ function Write({ onAuthExpired = () => {} }) {
                   ) : null}
                 </div>
 
-                <div className="mt-3 flex min-h-16 items-center overflow-visible pr-1">
+                <div className="mt-3 flex min-h-20 items-center overflow-visible pr-1">
                   {hasRecommendation ? (
-                    <p className="thin-transparent-scrollbar max-h-16 overflow-y-auto text-left text-sm leading-relaxed text-black">
-                      {recommendation.reason}
+                    <p className="thin-transparent-scrollbar max-h-20 overflow-y-auto text-left text-sm leading-relaxed text-black">
+                      {typedRecommendationReason}
                     </p>
                   ) : (
                     <p className="w-full text-right text-sm leading-relaxed text-[#d4d4d4]">
@@ -298,7 +324,7 @@ function Write({ onAuthExpired = () => {} }) {
               </div>
               <div className="flex h-full flex-col">
                 <div className="min-h-7" />
-                <div className="mt-3 flex min-h-16 items-center overflow-visible">
+                <div className="mt-3 flex min-h-20 items-center overflow-visible">
                   <span
                     className={[
                       "shrink-0 font-['Zodiak'] text-[28pt] font-extrabold italic leading-none text-black",

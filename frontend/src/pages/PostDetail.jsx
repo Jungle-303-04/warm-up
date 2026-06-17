@@ -10,6 +10,7 @@ import FontInfoPopover from "../components/FontInfoPopover";
 import {
   ArrowLongLeftIcon,
   ChatBubbleLeftEllipsisIcon,
+  PencilSquareIcon,
   XMarkIcon,
 } from "../components/icons";
 import PreservedText from "../components/PreservedText";
@@ -192,6 +193,15 @@ function PostDetail({ user }) {
     }
   };
 
+  const handleWriteClick = () => {
+    if (user) {
+      navigate("/write");
+      return;
+    }
+
+    navigate("/login");
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -258,8 +268,8 @@ function PostDetail({ user }) {
           <ArrowLongLeftIcon className="h-6 w-8" />
         </button>
 
-        <div className="grid min-h-[132px] grid-cols-[1fr_auto] items-start gap-5 overflow-visible pr-2">
-          <div className="ml-auto flex h-full w-2/3 flex-col">
+        <div className="grid min-h-[148px] grid-cols-[1fr_auto] items-start gap-5 overflow-visible pr-2">
+          <div className="ml-auto flex h-full w-[68%] flex-col">
             <div className="flex min-h-7 flex-wrap items-center gap-2">
               <FontInfoPopover font={postDetail.font} />
               {postDetail.font.tags.map((tag) => (
@@ -272,8 +282,8 @@ function PostDetail({ user }) {
               ))}
             </div>
 
-            <div className="mt-3 flex min-h-16 items-center overflow-visible pr-1">
-              <p className="thin-transparent-scrollbar max-h-16 overflow-y-auto text-left text-sm leading-relaxed text-black">
+            <div className="mt-3 flex min-h-20 items-center overflow-visible pr-1">
+              <p className="thin-transparent-scrollbar max-h-20 overflow-y-auto text-left text-sm leading-relaxed text-black">
                 {postDetail.font.reason}
               </p>
             </div>
@@ -281,7 +291,7 @@ function PostDetail({ user }) {
 
           <div className="flex h-full flex-col">
             <div className="min-h-7" />
-            <div className="mt-3 flex min-h-16 items-center overflow-visible">
+            <div className="mt-3 flex min-h-20 items-center overflow-visible">
               <span className="shrink-0 font-['Zodiak'] text-[28pt] font-extrabold italic leading-none text-black">
                 f
               </span>
@@ -411,6 +421,17 @@ function PostDetail({ user }) {
 
         <p className="sr-only">현재 게시글 ID는 {postId}입니다.</p>
       </section>
+
+      <div className="fixed bottom-8 z-30 [right:max(1.5rem,calc((100vw-1024px)/2+1.5rem))]">
+        <button
+          aria-label="글쓰기"
+          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-gray-300 bg-white text-black transition-colors hover:border-black hover:bg-black hover:text-white focus:border-black focus:bg-black focus:text-white focus:outline-none"
+          onClick={handleWriteClick}
+          type="button"
+        >
+          <PencilSquareIcon className="h-5 w-5" />
+        </button>
+      </div>
 
       {isDeleteDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/10 px-6 backdrop-blur-[1px]">
