@@ -265,8 +265,12 @@ def test_erd_extracts_sqlalchemy_relationships_without_foreign_key() -> None:
     assert content.startswith("erDiagram")
     assert "users" in content
     assert "posts" in content
-    assert "users }o--|| posts : relationship" in content
-    assert "posts }o--|| users : relationship" in content
+    relationship_lines = [
+        line for line in content.splitlines() if ": relationship" in line
+    ]
+    assert len(relationship_lines) == 1
+    assert "users" in relationship_lines[0]
+    assert "posts" in relationship_lines[0]
 
 
 def test_erd_sanitizes_sqlalchemy_vector_columns() -> None:
@@ -392,6 +396,51 @@ def test_uml_from_typescript_interfaces_without_key() -> None:
     assert "class SourceStore" in content
     assert "+add()" in content
     assert "SourceStore ..> Source : 참조" in content
+
+
+def test_uml_compacts_many_isolated_classes_for_readability() -> None:
+    gen = DeterministicArtifactGenerator()
+    contexts = [
+        _ctx(
+            "app/domain/connected.py",
+            "class Repository: ...\nclass Service:\n    repo: Repository\n",
+        )
+    ]
+    for index in range(25):
+        contexts.append(_ctx(f"app/api/view_{index}.py", f"class View{index}: ...\n"))
+
+    content = gen.generate(GenerationRequest(type="uml", contexts=contexts))
+
+    assert content.startswith("classDiagram")
+    assert "namespace Domain_Contract" in content
+    assert "Service ..> Repository : 참조" in content
+    assert "관계가 약한 클래스" in content
+    assert "class View24" not in content
+
+
+def test_erd_compacts_many_isolated_entities_for_readability() -> None:
+    gen = DeterministicArtifactGenerator()
+    model = (
+        "class User(Base):\n"
+        '    __tablename__ = "users"\n'
+        "    id = Column(Integer)\n"
+        "class Post(Base):\n"
+        '    __tablename__ = "posts"\n'
+        '    user_id = Column(Integer, ForeignKey("users.id"))\n'
+    )
+    isolated = "\n".join(
+        f"class Log{index}(Base):\n"
+        f'    __tablename__ = "logs_{index}"\n'
+        "    id = Column(Integer)\n"
+        for index in range(20)
+    )
+
+    content = gen.generate(GenerationRequest(type="erd", contexts=[_ctx("app/models.py", model + isolated)]))
+
+    assert content.startswith("erDiagram")
+    assert "posts }o--|| users : FK" in content
+    assert "관계가 약한 엔티티" in content
+    assert "logs_19 {" not in content
 
 
 def test_uml_without_extractable_symbols_falls_back_to_skeleton() -> None:

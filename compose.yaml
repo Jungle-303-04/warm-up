@@ -6,7 +6,7 @@ x-backend-env: &backend-env
   POSTGRES_DATABASE_URL: ${POSTGRES_DATABASE_URL:-postgresql+psycopg://repolm:repolm@postgres:5432/repolm}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   LLM_PROVIDER: ${LLM_PROVIDER:-none}
-  LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+  LLM_MODEL: ${LLM_MODEL:-gpt-4o}
   EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-deterministic}
   GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
   GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}

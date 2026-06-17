@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # LLM 제안 (에이전트). 기본 openai — OPENAI_API_KEY가 있으면 UML/ERD/변경요약을
     # LLM으로 생성하고, 키가 없으면 자동으로 결정론(휴리스틱) 폴백으로 동작함
     llm_provider: str = "openai"  # "none" | "openai"
-    llm_model: str = "gpt-4o-mini"
+    llm_model: str = "gpt-4o"
 
     # GitHub 웹훅
     github_webhook_secret: str | None = None

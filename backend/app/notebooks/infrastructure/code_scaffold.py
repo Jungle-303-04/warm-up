@@ -28,6 +28,11 @@ _MODEL_BASE_HINTS = ("Base", "Model", "DeclarativeBase", "SQLModel")
 # 컬럼 정의 호출 이름.
 _COLUMN_CALLS = ("Column", "mapped_column")
 MAX_UML_NODES = 90
+COMPACT_UML_THRESHOLD = 18
+MAX_UML_ISOLATED_NODES = 6
+MAX_ERD_ENTITIES = 36
+COMPACT_ERD_THRESHOLD = 14
+MAX_ERD_ISOLATED_ENTITIES = 4
 _UML_LAYER_ORDER = (
     ("entry", "Entry / API / UI"),
     ("application", "Application / Service"),
@@ -207,18 +212,19 @@ def uml_facts_text(contexts: list[ArtifactContext]) -> str:
 
 def build_uml_mermaid(contexts: list[ArtifactContext]) -> str | None:
     """추출한 클래스로 Mermaid classDiagram을 만든다."""
-    classes = _code_classes(contexts)
-    if not classes:
+    all_classes = _code_classes(contexts)
+    if not all_classes:
         return None
-    names = {c.name for c in classes}
-    relations = _class_relations(classes, names)
-    classes = _select_uml_classes(classes, relations)
+    names = {c.name for c in all_classes}
+    relations = _class_relations(all_classes, names)
+    classes = _select_uml_classes(all_classes, relations)
     visible = {c.name for c in classes}
     relations = {
         (src, dst, label)
         for src, dst, label in relations
         if src in visible and dst in visible and src != dst
     }
+    omitted = sorted({item.name for item in all_classes} - visible)
 
     lines = [
         "classDiagram",
@@ -226,18 +232,19 @@ def build_uml_mermaid(contexts: list[ArtifactContext]) -> str | None:
         "    %% 선택한 소스에서 추출한 클래스/인터페이스의 속성, 메서드, 상속, 참조 관계입니다.",
         "    classDef default fill:#242424,stroke:#8a8a8a,color:#f3f3f3",
     ]
+    if omitted:
+        preview = ", ".join(omitted[:12])
+        suffix = " ..." if len(omitted) > 12 else ""
+        lines.append(
+            f"    %% 가독성을 위해 관계가 약한 클래스 {len(omitted)}개를 접었습니다: {preview}{suffix}"
+        )
 
-    current_layer: str | None = None
-    sorted_classes = sorted(
-        classes,
-        key=lambda item: (_layer_rank(_layer_for_path(item.path)), item.name),
-    )
-    for item in sorted_classes:
-        layer = _layer_for_path(item.path)
-        if layer != current_layer:
-            lines.append(f"    %% {_layer_label(layer)}")
-            current_layer = layer
-        lines.extend(_class_diagram_block(item))
+    for layer, group in _group_classes_by_layer(classes):
+        lines.append(f"    %% {_layer_label(layer)}")
+        lines.append(f"    namespace {_namespace_for_layer(layer)} {{")
+        for item in group:
+            lines.extend(f"        {line.strip()}" for line in _class_diagram_block(item))
+        lines.append("    }")
 
     for src, dst, label in sorted(relations):
         src_id = _safe_id(src)
@@ -270,19 +277,70 @@ def _select_uml_classes(
     classes: list[ClassInfo],
     relations: set[tuple[str, str, str]],
 ) -> list[ClassInfo]:
-    if len(classes) <= MAX_UML_NODES:
+    if len(classes) <= COMPACT_UML_THRESHOLD:
         return classes
+    degree = _class_degree(relations)
     connected = {src for src, _, _ in relations} | {dst for _, dst, _ in relations}
-    ranked = sorted(
-        classes,
-        key=lambda item: (
-            item.name not in connected,
-            _layer_rank(_layer_for_path(item.path)),
-            item.path or "",
-            item.name,
-        ),
-    )
-    return ranked[:MAX_UML_NODES]
+    connected_classes = [item for item in classes if item.name in connected]
+    isolated_classes = [item for item in classes if item.name not in connected]
+    if not connected_classes:
+        return sorted(classes, key=_uml_class_sort_key)[:COMPACT_UML_THRESHOLD]
+
+    selected = sorted(
+        connected_classes,
+        key=lambda item: (-degree.get(item.name, 0), *_uml_class_sort_key(item)),
+    )[:MAX_UML_NODES]
+    if len(selected) < MAX_UML_NODES:
+        selected.extend(sorted(isolated_classes, key=_uml_class_sort_key)[:MAX_UML_ISOLATED_NODES])
+    return sorted(_dedupe_classes(selected), key=_uml_class_sort_key)
+
+
+def _class_degree(relations: set[tuple[str, str, str]]) -> dict[str, int]:
+    degree: dict[str, int] = {}
+    for src, dst, _label in relations:
+        degree[src] = degree.get(src, 0) + 1
+        degree[dst] = degree.get(dst, 0) + 1
+    return degree
+
+
+def _uml_class_sort_key(item: ClassInfo) -> tuple[int, str, str]:
+    return (_layer_rank(_layer_for_path(item.path)), item.path or "", item.name)
+
+
+def _dedupe_classes(classes: list[ClassInfo]) -> list[ClassInfo]:
+    seen: set[str] = set()
+    unique: list[ClassInfo] = []
+    for item in classes:
+        if item.name in seen:
+            continue
+        seen.add(item.name)
+        unique.append(item)
+    return unique
+
+
+def _group_classes_by_layer(classes: list[ClassInfo]) -> list[tuple[str, list[ClassInfo]]]:
+    grouped: dict[str, list[ClassInfo]] = {}
+    for item in sorted(classes, key=_uml_class_sort_key):
+        grouped.setdefault(_layer_for_path(item.path), []).append(item)
+    return [
+        (layer, grouped[layer])
+        for layer, _label in _UML_LAYER_ORDER
+        if grouped.get(layer)
+    ]
+
+
+def _namespace_for_layer(layer: str) -> str:
+    labels = {
+        "entry": "Entry_API_UI",
+        "application": "Application_Service",
+        "domain": "Domain_Contract",
+        "infrastructure": "Infrastructure_Adapter",
+        "data": "Data_Schema_Model",
+        "config": "Config_Runtime",
+        "tests": "Tests",
+        "other": "Other",
+    }
+    return labels.get(layer, "Other")
 
 
 def _layer_rank(layer: str) -> int:
@@ -550,13 +608,21 @@ def erd_facts_text(contexts: list[ArtifactContext]) -> str:
 
 def build_erd_mermaid(contexts: list[ArtifactContext]) -> str | None:
     """추출한 엔티티로 결정론 erDiagram을 만든다(엔티티가 없으면 None)."""
-    entities = _all_entities(contexts)
-    if not entities:
+    all_entities = _all_entities(contexts)
+    if not all_entities:
         return None
-    entities = _with_relation_placeholders(entities)
+    all_entities = _with_relation_placeholders(all_entities)
+    entities = _select_erd_entities(all_entities)
     entities = _sort_entities_for_readability(entities)
     names = {e.name for e in entities}
     lines = ["erDiagram"]
+    omitted = sorted({entity.name for entity in all_entities} - names)
+    if omitted:
+        preview = ", ".join(omitted[:12])
+        suffix = " ..." if len(omitted) > 12 else ""
+        lines.append(
+            f"    %% 가독성을 위해 관계가 약한 엔티티 {len(omitted)}개를 접었습니다: {preview}{suffix}"
+        )
     for e in entities:
         ident = _safe_id(e.name)
         cols = _dedupe(e.columns)
@@ -570,11 +636,73 @@ def build_erd_mermaid(contexts: list[ArtifactContext]) -> str | None:
             lines.append(f"        string {_safe_member(col)}")
         lines.append("    }")
     # 관계(FK): 자식 }o--|| 부모.
-    for e in entities:
-        for target, label in e.relations:
-            if target in names and target != e.name:
-                lines.append(f"    {_safe_id(e.name)} }}o--|| {_safe_id(target)} : {label}")
+    for src, target, label in _erd_relations(entities, names):
+        lines.append(f"    {_safe_id(src)} }}o--|| {_safe_id(target)} : {label}")
     return "\n".join(lines) + "\n"
+
+
+def _select_erd_entities(entities: list[Entity]) -> list[Entity]:
+    if len(entities) <= COMPACT_ERD_THRESHOLD:
+        return entities
+    relation_count = _entity_relation_count(entities)
+    connected = {name for name, count in relation_count.items() if count > 0}
+    connected_entities = [entity for entity in entities if entity.name in connected]
+    isolated_entities = [entity for entity in entities if entity.name not in connected]
+    if not connected_entities:
+        return sorted(entities, key=lambda entity: entity.name)[:COMPACT_ERD_THRESHOLD]
+    selected = sorted(
+        connected_entities,
+        key=lambda entity: (-relation_count.get(entity.name, 0), entity.name),
+    )[:MAX_ERD_ENTITIES]
+    if len(selected) < MAX_ERD_ENTITIES:
+        selected.extend(
+            sorted(isolated_entities, key=lambda entity: entity.name)[:MAX_ERD_ISOLATED_ENTITIES]
+        )
+    return _dedupe_entities(selected)
+
+
+def _entity_relation_count(entities: list[Entity]) -> dict[str, int]:
+    names = {entity.name for entity in entities}
+    counts: dict[str, int] = {entity.name: 0 for entity in entities}
+    for entity in entities:
+        for target, _label in entity.relations:
+            if target in names and target != entity.name:
+                counts[entity.name] += 1
+                counts[target] = counts.get(target, 0) + 1
+    return counts
+
+
+def _dedupe_entities(entities: list[Entity]) -> list[Entity]:
+    seen: set[str] = set()
+    unique: list[Entity] = []
+    for entity in entities:
+        if entity.name in seen:
+            continue
+        seen.add(entity.name)
+        unique.append(entity)
+    return unique
+
+
+def _erd_relations(
+    entities: list[Entity],
+    names: set[str],
+) -> list[tuple[str, str, str]]:
+    relations: list[tuple[str, str, str]] = []
+    seen_relationship_pairs: set[tuple[str, str]] = set()
+    for entity in entities:
+        for target, label in entity.relations:
+            if target not in names or target == entity.name:
+                continue
+            if label == "relationship":
+                pair = (
+                    entity.name,
+                    target,
+                ) if entity.name < target else (target, entity.name)
+                if pair in seen_relationship_pairs:
+                    continue
+                seen_relationship_pairs.add(pair)
+            relations.append((entity.name, target, label))
+    return sorted(relations, key=lambda item: (item[2] != "FK", item[0], item[1]))
 
 
 def _sort_entities_for_readability(entities: list[Entity]) -> list[Entity]:
