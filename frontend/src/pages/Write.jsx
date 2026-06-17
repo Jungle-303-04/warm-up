@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { createPost, getPost, updatePost } from "../api/posts";
+import { recommendFont } from "../api/recommendations";
 import FontInfoPopover from "../components/FontInfoPopover";
 import { ArrowLongLeftIcon } from "../components/icons";
 
@@ -32,6 +33,27 @@ function createRecommendationFromPost(post) {
     name: post.font?.name ?? recommendedFont.name,
     reason: post.recommend_reason ?? recommendedFont.reason,
     tags: post.font?.tags ?? recommendedFont.tags,
+  };
+}
+
+function createRecommendationFromResponse(recommendationResponse) {
+  const selectedFont = recommendationResponse.font ?? {};
+  const selection = recommendationResponse.selection ?? {};
+
+  return {
+    ...recommendedFont,
+    downloadUrl: selectedFont.download_url ?? recommendedFont.downloadUrl,
+    id: selectedFont.id ?? selection.font_id,
+    license: selectedFont.license ?? recommendedFont.license,
+    name: selectedFont.name ?? recommendedFont.name,
+    reason:
+      selection.display_reason ??
+      selection.reason ??
+      selectedFont.description ??
+      recommendedFont.reason,
+    source: selectedFont.source ?? recommendedFont.source,
+    tags: selectedFont.tags ?? recommendedFont.tags,
+    usage: selectedFont.category ?? recommendedFont.usage,
   };
 }
 
@@ -86,7 +108,7 @@ function Write() {
   const waitingMessage = waitingMessages[0];
   const isPreviewTab = activeTab === "preview";
   const hasRecommendation = isPreviewTab && recommendation;
-  const previewText = isEditMode ? content : recommendation?.previewText;
+  const previewText = content;
 
   useEffect(() => {
     if (!isEditMode) {
@@ -138,16 +160,30 @@ function Write() {
     setPostErrorMessage("");
   };
 
-  const handleRecommend = () => {
+  const handleRecommend = async () => {
+    const trimmedContent = content.trim();
+
+    if (!trimmedContent) {
+      setPostErrorMessage("게시글 내용을 입력해주세요.");
+      return;
+    }
+
     setPostErrorMessage("");
     setActiveTab("preview");
     setIsRecommending(true);
     setRecommendation(null);
 
-    setTimeout(() => {
-      setRecommendation(recommendedFont);
+    try {
+      const recommendationResponse = await recommendFont({
+        text: trimmedContent,
+      });
+
+      setRecommendation(createRecommendationFromResponse(recommendationResponse));
+    } catch (error) {
+      setPostErrorMessage(error.message);
+    } finally {
       setIsRecommending(false);
-    }, 1800);
+    }
   };
 
   const handleSubmitPost = async () => {
@@ -423,9 +459,6 @@ function Write() {
                             : "등록 하기"}
                       </button>
                     </div>
-                    <p className="mt-2 min-h-4 text-right text-xs text-black">
-                      {postErrorMessage}
-                    </p>
                   </div>
                 ) : (
                   <div className="h-36 rounded-md border border-gray-200" />
@@ -439,6 +472,9 @@ function Write() {
                   </div>
                 </div>
               ) : null}
+              <p className="mt-2 min-h-4 text-right text-xs text-black">
+                {postErrorMessage}
+              </p>
             </div>
           )}
         </div>
