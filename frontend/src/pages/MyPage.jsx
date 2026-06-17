@@ -107,8 +107,8 @@ function MyPage({ onLogout, user }) {
 
         <div className="mt-5 w-full overflow-hidden rounded-md border border-gray-300">
           <details className="group border-b border-gray-300">
-            <summary className="flex h-10 cursor-pointer list-none items-center justify-between px-4 text-sm text-black transition-colors hover:bg-[#F8F9FA]">
-              <span className="flex items-center gap-2">
+            <summary className="flex h-10 cursor-pointer list-none items-center justify-between px-4 text-sm text-black transition-colors hover:bg-[#F8F9FA] group-open:bg-[#F8F9FA]">
+              <span className="flex items-center gap-2 font-bold">
                 <span className="flex w-4 items-center justify-center">
                   <ArchiveBoxIcon className="h-4 w-4" />
                 </span>
@@ -144,8 +144,8 @@ function MyPage({ onLogout, user }) {
           </details>
 
           <details className="group">
-            <summary className="flex h-10 cursor-pointer list-none items-center justify-between px-4 text-sm text-black transition-colors hover:bg-[#F8F9FA]">
-              <span className="flex items-center gap-2">
+            <summary className="flex h-10 cursor-pointer list-none items-center justify-between px-4 text-sm text-black transition-colors hover:bg-[#F8F9FA] group-open:bg-[#F8F9FA]">
+              <span className="flex items-center gap-2 font-bold">
                 <span className="flex w-4 items-center justify-center">
                   <span className="font-['Zodiak'] text-[17px] font-extrabold italic leading-none text-black">
                     f
@@ -157,7 +157,7 @@ function MyPage({ onLogout, user }) {
                 &gt;
               </span>
             </summary>
-            <ul className="thin-transparent-scrollbar max-h-[540px] overflow-y-auto border-t border-gray-200 px-4 py-3">
+            <ul className="thin-transparent-scrollbar max-h-[320px] overflow-y-auto border-t border-gray-200 px-4 py-3">
               {isLoadingMyBoard ? (
                 <li className="py-1.5 text-sm text-[#d4d4d4]">
                   폰트 기록을 불러오는 중...
