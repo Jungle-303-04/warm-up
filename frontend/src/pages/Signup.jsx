@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signupUser } from "../api/auth";
 import AuthForm from "../components/AuthForm";
+import { CheckIcon } from "../components/icons";
 
 function Signup({ onSignupSuccess }) {
   const navigate = useNavigate();
@@ -42,12 +43,15 @@ function Signup({ onSignupSuccess }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/10 px-6 backdrop-blur-[1px]">
           <div
             aria-modal="true"
-            className="w-full max-w-[320px] rounded-md border border-gray-200 bg-white p-5 text-center shadow-[0_12px_32px_rgba(15,23,42,0.14)]"
+            className="w-full max-w-[320px] rounded-md border border-gray-200 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.14)]"
             role="dialog"
           >
-            <p className="text-base font-semibold text-black">
-              회원가입이 완료됐어요.
-            </p>
+            <div className="flex items-center gap-2">
+              <CheckIcon className="h-5 w-5 text-black" />
+              <p className="text-base font-semibold text-black">
+                회원가입이 완료됐어요.
+              </p>
+            </div>
             <p className="mt-2 text-sm text-[#9ca3af]">
               홈 화면으로 이동할게요.
             </p>

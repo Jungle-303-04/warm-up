@@ -4,6 +4,7 @@ import { getCurrentUser } from "./api/auth";
 import Header from "./components/Header";
 import Board from "./pages/Board";
 import Login from "./pages/Login";
+import MyPage from "./pages/MyPage";
 import PostDetail from "./pages/PostDetail";
 import Signup from "./pages/Signup";
 import Write from "./pages/Write";
@@ -28,7 +29,12 @@ function App() {
     checkCurrentUser();
   }, []);
 
-  const handleLoginClick = () => {
+  const handleAccountClick = () => {
+    if (user) {
+      navigate("/mypage");
+      return;
+    }
+
     navigate("/login");
   };
 
@@ -39,16 +45,20 @@ function App() {
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen w-full max-w-[1024px] rounded-[10px] bg-white">
-        <Header onLoginClick={handleLoginClick} user={user} />
+        <Header onAccountClick={handleAccountClick} user={user} />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen w-full max-w-[1024px] rounded-[10px] bg-white">
-      <Header onLoginClick={handleLoginClick} user={user} />
+      <Header onAccountClick={handleAccountClick} user={user} />
       <Routes>
         <Route element={<Board />} path="/" />
+        <Route
+          element={user ? <MyPage user={user} /> : <Navigate replace to="/login" />}
+          path="/mypage"
+        />
         <Route element={<PostDetail />} path="/posts/:postId" />
         <Route
           element={user ? <Write /> : <Navigate replace to="/login" />}
