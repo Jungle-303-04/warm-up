@@ -1,20 +1,20 @@
 from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sqlmodel import SQLModel, Session, select
 
 from database import engine
 from models.comment import Comment
 from models.post import Post
 from models.user import User
+from routers.auth import get_current_user_from_access_token
 
 router = APIRouter()
 
 
 class CommentCreate(SQLModel):
     content: str
-    user_id: int
 
 
 class CommentRead(SQLModel):
@@ -72,12 +72,14 @@ def get_comments(post_id: int):
 
 
 @router.post("/posts/{post_id}/comments", response_model=CommentRead)
-def create_comment(post_id: int, comment_data: CommentCreate):
+def create_comment(post_id: int, comment_data: CommentCreate, request: Request):
     if not comment_data.content.strip():
         raise HTTPException(
             status_code=400,
             detail="댓글 내용은 필수 입력 항목입니다.",
         )
+
+    current_user = get_current_user_from_access_token(request)
 
     with Session(engine) as session:
         post = session.get(Post, post_id)
@@ -88,18 +90,10 @@ def create_comment(post_id: int, comment_data: CommentCreate):
                 detail="게시글을 찾을 수 없습니다.",
             )
 
-        user = session.get(User, comment_data.user_id)
-
-        if user is None:
-            raise HTTPException(
-                status_code=404,
-                detail="댓글 작성자를 찾을 수 없습니다.",
-            )
-
         comment = Comment(
             content=comment_data.content,
             post_id=post_id,
-            user_id=comment_data.user_id,
+            user_id=current_user.id,
         )
 
         session.add(comment)

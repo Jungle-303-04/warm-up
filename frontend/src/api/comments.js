@@ -41,12 +41,11 @@ export async function getComments(postId) {
   return requestComment(`/posts/${postId}/comments`);
 }
 
-export async function createComment(postId, { content, userId }) {
+export async function createComment(postId, { content }) {
   return requestComment(`/posts/${postId}/comments`, {
     method: "POST",
     body: JSON.stringify({
       content,
-      user_id: userId,
     }),
   });
 }

@@ -150,7 +150,6 @@ function PostDetail({ user }) {
     try {
       const commentResponse = await createComment(postId, {
         content: trimmedContent,
-        userId: user.id,
       });
       setComments((currentComments) => [
         ...currentComments,
