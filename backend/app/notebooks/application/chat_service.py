@@ -197,7 +197,12 @@ class ChatService:
                     hits,
                     source_by_id,
                 )
-                tools = self._build_tools(notebook_id, search_source_ids, file_paths)
+                tools = self._build_tools(
+                    notebook_id,
+                    search_source_ids,
+                    file_paths,
+                    preferred_tool_names=answer_plan.preferred_tools,
+                )
                 result = self._result_from_hits(
                     normalized_question,
                     hits,
@@ -267,9 +272,13 @@ class ChatService:
         notebook_id: str,
         source_ids: list[str] | None,
         file_paths: list[str] | None,
+        *,
+        preferred_tool_names: tuple[str, ...] = (),
     ) -> list | None:
         """채팅 에이전트용 인프로세스 도구(우리 인덱스에 묶임). 설정이 꺼져 있으면 None."""
         if not getattr(self.settings, "chat_use_tools", False):
+            return None
+        if not preferred_tool_names:
             return None
         try:
             from app.notebooks.infrastructure.chat_tools import build_notebook_tools
@@ -281,6 +290,7 @@ class ChatService:
                 embedder=self.embedder,
                 source_ids=source_ids,
                 file_paths=file_paths,
+                tool_names=preferred_tool_names,
             )
         except Exception:
             return None

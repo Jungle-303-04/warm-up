@@ -43,12 +43,15 @@ def build_notebook_tools(
     embedder: EmbeddingClient,
     source_ids: list[str] | None,
     file_paths: list[str] | None = None,
+    tool_names: tuple[str, ...] | list[str] | None = None,
 ) -> list[StructuredTool]:
     """현재 노트북에 묶인 인프로세스 도구 목록을 만든다(범위: 선택 소스/파일).
 
     source_ids=None 이면 노트북의 모든 소스를 범위로 본다.
+    tool_names가 주어지면 planner가 허용한 도구만 노출한다.
     """
     allowed_paths = normalize_file_scope(file_paths)
+    allowed_tool_names = set(tool_names) if tool_names is not None else None
 
     def _scoped_sources():
         return select_sources(store.list_sources(notebook_id), source_ids)
@@ -145,7 +148,7 @@ def build_notebook_tools(
 
     # 도구 이름은 ASCII만 허용된다(OpenAI 함수콜 규칙: ^[a-zA-Z0-9_-]{1,64}$).
     # 따라서 name은 영문, 설명(description)만 한국어로 둔다.
-    return [
+    tools = [
         StructuredTool.from_function(
             func=read_source_file,
             name="read_source_file",
@@ -171,3 +174,6 @@ def build_notebook_tools(
             ),
         ),
     ]
+    if allowed_tool_names is None:
+        return tools
+    return [tool for tool in tools if tool.name in allowed_tool_names]

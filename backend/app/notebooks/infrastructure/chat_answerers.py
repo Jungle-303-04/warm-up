@@ -83,14 +83,11 @@ def build_chat_openai_answerer(
 _MAX_TOOL_STEPS = 4
 
 # 도구 사용 안내(한국어). 시스템 프롬프트 뒤에 덧붙여 에이전트가 도구를 적절히 쓰게 한다.
-AGENT_TOOL_GUIDE = (
-    "추가로, 너는 아래 도구들을 사용할 수 있다. 주어진 [근거]만으로 부족하면 도구를 호출해 "
-    "노트북에 연결된 실제 코드를 확인한 뒤 답하라.\n"
-    "- search_indexed_code(query): 어디에 무엇이 있는지 모를 때 먼저 검색한다.\n"
-    "- find_symbol(name): 특정 클래스/함수의 정의 위치를 확인한다.\n"
-    "- read_source_file(path): 파일 원문 전체를 확인한다.\n"
-    "불필요하면 도구를 쓰지 말고 바로 답하라. 도구로 확인한 내용을 근거로 출처(파일 경로)를 밝혀라."
-)
+_TOOL_GUIDE_LINES = {
+    "search_indexed_code": "- search_indexed_code(query): 어디에 무엇이 있는지 모를 때 먼저 검색한다.",
+    "find_symbol": "- find_symbol(name): 특정 클래스/함수의 정의 위치를 확인한다.",
+    "read_source_file": "- read_source_file(path): 파일 원문 전체를 확인한다.",
+}
 
 
 class ChatOpenAIAnswerer:
@@ -149,7 +146,7 @@ class ChatOpenAIAnswerer:
         tool_by_name = {tool.name: tool for tool in tools}
 
         messages: list[object] = [
-            SystemMessage(content=SYSTEM_PROMPT + "\n\n" + AGENT_TOOL_GUIDE)
+            SystemMessage(content=SYSTEM_PROMPT + "\n\n" + _build_agent_tool_guide(tools))
         ]
         for msg in (history or [])[-6:]:
             content = getattr(msg, "content", "")
@@ -264,3 +261,15 @@ def _format_context(chunks: list[TextChunk]) -> str:
         parts.append(f"[출처 {index}] {where}\n{body}")
     return "\n\n".join(parts)
 
+
+def _build_agent_tool_guide(tools: list) -> str:
+    names = {getattr(tool, "name", "") for tool in tools}
+    lines = [line for name, line in _TOOL_GUIDE_LINES.items() if name in names]
+    if not lines:
+        return "추가 도구는 현재 노출되지 않았다. 주어진 [근거]만으로 답하라."
+    return (
+        "추가로, 너는 아래 도구들을 사용할 수 있다. 주어진 [근거]만으로 부족하면 "
+        "허용된 도구를 호출해 노트북에 연결된 실제 코드를 확인한 뒤 답하라.\n"
+        + "\n".join(lines)
+        + "\n불필요하면 도구를 쓰지 말고 바로 답하라. 도구로 확인한 내용은 파일 경로와 함께 밝혀라."
+    )

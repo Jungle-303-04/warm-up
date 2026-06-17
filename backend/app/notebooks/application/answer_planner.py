@@ -6,9 +6,10 @@ ChatService가 담당하고, 이 모듈은 상태/의도에 따른 route와 검�
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum, unique
-from typing import Protocol
+from typing import Literal, Protocol
 
 from app.notebooks.application.intent_classifier import (
     IntentType,
@@ -16,6 +17,8 @@ from app.notebooks.application.intent_classifier import (
     should_skip_rag,
 )
 from app.notebooks.application.search_planner import SearchPlan, plan_search
+
+ToolName = Literal["search_indexed_code", "find_symbol", "read_source_file"]
 
 
 @unique
@@ -42,6 +45,7 @@ class AnswerPlan:
     route: AnswerRoute
     intent: IntentType
     search_plan: SearchPlan | None = None
+    preferred_tools: tuple[ToolName, ...] = ()
     reason: str = ""
 
 
@@ -86,6 +90,41 @@ _REPO_OVERVIEW_KEYWORDS = (
     "what project",
 )
 
+_READ_FILE_CUES = (
+    "파일 전체",
+    "전체 파일",
+    "원문",
+    "직접 읽",
+    "열어",
+    "읽어",
+    "read file",
+    "open file",
+    "entire file",
+    "full file",
+)
+
+_SYMBOL_CUES = (
+    "함수",
+    "메서드",
+    "메소드",
+    "클래스",
+    "심볼",
+    "정의",
+    "어디",
+    "찾아",
+    "function",
+    "method",
+    "class",
+    "symbol",
+    "definition",
+    "where",
+)
+
+_FILE_PATH_RE = re.compile(
+    r"(?<![A-Za-z0-9_/.-])[\w./-]+(?:\.py|\.pyi|\.ts|\.tsx|\.js|\.jsx|\.sql|\.md|\.json|\.ya?ml|\.toml)(?![A-Za-z0-9_/.-])",
+    re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class DeterministicAnswerPlanner:
@@ -124,16 +163,18 @@ class DeterministicAnswerPlanner:
                 intent=intent,
                 reason="repo_overview",
             )
+        search_plan = plan_search(
+            question,
+            intent_type=intent.value,
+            source_count=source_count,
+            default_top_k=self.default_top_k,
+            architecture_top_k=self.architecture_top_k,
+        )
         return AnswerPlan(
             route=AnswerRoute.RAG,
             intent=intent,
-            search_plan=plan_search(
-                question,
-                intent_type=intent.value,
-                source_count=source_count,
-                default_top_k=self.default_top_k,
-                architecture_top_k=self.architecture_top_k,
-            ),
+            search_plan=search_plan,
+            preferred_tools=_preferred_tools(question, intent, search_plan),
             reason="rag_search",
         )
 
@@ -148,3 +189,52 @@ def _is_repo_overview_question(question: str) -> bool:
     if "구조" in normalized or "architecture" in normalized:
         return False
     return any(keyword in normalized for keyword in _REPO_OVERVIEW_KEYWORDS)
+
+
+def _preferred_tools(
+    question: str,
+    intent: IntentType,
+    search_plan: SearchPlan,
+) -> tuple[ToolName, ...]:
+    """결정론 planner가 LLM에게 노출할 tool 후보를 좁힌다.
+
+    실행 자체는 ChatService/ToolRegistry가 담당하지만, 어떤 종류의 도구가
+    의미 있는지는 planner가 먼저 결정한다. 이렇게 하면 일반 RAG 질문에
+    불필요한 파일 원문 읽기 도구를 열지 않고, 코드/버그 질문은 필요한 도구만
+    제한적으로 노출할 수 있다.
+    """
+    tools: list[ToolName] = []
+
+    def add(tool: ToolName) -> None:
+        if tool not in tools:
+            tools.append(tool)
+
+    if intent in {
+        IntentType.CODE_SEARCH,
+        IntentType.BUG_ANALYSIS,
+        IntentType.ARCHITECTURE,
+    }:
+        add("search_indexed_code")
+
+    if intent in {IntentType.CODE_SEARCH, IntentType.BUG_ANALYSIS} and (
+        len(search_plan.queries) > 1 or _has_symbol_cue(question)
+    ):
+        add("find_symbol")
+
+    if _has_file_read_cue(question) or intent == IntentType.BUG_ANALYSIS:
+        add("read_source_file")
+
+    return tuple(tools)
+
+
+def _has_symbol_cue(question: str) -> bool:
+    normalized = question.strip().lower()
+    return any(cue in normalized for cue in _SYMBOL_CUES)
+
+
+def _has_file_read_cue(question: str) -> bool:
+    normalized = question.strip().lower()
+    return (
+        any(cue in normalized for cue in _READ_FILE_CUES)
+        or _FILE_PATH_RE.search(question) is not None
+    )

@@ -646,6 +646,113 @@ def test_notebook_tools_enforce_source_scope() -> None:
     assert "return 2" not in blocked_symbol_result
 
 
+def test_notebook_tools_only_expose_planner_preferred_tools() -> None:
+    notebook_service, indexing, _chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+    from app.notebooks.infrastructure.chat_tools import build_notebook_tools
+
+    repo = SourceRecord(
+        id="repo-allowed",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/allowed",
+        repository_url="https://github.com/team/allowed",
+        branch="main",
+        repo_snapshot=[
+            {"path": "allowed.py", "content": "def allowed_symbol():\n    return 1\n"},
+        ],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+    indexing.index_source(notebook.id, repo.id)
+
+    tools = build_notebook_tools(
+        notebook_id=notebook.id,
+        store=notebook_service.store,
+        chunk_store=indexing.chunk_store,
+        embedder=indexing.embedder,
+        source_ids=[repo.id],
+        file_paths=None,
+        tool_names=("find_symbol",),
+    )
+
+    assert [tool.name for tool in tools] == ["find_symbol"]
+    assert "allowed.py" in tools[0].invoke({"name": "allowed_symbol"})
+
+
+def test_chat_service_passes_only_planner_preferred_tools_to_answerer() -> None:
+    notebook_service, indexing, _chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.config import Settings
+    from app.notebooks.application.answer_planner import AnswerPlan, AnswerRoute
+    from app.notebooks.application.intent_classifier import IntentType
+    from app.notebooks.application.search_planner import SearchPlan, SearchStrategy
+    from app.notebooks.domain.records import SourceRecord
+
+    repo = SourceRecord(
+        id="repo-allowed",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/allowed",
+        repository_url="https://github.com/team/allowed",
+        branch="main",
+        repo_snapshot=[
+            {"path": "allowed.py", "content": "def allowed_symbol():\n    return 1\n"},
+        ],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+    indexing.index_source(notebook.id, repo.id)
+
+    class _Planner:
+        def plan(
+            self,
+            question: str,
+            *,
+            has_sources: bool,
+            source_count: int,
+        ) -> AnswerPlan:
+            return AnswerPlan(
+                route=AnswerRoute.RAG,
+                intent=IntentType.CODE_SEARCH,
+                search_plan=SearchPlan(
+                    strategy=SearchStrategy.HYBRID,
+                    queries=["allowed_symbol"],
+                    top_k=3,
+                ),
+                preferred_tools=("find_symbol",),
+            )
+
+    captured: dict[str, list[str]] = {}
+
+    class _Answerer:
+        def __call__(self, question, chunks):
+            return self.answer(question, chunks, [])
+
+        def answer(self, question, chunks, history, tools=None):
+            captured["tools"] = [tool.name for tool in tools or []]
+            return "도구 목록 확인"
+
+    chat = ChatService(
+        store=notebook_service.store,
+        chunk_store=indexing.chunk_store,
+        embedder=indexing.embedder,
+        answerer=_Answerer(),
+        answer_planner=_Planner(),
+        settings=Settings(chat_use_tools=True),
+    )
+
+    result = chat.ask(
+        notebook.id,
+        question="allowed_symbol 함수 위치를 알려줘",
+        source_ids=[repo.id],
+    )
+
+    assert result.answer == "도구 목록 확인"
+    assert captured["tools"] == ["find_symbol"]
+
+
 def test_chat_no_sources_returns_grounding_gap_not_error() -> None:
     notebook_service, _indexing, chat = _build()
     notebook = notebook_service.create_notebook(title="empty")
