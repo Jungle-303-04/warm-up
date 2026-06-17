@@ -4,6 +4,7 @@ import { createPost, getPost, updatePost } from "../api/posts";
 import { recommendFont } from "../api/recommendations";
 import FontInfoPopover from "../components/FontInfoPopover";
 import { ArrowLongLeftIcon } from "../components/icons";
+import PreservedText from "../components/PreservedText";
 import { createWebFontStyle, hasWebFontUrl } from "../utils/webFont";
 
 const waitingMessages = [
@@ -21,38 +22,24 @@ const waitingMessages = [
   ],
 ];
 
-const recommendedFont = {
-  downloadUrl: "https://www.fontshare.com/fonts/zodiak",
-  id: 1,
-  license: "OFL",
-  name: "Zodiak",
-  notice: "브랜드 적용 전 라이선스 원문을 한 번 더 확인하세요.",
-  tags: ["영문", "세리프", "강조"],
-  reason:
-    "입력한 문장은 짧지만 감정의 방향이 분명하고, 말의 끝에 힘이 남는 구조예요. 그래서 부드럽기보다는 인상이 또렷하게 남는 세리프 계열 폰트가 잘 어울려요. 특히 Zodiak은 문장의 리듬을 조금 더 극적으로 보여주면서도 과하게 장식적으로 느껴지지 않아, 제목이나 강조 문장에 사용하기 좋아요.",
-  source: "Fontshare",
-  previewText: "I want to play this game forever",
-  usage: "인쇄, 웹사이트, 영상, BI/CI",
-};
-
 function createRecommendationFromPost(post) {
   const font = post.font ?? {};
+  const isPaid = font.is_paid ?? font.isPaid;
 
   return {
-    ...recommendedFont,
-    downloadUrl: font.download_url ?? font.downloadUrl ?? recommendedFont.downloadUrl,
-    id: font.id ?? recommendedFont.id,
+    downloadUrl: font.download_url ?? font.downloadUrl ?? "",
+    id: font.id,
     isDefaultFontApplied: !hasWebFontUrl(font),
-    isPaid: font.is_paid ?? font.isPaid ?? false,
-    license: font.license ?? recommendedFont.license,
+    isPaid,
+    license: font.license ?? "",
     licenseSummary: font.license_summary ?? font.licenseSummary ?? [],
-    name: font.name ?? recommendedFont.name,
+    name: font.name ?? "",
     previewFontStyle: createWebFontStyle(font),
-    reason: post.recommend_reason ?? recommendedFont.reason,
-    source: font.source ?? recommendedFont.source,
+    reason: post.recommend_reason ?? "",
+    source: font.source ?? "",
     sourceUrl: font.source_url ?? font.sourceUrl,
-    tags: font.tags ?? recommendedFont.tags,
-    usage: font.category ?? recommendedFont.usage,
+    tags: font.tags ?? [],
+    usage: font.category ?? "",
     webfonts: font.webfonts ?? [],
   };
 }
@@ -60,26 +47,26 @@ function createRecommendationFromPost(post) {
 function createRecommendationFromResponse(recommendationResponse) {
   const selectedFont = recommendationResponse.font ?? {};
   const selection = recommendationResponse.selection ?? {};
+  const isPaid = selectedFont.is_paid ?? selectedFont.isPaid;
 
   return {
-    ...recommendedFont,
-    downloadUrl: selectedFont.download_url ?? recommendedFont.downloadUrl,
+    downloadUrl: selectedFont.download_url ?? "",
     id: selectedFont.id ?? selection.font_id,
     isDefaultFontApplied: !hasWebFontUrl(selectedFont),
-    isPaid: selectedFont.is_paid ?? selectedFont.isPaid ?? false,
-    license: selectedFont.license ?? recommendedFont.license,
+    isPaid,
+    license: selectedFont.license ?? "",
     licenseSummary: selectedFont.license_summary ?? selectedFont.licenseSummary ?? [],
-    name: selectedFont.name ?? recommendedFont.name,
+    name: selectedFont.name ?? "",
     previewFontStyle: createWebFontStyle(selectedFont),
     reason:
       selection.display_reason ??
       selection.reason ??
       selectedFont.description ??
-      recommendedFont.reason,
-    source: selectedFont.source ?? recommendedFont.source,
+      "",
+    source: selectedFont.source ?? "",
     sourceUrl: selectedFont.source_url ?? selectedFont.sourceUrl,
-    tags: selectedFont.tags ?? recommendedFont.tags,
-    usage: selectedFont.category ?? recommendedFont.usage,
+    tags: selectedFont.tags ?? [],
+    usage: selectedFont.category ?? "",
     webfonts: selectedFont.webfonts ?? [],
   };
 }
@@ -106,7 +93,7 @@ function TypingWaitingMessage({ lines }) {
   }, [typingLine]);
 
   return (
-    <>
+    <div className="space-y-1">
       {fixedLines.map((line) => (
         <p className="text-base font-semibold text-black" key={line}>
           {line}
@@ -116,7 +103,7 @@ function TypingWaitingMessage({ lines }) {
         {typedLine}
         <span className="ml-0.5 inline-block h-4 w-px translate-y-0.5 animate-pulse bg-black" />
       </p>
-    </>
+    </div>
   );
 }
 
@@ -134,7 +121,7 @@ function shuffleWaitingMessages() {
   return shuffledMessages;
 }
 
-function Write() {
+function Write({ onAuthExpired = () => {} }) {
   const navigate = useNavigate();
   const { postId } = useParams();
   const isEditMode = Boolean(postId);
@@ -152,7 +139,13 @@ function Write() {
   const isPreviewTab = activeTab === "preview";
   const hasRecommendation = isPreviewTab && recommendation;
   const defaultFontMessage =
-    "웹폰트가 없어 기본 폰트로 표시돼요. 폰트명을 눌러 URL을 확인해주세요.";
+    "웹폰트가 없어 기본 폰트로 표시됐어요.";
+  const shouldShowDefaultFontNotice =
+    isPreviewTab && recommendation?.isDefaultFontApplied;
+  const hasDefaultFontDownloadUrl =
+    typeof recommendation?.downloadUrl === "string" &&
+    recommendation.downloadUrl.trim() !== "" &&
+    recommendation.downloadUrl !== "#";
   const previewText = content;
 
   useEffect(() => {
@@ -288,6 +281,11 @@ function Write() {
 
       navigate(`/posts/${createdPost.id}`);
     } catch (error) {
+      if (error.status === 401) {
+        onAuthExpired();
+        return;
+      }
+
       setPostErrorMessage(error.message);
     } finally {
       setIsSubmittingPost(false);
@@ -333,6 +331,11 @@ function Write() {
 
       navigate(`/posts/${postId}`);
     } catch (error) {
+      if (error.status === 401) {
+        onAuthExpired();
+        return;
+      }
+
       setPostErrorMessage(error.message);
     } finally {
       setIsSubmittingPost(false);
@@ -465,12 +468,29 @@ function Write() {
           >
             Preview
           </button>
+          {shouldShowDefaultFontNotice ? (
+            <p className="ml-auto mb-2 inline-flex items-center gap-2 text-xs text-[#d4d4d4]">
+              <span>{defaultFontMessage}</span>
+              {hasDefaultFontDownloadUrl ? (
+                <a
+                  className="text-black underline-offset-2 transition-colors hover:text-[#d4d4d4] hover:underline"
+                  href={recommendation.downloadUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  폰트 보러가기
+                </a>
+              ) : (
+                <span className="text-black">다운로드 페이지를 확인해주세요.</span>
+              )}
+            </p>
+          ) : null}
         </div>
-        <div className="min-h-[340px]">
+        <div className="min-h-[380px]">
           {activeTab === "write" ? (
             <>
               <textarea
-                className="thin-transparent-scrollbar h-36 w-full resize-none overflow-y-auto rounded-md border border-gray-300 px-5 py-4 text-base leading-relaxed outline-none transition-colors placeholder:text-gray-300 focus:border-black"
+                className="thin-transparent-scrollbar h-52 w-full resize-none overflow-y-auto rounded-md border border-gray-300 px-5 py-4 text-base leading-relaxed outline-none transition-colors placeholder:text-gray-300 focus:border-black"
                 maxLength={1500}
                 onChange={handleContentChange}
                 placeholder="게시글 내용을 입력하세요. 1500자 이내"
@@ -490,7 +510,7 @@ function Write() {
               </p>
             </>
           ) : (
-            <div className="relative min-h-[340px]">
+            <div className="relative min-h-[380px]">
               <div
                 className={[
                   "transition duration-300",
@@ -499,14 +519,13 @@ function Write() {
               >
                 {recommendation ? (
                   <div>
-                    <div className="flex h-36 items-end border-b border-black">
-                      <div className="thin-transparent-scrollbar max-h-[calc(9rem-1px)] w-full overflow-y-auto pr-2 pb-1.5">
-                        <p
-                          className="whitespace-pre-wrap break-words text-[28px] leading-tight text-black"
+                    <div className="flex h-52 items-stretch border-b border-black">
+                      <div className="thin-transparent-scrollbar h-full w-full overflow-y-auto px-5 pt-4 pb-3">
+                        <PreservedText
+                          className="text-[22px] leading-relaxed text-black"
                           style={recommendation.previewFontStyle}
-                        >
-                          {previewText}
-                        </p>
+                          text={previewText}
+                        />
                       </div>
                     </div>
 
@@ -528,27 +547,19 @@ function Write() {
                     </div>
                   </div>
                 ) : (
-                  <div className="h-36 rounded-md border border-gray-200" />
+                  <div className="h-52 rounded-md border border-gray-200" />
                 )}
               </div>
 
               {isRecommending ? (
-                <div className="absolute inset-x-0 top-0 flex h-36 items-center justify-center">
+                <div className="absolute inset-x-0 top-0 flex h-52 items-center justify-center">
                   <div className="rounded-md bg-white/80 px-8 py-6 text-center">
                     <TypingWaitingMessage lines={waitingMessage} />
                   </div>
                 </div>
               ) : null}
-              <p
-                className={[
-                  "mt-2 min-h-4 text-right text-xs",
-                  postErrorMessage ? "text-black" : "text-[#9ca3af]",
-                ].join(" ")}
-              >
-                {postErrorMessage ||
-                  (recommendation?.isDefaultFontApplied
-                    ? defaultFontMessage
-                    : "")}
+              <p className="mt-2 min-h-4 text-right text-xs text-black">
+                {postErrorMessage}
               </p>
             </div>
           )}

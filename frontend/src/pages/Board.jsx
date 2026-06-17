@@ -5,8 +5,9 @@ import {
   ShareIcon,
   XMarkIcon,
 } from "../components/icons";
+import PreservedText from "../components/PreservedText";
 import { getPosts } from "../api/posts";
-import { createWebFontStyle } from "../utils/webFont";
+import { createWebFontStyle, hasWebFontUrl } from "../utils/webFont";
 
 const postsPerPage = 9;
 const fallbackPageDescription =
@@ -28,6 +29,7 @@ function formatPostDate(createdAt) {
 
 function createBoardPostCardData(post) {
   const fontName = post.font?.name ?? "Unknown";
+  const hasKnownWebFontInfo = Array.isArray(post.font?.webfonts);
 
   return {
     id: post.id,
@@ -37,6 +39,8 @@ function createBoardPostCardData(post) {
     nickname: post.user?.nickname ?? post.nickname ?? "작성자",
     previewText: post.content,
     previewFontStyle: createWebFontStyle(post.font),
+    hasWebFont: hasWebFontUrl(post.font),
+    hasKnownWebFontInfo,
   };
 }
 
@@ -251,7 +255,7 @@ function Board() {
         </section>
       ) : hasVisiblePosts ? (
         <>
-          <section className="mt-20 grid min-h-[700px] grid-cols-3 content-start gap-x-6 gap-y-10">
+          <section className="mt-20 grid min-h-[820px] grid-cols-3 content-start gap-x-6 gap-y-10">
             {posts.map((post) => (
               <article
                 key={post.id}
@@ -261,25 +265,33 @@ function Board() {
                   className="block cursor-pointer p-4"
                   to={`/posts/${post.id}`}
                 >
-                  <div className="flex items-center gap-2 text-[13px] text-[#d4d4d4]">
-                    <time dateTime="2026-03-16">{post.date}</time>
-                    <span aria-hidden="true">•</span>
-                    <span className="rounded-full border border-gray-200 bg-[#F8F9FA] px-2 py-0.5 text-xs font-medium text-black">
+                  <div className="flex min-w-0 items-center gap-2 text-[13px] text-[#d4d4d4]">
+                    <time className="shrink-0" dateTime="2026-03-16">
+                      {post.date}
+                    </time>
+                    <span aria-hidden="true" className="shrink-0">
+                      •
+                    </span>
+                    <span className="max-w-[120px] truncate rounded-full border border-gray-200 bg-[#F8F9FA] px-2 py-0.5 text-xs font-medium text-black">
                       {post.fontName}
                     </span>
+                    {post.hasKnownWebFontInfo && !post.hasWebFont ? (
+                      <span className="shrink-0 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium text-[#d4d4d4]">
+                        웹폰트 없음
+                      </span>
+                    ) : null}
                   </div>
 
-                  <h2 className="mt-3 text-base font-bold leading-tight text-black">
+                  <h2 className="line-clamp-2 mt-3 min-h-[40px] break-words text-base font-bold leading-tight text-black">
                     {post.title}
                   </h2>
 
                   <div className="mt-3 h-24 overflow-hidden rounded-md border border-gray-200 px-4 py-3">
-                    <p
-                      className="whitespace-pre-wrap break-words text-[20px] leading-tight text-black"
+                    <PreservedText
+                      className="text-[20px] leading-relaxed text-black"
                       style={post.previewFontStyle}
-                    >
-                      {post.previewText}
-                    </p>
+                      text={post.previewText}
+                    />
                   </div>
 
                   <p className="mt-3 text-xs font-semibold text-black">

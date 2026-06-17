@@ -12,6 +12,7 @@ import {
   ChatBubbleLeftEllipsisIcon,
   XMarkIcon,
 } from "../components/icons";
+import PreservedText from "../components/PreservedText";
 import { createWebFontStyle } from "../utils/webFont";
 
 const fallbackFontReason =
@@ -70,6 +71,7 @@ function formatCommentDate(createdAt) {
 function transformPostDetail(post) {
   const formattedDate = formatPostDate(post.created_at);
   const fontName = post.font?.name ?? "Unknown";
+  const isPaid = post.font?.is_paid ?? post.font?.isPaid;
 
   return {
     author: post.user?.nickname ?? post.nickname ?? "작성자",
@@ -79,7 +81,7 @@ function transformPostDetail(post) {
     dateTime: formattedDate.dateTime,
     font: {
       downloadUrl: post.font?.download_url ?? post.font?.downloadUrl ?? "#",
-      isPaid: post.font?.is_paid ?? post.font?.isPaid ?? false,
+      isPaid,
       license: post.font?.license ?? "",
       licenseSummary: post.font?.license_summary ?? post.font?.licenseSummary ?? [],
       name: fontName,
@@ -294,12 +296,11 @@ function PostDetail({ user }) {
           <h1 className="mt-4 text-xl font-bold leading-tight text-black">
             {postDetail.title}
           </h1>
-          <p
-            className="mt-7 whitespace-pre-wrap break-words text-[28px] leading-snug text-black"
+          <PreservedText
+            className="mt-7 text-[24px] leading-relaxed text-black"
             style={postDetail.contentFontStyle}
-          >
-            {postDetail.content}
-          </p>
+            text={postDetail.content}
+          />
 
           <div className="mt-8 flex items-center justify-between">
             <p className="text-sm font-semibold text-black">
