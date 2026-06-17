@@ -5,121 +5,15 @@ import { recommendFont } from "../api/recommendations";
 import FontInfoPopover from "../components/FontInfoPopover";
 import { ArrowLongLeftIcon } from "../components/icons";
 import PreservedText from "../components/PreservedText";
-import { createWebFontStyle, hasWebFontUrl } from "../utils/webFont";
-
-const waitingMessages = [
-  [
-    "고딕체는 명확함을, 손글씨체는 친근함을 전달하는 경우가 많아요.",
-    "문장의 분위기를 분석하는 중...",
-  ],
-  [
-    "좋은 폰트는 내용을 꾸미기보다 돋보이게 해요.",
-    "어울리는 폰트를 탐색하는 중...",
-  ],
-  [
-    "굵기 하나만 달라도 분위기는 크게 바뀔 수 있어요.",
-    "폰트 특징을 분석하는 중...",
-  ],
-];
-
-function createRecommendationFromPost(post) {
-  const font = post.font ?? {};
-  const isPaid = font.is_paid ?? font.isPaid;
-
-  return {
-    downloadUrl: font.download_url ?? font.downloadUrl ?? "",
-    id: font.id,
-    isDefaultFontApplied: !hasWebFontUrl(font),
-    isPaid,
-    license: font.license ?? "",
-    licenseSummary: font.license_summary ?? font.licenseSummary ?? [],
-    name: font.name ?? "",
-    previewFontStyle: createWebFontStyle(font),
-    reason: post.recommend_reason ?? "",
-    source: font.source ?? "",
-    sourceUrl: font.source_url ?? font.sourceUrl,
-    tags: font.tags ?? [],
-    usage: font.category ?? "",
-    webfonts: font.webfonts ?? [],
-  };
-}
-
-function createRecommendationFromResponse(recommendationResponse) {
-  const selectedFont = recommendationResponse.font ?? {};
-  const selection = recommendationResponse.selection ?? {};
-  const isPaid = selectedFont.is_paid ?? selectedFont.isPaid;
-
-  return {
-    downloadUrl: selectedFont.download_url ?? "",
-    id: selectedFont.id ?? selection.font_id,
-    isDefaultFontApplied: !hasWebFontUrl(selectedFont),
-    isPaid,
-    license: selectedFont.license ?? "",
-    licenseSummary: selectedFont.license_summary ?? selectedFont.licenseSummary ?? [],
-    name: selectedFont.name ?? "",
-    previewFontStyle: createWebFontStyle(selectedFont),
-    reason:
-      selection.display_reason ??
-      selection.reason ??
-      selectedFont.description ??
-      "",
-    source: selectedFont.source ?? "",
-    sourceUrl: selectedFont.source_url ?? selectedFont.sourceUrl,
-    tags: selectedFont.tags ?? [],
-    usage: selectedFont.category ?? "",
-    webfonts: selectedFont.webfonts ?? [],
-  };
-}
-
-function TypingWaitingMessage({ lines }) {
-  const fixedLines = lines.slice(0, -1);
-  const typingLine = lines.at(-1) ?? "";
-  const [typedLine, setTypedLine] = useState("");
-
-  useEffect(() => {
-    let currentIndex = 0;
-    const typingTimer = setInterval(() => {
-      currentIndex += 1;
-      setTypedLine(typingLine.slice(0, currentIndex));
-
-      if (currentIndex >= typingLine.length) {
-        clearInterval(typingTimer);
-      }
-    }, 70);
-
-    return () => {
-      clearInterval(typingTimer);
-    };
-  }, [typingLine]);
-
-  return (
-    <div className="space-y-1">
-      {fixedLines.map((line) => (
-        <p className="text-base font-semibold text-black" key={line}>
-          {line}
-        </p>
-      ))}
-      <p className="text-base font-semibold text-black">
-        {typedLine}
-        <span className="ml-0.5 inline-block h-4 w-px translate-y-0.5 animate-pulse bg-black" />
-      </p>
-    </div>
-  );
-}
-
-function shuffleWaitingMessages() {
-  const shuffledMessages = [...waitingMessages];
-
-  for (let index = shuffledMessages.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    const currentMessage = shuffledMessages[index];
-
-    shuffledMessages[index] = shuffledMessages[randomIndex];
-    shuffledMessages[randomIndex] = currentMessage;
-  }
-
-  return shuffledMessages;
-}
+import TypingWaitingMessage from "../components/TypingWaitingMessage";
+import {
+  createRecommendationFromPost,
+  createRecommendationFromResponse,
+} from "../utils/recommendation";
+import {
+  shuffleWaitingMessages,
+  waitingMessages,
+} from "../utils/waitingMessages";
 
 function Write({ onAuthExpired = () => {} }) {
   const navigate = useNavigate();
