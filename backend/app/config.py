@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     search_text_config: str = "simple"
     search_candidate_limit: int = 50
 
+    # 산출물(UML/ERD/의존성/변경요약) 컨텍스트 수집 한도. .env로 환경별 오버라이드 가능.
+    # 예: ARTIFACT_MAX_FILE_CHARS=8000. 키우면 정확도↑·LLM 비용/지연↑.
+    artifact_max_file_chars: int = 4000  # 파일당 본문 상한
+    artifact_max_total_context_chars: int = 20000  # 전체 컨텍스트 토큰 예산
+    artifact_max_selected_files: int = 60  # 비-dependency 선별 파일 수 상한
+    artifact_max_dependency_files: int = 250  # dependency 그래프용 .py 상한
+
     @property
     def uses_postgres(self) -> bool:
         return bool(self.postgres_database_url)

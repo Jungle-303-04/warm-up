@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import uuid4
+from typing import Any
 
 from app.notebooks.domain.artifact_ports import (
     ArtifactContext,
@@ -26,10 +27,12 @@ from app.notebooks.domain.artifact_ports import (
 from app.notebooks.domain.artifact_records import ArtifactRecord, ArtifactType
 from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import SourceRecord
+from app.config import Settings, get_settings
 from fastapi import Depends
 from app.notebooks.dependencies import get_notebook_store, get_artifact_store, get_artifact_generator
 
-# 컨텍스트 수집 상한.
+# 컨텍스트 수집 상한의 "기본값". 실제 값은 Settings(.env)로 주입되며, 아래 상수는
+# 설정이 없을 때(직접 호출/단위 테스트)의 폴백 기본값으로만 쓰인다.
 MAX_FILE_CHARS = 4000  # 파일당 본문 상한
 # 비-dependency 타입: 점수 상위 파일을 토큰 예산까지 담는다(파일 수 대신 총량 기준).
 MAX_TOTAL_CONTEXT_CHARS = 20000  # 전체 컨텍스트 예산(상위 관련 파일 우선)
@@ -58,11 +61,14 @@ class ArtifactService:
     store: NotebookStore = Depends(get_notebook_store)
     artifact_store: ArtifactStore = Depends(get_artifact_store)
     generator: LlmArtifactGenerator = Depends(get_artifact_generator)
-    clock: Callable[[], datetime] = Depends(get_clock)
-    id_factory: Callable[[], str] = Depends(get_id_factory)
+    settings: Settings = Depends(get_settings)
+    clock: Any = Depends(get_clock)
+    id_factory: Any = Depends(get_id_factory)
 
     def __post_init__(self) -> None:
         from fastapi.params import Depends as DependsClass
+        if isinstance(self.settings, DependsClass):
+            self.settings = self.settings.dependency()
         if isinstance(self.clock, DependsClass):
             self.clock = self.clock.dependency()
         if isinstance(self.id_factory, DependsClass):
@@ -179,7 +185,7 @@ class ArtifactService:
                         ArtifactContext(
                             source_id=source.id,
                             source_title=source.title,
-                            text=(entry.get("content") or "")[:MAX_FILE_CHARS],
+                            text=(entry.get("content") or "")[:self.settings.artifact_max_file_chars],
                             path=path,
                             language=_language_of(path),
                         )
@@ -189,12 +195,18 @@ class ArtifactService:
                     ArtifactContext(
                         source_id=source.id,
                         source_title=source.title,
-                        text=source.content[:MAX_FILE_CHARS],
+                        text=source.content[:self.settings.artifact_max_file_chars],
                         path=None,
                         language=None,
                     )
                 )
-        return _select_contexts(candidates, artifact_type)
+        return _select_contexts(
+            candidates,
+            artifact_type,
+            max_total_chars=self.settings.artifact_max_total_context_chars,
+            max_files=self.settings.artifact_max_selected_files,
+            max_dependency_files=self.settings.artifact_max_dependency_files,
+        )
 
 
 def _select_sources(
@@ -213,16 +225,21 @@ def _is_relevant_path(path: str) -> bool:
 
 
 def _select_contexts(
-    candidates: list[ArtifactContext], artifact_type: ArtifactType
+    candidates: list[ArtifactContext],
+    artifact_type: ArtifactType,
+    *,
+    max_total_chars: int = MAX_TOTAL_CONTEXT_CHARS,
+    max_files: int = MAX_SELECTED_FILES,
+    max_dependency_files: int = MAX_DEPENDENCY_FILES,
 ) -> list[ArtifactContext]:
-    """타입별 우선순위로 컨텍스트를 선별한다.
+    """타입별 우선순위로 컨텍스트를 선별한다(한도는 Settings에서 주입, 기본값은 폴백).
 
-    - dependency: import 그래프용으로 .py 파일을 가능한 한 많이(MAX_DEPENDENCY_FILES).
-    - 그 외: 타입 점수 내림차순으로 정렬해 토큰 예산(MAX_TOTAL_CONTEXT_CHARS)까지 담는다.
+    - dependency: import 그래프용으로 .py 파일을 가능한 한 많이(max_dependency_files).
+    - 그 외: 타입 점수 내림차순으로 정렬해 토큰 예산(max_total_chars)까지 담는다.
     """
     if artifact_type == "dependency":
         py = [c for c in candidates if c.path and c.path.lower().endswith(".py")]
-        return py[:MAX_DEPENDENCY_FILES]
+        return py[:max_dependency_files]
 
     ranked = sorted(
         candidates,
@@ -232,7 +249,7 @@ def _select_contexts(
     selected: list[ArtifactContext] = []
     used = 0
     for ctx in ranked:
-        if len(selected) >= MAX_SELECTED_FILES or used >= MAX_TOTAL_CONTEXT_CHARS:
+        if len(selected) >= max_files or used >= max_total_chars:
             break
         # 관련도 0 이하(점수가 음수)인 파일까지 굳이 채우지 않는다.
         if _relevance_score(artifact_type, ctx) <= 0 and selected:
