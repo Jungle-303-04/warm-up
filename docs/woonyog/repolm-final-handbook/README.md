@@ -25,6 +25,14 @@
    - 전체 서비스 컴포넌트, 요청별 트랜잭션 흐름, 프론트 상호작용
    - 왜 이런 구조로 개발했는지와 검토 기준
 
+6. [UML/ERD/변경요약 산출물 생성 기준](./06-diagram-and-artifact-generation.md)
+   - Mermaid `classDiagram`, `erDiagram`, 변경요약 마크다운 생성 기준
+   - 어떤 코드를 추출하고, 어떤 관계를 그리고, 어떤 한계가 있는지
+
+7. [운영, 검증, 장애 대응 런북](./07-operation-validation-runbook.md)
+   - 로컬/터널 배포 확인, 테스트 명령, 주요 장애 원인
+   - RAG 품질과 다이어그램 품질을 점검하는 체크리스트
+
 ## 현재 구현의 핵심 결론
 
 - RepoLM의 일반 채팅은 `ChatService`가 deterministic planner로 라우팅하고, 필요할 때 RAG 검색과 제한된 인프로세스 도구를 사용한다.
@@ -33,4 +41,3 @@
 - RAG는 자료형별 chunker가 만든 metadata-rich chunk를 SQL/pgvector에 저장하고, vector score와 keyword score를 결합해 검색한다.
 - SQL은 노트북 제품 데이터와 레포 RAG 동기화 데이터를 모두 영속화한다. ORM이 중심이며, pgvector/tsvector 같은 Postgres 고유 검색 기능만 SQLAlchemy expression으로 사용한다.
 - 프론트는 선택된 source/file scope를 요청에 포함하고, 채팅 중 추가 입력은 큐에 담아 순차 처리하도록 설계되어 있다.
-

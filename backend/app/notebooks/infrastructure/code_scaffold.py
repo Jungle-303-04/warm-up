@@ -224,6 +224,7 @@ def build_uml_mermaid(contexts: list[ArtifactContext]) -> str | None:
         "classDiagram",
         "    direction TB",
         "    %% 선택한 소스에서 추출한 클래스/인터페이스의 속성, 메서드, 상속, 참조 관계입니다.",
+        "    classDef default fill:#242424,stroke:#8a8a8a,color:#f3f3f3",
     ]
 
     current_layer: str | None = None
@@ -553,6 +554,7 @@ def build_erd_mermaid(contexts: list[ArtifactContext]) -> str | None:
     if not entities:
         return None
     entities = _with_relation_placeholders(entities)
+    entities = _sort_entities_for_readability(entities)
     names = {e.name for e in entities}
     lines = ["erDiagram"]
     for e in entities:
@@ -573,6 +575,29 @@ def build_erd_mermaid(contexts: list[ArtifactContext]) -> str | None:
             if target in names and target != e.name:
                 lines.append(f"    {_safe_id(e.name)} }}o--|| {_safe_id(target)} : {label}")
     return "\n".join(lines) + "\n"
+
+
+def _sort_entities_for_readability(entities: list[Entity]) -> list[Entity]:
+    relation_count: dict[str, int] = {entity.name: 0 for entity in entities}
+    incoming_count: dict[str, int] = {entity.name: 0 for entity in entities}
+    outgoing_count: dict[str, int] = {entity.name: 0 for entity in entities}
+    for entity in entities:
+        outgoing_count[entity.name] = len(entity.relations)
+        relation_count[entity.name] = relation_count.get(entity.name, 0) + len(entity.relations)
+        for target, _label in entity.relations:
+            if target in relation_count:
+                relation_count[target] += 1
+                incoming_count[target] += 1
+    return sorted(
+        entities,
+        key=lambda entity: (
+            relation_count.get(entity.name, 0) == 0,
+            -incoming_count.get(entity.name, 0),
+            -relation_count.get(entity.name, 0),
+            outgoing_count.get(entity.name, 0),
+            entity.name,
+        ),
+    )
 
 
 def _with_relation_placeholders(entities: list[Entity]) -> list[Entity]:

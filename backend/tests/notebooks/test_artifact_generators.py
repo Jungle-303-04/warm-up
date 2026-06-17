@@ -220,6 +220,7 @@ def test_uml_from_python_classes_without_key() -> None:
     assert content.startswith("classDiagram")
     assert "LLM 키가 필요합니다" not in content
     assert "direction TB" in content
+    assert "classDef default fill:#242424,stroke:#8a8a8a,color:#f3f3f3" in content
     assert "%% 애플리케이션/서비스" in content
     assert "app/application/app.py" not in content
     assert "class App" in content
@@ -243,6 +244,7 @@ def test_erd_from_orm_models_without_key() -> None:
     assert "LLM 키가 필요합니다" not in content
     assert "users" in content and "posts" in content
     assert "}o--||" in content  # FK 관계
+    assert content.index("users {") < content.index("posts {")
 
 
 def test_erd_extracts_sqlalchemy_relationships_without_foreign_key() -> None:
@@ -381,6 +383,7 @@ def test_uml_from_typescript_interfaces_without_key() -> None:
     content = gen.generate(GenerationRequest(type="uml", contexts=[ctx]))
 
     assert content.startswith("classDiagram")
+    assert "classDef default fill:#242424,stroke:#8a8a8a,color:#f3f3f3" in content
     assert "%% 도메인/계약" in content
     assert "apps/web/src/lib/types.ts" not in content
     assert "class Source" in content
