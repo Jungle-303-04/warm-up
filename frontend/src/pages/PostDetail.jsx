@@ -79,7 +79,9 @@ function transformPostDetail(post) {
     dateTime: formattedDate.dateTime,
     font: {
       downloadUrl: post.font?.download_url ?? post.font?.downloadUrl ?? "#",
+      isPaid: post.font?.is_paid ?? post.font?.isPaid ?? false,
       license: post.font?.license ?? "",
+      licenseSummary: post.font?.license_summary ?? post.font?.licenseSummary ?? [],
       name: fontName,
       notice:
         post.font?.notice ?? "브랜드 적용 전 라이선스 원문을 한 번 더 확인하세요.",
@@ -293,7 +295,7 @@ function PostDetail({ user }) {
             {postDetail.title}
           </h1>
           <p
-            className="mt-7 text-[28px] leading-snug text-black"
+            className="mt-7 whitespace-pre-wrap break-words text-[28px] leading-snug text-black"
             style={postDetail.contentFontStyle}
           >
             {postDetail.content}

@@ -1,9 +1,39 @@
 import { useId, useState } from "react";
 import { InformationCircleIcon, XMarkIcon } from "./icons";
 
+function isAllowedLicenseItem(item) {
+  const allowedText = String(item.allowed ?? "").trim().toLowerCase();
+
+  if (!allowedText) {
+    return false;
+  }
+
+  return !["x", "불가", "금지", "금지됨", "사용 불가"].some((blockedText) =>
+    allowedText.includes(blockedText),
+  );
+}
+
+function createAllowedUsageText(font) {
+  const licenseSummary = Array.isArray(font.licenseSummary)
+    ? font.licenseSummary
+    : [];
+  const allowedCategories = licenseSummary
+    .filter((item) => isAllowedLicenseItem(item))
+    .map((item) => item.category)
+    .filter(Boolean);
+
+  if (allowedCategories.length > 0) {
+    return allowedCategories.join(" | ");
+  }
+
+  return font.usage;
+}
+
 function FontInfoPopover({ font }) {
   const [isOpen, setIsOpen] = useState(false);
   const popoverId = useId();
+  const allowedUsageText = createAllowedUsageText(font);
+  const priceText = font.isPaid ? "유료" : "무료";
 
   const handleToggle = () => {
     setIsOpen((currentValue) => !currentValue);
@@ -24,17 +54,13 @@ function FontInfoPopover({ font }) {
 
       {isOpen ? (
         <div
-          className="absolute right-full top-0 z-30 mr-3 w-64 rounded-md border border-gray-300/40 bg-[#F8F9FA]/86 p-4 text-left shadow-[0_8px_24px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.55)] backdrop-blur-sm"
+          className="absolute right-full top-0 z-30 mr-3 w-64 rounded-md border border-gray-300/35 bg-[#F8F9FA]/88 p-4 text-left shadow-[0_8px_24px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.45)] backdrop-blur-[2px]"
           id={popoverId}
           role="dialog"
         >
           <span
             aria-hidden="true"
-            className="absolute right-[-9px] top-2 h-0 w-0 border-y-[9px] border-l-[9px] border-y-transparent border-l-gray-300/40"
-          />
-          <span
-            aria-hidden="true"
-            className="absolute right-[-7px] top-[9px] h-0 w-0 border-y-8 border-l-8 border-y-transparent border-l-[#F8F9FA]/86"
+            className="absolute right-[-6px] top-2.5 h-3 w-3 rotate-45 border-t border-r border-gray-300/35 bg-[#F8F9FA]/88"
           />
 
           <div className="-mt-2 flex items-center justify-between gap-4">
@@ -59,6 +85,10 @@ function FontInfoPopover({ font }) {
               <dd className="mt-1 text-[#6b7280]">{font.license}</dd>
             </div>
             <div>
+              <dt className="font-semibold">가격</dt>
+              <dd className="mt-1 text-[#6b7280]">{priceText}</dd>
+            </div>
+            <div>
               <dt className="font-semibold">Download URL</dt>
               <dd className="mt-1">
                 <a
@@ -73,11 +103,7 @@ function FontInfoPopover({ font }) {
             </div>
             <div>
               <dt className="font-semibold">사용 가능</dt>
-              <dd className="mt-1 text-[#6b7280]">{font.usage}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">주의</dt>
-              <dd className="mt-1 text-[#6b7280]">{font.notice}</dd>
+              <dd className="mt-1 text-[#6b7280]">{allowedUsageText}</dd>
             </div>
           </dl>
         </div>

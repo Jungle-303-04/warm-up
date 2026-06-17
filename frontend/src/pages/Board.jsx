@@ -275,7 +275,7 @@ function Board() {
 
                   <div className="mt-3 h-24 overflow-hidden rounded-md border border-gray-200 px-4 py-3">
                     <p
-                      className="text-[22px] leading-tight text-black"
+                      className="whitespace-pre-wrap break-words text-[22px] leading-tight text-black"
                       style={post.previewFontStyle}
                     >
                       {post.previewText}

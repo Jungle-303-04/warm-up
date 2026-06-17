@@ -31,6 +31,7 @@ app.add_middleware(
 def build_font_response(font: Font):
     return {
         "id": font.id,
+        "is_paid": font.is_paid,
         "name": font.name,
         "source": font.source,
         "license": font.license,

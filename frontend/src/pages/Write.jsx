@@ -35,7 +35,9 @@ function createRecommendationFromPost(post) {
     downloadUrl: font.download_url ?? font.downloadUrl ?? recommendedFont.downloadUrl,
     id: font.id ?? recommendedFont.id,
     isDefaultFontApplied: !hasWebFontUrl(font),
+    isPaid: font.is_paid ?? font.isPaid ?? false,
     license: font.license ?? recommendedFont.license,
+    licenseSummary: font.license_summary ?? font.licenseSummary ?? [],
     name: font.name ?? recommendedFont.name,
     previewFontStyle: createWebFontStyle(font),
     reason: post.recommend_reason ?? recommendedFont.reason,
@@ -56,7 +58,9 @@ function createRecommendationFromResponse(recommendationResponse) {
     downloadUrl: selectedFont.download_url ?? recommendedFont.downloadUrl,
     id: selectedFont.id ?? selection.font_id,
     isDefaultFontApplied: !hasWebFontUrl(selectedFont),
+    isPaid: selectedFont.is_paid ?? selectedFont.isPaid ?? false,
     license: selectedFont.license ?? recommendedFont.license,
+    licenseSummary: selectedFont.license_summary ?? selectedFont.licenseSummary ?? [],
     name: selectedFont.name ?? recommendedFont.name,
     previewFontStyle: createWebFontStyle(selectedFont),
     reason:
@@ -456,7 +460,7 @@ function Write() {
                     <div className="flex h-36 items-end border-b border-black">
                       <div className="thin-transparent-scrollbar max-h-[calc(9rem-1px)] w-full overflow-y-auto pr-2 pb-1.5">
                         <p
-                          className="text-[28px] leading-tight text-black"
+                          className="whitespace-pre-wrap break-words text-[28px] leading-tight text-black"
                           style={recommendation.previewFontStyle}
                         >
                           {previewText}
