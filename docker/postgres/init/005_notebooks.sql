@@ -4,11 +4,17 @@
 
 CREATE TABLE IF NOT EXISTS notebooks (
     id text PRIMARY KEY,
+    owner_user_id bigint,
     title text NOT NULL,
-    summary text,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE notebooks ADD COLUMN IF NOT EXISTS owner_user_id bigint;
+ALTER TABLE notebooks DROP COLUMN IF EXISTS summary;
+
+CREATE INDEX IF NOT EXISTS notebooks_owner_user_id_idx
+ON notebooks(owner_user_id);
 
 CREATE TABLE IF NOT EXISTS notebook_sources (
     id text PRIMARY KEY,
@@ -19,9 +25,18 @@ CREATE TABLE IF NOT EXISTS notebook_sources (
     url text,
     repository_url text,
     branch text,
+    content_hash text,
+    derived_from_artifact_id text,
+    lineage_source_ids jsonb,
+    repo_commits jsonb,
     repo_snapshot jsonb,
     created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE notebook_sources ADD COLUMN IF NOT EXISTS content_hash text;
+ALTER TABLE notebook_sources ADD COLUMN IF NOT EXISTS derived_from_artifact_id text;
+ALTER TABLE notebook_sources ADD COLUMN IF NOT EXISTS lineage_source_ids jsonb;
+ALTER TABLE notebook_sources ADD COLUMN IF NOT EXISTS repo_commits jsonb;
 
 CREATE INDEX IF NOT EXISTS notebook_sources_notebook_id_idx
 ON notebook_sources(notebook_id);

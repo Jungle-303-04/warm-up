@@ -1,8 +1,8 @@
 import pytest
 
 from app.config import Settings
-from app.pipeline.dependencies import build_llm_proposer
 from app.pipeline.chat_models import build_chat_model
+from app.pipeline.dependencies import build_llm_proposer
 
 
 def test_build_llm_proposer_returns_none_when_provider_disabled() -> None:

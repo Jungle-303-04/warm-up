@@ -7,6 +7,7 @@
 
 import copy
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
@@ -50,6 +51,7 @@ class IndexProgress:
     error: str | None = None
     files: list[FileProgress] = field(default_factory=list)
     updated_at: datetime = field(default_factory=_utcnow)
+    content_hash: str | None = None
     # 마지막으로 SQL/벡터DB를 최신화(인덱싱 done 또는 repo 재풀링 완료)한 순간.
     # updated_at(진행 갱신 시각)과 별개로, "최신화 완료 시각"만 기록한다.
     last_synced_at: datetime | None = None
@@ -76,6 +78,7 @@ class IndexProgress:
             "percent": self.percent,
             "files": [file.to_view() for file in self.files],
             "error": self.error,
+            "content_hash": self.content_hash,
             "updated_at": self.updated_at.isoformat(),
             "last_synced_at": (
                 self.last_synced_at.isoformat() if self.last_synced_at is not None else None
@@ -113,7 +116,7 @@ class IndexProgressRegistry:
         with self._lock:
             self._entries.pop(source_id, None)
 
-    def update(self, source_id: str, mutate) -> None:
+    def update(self, source_id: str, mutate: Callable[[IndexProgress], None]) -> None:
         """락 아래에서 진행 항목을 변형한다(mutate: Callable[[IndexProgress], None])."""
         with self._lock:
             entry = self._entries.get(source_id)

@@ -22,19 +22,19 @@ def _service() -> NotebookService:
 def test_create_and_get_notebook() -> None:
     service = _service()
 
-    notebook = service.create_notebook(title="My NB", summary="hello")
+    notebook = service.create_notebook(title="My NB")
 
     fetched = service.get_notebook(notebook.id)
     assert fetched.title == "My NB"
-    assert fetched.summary == "hello"
     assert fetched.created_at == FIXED_NOW
 
 
-def test_create_notebook_rejects_blank_title() -> None:
+def test_create_notebook_uses_default_title_when_blank() -> None:
     service = _service()
 
-    with pytest.raises(DomainValidationError, match="title"):
-        service.create_notebook(title="   ")
+    notebook = service.create_notebook(title="   ")
+
+    assert notebook.title == "새 노트북"
 
 
 def test_list_notebooks_orders_by_created_at_desc() -> None:
@@ -63,10 +63,9 @@ def test_update_notebook_changes_fields_and_updated_at() -> None:
     service = _service()
     notebook = service.create_notebook(title="old")
 
-    updated = service.update_notebook(notebook.id, title="new", summary="s")
+    updated = service.update_notebook(notebook.id, title="new")
 
     assert updated.title == "new"
-    assert updated.summary == "s"
     assert updated.updated_at == FIXED_NOW
 
 
@@ -121,7 +120,7 @@ def test_add_repo_source_uses_injected_sync() -> None:
     # 실제 git clone 없이 RepoSyncService를 가짜로 주입
     class FakeSync:
         def sync(self, request):
-            from app.pipeline.api.schemas import RepoFile, RepoSnapshot
+            from app.pipeline.router import RepoFile, RepoSnapshot
 
             return RepoSnapshot(
                 repository=request.repository,

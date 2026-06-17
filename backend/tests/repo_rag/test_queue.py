@@ -1,4 +1,4 @@
-from app.pipeline.api.schemas import RepoFile
+from app.pipeline.router import RepoFile
 from app.repo_rag.api.schemas import RepoRagSyncRequest
 from app.repo_rag.infrastructure.in_memory_store import InMemoryRepoRagStore
 

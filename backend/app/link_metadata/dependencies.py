@@ -5,8 +5,13 @@ override해 가짜 fetcher를 주입한다(네트워크 금지).
 """
 
 from app.link_metadata.application.service import LinkMetadataService
+from app.link_metadata.domain.ports import LinkFetcher
 from app.link_metadata.infrastructure.httpx_fetcher import HttpxLinkFetcher
 
 
+def get_link_fetcher() -> LinkFetcher:
+    return HttpxLinkFetcher()
+
+
 def get_link_metadata_service() -> LinkMetadataService:
-    return LinkMetadataService(fetcher=HttpxLinkFetcher())
+    return LinkMetadataService(fetcher=get_link_fetcher())

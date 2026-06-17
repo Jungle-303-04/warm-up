@@ -8,10 +8,11 @@ from app.auth.domain.records import SessionClaims
 from app.auth.infrastructure.in_memory_token_store import InMemoryGitHubTokenStore
 from app.github.dependencies import get_comment_client
 from app.main import app
-from app.pipeline.api.schemas import ProposalStatus, ProposalType
-from app.proposals.application.service import ProposalReviewService
-from app.proposals.domain.records import ProposalRecord
-from app.proposals.infrastructure.in_memory_store import InMemoryProposalStore
+from app.pipeline.router import ProposalStatus, ProposalType
+from app.proposals.dependencies import get_proposal_review_service
+from app.proposals.domain import ProposalRecord
+from app.proposals.service import ProposalReviewService
+from app.proposals.stores import InMemoryProposalStore
 
 
 class _FakeCommentClient:
@@ -51,7 +52,7 @@ def fake_client() -> _FakeCommentClient:
 @pytest.fixture
 def client(fake_client: _FakeCommentClient):
     app.dependency_overrides[get_comment_client] = lambda: fake_client
-    app.dependency_overrides[ProposalReviewService] = _proposals_with_record
+    app.dependency_overrides[get_proposal_review_service] = _proposals_with_record
     yield TestClient(app)
     app.dependency_overrides.clear()
 

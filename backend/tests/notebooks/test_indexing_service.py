@@ -7,6 +7,7 @@ done/100%가 되는지 검증한다. 네트워크/clone/LLM 호출은 하지 않
 from datetime import UTC, datetime
 from itertools import count
 
+from app.link_metadata.domain.ports import FetchedPage
 from app.notebooks.application.indexing_service import IndexingService
 from app.notebooks.application.service import NotebookService
 from app.notebooks.domain.indexing_progress import IndexProgressRegistry
@@ -18,7 +19,21 @@ from app.repo_rag.infrastructure.embeddings import DeterministicEmbeddingClient
 FIXED_NOW = datetime(2026, 6, 15, 12, 0, tzinfo=UTC)
 
 
-def _build():
+class _FakeLinkFetcher:
+    def __init__(self, html: str | None = None) -> None:
+        self.html = html or (
+            "<html><head><title>Example Docs</title>"
+            "<meta name='description' content='RepoLM URL guide'></head>"
+            "<body><h1>URL 색인</h1><p>본문에서 중요한 설명을 추출합니다.</p></body></html>"
+        )
+        self.calls = 0
+
+    def fetch(self, url: str) -> FetchedPage:
+        self.calls += 1
+        return FetchedPage(final_url=url, content_type="text/html", html=self.html)
+
+
+def _build(url_fetcher=None):
     counter = count(1)
     store = InMemoryNotebookStore()
     chunk_store = InMemoryChunkStore()
@@ -35,6 +50,7 @@ def _build():
         registry=registry,
         clock=lambda: FIXED_NOW,
         id_factory=lambda: f"chunk-{next(counter)}",
+        url_fetcher=url_fetcher,
     )
     return notebook_service, indexing, chunk_store, registry
 
@@ -68,19 +84,21 @@ def test_repo_indexes_py_md_and_skips_unsupported() -> None:
     assert view["percent"] == 100
     assert view["total_files"] == 4
     assert view["processed_files"] == 4
-    assert view["skipped_files"] == 2  # png, json 미지원
+    assert view["skipped_files"] == 1  # png 미지원, json은 config chunk로 색인
     assert view["indexed_chunks"] > 0
+    assert view["content_hash"]
 
     statuses = {file["path"]: file["status"] for file in view["files"]}
     assert statuses["app/main.py"] == "done"
     assert statuses["docs/guide.md"] == "done"
     assert statuses["assets/logo.png"] == "skipped"
-    assert statuses["data.json"] == "skipped"
+    assert statuses["data.json"] == "done"
 
     languages = {file["path"]: file["language"] for file in view["files"]}
     assert languages["app/main.py"] == "python"
     assert languages["docs/guide.md"] == "markdown"
     assert languages["assets/logo.png"] is None
+    assert languages["data.json"] == "config"
 
     # 실제 청크가 저장됐고, 미지원 파일 경로는 청크에 없어야 한다.
     assert chunk_store.count_by_source(repo.id) == view["indexed_chunks"]
@@ -137,8 +155,9 @@ def test_text_source_indexes_with_text_language() -> None:
     assert hits[0].chunk.file_path is None
 
 
-def test_url_source_done_with_zero_files() -> None:
-    notebook_service, indexing, chunk_store, registry = _build()
+def test_url_source_fetches_page_text_and_indexes_chunks() -> None:
+    fetcher = _FakeLinkFetcher()
+    notebook_service, indexing, chunk_store, registry = _build(url_fetcher=fetcher)
     notebook = notebook_service.create_notebook(title="RepoLM")
     source = notebook_service.add_source(
         notebook.id,
@@ -153,9 +172,22 @@ def test_url_source_done_with_zero_files() -> None:
     view = registry.get(source.id)
     assert view is not None
     assert view["status"] == "done"
-    assert view["total_files"] == 0
+    assert view["total_files"] == 1
     assert view["percent"] == 100
-    assert chunk_store.count_by_source(source.id) == 0
+    assert chunk_store.count_by_source(source.id) > 0
+    assert fetcher.calls == 1
+
+    hits = chunk_store.search(
+        notebook.id,
+        query_embedding=None,
+        query_text="중요한 설명",
+        source_ids=[source.id],
+        top_k=3,
+    )
+    assert hits
+    assert hits[0].chunk.format == "url"
+    assert hits[0].chunk.language == "url"
+    assert hits[0].chunk.file_path == "https://example.com"
 
 
 class _FakeRepoSync:
@@ -174,7 +206,7 @@ class _FakeRepoSync:
 
 
 def _make_snapshot(files: list[tuple[str, str]], branch: str = "main"):
-    from app.pipeline.api.schemas import RepoFile, RepoSnapshot
+    from app.pipeline.router import RepoFile, RepoSnapshot
 
     return RepoSnapshot(
         repository="team/api",

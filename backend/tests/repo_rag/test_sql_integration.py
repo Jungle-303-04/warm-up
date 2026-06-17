@@ -43,7 +43,7 @@ def _bootstrap_schema():
 def test_sync_and_hybrid_search_end_to_end() -> None:
     from sqlalchemy import select
 
-    from app.pipeline.api.schemas import RepoFile
+    from app.pipeline.router import RepoFile
     from app.repo_rag.api.schemas import RepoRagSyncRequest
     from app.repo_rag.application.service import RepoRagSyncService
     from app.repo_rag.infrastructure.embeddings import DeterministicEmbeddingClient
@@ -102,7 +102,7 @@ def test_sync_and_hybrid_search_end_to_end() -> None:
 
 
 def test_poller_processes_queued_job() -> None:
-    from app.pipeline.api.schemas import RepoFile
+    from app.pipeline.router import RepoFile
     from app.repo_rag.api.schemas import RepoRagSyncRequest
     from app.repo_rag.application.service import RepoRagSyncService
     from app.repo_rag.infrastructure.embeddings import DeterministicEmbeddingClient

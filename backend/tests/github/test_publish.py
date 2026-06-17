@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 
 from app.github.application.publish_service import ProposalPublishService
 from app.github.domain.comment import format_proposal_comment
-from app.pipeline.api.schemas import ProposalStatus, ProposalType
-from app.proposals.domain.records import ProposalRecord
+from app.pipeline.router import ProposalStatus, ProposalType
+from app.proposals.domain import ProposalRecord
 
 
 def _record() -> ProposalRecord:

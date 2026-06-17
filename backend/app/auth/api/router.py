@@ -14,13 +14,17 @@ STATE_TTL_SECONDS = 600
 
 
 @router.get("/github/login")
-def github_login(service: AuthService = Depends(get_auth_service)) -> RedirectResponse:
+def github_login(
+    settings: Settings = Depends(get_settings),
+    service: AuthService = Depends(get_auth_service),
+) -> RedirectResponse:
     url, state = service.start_login()
     response = RedirectResponse(url=url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
     response.set_cookie(
         STATE_COOKIE,
         state,
         httponly=True,
+        secure=settings.secure_cookies,
         samesite="lax",
         max_age=STATE_TTL_SECONDS,
         path="/",
@@ -53,7 +57,8 @@ def github_callback(
         SESSION_COOKIE,
         result.session_token,
         httponly=True,
-        samesite="lax",
+        secure=settings.secure_cookies,
+        samesite=settings.session_cookie_samesite,
         max_age=settings.session_ttl_seconds,
         path="/",
     )
@@ -66,7 +71,13 @@ def logout() -> Response:
     # 세션 쿠키만 지우면 되므로 인증은 불필요하다.
     # rp_session 쿠키를 만료시키고(204) 빈 본문을 반환한다.
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
-    response.delete_cookie(SESSION_COOKIE, path="/")
+    settings = get_settings()
+    response.delete_cookie(
+        SESSION_COOKIE,
+        path="/",
+        secure=settings.secure_cookies,
+        samesite=settings.session_cookie_samesite,
+    )
     return response
 
 

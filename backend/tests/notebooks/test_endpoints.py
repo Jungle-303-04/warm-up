@@ -10,9 +10,13 @@ from app.notebooks.dependencies import _in_memory_store as _store
 client = TestClient(app)
 
 
+def _claims(user_id: int, login: str = "t") -> SessionClaims:
+    return SessionClaims(user_id=user_id, login=login)
+
+
 @pytest.fixture(autouse=True)
 def _reset_store():
-    app.dependency_overrides[get_current_claims] = lambda: SessionClaims(user_id=1, login="t")
+    app.dependency_overrides[get_current_claims] = lambda: _claims(1)
     _store.cache_clear()
     _chunk_store.cache_clear()
     yield
@@ -21,8 +25,8 @@ def _reset_store():
     _chunk_store.cache_clear()
 
 
-def _create_notebook(title: str = "My NB", summary: str | None = "s") -> dict:
-    response = client.post("/notebooks", json={"title": title, "summary": summary})
+def _create_notebook(title: str = "My NB") -> dict:
+    response = client.post("/notebooks", json={"title": title})
     assert response.status_code == 201
     return response.json()
 
@@ -31,7 +35,7 @@ def test_create_notebook_returns_view() -> None:
     body = _create_notebook()
 
     assert body["title"] == "My NB"
-    assert body["summary"] == "s"
+    assert "summary" not in body
     assert body["source_count"] == 0
     assert "id" in body
 
@@ -44,6 +48,26 @@ def test_list_notebooks_orders_desc() -> None:
     ids = [nb["id"] for nb in listed]
     assert ids[0] == second["id"]
     assert ids[1] == first["id"]
+
+
+def test_notebooks_are_scoped_by_authenticated_user() -> None:
+    first_user_notebook = _create_notebook(title="private")
+
+    app.dependency_overrides[get_current_claims] = lambda: _claims(2, "other")
+
+    listed = client.get("/notebooks")
+    assert listed.status_code == 200
+    assert listed.json()["notebooks"] == []
+    assert client.get(f"/notebooks/{first_user_notebook['id']}").status_code == 404
+    assert client.get(
+        f"/notebooks/{first_user_notebook['id']}/sources"
+    ).status_code == 404
+    assert client.get(
+        f"/notebooks/{first_user_notebook['id']}/chat/messages"
+    ).status_code == 404
+    assert client.get(
+        f"/notebooks/{first_user_notebook['id']}/artifacts"
+    ).status_code == 404
 
 
 def test_get_notebook_detail_includes_sources() -> None:

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from app.pipeline.api.schemas import PipelineRequest, RepoFile
+from app.pipeline.router import PipelineRequest, RepoFile
 from app.repo_rag.api.schemas import RepoRagSyncRequest
 from app.repo_rag.application.cleanup import RetentionCleanupService
 from app.repo_rag.application.indexing import IndexingService
@@ -54,7 +54,7 @@ def test_manual_sync_persists_job_snapshot_files_chunks_and_events() -> None:
     ]
     assert len(store.snapshots) == 1
     assert len(store.files) == 2
-    assert len(store.chunks) == 2
+    assert len(store.chunks) == 3
 
 
 def test_second_sync_detects_diff_and_soft_deletes_inactive_chunks() -> None:
@@ -161,9 +161,9 @@ def test_cleanup_hard_deletes_inactive_rows_in_batches() -> None:
     )
 
     inactive_rows = sum(1 for chunk in store.chunks.values() if not chunk.is_active)
-    assert inactive_rows == 2
+    assert inactive_rows == 3
 
     deleted = cleanup.cleanup(batch_size=1, cutoff=datetime.now(UTC))
 
     assert deleted == 1
-    assert sum(1 for chunk in store.chunks.values() if not chunk.is_active) == 1
+    assert sum(1 for chunk in store.chunks.values() if not chunk.is_active) == 2

@@ -14,3 +14,10 @@ class PublishProposalRequest(BaseModel):
 
 class PublishProposalResponse(BaseModel):
     comment_url: str
+
+
+class GitHubRepoInfoResponse(BaseModel):
+    owner: str
+    repo: str
+    defaultBranch: str
+    branches: list[str]

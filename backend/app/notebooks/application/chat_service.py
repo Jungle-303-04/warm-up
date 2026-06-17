@@ -11,30 +11,31 @@
 import contextlib
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends
-
 from app.config import Settings, get_settings
-from app.notebooks.application.intent_classifier import classify_intent, should_skip_rag
-from app.notebooks.application.result_combiner import combine_search_results
-from app.notebooks.application.search_planner import plan_search
-from app.notebooks.dependencies import (
-    get_chat_answerer,
-    get_chunk_store,
-    get_embedding_client,
-    get_notebook_store,
+from app.notebooks.application.answer_planner import (
+    AnswerPlanner,
+    AnswerRoute,
+    DeterministicAnswerPlanner,
 )
+from app.notebooks.application.context_expander import NeighborContextExpander
+from app.notebooks.application.result_combiner import combine_search_results
+from app.notebooks.application.service import DEFAULT_OWNER_USER_ID
+from app.notebooks.application.trust import format_conflict_answer, resolve_conflicts
 from app.notebooks.domain.chunk_records import ChunkSearchHit
-from app.notebooks.domain.ports import ChunkStore, NotebookStore
+from app.notebooks.domain.ports import ChunkStore, ContextExpander, NotebookStore
 from app.notebooks.domain.records import ChatMessageRecord, SourceRecord
+from app.notebooks.domain.source_scope import select_sources
 from app.repo_rag.domain.ports import EmbeddingClient
 
 SNIPPET_SIZE = 360
 TOKEN_RE = re.compile(r"[0-9A-Za-z가-힣_./-]+")
+CONTEXT_EXPANSION_LIMIT = 12
+NO_EVIDENCE_ANSWER = "자료 내에서 확인할 수 있는 근거를 찾지 못했습니다."
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +55,10 @@ class ChatCitation:
     path: str | None
     snippet: str
 
+    @property
+    def file_path(self) -> str | None:
+        return self.path
+
 
 @dataclass(frozen=True, slots=True)
 class ChatResult:
@@ -62,6 +67,7 @@ class ChatResult:
 
 
 ChatAnswerer = Callable[[str, list[TextChunk]], str]
+CommitHistoryFetcher = Callable[[SourceRecord, int], list[dict]]
 
 
 def get_clock() -> Callable[[], datetime]:
@@ -74,22 +80,16 @@ def get_id_factory() -> Callable[[], str]:
 
 @dataclass(slots=True)
 class ChatService:
-    store: NotebookStore = Depends(get_notebook_store)  # noqa: RUF009
-    chunk_store: ChunkStore = Depends(get_chunk_store)  # noqa: RUF009
-    embedder: EmbeddingClient = Depends(get_embedding_client)  # noqa: RUF009
-    answerer: ChatAnswerer | None = Depends(get_chat_answerer)  # noqa: RUF009
-    settings: Settings = Depends(get_settings)  # noqa: RUF009
-    clock: Any = Depends(get_clock)  # noqa: RUF009
-    id_factory: Any = Depends(get_id_factory)  # noqa: RUF009
-
-    def __post_init__(self) -> None:
-        from fastapi.params import Depends as DependsClass
-        if isinstance(self.settings, DependsClass):
-            self.settings = self.settings.dependency()
-        if isinstance(self.clock, DependsClass):
-            self.clock = self.clock.dependency()
-        if isinstance(self.id_factory, DependsClass):
-            self.id_factory = self.id_factory.dependency()
+    store: NotebookStore
+    chunk_store: ChunkStore
+    embedder: EmbeddingClient
+    answerer: ChatAnswerer | None = None
+    settings: Settings = field(default_factory=get_settings)
+    clock: Any = field(default_factory=get_clock)
+    id_factory: Any = field(default_factory=get_id_factory)
+    context_expander: ContextExpander | None = None
+    commit_fetcher: CommitHistoryFetcher | None = None
+    answer_planner: AnswerPlanner | None = None
 
     def ask(
         self,
@@ -98,15 +98,17 @@ class ChatService:
         question: str,
         source_ids: list[str] | None = None,
         file_paths: list[str] | None = None,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
     ) -> ChatResult:
         normalized_question = question.strip()
         if not normalized_question:
             raise ValueError("question은 비어 있을 수 없습니다")
 
-        self.store.get_notebook(notebook_id)  # 존재 확인(없으면 KeyError → 404)
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         sources = self.store.list_sources(notebook_id)
-        selected = _select_sources(sources, source_ids)
+        selected = select_sources(sources, source_ids)
         title_by_source = {source.id: source.title for source in sources}
+        source_by_id = {source.id: source for source in sources}
 
         # 이전 대화 기록 가져오기
         chat_history = self.store.list_chat_messages(notebook_id)
@@ -137,11 +139,14 @@ class ChatService:
                         normalized_question, chat_history
                     )
 
-            # 2) 의도 분류 (키워드 휴리스틱, LLM 불필요)
             has_sources = len(selected) > 0
-            intent = classify_intent(standalone_question, has_sources=has_sources)
+            answer_plan = self._answer_planner().plan(
+                standalone_question,
+                has_sources=has_sources,
+                source_count=len(selected),
+            )
 
-            if should_skip_rag(intent, has_sources=has_sources):
+            if answer_plan.route == AnswerRoute.DIRECT:
                 # 인사/대화 또는 (소스 없을 때) 일반 지식 → RAG 생략, 바로 답변.
                 if self.answerer is not None:
                     answer = self._answer(normalized_question, [], chat_history)
@@ -151,15 +156,17 @@ class ChatService:
                         "근거와 함께 답변해 드릴게요."
                     )
                 result = ChatResult(answer=answer, citations=[])
-            else:
-                # 3) 검색 계획 수립 (의도별 전략 + 서브쿼리 + top_k)
-                plan = plan_search(
-                    standalone_question,
-                    intent_type=intent.value,
-                    source_count=len(selected),
-                    default_top_k=self.settings.chat_default_top_k,
-                    architecture_top_k=self.settings.chat_architecture_top_k,
+            elif answer_plan.route == AnswerRoute.COMMIT_HISTORY:
+                result = self._commit_history_result(
+                    selected,
+                    owner_user_id=owner_user_id,
                 )
+            elif answer_plan.route == AnswerRoute.REPO_OVERVIEW:
+                result = self._repo_overview_result(selected)
+            elif answer_plan.search_plan is None:
+                result = ChatResult(answer=NO_EVIDENCE_ANSWER, citations=[])
+            else:
+                plan = answer_plan.search_plan
 
                 # 4) 계획된 쿼리들로 다중 검색 (단일/다중 모두 동일 경로)
                 results_per_query = [
@@ -177,18 +184,41 @@ class ChatService:
                 # 5) RRF로 다중 쿼리 결과를 병합·재랭킹.
                 hits = combine_search_results(results_per_query, top_k=plan.top_k)
                 # 6) 에이전트 도구(우리 인덱스에 묶인 인프로세스 도구) 준비 후 답변.
-                tools = self._build_tools(notebook_id, search_source_ids)
+                hits = self._context_expander().expand(
+                    notebook_id,
+                    hits,
+                    source_ids=search_source_ids,
+                    file_paths=file_paths,
+                )
+                tools = self._build_tools(notebook_id, search_source_ids, file_paths)
                 result = self._result_from_hits(
-                    normalized_question, hits, title_by_source, chat_history, tools=tools
+                    normalized_question,
+                    hits,
+                    title_by_source,
+                    source_by_id,
+                    chat_history,
+                    tools=tools,
                 )
 
         self._record_turn(notebook_id, normalized_question, result, source_ids)
         return result
 
-    def list_messages(self, notebook_id: str) -> list[ChatMessageRecord]:
+    def list_messages(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> list[ChatMessageRecord]:
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         return self.store.list_chat_messages(notebook_id)
 
-    def clear_messages(self, notebook_id: str) -> None:
+    def clear_messages(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> None:
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         self.store.clear_chat_messages(notebook_id)
 
     def _result_from_hits(
@@ -196,19 +226,12 @@ class ChatService:
         question: str,
         hits: list[ChunkSearchHit],
         title_by_source: dict[str, str],
+        source_by_id: dict[str, SourceRecord],
         history: list[ChatMessageRecord],
         tools: list | None = None,
     ) -> ChatResult:
         if not hits:
-            # RAG 검색 결과가 없어도 LLM이 자체 지식을 바탕으로 유연하게 대답할 수 있도록
-            # 빈 evidence를 전달하여 LLM 답변을 받아옵니다(이 경우에도 도구 사용 허용).
-            answer = self._answer(question, [], history, tools=tools)
-            if answer.strip():
-                return ChatResult(answer=answer, citations=[])
-            return ChatResult(
-                answer="질문에 적절히 답변할 수 있는 근거를 찾지 못했습니다.",
-                citations=[],
-            )
+            return ChatResult(answer=NO_EVIDENCE_ANSWER, citations=[])
 
         evidence = [
             TextChunk(
@@ -219,13 +242,25 @@ class ChatService:
             )
             for hit in hits
         ]
-        answer = self._answer(question, evidence, history, tools=tools)
         citations = _dedupe_citations(
             [_citation_from_chunk(chunk, question) for chunk in evidence]
         )
+        conflicts = resolve_conflicts(hits, source_by_id)
+        if conflicts:
+            return ChatResult(
+                answer=format_conflict_answer(conflicts),
+                citations=citations,
+            )
+
+        answer = self._answer(question, evidence, history, tools=tools)
         return ChatResult(answer=answer, citations=citations)
 
-    def _build_tools(self, notebook_id: str, source_ids: list[str] | None) -> list | None:
+    def _build_tools(
+        self,
+        notebook_id: str,
+        source_ids: list[str] | None,
+        file_paths: list[str] | None,
+    ) -> list | None:
         """채팅 에이전트용 인프로세스 도구(우리 인덱스에 묶임). 설정이 꺼져 있으면 None."""
         if not getattr(self.settings, "chat_use_tools", False):
             return None
@@ -238,9 +273,129 @@ class ChatService:
                 chunk_store=self.chunk_store,
                 embedder=self.embedder,
                 source_ids=source_ids,
+                file_paths=file_paths,
             )
         except Exception:
             return None
+
+    def _commit_history_result(
+        self,
+        sources: list[SourceRecord],
+        *,
+        owner_user_id: int,
+    ) -> ChatResult:
+        repo_sources = [source for source in sources if source.kind == "repo"]
+        if not repo_sources:
+            return ChatResult(
+                answer="선택된 소스 중 Git 저장소가 없어 커밋 이력을 확인할 수 없습니다.",
+                citations=[],
+            )
+
+        facts: list[tuple[SourceRecord, dict]] = []
+        for source in repo_sources:
+            commits = list(source.repo_commits or [])
+            if not commits and self.commit_fetcher is not None:
+                commits = self.commit_fetcher(source, owner_user_id)
+            for commit in commits[:5]:
+                facts.append((source, commit))
+
+        if not facts:
+            return ChatResult(
+                answer=(
+                    "선택된 Git 저장소의 커밋 이력 메타데이터를 아직 확인하지 못했습니다. "
+                    "소스를 재분석하면 최신 커밋 정보까지 함께 저장됩니다."
+                ),
+                citations=[],
+            )
+
+        lines = ["선택된 저장소 기준 최근 커밋 이력입니다."]
+        citations: list[ChatCitation] = []
+        for index, (source, commit) in enumerate(facts[:5], start=1):
+            short_sha = str(commit.get("short_sha") or commit.get("sha") or "")[:12]
+            message = str(commit.get("message") or "(메시지 없음)")
+            author = str(commit.get("author_name") or "unknown")
+            authored_at = str(commit.get("authored_at") or "date unknown")
+            lines.append(
+                f"{index}. `{short_sha}` {message} - {author}, {authored_at}"
+            )
+            citations.append(
+                ChatCitation(
+                    source_id=source.id,
+                    source_title=source.title,
+                    path=None,
+                    snippet=f"{short_sha} {message}",
+                )
+            )
+        return ChatResult(answer="\n".join(lines), citations=citations)
+
+    def _repo_overview_result(self, sources: list[SourceRecord]) -> ChatResult:
+        repo_sources = [source for source in sources if source.kind == "repo"]
+        if not repo_sources:
+            return ChatResult(
+                answer="선택된 소스 중 Git 저장소가 없어 프로젝트 개요를 확인할 수 없습니다.",
+                citations=[],
+            )
+
+        if len(repo_sources) == 1:
+            lines = ["선택된 저장소 개요입니다."]
+        else:
+            lines = ["선택된 저장소가 여러 개라 각 저장소 기준으로 정리했습니다."]
+
+        citations: list[ChatCitation] = []
+        for index, source in enumerate(repo_sources, start=1):
+            readme = _readme_entry(source.repo_snapshot)
+            readme_title = None
+            readme_summary = None
+            if readme is not None:
+                readme_title, readme_summary = _readme_overview(readme[1])
+                citations.append(
+                    ChatCitation(
+                        source_id=source.id,
+                        source_title=source.title,
+                        path=readme[0],
+                        snippet=_snippet(readme[1], set()),
+                    )
+                )
+
+            display_title = readme_title or source.title
+            branch = f" / branch `{source.branch}`" if source.branch else ""
+            repo_url = f" ({source.repository_url})" if source.repository_url else ""
+            file_count = len(source.repo_snapshot or [])
+            lines.append(f"{index}. **{display_title}**{branch}{repo_url}")
+            if readme_summary:
+                lines.append(f"   - README 기준: {readme_summary}")
+            if file_count:
+                lines.append(f"   - 저장된 스냅샷 파일: {file_count}개")
+            if not readme_summary and not file_count:
+                lines.append("   - 저장된 README/파일 스냅샷이 없어 메타데이터만 확인됩니다.")
+
+        if not citations:
+            citations = [
+                ChatCitation(
+                    source_id=source.id,
+                    source_title=source.title,
+                    path=None,
+                    snippet=source.repository_url or source.title,
+                )
+                for source in repo_sources
+            ]
+        return ChatResult(answer="\n".join(lines), citations=citations)
+
+    def _context_expander(self) -> ContextExpander:
+        if self.context_expander is not None:
+            return self.context_expander
+        return NeighborContextExpander(
+            chunk_store=self.chunk_store,
+            limit=CONTEXT_EXPANSION_LIMIT,
+        )
+
+    def _answer_planner(self) -> AnswerPlanner:
+        if self.answer_planner is not None:
+            return self.answer_planner
+        return DeterministicAnswerPlanner(
+            default_top_k=self.settings.chat_default_top_k,
+            architecture_top_k=self.settings.chat_architecture_top_k,
+        )
 
     def _answer(
         self,
@@ -294,16 +449,6 @@ class ChatService:
                 source_ids=None,
             )
         )
-
-
-def _select_sources(
-    sources: list[SourceRecord],
-    source_ids: list[str] | None,
-) -> list[SourceRecord]:
-    if source_ids is None:
-        return sources
-    requested = set(source_ids)
-    return [source for source in sources if source.id in requested]
 
 
 def _tokens(text: str) -> set[str]:
@@ -369,3 +514,38 @@ def _fallback_answer(evidence: list[TextChunk]) -> str:
         lines.append(f"{index}. {where}: {_snippet(chunk.text, set())}")
     lines.append("자세한 근거는 아래 출처를 확인하세요.")
     return "\n".join(lines)
+
+
+def _readme_entry(snapshot: list[dict] | None) -> tuple[str, str] | None:
+    for entry in snapshot or []:
+        path = str(entry.get("path") or "")
+        filename = path.lower().rsplit("/", maxsplit=1)[-1]
+        content = entry.get("content")
+        if filename.startswith("readme") and isinstance(content, str) and content.strip():
+            return path, content
+    return None
+
+
+def _readme_overview(text: str) -> tuple[str | None, str | None]:
+    title: str | None = None
+    summary: str | None = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if title is None and line.startswith("#"):
+            title = _clean_markdown_line(line)
+            continue
+        if summary is None and not line.startswith(("#", "!", "[!")):
+            cleaned = _clean_markdown_line(line)
+            if cleaned:
+                summary = _snippet(cleaned, set())
+                break
+    return title, summary
+
+
+def _clean_markdown_line(line: str) -> str:
+    cleaned = re.sub(r"^#+\s*", "", line.strip())
+    cleaned = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cleaned)
+    cleaned = re.sub(r"[`*_>]+", "", cleaned)
+    return " ".join(cleaned.split())

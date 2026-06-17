@@ -10,10 +10,11 @@ from functools import lru_cache
 from fastapi import Depends
 
 from app.config import Settings, get_settings
-from app.pipeline.service import PipelineService
 from app.pipeline.dependencies import build_llm_proposer
 from app.pipeline.domain import AgentProposalService
+from app.pipeline.service import PipelineService
 from app.proposals.ports import ProposalStore
+from app.proposals.service import ProposalReviewService, get_clock
 from app.proposals.stores import InMemoryProposalStore
 
 
@@ -44,3 +45,10 @@ def get_pipeline_service(
     settings: Settings = Depends(get_settings),
 ) -> PipelineService:
     return PipelineService(agent=AgentProposalService(proposer=build_llm_proposer(settings)))
+
+
+def get_proposal_review_service(
+    store: ProposalStore = Depends(get_proposal_store),
+    pipeline: PipelineService = Depends(get_pipeline_service),
+) -> ProposalReviewService:
+    return ProposalReviewService(store=store, pipeline=pipeline, clock=get_clock())

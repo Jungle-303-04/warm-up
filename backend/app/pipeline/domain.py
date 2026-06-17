@@ -4,7 +4,7 @@ import ast
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import NamedTuple, Any
+from typing import Any, NamedTuple
 
 from app.pipeline.router import (
     AgentProposal,
@@ -15,7 +15,6 @@ from app.pipeline.router import (
     RetrievalChunk,
     StageResult,
 )
-
 
 # --- 1. 파이프라인 단계 정의 (stages.py) ---
 REPO_SYNC = "repo-sync"

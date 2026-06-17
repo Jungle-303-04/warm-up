@@ -11,8 +11,10 @@ x-backend-env: &backend-env
   GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
   GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
   GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+  GITHUB_OAUTH_REDIRECT_URI: ${GITHUB_OAUTH_REDIRECT_URI:-http://localhost:8000/auth/github/callback}
   SESSION_JWT_SECRET: ${SESSION_JWT_SECRET:-dev-insecure-session-secret}
   WEB_APP_URL: ${WEB_APP_URL:-http://localhost:3000}
+  CORS_EXTRA_ORIGINS: ${CORS_EXTRA_ORIGINS:-}
 
 x-backend-service: &backend-service
   image: repolm-api:local

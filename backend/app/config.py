@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
     session_jwt_secret: str = "dev-insecure-session-secret"  # 운영에서는 반드시 교체
     session_ttl_seconds: int = 60 * 60 * 8
     web_app_url: str = "http://localhost:3000"  # 로그인 완료 후 돌아갈 프론트엔드
+    cors_extra_origins: str = ""  # 쉼표 구분 추가 허용 origin(Vercel preview 등)
 
     # 하이브리드 검색 가중치 (vector + keyword)
     hybrid_vector_weight: float = 0.7
@@ -64,6 +66,35 @@ class Settings(BaseSettings):
     @property
     def uses_postgres(self) -> bool:
         return bool(self.postgres_database_url)
+
+    @property
+    def is_production(self) -> bool:
+        return self.repolm_env.lower() in {"prod", "production"}
+
+    @property
+    def secure_cookies(self) -> bool:
+        return self.is_production or self.web_app_url.startswith("https://")
+
+    @property
+    def session_cookie_samesite(self) -> Literal["lax", "none"]:
+        # Vercel(frontend) -> public API tunnel/backend처럼 프론트와 API가 서로 다른
+        # 사이트인 배포에서는 브라우저가 Lax 쿠키를 fetch credentials에 싣지 않는다.
+        # HTTPS에서만 SameSite=None을 쓸 수 있으므로 로컬 HTTP 개발은 Lax를 유지한다.
+        return "none" if self.secure_cookies and self.web_app_url.startswith("https://") else "lax"
+
+    @property
+    def allowed_web_origins(self) -> set[str]:
+        origins = {
+            self.web_app_url,
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        }
+        origins.update(
+            origin.strip()
+            for origin in self.cors_extra_origins.split(",")
+            if origin.strip()
+        )
+        return origins
 
 
 @lru_cache(maxsize=1)

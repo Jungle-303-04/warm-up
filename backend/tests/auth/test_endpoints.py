@@ -6,6 +6,7 @@ from app.auth.dependencies import get_auth_service
 from app.auth.domain.records import GitHubUser
 from app.auth.infrastructure.in_memory_token_store import InMemoryGitHubTokenStore
 from app.auth.infrastructure.session_tokens import SessionTokenCodec
+from app.config import Settings
 from app.main import app
 
 SECRET = "test-secret"
@@ -58,6 +59,20 @@ def test_callback_sets_session_cookie_and_redirects(client: TestClient) -> None:
 
     assert response.status_code == 307
     assert response.cookies.get("rp_session")
+
+
+def test_production_frontend_uses_cross_site_session_cookie() -> None:
+    settings = Settings(
+        repolm_env="production",
+        web_app_url="https://repolm-vercel-web.vercel.app",
+        github_oauth_redirect_uri=(
+            "https://machinery-kids-extraction-bon.trycloudflare.com"
+            "/auth/github/callback"
+        ),
+    )
+
+    assert settings.secure_cookies is True
+    assert settings.session_cookie_samesite == "none"
 
 
 def test_callback_rejects_state_mismatch(client: TestClient) -> None:

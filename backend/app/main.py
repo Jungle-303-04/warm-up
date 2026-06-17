@@ -142,11 +142,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 
-allowed_origins = {
-    get_settings().web_app_url,
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-}
+allowed_origins = get_settings().allowed_web_origins
 
 app.add_middleware(
     CORSMiddleware,
@@ -157,4 +153,3 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
-

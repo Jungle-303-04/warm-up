@@ -13,6 +13,7 @@ from app.auth.domain.records import SessionClaims
 from app.link_metadata.application.service import LinkMetadataService
 from app.link_metadata.dependencies import get_link_metadata_service
 from app.link_metadata.domain.ports import FetchedPage
+from app.link_metadata.infrastructure.httpx_fetcher import HttpxLinkFetcher
 from app.main import app
 
 
@@ -116,6 +117,18 @@ def test_service_rejects_non_http_scheme() -> None:
     assert result.title is None
     assert result.description is None
     assert result.icon_url is None
+
+
+def test_http_fetcher_blocks_private_and_loopback_hosts_before_request() -> None:
+    fetcher = HttpxLinkFetcher()
+
+    loopback = fetcher.fetch("http://127.0.0.1/admin")
+    metadata_service = fetcher.fetch("http://169.254.169.254/latest/meta-data/")
+
+    assert loopback.html is None
+    assert loopback.content_type is None
+    assert metadata_service.html is None
+    assert metadata_service.content_type is None
 
 
 @pytest.fixture

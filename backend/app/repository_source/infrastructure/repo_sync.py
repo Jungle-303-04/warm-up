@@ -8,6 +8,7 @@ from app.pipeline.router import (
     DEFAULT_BRANCH,
     DEFAULT_REPO,
     PipelineRequest,
+    RepoCommit,
     RepoFile,
     RepoSnapshot,
 )
@@ -46,6 +47,13 @@ class RepoSyncService:
             branch=request.branch,
             commit_sha=digest.hexdigest()[:12],
             files=request.files,
+            commits=[
+                RepoCommit(
+                    sha=digest.hexdigest(),
+                    short_sha=digest.hexdigest()[:12],
+                    message="요청 파일 기반 스냅샷",
+                )
+            ],
         )
 
     def _sync_remote_repository(self, request: PipelineRequest) -> RepoSnapshot:
@@ -86,7 +94,34 @@ class RepoSyncService:
             branch=branch,
             commit_sha=commit_sha,
             files=self._read_tracked_text_files(root),
+            commits=self._read_recent_commits(root),
         )
+
+    def _read_recent_commits(self, root: Path, limit: int = 10) -> list[RepoCommit]:
+        raw = self._git_or_none(
+            root,
+            "log",
+            f"-n{limit}",
+            "--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%s%x1e",
+        )
+        if not raw:
+            return []
+        commits: list[RepoCommit] = []
+        for row in raw.strip("\x1e").split("\x1e"):
+            parts = row.strip().split("\x1f")
+            if len(parts) < 6:
+                continue
+            commits.append(
+                RepoCommit(
+                    sha=parts[0],
+                    short_sha=parts[1],
+                    author_name=parts[2] or None,
+                    author_email=parts[3] or None,
+                    authored_at=parts[4] or None,
+                    message=parts[5],
+                )
+            )
+        return commits
 
     def _read_tracked_text_files(self, root: Path) -> list[RepoFile]:
         files: list[RepoFile] = []

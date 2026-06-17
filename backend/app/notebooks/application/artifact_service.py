@@ -13,19 +13,13 @@
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends
-
 from app.config import Settings, get_settings
-from app.notebooks.dependencies import (
-    get_artifact_generator,
-    get_artifact_store,
-    get_notebook_store,
-)
+from app.notebooks.application.service import DEFAULT_OWNER_USER_ID
 from app.notebooks.domain.artifact_ports import (
     ArtifactContext,
     ArtifactStore,
@@ -35,6 +29,7 @@ from app.notebooks.domain.artifact_ports import (
 from app.notebooks.domain.artifact_records import ArtifactRecord, ArtifactType
 from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import SourceRecord
+from app.notebooks.domain.source_scope import select_sources
 
 # 컨텍스트 수집 상한의 "기본값". 실제 값은 Settings(.env)로 주입되며, 아래 상수는
 # 설정이 없을 때(직접 호출/단위 테스트)의 폴백 기본값으로만 쓰인다.
@@ -63,21 +58,12 @@ def get_id_factory() -> Callable[[], str]:
 
 @dataclass
 class ArtifactService:
-    store: NotebookStore = Depends(get_notebook_store)  # noqa: RUF009
-    artifact_store: ArtifactStore = Depends(get_artifact_store)  # noqa: RUF009
-    generator: LlmArtifactGenerator = Depends(get_artifact_generator)  # noqa: RUF009
-    settings: Settings = Depends(get_settings)  # noqa: RUF009
-    clock: Any = Depends(get_clock)  # noqa: RUF009
-    id_factory: Any = Depends(get_id_factory)  # noqa: RUF009
-
-    def __post_init__(self) -> None:
-        from fastapi.params import Depends as DependsClass
-        if isinstance(self.settings, DependsClass):
-            self.settings = self.settings.dependency()
-        if isinstance(self.clock, DependsClass):
-            self.clock = self.clock.dependency()
-        if isinstance(self.id_factory, DependsClass):
-            self.id_factory = self.id_factory.dependency()
+    store: NotebookStore
+    artifact_store: ArtifactStore
+    generator: LlmArtifactGenerator
+    settings: Settings = field(default_factory=get_settings)
+    clock: Any = field(default_factory=get_clock)
+    id_factory: Any = field(default_factory=get_id_factory)
 
     def generate(
         self,
@@ -85,15 +71,18 @@ class ArtifactService:
         *,
         type: ArtifactType,
         source_ids: list[str] | None = None,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
     ) -> ArtifactRecord:
         if type == "note":
             raise ValueError("note는 generate가 아니라 create_note로 생성하세요")
         if type not in ("uml", "erd", "dependency", "change_summary"):
             raise ValueError(f"지원하지 않는 산출물 종류입니다: {type}")
 
-        self.store.get_notebook(notebook_id)  # 존재 확인(없으면 KeyError → 404)
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         sources = self.store.list_sources(notebook_id)
-        selected = _select_sources(sources, source_ids)
+        selected = select_sources(sources, source_ids)
+        if source_ids is not None and not selected:
+            raise ValueError("선택된 소스가 없어 산출물을 생성할 수 없습니다")
 
         contexts = self._collect_contexts(selected, type)
         content = self.generator.generate(
@@ -120,10 +109,11 @@ class ArtifactService:
         *,
         content: str | None,
         title: str | None = None,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
     ) -> ArtifactRecord:
         if content is None:
             raise ValueError("note는 content가 필요합니다")
-        self.store.get_notebook(notebook_id)  # 존재 확인(없으면 KeyError → 404)
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
 
         now = self.clock()
         record = ArtifactRecord(
@@ -139,11 +129,23 @@ class ArtifactService:
         self.artifact_store.add(record)
         return record
 
-    def list_artifacts(self, notebook_id: str) -> list[ArtifactRecord]:
-        self.store.get_notebook(notebook_id)  # 존재 확인(없으면 KeyError → 404)
+    def list_artifacts(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> list[ArtifactRecord]:
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         return self.artifact_store.list_by_notebook(notebook_id)
 
-    def get_artifact(self, notebook_id: str, artifact_id: str) -> ArtifactRecord:
+    def get_artifact(
+        self,
+        notebook_id: str,
+        artifact_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> ArtifactRecord:
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         return self.artifact_store.get(notebook_id, artifact_id)
 
     def update_artifact(
@@ -153,7 +155,9 @@ class ArtifactService:
         *,
         title: str | None = None,
         content: str | None = None,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
     ) -> ArtifactRecord:
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         record = self.artifact_store.get(notebook_id, artifact_id)
         if title is not None:
             if not title.strip():
@@ -165,7 +169,14 @@ class ArtifactService:
         self.artifact_store.update(record)
         return record
 
-    def delete_artifact(self, notebook_id: str, artifact_id: str) -> None:
+    def delete_artifact(
+        self,
+        notebook_id: str,
+        artifact_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> None:
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         self.artifact_store.delete(notebook_id, artifact_id)
 
     # --- 내부 ---
@@ -216,16 +227,6 @@ class ArtifactService:
             max_files=self.settings.artifact_max_selected_files,
             max_dependency_files=self.settings.artifact_max_dependency_files,
         )
-
-
-def _select_sources(
-    sources: list[SourceRecord],
-    source_ids: list[str] | None,
-) -> list[SourceRecord]:
-    if source_ids is None:
-        return sources
-    requested = set(source_ids)
-    return [source for source in sources if source.id in requested]
 
 
 def _is_relevant_path(path: str) -> bool:

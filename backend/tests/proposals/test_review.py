@@ -1,7 +1,7 @@
 import pytest
 
 from app.api.errors import DomainConflictError
-from app.pipeline.api.schemas import ProposalStatus
+from app.pipeline.router import ProposalStatus
 from app.proposals.domain import ReviewAction, decide
 
 

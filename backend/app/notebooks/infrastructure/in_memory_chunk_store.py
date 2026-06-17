@@ -39,6 +39,32 @@ class InMemoryChunkStore:
                 1 for chunk in self._chunks.values() if chunk.source_id == source_id
             )
 
+    def get_many(
+        self,
+        notebook_id: str,
+        chunk_ids: list[str],
+        *,
+        source_ids: list[str] | None = None,
+        file_paths: list[str] | None = None,
+    ) -> list[NotebookChunk]:
+        wanted = set(chunk_ids)
+        allowed_paths = set(file_paths) if file_paths is not None else None
+        with self._lock:
+            chunks = [
+                chunk
+                for chunk in self._chunks.values()
+                if chunk.id in wanted
+                and chunk.notebook_id == notebook_id
+                and (source_ids is None or chunk.source_id in source_ids)
+                and (
+                    allowed_paths is None
+                    or chunk.file_path is None
+                    or chunk.file_path in allowed_paths
+                )
+            ]
+        by_id = {chunk.id: chunk for chunk in chunks}
+        return [by_id[chunk_id] for chunk_id in chunk_ids if chunk_id in by_id]
+
     def search(
         self,
         notebook_id: str,

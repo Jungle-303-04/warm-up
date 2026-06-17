@@ -43,10 +43,11 @@ class MCPClient:
                 # content 결과 파싱 및 머징
                 texts = []
                 for content in result.content:
-                    if hasattr(content, "text"):
-                        texts.append(content.text)
+                    text = getattr(content, "text", None)
+                    if isinstance(text, str):
+                        texts.append(text)
                     elif isinstance(content, dict) and "text" in content:
-                        texts.append(content["text"])
+                        texts.append(str(content["text"]))
                 return "\n".join(texts)
         except Exception as e:
             return f"Error executing tool '{tool_name}' on MCP server: {e!s}"

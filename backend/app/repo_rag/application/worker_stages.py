@@ -1,8 +1,8 @@
 import logging
 from typing import Protocol
 
-from app.pipeline.service import RepoSyncPort
 from app.pipeline.domain import AgentProposalService, CodeIndexService
+from app.pipeline.service import RepoSyncPort
 from app.repo_rag.application.indexing import IndexingService
 from app.repo_rag.application.unit_of_work import UnitOfWork
 from app.repo_rag.domain.diff import RepoDiffService

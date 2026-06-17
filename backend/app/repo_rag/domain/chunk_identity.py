@@ -26,7 +26,14 @@ class ChunkDraft:
     chunk_type: str
     start_line: int | None = None
     end_line: int | None = None
+    start_offset: int | None = None
+    end_offset: int | None = None
     symbol_name: str | None = None
+    heading_path: list[str] | None = None
+    page: int | None = None
+    parent_chunk_id: str | None = None
+    prev_chunk_id: str | None = None
+    next_chunk_id: str | None = None
 
 
 def build_chunk_hash(file_context: FileContext, draft: ChunkDraft) -> str:
@@ -36,6 +43,10 @@ def build_chunk_hash(file_context: FileContext, draft: ChunkDraft) -> str:
             file_context.content_hash,
             draft.chunk_type,
             draft.symbol_name or "",
+            "/".join(draft.heading_path or []),
+            str(draft.page or ""),
+            str(draft.start_line or ""),
+            str(draft.start_offset or ""),
             draft.text,
         ]
     )

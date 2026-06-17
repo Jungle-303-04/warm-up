@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
 if TYPE_CHECKING:
-    from app.link_metadata.domain.ports import LinkFetcher
+    from app.link_metadata.domain.ports import FetchedPage, LinkFetcher
 
 
 @dataclass(slots=True)
@@ -95,6 +95,11 @@ class LinkMetadataService:
                 title=None, description=None, icon_url=self._favicon_fallback(host)
             )
 
+        return self.metadata_from_page(normalized, page)
+
+    def metadata_from_page(self, url: str, page: "FetchedPage") -> LinkMetadata:
+        normalized = (url or "").strip()
+        host = self._host(page.final_url or normalized)
         if not page.html or not self._is_html(page.content_type):
             # 비HTML/빈 응답: 제목·설명 없이 아이콘만 폴백.
             return LinkMetadata(

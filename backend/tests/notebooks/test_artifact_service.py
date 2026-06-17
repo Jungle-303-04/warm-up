@@ -41,8 +41,8 @@ def _notebook_with_repo(store: InMemoryNotebookStore) -> str:
     store.add_notebook(
         NotebookRecord(
             id="nb-1",
+            owner_user_id=0,
             title="nb",
-            summary=None,
             created_at=FIXED_NOW,
             updated_at=FIXED_NOW,
         )
@@ -69,8 +69,8 @@ def _notebook_only(store: InMemoryNotebookStore) -> str:
     store.add_notebook(
         NotebookRecord(
             id="nb-1",
+            owner_user_id=0,
             title="nb",
-            summary=None,
             created_at=FIXED_NOW,
             updated_at=FIXED_NOW,
         )
@@ -112,6 +112,14 @@ def test_generate_erd_without_key_returns_skeleton() -> None:
 
     assert record.type == "erd"
     assert record.content.startswith("erDiagram")
+
+
+def test_generate_with_empty_explicit_scope_rejects() -> None:
+    service, store = _service()
+    nb_id = _notebook_with_repo(store)
+
+    with pytest.raises(ValueError, match="선택된 소스"):
+        service.generate(nb_id, type="dependency", source_ids=[])
 
 
 def test_generate_unknown_notebook_raises_entity_not_found() -> None:

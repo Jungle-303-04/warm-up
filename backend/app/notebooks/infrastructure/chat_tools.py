@@ -19,6 +19,12 @@ from typing import TYPE_CHECKING
 
 from langchain_core.tools import StructuredTool
 
+from app.notebooks.domain.source_scope import (
+    file_path_in_scope,
+    normalize_file_scope,
+    select_sources,
+)
+
 if TYPE_CHECKING:
     from app.notebooks.domain.ports import ChunkStore, NotebookStore
     from app.repo_rag.domain.ports import EmbeddingClient
@@ -36,18 +42,16 @@ def build_notebook_tools(
     chunk_store: ChunkStore,
     embedder: EmbeddingClient,
     source_ids: list[str] | None,
+    file_paths: list[str] | None = None,
 ) -> list[StructuredTool]:
-    """현재 노트북에 묶인 인프로세스 도구 목록을 만든다(범위: 선택 소스).
+    """현재 노트북에 묶인 인프로세스 도구 목록을 만든다(범위: 선택 소스/파일).
 
     source_ids=None 이면 노트북의 모든 소스를 범위로 본다.
     """
+    allowed_paths = normalize_file_scope(file_paths)
 
     def _scoped_sources():
-        sources = store.list_sources(notebook_id)
-        if source_ids is None:
-            return sources
-        wanted = set(source_ids)
-        return [s for s in sources if s.id in wanted]
+        return select_sources(store.list_sources(notebook_id), source_ids)
 
     def _iter_repo_files():
         """범위 내 repo 소스의 (path, content) 전체를 순회한다."""
@@ -55,7 +59,10 @@ def build_notebook_tools(
             snapshot = getattr(source, "repo_snapshot", None)
             if source.kind == "repo" and snapshot:
                 for entry in snapshot:
-                    yield entry.get("path", ""), (entry.get("content") or "")
+                    path = entry.get("path", "")
+                    if not file_path_in_scope(path, allowed_paths):
+                        continue
+                    yield path, (entry.get("content") or "")
 
     def read_source_file(path: str) -> str:
         """노트북 소스에서 지정한 경로의 파일 원문을 읽는다."""
@@ -84,7 +91,8 @@ def build_notebook_tools(
         hit = exact or suffix
         if hit is None:
             return f"'{path}' 파일을 노트북 소스에서 찾지 못했습니다."
-        fpath, content = hit
+        fpath, raw_content = hit
+        content = str(raw_content or "")
         if len(content) > _MAX_FILE_CHARS:
             content = content[:_MAX_FILE_CHARS] + "\n...(이하 생략)"
         return f"# {fpath}\n{content}"
@@ -101,6 +109,7 @@ def build_notebook_tools(
                 query_text=q,
                 source_ids=source_ids,
                 top_k=_MAX_HITS,
+                file_paths=file_paths,
             )
         except Exception as e:
             return f"검색 중 오류: {e}"

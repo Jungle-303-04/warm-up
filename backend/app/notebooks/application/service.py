@@ -6,16 +6,13 @@
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from subprocess import CalledProcessError
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends
-
 from app.api.errors import DomainValidationError, EntityNotFoundError
-from app.notebooks.dependencies import get_notebook_store
 from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import (
     NotebookRecord,
@@ -23,6 +20,7 @@ from app.notebooks.domain.records import (
     SourceRecord,
 )
 from app.pipeline.router import DEFAULT_BRANCH, PipelineRequest
+from app.repo_rag.domain.identity import hash_text
 from app.repository_source.infrastructure.repo_sync import RepoSyncService
 
 
@@ -36,32 +34,31 @@ def get_id_factory() -> Callable[[], str]:
 
 # content 필수 종류 / url 필수 종류
 _CONTENT_KINDS = ("md", "text", "pdf")
+DEFAULT_OWNER_USER_ID = 0
+DEFAULT_NOTEBOOK_TITLE = "새 노트북"
 
 
 @dataclass
 class NotebookService:
-    store: NotebookStore = Depends(get_notebook_store)  # noqa: RUF009
-    repo_sync: RepoSyncService = Depends(lambda: RepoSyncService())  # noqa: RUF009
-    clock: Any = Depends(get_clock)  # noqa: RUF009
-    id_factory: Any = Depends(get_id_factory)  # noqa: RUF009
-
-    def __post_init__(self) -> None:
-        from fastapi.params import Depends as DependsClass
-        if isinstance(self.clock, DependsClass):
-            self.clock = self.clock.dependency()
-        if isinstance(self.id_factory, DependsClass):
-            self.id_factory = self.id_factory.dependency()
+    store: NotebookStore
+    repo_sync: RepoSyncService = field(default_factory=RepoSyncService)
+    clock: Any = field(default_factory=get_clock)
+    id_factory: Any = field(default_factory=get_id_factory)
 
     # --- 노트북 ---
 
-    def create_notebook(self, *, title: str, summary: str | None = None) -> NotebookRecord:
-        if not title or not title.strip():
-            raise DomainValidationError("title은 비어 있을 수 없습니다")
+    def create_notebook(
+        self,
+        *,
+        title: str | None = None,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> NotebookRecord:
+        effective_title = (title or "").strip() or DEFAULT_NOTEBOOK_TITLE
         now = self.clock()
         record = NotebookRecord(
             id=self.id_factory(),
-            title=title.strip(),
-            summary=summary,
+            owner_user_id=owner_user_id,
+            title=effective_title,
             created_at=now,
             updated_at=now,
             sources=[],
@@ -69,14 +66,23 @@ class NotebookService:
         self.store.add_notebook(record)
         return record
 
-    def get_notebook(self, notebook_id: str) -> NotebookRecord:
-        record = self.store.get_notebook(notebook_id)
+    def get_notebook(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> NotebookRecord:
+        record = self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         record.sources = self.store.list_sources(notebook_id)
         return record
 
-    def list_notebooks(self) -> list[NotebookRecord]:
+    def list_notebooks(
+        self,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> list[NotebookRecord]:
         # created_at 내림차순
-        records = self.store.list_notebooks()
+        records = self.store.list_notebooks(owner_user_id=owner_user_id)
         for r in records:
             r.sources = self.store.list_sources(r.id)
         return sorted(
@@ -90,33 +96,55 @@ class NotebookService:
         notebook_id: str,
         *,
         title: str | None = None,
-        summary: str | None = None,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
     ) -> NotebookRecord:
-        record = self.store.get_notebook(notebook_id)
+        record = self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         if title is not None:
             if not title.strip():
                 raise DomainValidationError("title은 비어 있을 수 없습니다")
             record.title = title.strip()
-        if summary is not None:
-            record.summary = summary
         record.updated_at = self.clock()
         self.store.update_notebook(record)
         record.sources = self.store.list_sources(notebook_id)
         return record
 
-    def delete_notebook(self, notebook_id: str) -> None:
-        self.store.delete_notebook(notebook_id)
+    def delete_notebook(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> None:
+        self.store.delete_notebook(notebook_id, owner_user_id=owner_user_id)
 
     # --- 소스 ---
 
-    def list_sources(self, notebook_id: str) -> list[SourceRecord]:
-        self.store.get_notebook(notebook_id)  # 존재 확인(없으면 KeyError)
+    def list_sources(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> list[SourceRecord]:
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         return self.store.list_sources(notebook_id)
 
-    def get_source(self, notebook_id: str, source_id: str) -> SourceRecord:
+    def get_source(
+        self,
+        notebook_id: str,
+        source_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> SourceRecord:
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         return self.store.get_source(notebook_id, source_id)
 
-    def delete_source(self, notebook_id: str, source_id: str) -> None:
+    def delete_source(
+        self,
+        notebook_id: str,
+        source_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> None:
+        self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         self.store.delete_source(notebook_id, source_id)
 
     def add_source(
@@ -129,8 +157,11 @@ class NotebookService:
         url: str | None = None,
         repository_url: str | None = None,
         branch: str | None = None,
+        derived_from_artifact_id: str | None = None,
+        lineage_source_ids: list[str] | None = None,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
     ) -> SourceRecord:
-        notebook = self.store.get_notebook(notebook_id)  # 없으면 KeyError → 404
+        notebook = self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
 
         if kind in _CONTENT_KINDS:
             record = self._build_content_source(notebook_id, kind, title, content)
@@ -142,6 +173,9 @@ class NotebookService:
             )
         else:
             raise DomainValidationError(f"지원하지 않는 소스 종류입니다: {kind}")
+
+        record.derived_from_artifact_id = derived_from_artifact_id
+        record.lineage_source_ids = lineage_source_ids
 
         self.store.add_source(record)
         # 소스 추가는 노트북 변경으로 간주 → updated_at 갱신
@@ -164,6 +198,7 @@ class NotebookService:
             kind=kind,
             title=(title or "").strip() or kind,
             content=content,
+            content_hash=hash_text(content),
             created_at=self.clock(),
         )
 
@@ -181,6 +216,7 @@ class NotebookService:
             kind="url",
             title=(title or "").strip() or url,
             url=url,
+            content_hash=hash_text(url.strip()),
             created_at=self.clock(),
         )
 
@@ -211,6 +247,10 @@ class NotebookService:
         repo_snapshot = [
             {"path": file.path, "content": file.content} for file in snapshot.files
         ]
+        repo_commits = [commit.model_dump() for commit in snapshot.commits]
+        repo_hash = hash_text(
+            "\n".join(f"{file.path}:{hash_text(file.content)}" for file in snapshot.files)
+        )
         return SourceRecord(
             id=self.id_factory(),
             notebook_id=notebook_id,
@@ -218,21 +258,36 @@ class NotebookService:
             title=effective_title,
             repository_url=repository_url,
             branch=snapshot.branch or effective_branch,
+            content_hash=repo_hash,
+            repo_commits=repo_commits,
             repo_snapshot=repo_snapshot,
             created_at=self.clock(),
         )
 
     # --- repo 트리/파일 ---
 
-    def get_source_tree(self, notebook_id: str, source_id: str) -> list[dict]:
-        source = self.store.get_source(notebook_id, source_id)
+    def get_source_tree(
+        self,
+        notebook_id: str,
+        source_id: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> list[dict]:
+        source = self.get_source(notebook_id, source_id, owner_user_id=owner_user_id)
         if source.kind != "repo" or source.repo_snapshot is None:
             raise DomainValidationError("repo 소스에서만 트리를 조회할 수 있습니다")
         paths = [entry["path"] for entry in source.repo_snapshot]
         return build_tree(paths)
 
-    def get_source_file(self, notebook_id: str, source_id: str, path: str) -> dict:
-        source = self.store.get_source(notebook_id, source_id)
+    def get_source_file(
+        self,
+        notebook_id: str,
+        source_id: str,
+        path: str,
+        *,
+        owner_user_id: int = DEFAULT_OWNER_USER_ID,
+    ) -> dict:
+        source = self.get_source(notebook_id, source_id, owner_user_id=owner_user_id)
         if source.kind != "repo" or source.repo_snapshot is None:
             raise DomainValidationError("repo 소스에서만 파일을 조회할 수 있습니다")
         for entry in source.repo_snapshot:

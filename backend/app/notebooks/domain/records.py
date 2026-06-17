@@ -17,9 +17,9 @@ ChatRole = Literal["user", "assistant"]
 class NotebookRecord:
     id: str
     title: str
-    summary: str | None
     created_at: datetime
     updated_at: datetime
+    owner_user_id: int | None = None
     sources: list["SourceRecord"] = field(default_factory=list)
 
     @property
@@ -38,6 +38,10 @@ class SourceRecord:
     url: str | None = None
     repository_url: str | None = None
     branch: str | None = None
+    content_hash: str | None = None
+    derived_from_artifact_id: str | None = None
+    lineage_source_ids: list[str] | None = None
+    repo_commits: list[dict] | None = None
     # repo 전용 캐시: [{"path": ..., "content": ...}, ...]
     repo_snapshot: list[dict] | None = field(default=None)
 

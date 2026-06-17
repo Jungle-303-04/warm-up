@@ -1,9 +1,9 @@
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 
-from app.pipeline.router import CodeReference, RetrievalChunk
 from app.pipeline.domain import VERIFIED
 from app.pipeline.proposer import LangGraphProposer
+from app.pipeline.router import CodeReference, RetrievalChunk
 
 
 def _fake_model(payload: str) -> GenericFakeChatModel:

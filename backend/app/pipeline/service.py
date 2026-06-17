@@ -3,7 +3,18 @@
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from app.common.dependency import autowired
+from app.pipeline.domain import (
+    AGENT_PROPOSAL,
+    APPROVAL,
+    CODE_INDEX,
+    DONE,
+    RAG_INDEX,
+    REPO_SYNC,
+    AgentProposalService,
+    ApprovalService,
+    CodeIndexService,
+    RagIndexService,
+)
 from app.pipeline.router import (
     AgentProposal,
     CodeReference,
@@ -12,18 +23,6 @@ from app.pipeline.router import (
     RepoSnapshot,
     RetrievalChunk,
     StageResult,
-)
-from app.pipeline.domain import (
-    REPO_SYNC,
-    CODE_INDEX,
-    RAG_INDEX,
-    AGENT_PROPOSAL,
-    APPROVAL,
-    DONE,
-    CodeIndexService,
-    RagIndexService,
-    AgentProposalService,
-    ApprovalService,
 )
 from app.repository_source.infrastructure.repo_sync import RepoSyncService
 
@@ -65,7 +64,6 @@ class PipelineArtifacts:
     proposals: list[AgentProposal]
 
 
-@autowired
 @dataclass(slots=True)
 class PipelineService:
     repo_sync: RepoSyncPort = field(default_factory=RepoSyncService)

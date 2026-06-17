@@ -1,12 +1,14 @@
 """제안 리뷰 API 라우터 및 스키마 정의."""
 
 from datetime import datetime
+
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, ConfigDict
 
 from app.api.responses import BAD_REQUEST_RESPONSE
 from app.auth.dependencies import get_current_claims
 from app.pipeline.router import PipelineRequest, ProposalStatus, ProposalType
+from app.proposals.dependencies import get_proposal_review_service
 from app.proposals.domain import ProposalRecord
 from app.proposals.service import ProposalReviewService
 
@@ -52,20 +54,24 @@ class ProposalListResponse(BaseModel):
 )
 def generate_proposals(
     request: GenerateProposalsRequest,
-    service: ProposalReviewService = Depends(ProposalReviewService),
+    service: ProposalReviewService = Depends(get_proposal_review_service),
 ) -> ProposalListResponse:
     records = service.generate(request)
-    return ProposalListResponse(proposals=records)
+    return ProposalListResponse(
+        proposals=[ProposalView.model_validate(record) for record in records]
+    )
 
 
 @router.get("/proposals", response_model=ProposalListResponse)
 def list_proposals(
     repository: str | None = Query(default=None),
     status_filter: ProposalStatus | None = Query(default=None, alias="status"),
-    service: ProposalReviewService = Depends(ProposalReviewService),
+    service: ProposalReviewService = Depends(get_proposal_review_service),
 ) -> ProposalListResponse:
     records = service.list(repository=repository, status=status_filter)
-    return ProposalListResponse(proposals=records)
+    return ProposalListResponse(
+        proposals=[ProposalView.model_validate(record) for record in records]
+    )
 
 
 @router.get(
@@ -75,7 +81,7 @@ def list_proposals(
 )
 def get_proposal(
     proposal_id: str,
-    service: ProposalReviewService = Depends(ProposalReviewService),
+    service: ProposalReviewService = Depends(get_proposal_review_service),
 ) -> ProposalRecord:
     return service.get(proposal_id)
 
@@ -88,7 +94,7 @@ def get_proposal(
 def approve_proposal(
     proposal_id: str,
     body: ProposalDecisionRequest,
-    service: ProposalReviewService = Depends(ProposalReviewService),
+    service: ProposalReviewService = Depends(get_proposal_review_service),
 ) -> ProposalRecord:
     return service.approve(proposal_id, body.reason)
 
@@ -101,6 +107,6 @@ def approve_proposal(
 def reject_proposal(
     proposal_id: str,
     body: ProposalDecisionRequest,
-    service: ProposalReviewService = Depends(ProposalReviewService),
+    service: ProposalReviewService = Depends(get_proposal_review_service),
 ) -> ProposalRecord:
     return service.reject(proposal_id, body.reason)

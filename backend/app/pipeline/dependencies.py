@@ -8,9 +8,9 @@ infra import는 지연시켜 LLM 패키지가 없어도 기본 경로가 깨지�
 from fastapi import Depends
 
 from app.config import Settings, get_settings
-from app.pipeline.service import PipelineService
 from app.pipeline.domain import AgentProposalService
 from app.pipeline.proposer import LlmProposer
+from app.pipeline.service import PipelineService
 
 
 def build_llm_proposer(settings: Settings) -> LlmProposer | None:

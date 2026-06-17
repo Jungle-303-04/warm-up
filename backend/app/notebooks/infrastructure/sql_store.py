@@ -34,16 +34,33 @@ class SqlNotebookStore(NotebookStore):
         with session_scope(self._session_factory) as session:
             session.merge(notebook_to_model(record))
 
-    def get_notebook(self, notebook_id: str) -> NotebookRecord:
+    def get_notebook(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int | None = None,
+    ) -> NotebookRecord:
         with session_scope(self._session_factory) as session:
-            model = session.get(NotebookModel, notebook_id)
+            if owner_user_id is None:
+                model = session.get(NotebookModel, notebook_id)
+            else:
+                model = session.scalar(
+                    select(NotebookModel).where(
+                        NotebookModel.id == notebook_id,
+                        NotebookModel.owner_user_id == owner_user_id,
+                    )
+                )
             if model is None:
                 raise EntityNotFoundError(notebook_id)
             return notebook_to_record(model)
 
-    def list_notebooks(self) -> list[NotebookRecord]:
+    def list_notebooks(self, *, owner_user_id: int) -> list[NotebookRecord]:
         with session_scope(self._session_factory) as session:
-            stmt = select(NotebookModel).order_by(NotebookModel.created_at)
+            stmt = (
+                select(NotebookModel)
+                .where(NotebookModel.owner_user_id == owner_user_id)
+                .order_by(NotebookModel.created_at)
+            )
             return [notebook_to_record(model) for model in session.scalars(stmt).all()]
 
     def update_notebook(self, record: NotebookRecord) -> None:
@@ -52,9 +69,22 @@ class SqlNotebookStore(NotebookStore):
                 raise EntityNotFoundError(record.id)
             session.merge(notebook_to_model(record))
 
-    def delete_notebook(self, notebook_id: str) -> None:
+    def delete_notebook(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int | None = None,
+    ) -> None:
         with session_scope(self._session_factory) as session:
-            model = session.get(NotebookModel, notebook_id)
+            if owner_user_id is None:
+                model = session.get(NotebookModel, notebook_id)
+            else:
+                model = session.scalar(
+                    select(NotebookModel).where(
+                        NotebookModel.id == notebook_id,
+                        NotebookModel.owner_user_id == owner_user_id,
+                    )
+                )
             if model is None:
                 raise EntityNotFoundError(notebook_id)
             session.execute(

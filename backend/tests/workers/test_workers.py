@@ -1,4 +1,4 @@
-from app.pipeline.domain.stages import CODE_INDEX, REPO_SYNC
+from app.pipeline.domain import CODE_INDEX, REPO_SYNC
 from app.workers.workers import HeartbeatWorker, SyncPollingWorker, build_worker
 
 

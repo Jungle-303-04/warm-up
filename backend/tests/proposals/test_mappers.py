@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from app.pipeline.api.schemas import ProposalStatus, ProposalType
+from app.pipeline.router import ProposalStatus, ProposalType
 from app.proposals.domain import ProposalRecord
 from app.proposals.stores import to_model, to_record
 

@@ -1,3 +1,16 @@
+from app.pipeline.domain import (
+    AGENT_PROPOSAL,
+    ALL,
+    APPROVAL,
+    CODE_INDEX,
+    DONE,
+    IDS,
+    RAG_INDEX,
+    REPO_SYNC,
+    WORKER_IDS,
+    PipelineStage,
+    build_done_stage_results,
+)
 from app.pipeline.router import (
     DEFAULT_BRANCH,
     DEFAULT_REPO,
@@ -13,19 +26,6 @@ from app.pipeline.router import (
     StageResult,
 )
 from app.pipeline.service import PipelineService
-from app.pipeline.domain import (
-    AGENT_PROPOSAL,
-    ALL,
-    APPROVAL,
-    CODE_INDEX,
-    DONE,
-    IDS,
-    RAG_INDEX,
-    REPO_SYNC,
-    WORKER_IDS,
-    PipelineStage,
-    build_done_stage_results,
-)
 
 __all__ = [
     "AGENT_PROPOSAL",

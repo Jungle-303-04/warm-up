@@ -6,10 +6,12 @@ from fastapi.responses import StreamingResponse
 
 from app.api.responses import BAD_REQUEST_RESPONSE
 from app.auth.dependencies import get_current_claims
+from app.auth.domain.records import SessionClaims
 from app.notebooks.api.schemas import (
     ArtifactListResponse,
     ArtifactView,
     ChatMessageListResponse,
+    ChatMessageView,
     ChatRequest,
     ChatResponse,
     CreateNotebookRequest,
@@ -24,6 +26,7 @@ from app.notebooks.api.schemas import (
     SourceDetailView,
     SourceListResponse,
     SourceView,
+    TreeNode,
     TreeResponse,
     UpdateArtifactRequest,
     UpdateNotebookRequest,
@@ -32,11 +35,16 @@ from app.notebooks.application.artifact_service import ArtifactService
 from app.notebooks.application.chat_service import ChatResult, ChatService
 from app.notebooks.application.indexing_service import IndexingService
 from app.notebooks.application.service import NotebookService
-from app.notebooks.domain.artifact_records import ArtifactRecord
-from app.notebooks.domain.indexing_progress import (
-    IndexProgressRegistry,
-    get_progress_registry,
+from app.notebooks.dependencies import (
+    get_artifact_service,
+    get_chat_service,
+    get_chunk_store,
+    get_indexing_service,
+    get_notebook_service,
+    get_progress_registry_dep,
 )
+from app.notebooks.domain.artifact_records import ArtifactRecord
+from app.notebooks.domain.ports import ChunkStore, IndexingProgressStore
 from app.notebooks.domain.records import NotebookRecord, SourceRecord
 
 router = APIRouter()
@@ -58,9 +66,13 @@ SSE_MAX_TICKS = 600  # 약 3분 후 강제 종료(연결 누수 방지)
 )
 def create_notebook(
     request: CreateNotebookRequest,
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
 ) -> NotebookRecord:
-    return service.create_notebook(title=request.title, summary=request.summary)
+    return service.create_notebook(
+        title=request.title,
+        owner_user_id=claims.user_id,
+    )
 
 
 @router.get(
@@ -69,10 +81,16 @@ def create_notebook(
     dependencies=[Depends(get_current_claims)],
 )
 def list_notebooks(
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
 ) -> NotebookListResponse:
-    records = service.list_notebooks()
-    return NotebookListResponse(notebooks=records)
+    records = service.list_notebooks(owner_user_id=claims.user_id)
+    return NotebookListResponse(
+        notebooks=[
+            NotebookView.from_record(record, source_count=record.source_count)
+            for record in records
+        ]
+    )
 
 
 @router.get(
@@ -83,9 +101,10 @@ def list_notebooks(
 )
 def get_notebook(
     notebook_id: str,
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
 ) -> NotebookRecord:
-    return service.get_notebook(notebook_id)
+    return service.get_notebook(notebook_id, owner_user_id=claims.user_id)
 
 
 @router.patch(
@@ -97,10 +116,13 @@ def get_notebook(
 def update_notebook(
     notebook_id: str,
     request: UpdateNotebookRequest,
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
 ) -> NotebookRecord:
     return service.update_notebook(
-        notebook_id, title=request.title, summary=request.summary
+        notebook_id,
+        title=request.title,
+        owner_user_id=claims.user_id,
     )
 
 
@@ -112,9 +134,10 @@ def update_notebook(
 )
 def delete_notebook(
     notebook_id: str,
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
 ) -> Response:
-    service.delete_notebook(notebook_id)
+    service.delete_notebook(notebook_id, owner_user_id=claims.user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -130,13 +153,15 @@ def delete_notebook(
 def chat(
     notebook_id: str,
     request: ChatRequest,
-    service: ChatService = Depends(ChatService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: ChatService = Depends(get_chat_service),
 ) -> ChatResult:
     return service.ask(
         notebook_id,
         question=request.question,
         source_ids=request.source_ids,
         file_paths=request.file_paths,
+        owner_user_id=claims.user_id,
     )
 
 
@@ -148,10 +173,13 @@ def chat(
 )
 def list_chat_messages(
     notebook_id: str,
-    service: ChatService = Depends(ChatService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: ChatService = Depends(get_chat_service),
 ) -> ChatMessageListResponse:
-    messages = service.list_messages(notebook_id)
-    return ChatMessageListResponse(messages=messages)
+    messages = service.list_messages(notebook_id, owner_user_id=claims.user_id)
+    return ChatMessageListResponse(
+        messages=[ChatMessageView.from_record(message) for message in messages]
+    )
 
 
 @router.delete(
@@ -161,9 +189,10 @@ def list_chat_messages(
 )
 def clear_chat_messages(
     notebook_id: str,
-    service: ChatService = Depends(ChatService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: ChatService = Depends(get_chat_service),
 ) -> Response:
-    service.clear_messages(notebook_id)
+    service.clear_messages(notebook_id, owner_user_id=claims.user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -178,8 +207,9 @@ def create_source(
     notebook_id: str,
     request: CreateSourceRequest,
     background_tasks: BackgroundTasks,
-    service: NotebookService = Depends(NotebookService),
-    indexing: IndexingService = Depends(IndexingService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
+    indexing: IndexingService = Depends(get_indexing_service),
 ) -> SourceRecord:
     record = service.add_source(
         notebook_id,
@@ -189,6 +219,9 @@ def create_source(
         url=request.url,
         repository_url=request.repository_url,
         branch=request.branch,
+        derived_from_artifact_id=request.derived_from_artifact_id,
+        lineage_source_ids=request.lineage_source_ids,
+        owner_user_id=claims.user_id,
     )
     # 진행 레지스트리에 queued 등록 후 인덱싱은 비동기 실행(응답은 즉시 반환).
     indexing.register(record)
@@ -204,10 +237,11 @@ def create_source(
 )
 def list_sources(
     notebook_id: str,
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
 ) -> SourceListResponse:
-    sources = service.list_sources(notebook_id)
-    return SourceListResponse(sources=sources)
+    sources = service.list_sources(notebook_id, owner_user_id=claims.user_id)
+    return SourceListResponse(sources=[SourceView.from_record(source) for source in sources])
 
 
 @router.get(
@@ -219,9 +253,10 @@ def list_sources(
 def get_source(
     notebook_id: str,
     source_id: str,
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
 ) -> SourceRecord:
-    return service.get_source(notebook_id, source_id)
+    return service.get_source(notebook_id, source_id, owner_user_id=claims.user_id)
 
 
 @router.delete(
@@ -233,10 +268,11 @@ def get_source(
 def delete_source(
     notebook_id: str,
     source_id: str,
-    service: NotebookService = Depends(NotebookService),
-    indexing: IndexingService = Depends(IndexingService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
+    indexing: IndexingService = Depends(get_indexing_service),
 ) -> Response:
-    service.delete_source(notebook_id, source_id)
+    service.delete_source(notebook_id, source_id, owner_user_id=claims.user_id)
     # 소스가 사라지면 청크/진행 상태도 함께 정리.
     indexing.cleanup_source(source_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -254,10 +290,15 @@ def delete_source(
 def get_source_tree(
     notebook_id: str,
     source_id: str,
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
 ) -> TreeResponse:
-    tree_data = service.get_source_tree(notebook_id, source_id)
-    return TreeResponse(tree=tree_data)
+    tree_data = service.get_source_tree(
+        notebook_id,
+        source_id,
+        owner_user_id=claims.user_id,
+    )
+    return TreeResponse(tree=[TreeNode.from_dict(node) for node in tree_data])
 
 
 @router.get(
@@ -270,9 +311,17 @@ def get_source_file(
     notebook_id: str,
     source_id: str,
     path: str = Query(...),
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
 ) -> FileResponse:
-    return service.get_source_file(notebook_id, source_id, path)
+    return FileResponse(
+        **service.get_source_file(
+            notebook_id,
+            source_id,
+            path,
+            owner_user_id=claims.user_id,
+        )
+    )
 
 
 # --- 인덱싱 진행 상태 ---
@@ -282,13 +331,38 @@ def _require_progress(
     notebook_id: str,
     source_id: str,
     service: NotebookService,
-    registry: IndexProgressRegistry,
+    registry: IndexingProgressStore,
+    chunk_store: ChunkStore,
+    owner_user_id: int,
 ) -> dict:
-    service.get_source(notebook_id, source_id)  # 존재 확인(없으면 KeyError → 404)
+    source = service.get_source(
+        notebook_id,
+        source_id,
+        owner_user_id=owner_user_id,
+    )
     view = registry.get(source_id)
-    if view is None:
-        raise KeyError(source_id)
-    return view
+    if view is not None:
+        return view
+
+    indexed_chunks = chunk_store.count_by_source(source_id)
+    status = "done" if indexed_chunks > 0 else "queued"
+    created_at = source.created_at.isoformat()
+    return {
+        "source_id": source_id,
+        "notebook_id": notebook_id,
+        "status": status,
+        "total_files": 1 if indexed_chunks > 0 else 0,
+        "processed_files": 1 if indexed_chunks > 0 else 0,
+        "skipped_files": 0,
+        "total_chunks": indexed_chunks,
+        "indexed_chunks": indexed_chunks,
+        "percent": 100 if indexed_chunks > 0 else 0,
+        "files": [],
+        "error": None,
+        "content_hash": source.content_hash,
+        "updated_at": created_at,
+        "last_synced_at": created_at if indexed_chunks > 0 else None,
+    }
 
 
 @router.get(
@@ -300,11 +374,20 @@ def _require_progress(
 def get_source_index(
     notebook_id: str,
     source_id: str,
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
+    registry: IndexingProgressStore = Depends(get_progress_registry_dep),
+    chunk_store: ChunkStore = Depends(get_chunk_store),
 ) -> IndexProgressView:
-    registry = get_progress_registry()
     return IndexProgressView.from_view(
-        _require_progress(notebook_id, source_id, service, registry)
+        _require_progress(
+            notebook_id,
+            source_id,
+            service,
+            registry,
+            chunk_store,
+            claims.user_id,
+        )
     )
 
 
@@ -315,24 +398,36 @@ def get_source_index(
 def stream_source_index(
     notebook_id: str,
     source_id: str,
-    service: NotebookService = Depends(NotebookService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
+    registry: IndexingProgressStore = Depends(get_progress_registry_dep),
+    chunk_store: ChunkStore = Depends(get_chunk_store),
 ) -> StreamingResponse:
-    registry = get_progress_registry()
     # 연결 시작 전에 소스/진행 상태 존재를 확인(없으면 404).
     try:
-        service.get_source(notebook_id, source_id)
+        _require_progress(
+            notebook_id,
+            source_id,
+            service,
+            registry,
+            chunk_store,
+            claims.user_id,
+        )
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from exc
-    if registry.get(source_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
     async def event_stream() -> AsyncIterator[str]:
         import asyncio
 
         for _ in range(SSE_MAX_TICKS):
-            view = registry.get(source_id)
-            if view is None:
-                break
+            view = _require_progress(
+                notebook_id,
+                source_id,
+                service,
+                registry,
+                chunk_store,
+                claims.user_id,
+            )
             yield f"data: {json.dumps(view, ensure_ascii=False)}\n\n"
             if view["status"] in ("done", "failed"):
                 return
@@ -359,11 +454,12 @@ def reindex_source(
     notebook_id: str,
     source_id: str,
     background_tasks: BackgroundTasks,
-    service: NotebookService = Depends(NotebookService),
-    indexing: IndexingService = Depends(IndexingService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: NotebookService = Depends(get_notebook_service),
+    indexing: IndexingService = Depends(get_indexing_service),
+    registry: IndexingProgressStore = Depends(get_progress_registry_dep),
 ) -> IndexProgressView:
-    registry = get_progress_registry()
-    record = service.get_source(notebook_id, source_id)
+    record = service.get_source(notebook_id, source_id, owner_user_id=claims.user_id)
     # 진행 레지스트리를 queued로 리셋(정지/실패한 인덱싱도 이 경로로 복구).
     indexing.register(record)
     # repo 소스면 재클론으로 최신 스냅샷 갱신 후 재인덱싱(resync_repo=True).
@@ -388,11 +484,15 @@ def reindex_source(
 def generate_artifact(
     notebook_id: str,
     request: GenerateArtifactRequest,
-    service: ArtifactService = Depends(ArtifactService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: ArtifactService = Depends(get_artifact_service),
 ) -> ArtifactRecord:
     # 동기 처리. LLM 호출은 짧게 유지하며, 키가 없으면 결정론/골격으로 즉시 반환한다.
     return service.generate(
-        notebook_id, type=request.type, source_ids=request.source_ids
+        notebook_id,
+        type=request.type,
+        source_ids=request.source_ids,
+        owner_user_id=claims.user_id,
     )
 
 
@@ -406,10 +506,14 @@ def generate_artifact(
 def create_note(
     notebook_id: str,
     request: CreateNoteRequest,
-    service: ArtifactService = Depends(ArtifactService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: ArtifactService = Depends(get_artifact_service),
 ) -> ArtifactRecord:
     return service.create_note(
-        notebook_id, content=request.content, title=request.title
+        notebook_id,
+        content=request.content,
+        title=request.title,
+        owner_user_id=claims.user_id,
     )
 
 
@@ -421,10 +525,13 @@ def create_note(
 )
 def list_artifacts(
     notebook_id: str,
-    service: ArtifactService = Depends(ArtifactService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: ArtifactService = Depends(get_artifact_service),
 ) -> ArtifactListResponse:
-    records = service.list_artifacts(notebook_id)
-    return ArtifactListResponse(artifacts=records)
+    records = service.list_artifacts(notebook_id, owner_user_id=claims.user_id)
+    return ArtifactListResponse(
+        artifacts=[ArtifactView.from_record(record) for record in records]
+    )
 
 
 @router.get(
@@ -436,9 +543,14 @@ def list_artifacts(
 def get_artifact(
     notebook_id: str,
     artifact_id: str,
-    service: ArtifactService = Depends(ArtifactService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: ArtifactService = Depends(get_artifact_service),
 ) -> ArtifactRecord:
-    return service.get_artifact(notebook_id, artifact_id)
+    return service.get_artifact(
+        notebook_id,
+        artifact_id,
+        owner_user_id=claims.user_id,
+    )
 
 
 @router.patch(
@@ -451,13 +563,15 @@ def update_artifact(
     notebook_id: str,
     artifact_id: str,
     request: UpdateArtifactRequest,
-    service: ArtifactService = Depends(ArtifactService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: ArtifactService = Depends(get_artifact_service),
 ) -> ArtifactRecord:
     return service.update_artifact(
         notebook_id,
         artifact_id,
         title=request.title,
         content=request.content,
+        owner_user_id=claims.user_id,
     )
 
 
@@ -470,7 +584,8 @@ def update_artifact(
 def delete_artifact(
     notebook_id: str,
     artifact_id: str,
-    service: ArtifactService = Depends(ArtifactService),
+    claims: SessionClaims = Depends(get_current_claims),
+    service: ArtifactService = Depends(get_artifact_service),
 ) -> Response:
-    service.delete_artifact(notebook_id, artifact_id)
+    service.delete_artifact(notebook_id, artifact_id, owner_user_id=claims.user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

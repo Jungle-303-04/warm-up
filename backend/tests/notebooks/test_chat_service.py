@@ -12,6 +12,7 @@ from typing import Any
 from app.notebooks.application.chat_service import ChatService
 from app.notebooks.application.indexing_service import IndexingService
 from app.notebooks.application.service import NotebookService
+from app.notebooks.domain.chunk_records import NotebookChunk
 from app.notebooks.domain.indexing_progress import IndexProgressRegistry
 from app.notebooks.infrastructure.in_memory_chunk_store import InMemoryChunkStore
 from app.notebooks.infrastructure.in_memory_store import InMemoryNotebookStore
@@ -193,6 +194,313 @@ def test_chat_file_paths_none_searches_all_files() -> None:
 
     assert result.citations
     assert result.citations[0].path == "app/billing/invoice.py"
+
+
+def test_chat_expands_neighbor_chunks_for_context() -> None:
+    notebook_service, _indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    source = notebook_service.add_source(
+        notebook.id,
+        kind="text",
+        title="design.txt",
+        content="placeholder",
+    )
+    chat.chunk_store.add_many(
+        [
+            NotebookChunk(
+                id="chunk-prev",
+                notebook_id=notebook.id,
+                source_id=source.id,
+                chunk_index=0,
+                text="이전 맥락: 인증 세션 개요",
+            ),
+            NotebookChunk(
+                id="chunk-hit",
+                notebook_id=notebook.id,
+                source_id=source.id,
+                chunk_index=1,
+                text="needle-token 만료 검증",
+                prev_chunk_id="chunk-prev",
+                next_chunk_id="chunk-next",
+            ),
+            NotebookChunk(
+                id="chunk-next",
+                notebook_id=notebook.id,
+                source_id=source.id,
+                chunk_index=2,
+                text="이후 맥락: 쿠키 보안 설정",
+            ),
+        ]
+    )
+
+    result = chat.ask(notebook.id, question="needle-token")
+
+    snippets = [citation.snippet for citation in result.citations]
+    assert any("이전 맥락" in snippet for snippet in snippets)
+    assert any("이후 맥락" in snippet for snippet in snippets)
+
+
+def test_chat_reports_repo_document_fact_conflict() -> None:
+    notebook_service, _indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+
+    repo = SourceRecord(
+        id="repo-1",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+    doc = notebook_service.add_source(
+        notebook.id,
+        kind="md",
+        title="release-note.md",
+        content="feature_x: false",
+    )
+    chat.chunk_store.add_many(
+        [
+            NotebookChunk(
+                id="repo-fact",
+                notebook_id=notebook.id,
+                source_id=repo.id,
+                chunk_index=0,
+                file_path="settings.py",
+                text="feature_x: true",
+            ),
+            NotebookChunk(
+                id="doc-fact",
+                notebook_id=notebook.id,
+                source_id=doc.id,
+                chunk_index=0,
+                text="feature_x: false",
+            ),
+        ]
+    )
+
+    result = chat.ask(notebook.id, question="feature_x 설정은?")
+
+    assert "충돌 있음" in result.answer
+    assert "settings.py" in result.answer
+    assert "release-note.md" in result.answer
+    assert {citation.source_id for citation in result.citations} == {repo.id, doc.id}
+
+
+def test_chat_answers_commit_history_from_repo_metadata() -> None:
+    notebook_service, _indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+
+    repo = SourceRecord(
+        id="repo-1",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_commits=[
+            {
+                "sha": "abcdef1234567890",
+                "short_sha": "abcdef123456",
+                "message": "add auth flow",
+                "author_name": "woonyong",
+                "authored_at": "2026-06-17T12:00:00Z",
+            }
+        ],
+        repo_snapshot=[],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+
+    result = chat.ask(notebook.id, question="마지막 커밋 이력이 뭐야?")
+
+    assert "최근 커밋" in result.answer
+    assert "abcdef123456" in result.answer
+    assert "add auth flow" in result.answer
+    assert result.citations[0].source_id == repo.id
+
+
+def test_chat_answers_commit_history_with_fetcher_when_metadata_missing() -> None:
+    notebook_service, _indexing, _chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM", owner_user_id=77)
+    from app.notebooks.application.chat_service import ChatService
+    from app.notebooks.domain.records import SourceRecord
+
+    repo = SourceRecord(
+        id="repo-1",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+    captured: dict[str, object] = {}
+
+    def fake_fetcher(source, owner_user_id):
+        captured["source_id"] = source.id
+        captured["owner_user_id"] = owner_user_id
+        return [
+            {
+                "sha": "1234567890abcdef",
+                "short_sha": "1234567890ab",
+                "message": "fix board pagination",
+                "author_name": "jungle",
+                "authored_at": "2026-06-17T11:00:00Z",
+            }
+        ]
+
+    chat = ChatService(
+        store=notebook_service.store,
+        chunk_store=_chat.chunk_store,
+        embedder=_chat.embedder,
+        commit_fetcher=fake_fetcher,
+    )
+
+    result = chat.ask(
+        notebook.id,
+        question="최근 변경 이력 알려줘",
+        owner_user_id=77,
+    )
+
+    assert captured == {"source_id": repo.id, "owner_user_id": 77}
+    assert "fix board pagination" in result.answer
+    assert result.citations[0].snippet.startswith("1234567890ab")
+
+
+def test_chat_answers_repo_overview_from_readme_snapshot() -> None:
+    notebook_service, _indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+
+    repo = SourceRecord(
+        id="repo-1",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/board-simple",
+        repository_url="https://github.com/team/board-simple",
+        branch="main",
+        repo_snapshot=[
+            {
+                "path": "README.md",
+                "content": (
+                    "# Board Simple\n\n"
+                    "Next.js, FastAPI, PostgreSQL 기반 기본 게시판 프로젝트입니다.\n"
+                ),
+            },
+            {"path": "app/main.py", "content": "print('hello')"},
+        ],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+
+    result = chat.ask(notebook.id, question="이 레포 어떤 프로젝트야?", source_ids=[repo.id])
+
+    assert "Board Simple" in result.answer
+    assert "기본 게시판 프로젝트" in result.answer
+    assert "저장된 스냅샷 파일: 2개" in result.answer
+    assert result.citations[0].path == "README.md"
+
+
+def test_notebook_tools_enforce_file_scope() -> None:
+    notebook_service, indexing, _chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+    from app.notebooks.infrastructure.chat_tools import build_notebook_tools
+
+    repo = SourceRecord(
+        id="repo-1",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[
+            {"path": "allowed.py", "content": "def allowed_symbol():\n    return 1\n"},
+            {"path": "blocked.py", "content": "def blocked_symbol():\n    return 2\n"},
+        ],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+    indexing.index_source(notebook.id, repo.id)
+
+    tools = {
+        tool.name: tool
+        for tool in build_notebook_tools(
+            notebook_id=notebook.id,
+            store=notebook_service.store,
+            chunk_store=indexing.chunk_store,
+            embedder=indexing.embedder,
+            source_ids=[repo.id],
+            file_paths=["allowed.py"],
+        )
+    }
+
+    assert "allowed_symbol" in tools["read_source_file"].invoke({"path": "allowed.py"})
+    assert "찾지 못했습니다" in tools["read_source_file"].invoke({"path": "blocked.py"})
+    blocked_symbol_result = tools["find_symbol"].invoke({"name": "blocked_symbol"})
+    assert "찾지 못했습니다" in blocked_symbol_result
+    assert "return 2" not in blocked_symbol_result
+
+
+def test_notebook_tools_enforce_source_scope() -> None:
+    notebook_service, indexing, _chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+    from app.notebooks.infrastructure.chat_tools import build_notebook_tools
+
+    allowed = SourceRecord(
+        id="repo-allowed",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/allowed",
+        repository_url="https://github.com/team/allowed",
+        branch="main",
+        repo_snapshot=[
+            {"path": "allowed.py", "content": "def allowed_symbol():\n    return 1\n"},
+        ],
+        created_at=FIXED_NOW,
+    )
+    blocked = SourceRecord(
+        id="repo-blocked",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/blocked",
+        repository_url="https://github.com/team/blocked",
+        branch="main",
+        repo_snapshot=[
+            {"path": "blocked.py", "content": "def blocked_symbol():\n    return 2\n"},
+        ],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(allowed)
+    notebook_service.store.add_source(blocked)
+    indexing.index_source(notebook.id, allowed.id)
+    indexing.index_source(notebook.id, blocked.id)
+
+    tools = {
+        tool.name: tool
+        for tool in build_notebook_tools(
+            notebook_id=notebook.id,
+            store=notebook_service.store,
+            chunk_store=indexing.chunk_store,
+            embedder=indexing.embedder,
+            source_ids=[allowed.id],
+            file_paths=None,
+        )
+    }
+
+    assert "allowed_symbol" in tools["read_source_file"].invoke({"path": "allowed.py"})
+    assert "찾지 못했습니다" in tools["read_source_file"].invoke({"path": "blocked.py"})
+    blocked_symbol_result = tools["find_symbol"].invoke({"name": "blocked_symbol"})
+    assert "찾지 못했습니다" in blocked_symbol_result
+    assert "return 2" not in blocked_symbol_result
 
 
 def test_chat_no_sources_returns_grounding_gap_not_error() -> None:

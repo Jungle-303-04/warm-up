@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 
 from app.api.errors import DomainConflictError, EntityNotFoundError
-from app.pipeline.api.schemas import PipelineRequest, ProposalStatus, RepoFile
+from app.pipeline.router import PipelineRequest, ProposalStatus, RepoFile
 from app.proposals.service import ProposalReviewService
 from app.proposals.stores import InMemoryProposalStore
 
@@ -11,7 +11,7 @@ FIXED_NOW = datetime(2026, 6, 15, 12, 0, tzinfo=UTC)
 
 
 def _service() -> ProposalReviewService:
-    from app.pipeline.application.service import PipelineService
+    from app.pipeline.service import PipelineService
     return ProposalReviewService(
         store=InMemoryProposalStore(),
         pipeline=PipelineService(),

@@ -4,37 +4,29 @@
 진행 레지스트리를 갱신한다. 외부 키 없이 동작해야 하므로 임베딩 클라이언트는
 기본적으로 결정론적(deterministic)이며, repo clone/LLM 호출은 하지 않는다.
 
-지원 언어(.py/.md)만 repo_rag 청커로 인덱싱하고, 그 외 repo 파일은 skip한다.
-md/text/pdf 소스는 각각 마크다운 청커/텍스트 분할기로 처리하고, url 소스는
-인덱싱 대상이 아니다(즉시 done, total_files 0).
+repo 파일과 md/text/pdf/url 소스를 자료형별 청커로 처리한다. URL 소스는
+SSRF 방어가 들어간 LinkFetcher 포트로 본문 후보를 가져와 정제 후 색인한다.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from fastapi import Depends
-
-from app.notebooks.dependencies import (
-    get_chunk_store,
-    get_embedding_client,
-    get_notebook_store,
-    get_progress_registry_dep,
-)
 from app.notebooks.domain.chunk_records import NotebookChunk
 from app.notebooks.domain.indexing_progress import (
     FileProgress,
     IndexProgress,
-    IndexProgressRegistry,
 )
-from app.notebooks.domain.ports import ChunkStore, NotebookStore
+from app.notebooks.domain.ports import ChunkStore, IndexingProgressStore, NotebookStore
 from app.notebooks.domain.records import SourceRecord
+from app.repo_rag.domain.identity import hash_text
 from app.repo_rag.domain.ports import EmbeddingClient
+from app.repository_source.infrastructure.repo_sync import RepoSyncService
 
 if TYPE_CHECKING:
-    pass
+    from app.link_metadata.domain.ports import LinkFetcher
 
 
 def get_clock() -> Callable[[], datetime]:
@@ -46,33 +38,44 @@ def get_id_factory() -> Callable[[], str]:
 
 
 @dataclass(slots=True)
+class _PlannedChunk:
+    text: str
+    format: str | None = None
+    heading_path: list[str] | None = None
+    page: int | None = None
+    start_line: int | None = None
+    end_line: int | None = None
+    start_offset: int | None = None
+    end_offset: int | None = None
+    content_hash: str | None = None
+    parent_chunk_id: str | None = None
+    prev_chunk_id: str | None = None
+    next_chunk_id: str | None = None
+
+
+@dataclass(slots=True)
 class _FileChunks:
-    """한 "파일"(또는 단일 텍스트 단위)에서 나온 청크 텍스트 묶음."""
+    """한 "파일"(또는 단일 텍스트 단위)에서 나온 청크 묶음."""
 
     path: str
     language: str | None
     supported: bool
-    texts: list[str]
+    chunks: list[_PlannedChunk]
 
 
 @dataclass(slots=True)
 class IndexingService:
-    store: NotebookStore = Depends(get_notebook_store)
-    chunk_store: ChunkStore = Depends(get_chunk_store)
-    embedder: EmbeddingClient = Depends(get_embedding_client)
-    registry: IndexProgressRegistry = Depends(get_progress_registry_dep)
-    clock: Any = Depends(get_clock)
-    id_factory: Any = Depends(get_id_factory)
-
-    def __post_init__(self) -> None:
-        from fastapi.params import Depends as DependsClass
-        if isinstance(self.clock, DependsClass):
-            self.clock = self.clock.dependency()
-        if isinstance(self.id_factory, DependsClass):
-            self.id_factory = self.id_factory.dependency()
+    store: NotebookStore
+    chunk_store: ChunkStore
+    embedder: EmbeddingClient
+    registry: IndexingProgressStore
+    clock: Any = field(default_factory=get_clock)
+    id_factory: Any = field(default_factory=get_id_factory)
     # repo 재풀링(재클론)용. None이면 재풀링 없이 기존 스냅샷으로 인덱싱한다.
     # 헥사고날 경계: NotebookService와 동일한 RepoSyncService 포트를 주입받는다.
-    repo_sync: "Any | None" = Depends(lambda: __import__('app.repository_source.infrastructure.repo_sync', fromlist=['RepoSyncService']).RepoSyncService())
+    repo_sync: Any | None = field(default_factory=RepoSyncService)
+    # URL 소스 본문 수집용. None이면 네트워크 호출 없이 URL 색인을 건너뛴다.
+    url_fetcher: "LinkFetcher | None" = None
 
     def register(self, source: SourceRecord) -> None:
         """소스 생성 직후 큐 등록(BackgroundTasks 실행 전 호출)."""
@@ -101,7 +104,7 @@ class IndexingService:
         self.chunk_store.delete_by_source(source_id)
 
         try:
-            file_chunks = _plan_files(source)
+            file_chunks = _plan_files(source, self.url_fetcher)
         except Exception as exc:
             self.registry.update(source_id, _fail(str(exc)))
             return
@@ -116,7 +119,7 @@ class IndexingService:
         created_at = self.clock()
         for file in file_chunks:
             self.registry.update(source_id, _mark_file_indexing(file.path))
-            if not file.supported or not file.texts:
+            if not file.supported or not file.chunks:
                 self.registry.update(source_id, _mark_file_skipped(file.path))
                 continue
             try:
@@ -162,6 +165,7 @@ class IndexingService:
         source.repo_snapshot = [
             {"path": file.path, "content": file.content} for file in snapshot.files
         ]
+        source.repo_commits = [commit.model_dump() for commit in snapshot.commits]
         source.branch = snapshot.branch or source.branch
         # 최신 스냅샷을 저장소에 영속(merge upsert).
         self.store.add_source(source)
@@ -187,22 +191,41 @@ class IndexingService:
         file: _FileChunks,
         created_at: datetime,
     ) -> list[NotebookChunk]:
-        embeddings = self.embedder.embed_documents(file.texts)
+        texts = [chunk.text for chunk in file.chunks]
+        embeddings = self.embedder.embed_documents(texts)
         chunks: list[NotebookChunk] = []
-        for index, (text, embedding) in enumerate(zip(file.texts, embeddings, strict=False)):
+        for index, (planned, embedding) in enumerate(
+            zip(file.chunks, embeddings, strict=False)
+        ):
             chunks.append(
                 NotebookChunk(
                     id=self.id_factory(),
                     notebook_id=source.notebook_id,
                     source_id=source.id,
                     chunk_index=index,
-                    text=text,
+                    text=planned.text,
                     file_path=file.path if file.path != _TEXT_UNIT else None,
                     language=file.language,
+                    format=planned.format or file.language,
+                    heading_path=planned.heading_path,
+                    page=planned.page,
+                    start_line=planned.start_line,
+                    end_line=planned.end_line,
+                    start_offset=planned.start_offset,
+                    end_offset=planned.end_offset,
+                    content_hash=planned.content_hash,
+                    parent_chunk_id=planned.parent_chunk_id,
+                    prev_chunk_id=planned.prev_chunk_id,
+                    next_chunk_id=planned.next_chunk_id,
                     embedding=list(embedding),
                     created_at=created_at,
                 )
             )
+        for index, chunk in enumerate(chunks):
+            if chunk.prev_chunk_id is None and index > 0:
+                chunk.prev_chunk_id = chunks[index - 1].id
+            if chunk.next_chunk_id is None and index + 1 < len(chunks):
+                chunk.next_chunk_id = chunks[index + 1].id
         return chunks
 
 
@@ -211,14 +234,18 @@ class IndexingService:
 _TEXT_UNIT = "__text__"
 
 
-def _plan_files(source: SourceRecord) -> list[_FileChunks]:
+def _plan_files(
+    source: SourceRecord,
+    url_fetcher: "LinkFetcher | None" = None,
+) -> list[_FileChunks]:
     if source.kind == "repo":
         return _plan_repo(source)
     if source.kind == "md":
         return _plan_markdown(source)
     if source.kind in ("text", "pdf"):
         return _plan_plain_text(source)
-    # url 등: 인덱싱 대상 아님.
+    if source.kind == "url":
+        return _plan_url(source, url_fetcher)
     return []
 
 
@@ -235,27 +262,28 @@ def _plan_repo(source: SourceRecord) -> list[_FileChunks]:
             continue
         language = detect_language(path)
         if language is None:
-            files.append(_FileChunks(path=path, language=None, supported=False, texts=[]))
+            files.append(_FileChunks(path=path, language=None, supported=False, chunks=[]))
             continue
         if not isinstance(content, str) or not content.strip():
-            files.append(_FileChunks(path=path, language=language, supported=True, texts=[]))
+            files.append(_FileChunks(path=path, language=language, supported=True, chunks=[]))
             continue
         chunker = DEFAULT_CHUNKER_REGISTRY.get(language)
         if chunker is None:
-            files.append(_FileChunks(path=path, language=None, supported=False, texts=[]))
+            files.append(_FileChunks(path=path, language=None, supported=False, chunks=[]))
             continue
+        content_hash = hash_text(content)
         file_context = FileContext(
             repository=source.title,
             path=path,
             commit_sha=source.branch or "HEAD",
-            content_hash="",
+            content_hash=content_hash,
             content=content,
             language=language,
         )
         drafts = chunker.build_chunks(file_context)
-        texts = [draft.text for draft in drafts if draft.text.strip()]
+        planned = [_planned_from_draft(draft, language, content_hash) for draft in drafts]
         files.append(
-            _FileChunks(path=path, language=language, supported=True, texts=texts)
+            _FileChunks(path=path, language=language, supported=True, chunks=planned)
         )
     return files
 
@@ -272,26 +300,80 @@ def _plan_markdown(source: SourceRecord) -> list[_FileChunks]:
         repository=source.title,
         path=source.title,
         commit_sha="HEAD",
-        content_hash="",
+        content_hash=hash_text(content),
         content=content,
         language="markdown",
     )
     drafts = chunker.build_chunks(file_context) if chunker else []
-    texts = [draft.text for draft in drafts if draft.text.strip()]
+    planned = [_planned_from_draft(draft, "markdown", file_context.content_hash) for draft in drafts]
     return [
-        _FileChunks(path=source.title, language="markdown", supported=True, texts=texts)
+        _FileChunks(path=source.title, language="markdown", supported=True, chunks=planned)
     ]
 
 
 def _plan_plain_text(source: SourceRecord) -> list[_FileChunks]:
-    from app.repo_rag.domain.text_splitter import DEFAULT_TEXT_SPLITTER_SERVICE
+    from app.repo_rag.domain.chunk_identity import FileContext
+    from app.repo_rag.domain.chunking import DEFAULT_CHUNKER_REGISTRY
 
     content = source.content or ""
     if not content.strip():
         return []
-    texts = DEFAULT_TEXT_SPLITTER_SERVICE.split(content)
+    language = "pdf" if source.kind == "pdf" else "text"
+    chunker = DEFAULT_CHUNKER_REGISTRY.get(language)
+    content_hash = hash_text(content)
+    file_context = FileContext(
+        repository=source.title,
+        path=source.title,
+        commit_sha="HEAD",
+        content_hash=content_hash,
+        content=content,
+        language=language,
+    )
+    drafts = chunker.build_chunks(file_context) if chunker else []
+    planned = [_planned_from_draft(draft, language, content_hash) for draft in drafts]
     return [
-        _FileChunks(path=_TEXT_UNIT, language="text", supported=True, texts=texts)
+        _FileChunks(path=_TEXT_UNIT, language=language, supported=True, chunks=planned)
+    ]
+
+
+def _plan_url(
+    source: SourceRecord,
+    url_fetcher: "LinkFetcher | None",
+) -> list[_FileChunks]:
+    if source.url is None or not source.url.strip() or url_fetcher is None:
+        return []
+
+    from app.notebooks.application.url_content import UrlContentExtractor
+    from app.repo_rag.domain.chunk_identity import FileContext
+    from app.repo_rag.domain.chunking import DEFAULT_CHUNKER_REGISTRY
+
+    document = UrlContentExtractor(url_fetcher).fetch_document(
+        source.url,
+        fallback_title=source.title,
+    )
+    if document is None:
+        return []
+
+    content_hash = hash_text(document.text)
+    chunker = DEFAULT_CHUNKER_REGISTRY.get("text")
+    file_context = FileContext(
+        repository=source.title,
+        path=document.url,
+        commit_sha="HEAD",
+        content_hash=content_hash,
+        content=document.text,
+        language="text",
+        source_type="url",
+    )
+    drafts = chunker.build_chunks(file_context) if chunker else []
+    planned = [_planned_from_draft(draft, "url", content_hash) for draft in drafts]
+    return [
+        _FileChunks(
+            path=document.url,
+            language="url",
+            supported=True,
+            chunks=planned,
+        )
     ]
 
 
@@ -304,9 +386,10 @@ def _start(files: list[_FileChunks]):
         progress.total_files = len(files)
         progress.processed_files = 0
         progress.skipped_files = 0
-        progress.total_chunks = sum(len(file.texts) for file in files if file.supported)
+        progress.total_chunks = sum(len(file.chunks) for file in files if file.supported)
         progress.indexed_chunks = 0
         progress.error = None
+        progress.content_hash = _files_content_hash(files)
         progress.files = [
             FileProgress(
                 path=file.path,
@@ -318,6 +401,38 @@ def _start(files: list[_FileChunks]):
         ]
 
     return mutate
+
+
+def _planned_from_draft(
+    draft,
+    format: str,
+    content_hash: str,
+) -> _PlannedChunk:
+    return _PlannedChunk(
+        text=draft.text,
+        format=format,
+        heading_path=draft.heading_path,
+        page=draft.page,
+        start_line=draft.start_line,
+        end_line=draft.end_line,
+        start_offset=draft.start_offset,
+        end_offset=draft.end_offset,
+        content_hash=content_hash,
+        parent_chunk_id=draft.parent_chunk_id,
+        prev_chunk_id=draft.prev_chunk_id,
+        next_chunk_id=draft.next_chunk_id,
+    )
+
+
+def _files_content_hash(files: list[_FileChunks]) -> str | None:
+    parts = [
+        f"{file.path}:{chunk.content_hash or hash_text(chunk.text)}"
+        for file in files
+        for chunk in file.chunks
+    ]
+    if not parts:
+        return None
+    return hash_text("\n".join(parts))
 
 
 def _mark_file_indexing(path: str):

@@ -1,15 +1,15 @@
 """RAG 분석 파이프라인 API 라우터 및 스키마 DTO 정의."""
 
 from enum import StrEnum
+from typing import Any
+
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field, field_validator
-from typing import Any
 
 from app.api.errors import http_error
 from app.api.responses import BAD_REQUEST_RESPONSE
 from app.auth.dependencies import get_current_claims
 from app.validation import between, min_value, relative_path, required_text
-
 
 # --- 1. 파이프라인 API 스키마 DTO 정의 (schemas.py) ---
 DEFAULT_REPO = "sample-repo"
@@ -40,6 +40,15 @@ class RepoFile(BaseModel):
         )
 
 
+class RepoCommit(BaseModel):
+    sha: str
+    short_sha: str
+    message: str
+    author_name: str | None = None
+    author_email: str | None = None
+    authored_at: str | None = None
+
+
 class PipelineRequest(BaseModel):
     repository: str = DEFAULT_REPO
     branch: str = DEFAULT_BRANCH
@@ -64,6 +73,7 @@ class RepoSnapshot(BaseModel):
     branch: str
     commit_sha: str
     files: list[RepoFile]
+    commits: list[RepoCommit] = Field(default_factory=list)
 
 
 class CodeReference(BaseModel):
@@ -86,10 +96,20 @@ class RetrievalChunk(BaseModel):
     source_path: str
     text: str
     citation: str
+    source_id: str | None = None
+    format: str | None = None
     chunk_type: str | None = None
     symbol_name: str | None = None
+    heading_path: list[str] | None = None
+    page: int | None = None
     start_line: int | None = None
     end_line: int | None = None
+    start_offset: int | None = None
+    end_offset: int | None = None
+    content_hash: str | None = None
+    parent_chunk_id: str | None = None
+    prev_chunk_id: str | None = None
+    next_chunk_id: str | None = None
     language: str | None = None
 
     @field_validator("text")
@@ -130,8 +150,10 @@ class PipelineResponse(BaseModel):
 # --- 2. API 엔드포인트 라우팅 정의 (router.py) ---
 # 지연 임포트로 의존성 꼬임 방지
 def get_pipeline_service_instance():
+    from app.config import get_settings
     from app.pipeline.dependencies import get_pipeline_service
-    return get_pipeline_service()
+
+    return get_pipeline_service(get_settings())
 
 
 router = APIRouter(dependencies=[Depends(get_current_claims)])
@@ -147,7 +169,6 @@ def run_pipeline(
     request: PipelineRequest,
     service: Any = Depends(get_pipeline_service_instance),
 ) -> PipelineResponse:
-    from app.pipeline.service import PipelineService
     return http_error(
         lambda: service.run(request),
         {ValueError: status.HTTP_400_BAD_REQUEST},

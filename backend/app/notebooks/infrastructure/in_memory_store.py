@@ -20,22 +20,38 @@ class InMemoryNotebookStore(NotebookStore):
     def add_notebook(self, record: NotebookRecord) -> None:
         self._notebooks[record.id] = record
 
-    def get_notebook(self, notebook_id: str) -> NotebookRecord:
+    def get_notebook(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int | None = None,
+    ) -> NotebookRecord:
         if notebook_id not in self._notebooks:
             raise EntityNotFoundError(notebook_id)
-        return self._notebooks[notebook_id]
+        record = self._notebooks[notebook_id]
+        if owner_user_id is not None and record.owner_user_id != owner_user_id:
+            raise EntityNotFoundError(notebook_id)
+        return record
 
-    def list_notebooks(self) -> list[NotebookRecord]:
-        return list(self._notebooks.values())
+    def list_notebooks(self, *, owner_user_id: int) -> list[NotebookRecord]:
+        return [
+            notebook
+            for notebook in self._notebooks.values()
+            if notebook.owner_user_id == owner_user_id
+        ]
 
     def update_notebook(self, record: NotebookRecord) -> None:
         if record.id not in self._notebooks:
             raise EntityNotFoundError(record.id)
         self._notebooks[record.id] = record
 
-    def delete_notebook(self, notebook_id: str) -> None:
-        if notebook_id not in self._notebooks:
-            raise EntityNotFoundError(notebook_id)
+    def delete_notebook(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int | None = None,
+    ) -> None:
+        self.get_notebook(notebook_id, owner_user_id=owner_user_id)
         del self._notebooks[notebook_id]
         # cascade: 소속 소스 제거
         for source_id in [

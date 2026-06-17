@@ -4,22 +4,34 @@
 get류는 없는 id에 대해 KeyError를 던진다(API에서 404로 변환).
 """
 
-from typing import Protocol
+from collections.abc import Callable
+from typing import Any, Protocol
 
 from app.notebooks.domain.chunk_records import ChunkSearchHit, NotebookChunk
+from app.notebooks.domain.indexing_progress import IndexProgress
 from app.notebooks.domain.records import ChatMessageRecord, NotebookRecord, SourceRecord
 
 
 class NotebookStore(Protocol):
     def add_notebook(self, record: NotebookRecord) -> None: ...
 
-    def get_notebook(self, notebook_id: str) -> NotebookRecord: ...
+    def get_notebook(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int | None = None,
+    ) -> NotebookRecord: ...
 
-    def list_notebooks(self) -> list[NotebookRecord]: ...
+    def list_notebooks(self, *, owner_user_id: int) -> list[NotebookRecord]: ...
 
     def update_notebook(self, record: NotebookRecord) -> None: ...
 
-    def delete_notebook(self, notebook_id: str) -> None: ...
+    def delete_notebook(
+        self,
+        notebook_id: str,
+        *,
+        owner_user_id: int | None = None,
+    ) -> None: ...
 
     def add_source(self, record: SourceRecord) -> None: ...
 
@@ -49,6 +61,15 @@ class ChunkStore(Protocol):
 
     def count_by_source(self, source_id: str) -> int: ...
 
+    def get_many(
+        self,
+        notebook_id: str,
+        chunk_ids: list[str],
+        *,
+        source_ids: list[str] | None = None,
+        file_paths: list[str] | None = None,
+    ) -> list[NotebookChunk]: ...
+
     def search(
         self,
         notebook_id: str,
@@ -59,3 +80,61 @@ class ChunkStore(Protocol):
         top_k: int,
         file_paths: list[str] | None = None,
     ) -> list[ChunkSearchHit]: ...
+
+
+class Retriever(Protocol):
+    """질문과 scope를 받아 검색 hit를 반환하는 포트."""
+
+    def search(
+        self,
+        notebook_id: str,
+        *,
+        query_embedding: list[float] | None,
+        query_text: str,
+        source_ids: list[str] | None,
+        top_k: int,
+        file_paths: list[str] | None = None,
+    ) -> list[ChunkSearchHit]: ...
+
+
+class ContextExpander(Protocol):
+    """검색 hit 주변의 parent/prev/next 컨텍스트를 예산 안에서 확장하는 포트."""
+
+    def expand(
+        self,
+        notebook_id: str,
+        hits: list[ChunkSearchHit],
+        *,
+        source_ids: list[str] | None,
+        file_paths: list[str] | None,
+    ) -> list[ChunkSearchHit]: ...
+
+
+class ToolRegistry(Protocol):
+    """선택된 source/file scope에 묶인 도구 목록을 만드는 포트."""
+
+    def build(
+        self,
+        notebook_id: str,
+        *,
+        source_ids: list[str] | None,
+        file_paths: list[str] | None,
+    ) -> list[Any]: ...
+
+
+class IndexingProgressStore(Protocol):
+    """색인 진행 상태 영속/조회 포트."""
+
+    def register(self, source_id: str, notebook_id: str) -> None: ...
+
+    def get(self, source_id: str) -> dict | None: ...
+
+    def remove(self, source_id: str) -> None: ...
+
+    def update(
+        self,
+        source_id: str,
+        mutate: Callable[[IndexProgress], None],
+    ) -> None: ...
+
+    def snapshot(self, source_id: str) -> IndexProgress | None: ...

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from app.pipeline.router import CodeReference, ProposalStatus, RetrievalChunk
-from app.pipeline.domain import AgentProposalService, VERIFIED
+from app.pipeline.domain import VERIFIED, AgentProposalService
 from app.pipeline.proposer import ProposalDraft
+from app.pipeline.router import CodeReference, ProposalStatus, RetrievalChunk
 
 
 @dataclass

@@ -54,6 +54,32 @@ class SqlChunkStore:
                 or 0
             )
 
+    def get_many(
+        self,
+        notebook_id: str,
+        chunk_ids: list[str],
+        *,
+        source_ids: list[str] | None = None,
+        file_paths: list[str] | None = None,
+    ) -> list[NotebookChunk]:
+        if not chunk_ids:
+            return []
+        with session_scope(self._session_factory) as session:
+            models = {
+                model.id: model
+                for model in session.scalars(
+                    select(NotebookChunkModel).where(
+                        NotebookChunkModel.id.in_(chunk_ids),
+                        *self._scope(notebook_id, source_ids, file_paths),
+                    )
+                ).all()
+            }
+            return [
+                chunk_to_record(models[chunk_id])
+                for chunk_id in chunk_ids
+                if chunk_id in models
+            ]
+
     def search(
         self,
         notebook_id: str,

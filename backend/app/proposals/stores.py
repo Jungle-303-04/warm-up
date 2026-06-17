@@ -1,9 +1,10 @@
 """제안 저장소 구현체 (In-Memory 및 Postgres SQL 저장소)."""
 
 from datetime import datetime
+
 from sqlalchemy import DateTime, Float, String, Text, select
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from app.api.errors import EntityNotFoundError
 from app.common.database import get_or_raise
@@ -127,7 +128,12 @@ class SqlProposalStore(ProposalStore):
 
     def get(self, proposal_id: str) -> ProposalRecord:
         with session_scope(self._session_factory) as session:
-            model = get_or_raise(session, ProposalModel, proposal_id, f"ProposalRecord (ID: {proposal_id})을(를) 찾을 수 없습니다.")
+            model = get_or_raise(
+                session,
+                ProposalModel,
+                proposal_id,
+                f"ProposalRecord (ID: {proposal_id})을(를) 찾을 수 없습니다.",
+            )
             return to_record(model)
 
     def update(self, record: ProposalRecord) -> None:

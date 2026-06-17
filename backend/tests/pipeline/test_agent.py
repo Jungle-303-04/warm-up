@@ -1,5 +1,5 @@
+from app.pipeline.domain import VERIFIED, AgentProposalService
 from app.pipeline.router import CodeReference, ProposalStatus, RetrievalChunk
-from app.pipeline.domain import AgentProposalService, VERIFIED
 
 
 def test_propose_returns_empty_list_without_code_references() -> None:

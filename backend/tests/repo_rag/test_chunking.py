@@ -1,4 +1,4 @@
-from app.pipeline.api.schemas import RepoFile, RepoSnapshot
+from app.pipeline.router import RepoFile, RepoSnapshot
 from app.repo_rag.api.schemas import RepoFileChange
 from app.repo_rag.domain.chunking import ChunkingService
 
@@ -43,7 +43,7 @@ def test_api_route_classification() -> None:
         _snapshot([RepoFile(path="app/router.py", content=content)]),
         _added("app/router.py"),
     )
-    assert chunks[0].chunk_type == "python_api_route"
+    assert any(chunk.chunk_type == "python_api_route" for chunk in chunks)
 
 
 def test_markdown_sections() -> None:
@@ -55,6 +55,9 @@ def test_markdown_sections() -> None:
     )
     assert all(chunk.chunk_type == "markdown_section" for chunk in chunks)
     assert {"Title", "Section"} <= {chunk.symbol_name for chunk in chunks}
+    section = next(chunk for chunk in chunks if chunk.symbol_name == "Section")
+    assert section.heading_path == ["Title", "Section"]
+    assert section.prev_chunk_id is not None
 
 
 def test_citation_includes_repository_and_line_range() -> None:
@@ -67,11 +70,29 @@ def test_citation_includes_repository_and_line_range() -> None:
     assert chunks[0].citation == f"team/repo:app.py:1-2@{COMMIT}"
 
 
+def test_pdf_chunks_preserve_page_metadata() -> None:
+    service = ChunkingService()
+    chunks = service.chunk_changed_files(
+        _snapshot(
+            [
+                RepoFile(
+                    path="guide.pdf",
+                    content="첫 페이지 제목\n본문\f둘째 페이지 제목\n추가 본문",
+                )
+            ]
+        ),
+        _added("guide.pdf"),
+    )
+
+    assert {chunk.page for chunk in chunks} == {1, 2}
+    assert all(chunk.format == "pdf" for chunk in chunks)
+
+
 def test_unsupported_language_is_skipped() -> None:
     service = ChunkingService()
     chunks = service.chunk_changed_files(
-        _snapshot([RepoFile(path="data.json", content='{"a": 1}')]),
-        _added("data.json"),
+        _snapshot([RepoFile(path="image.png", content="binary")]),
+        _added("image.png"),
     )
     assert chunks == []
 

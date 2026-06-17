@@ -1,28 +1,22 @@
-"""제안 리뷰 유스케이스 서비스."""
-
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
-from dataclasses import dataclass
-from fastapi import Depends
 
-from app.common.dependency import autowired
 from app.pipeline.router import AgentProposal, PipelineRequest, ProposalStatus
 from app.pipeline.service import PipelineService
-from app.proposals.domain import decide, ProposalRecord, ReviewAction
+from app.proposals.domain import ProposalRecord, ReviewAction, decide
 from app.proposals.ports import ProposalStore
-from app.proposals.dependencies import get_proposal_store, get_pipeline_service
 
 
 def get_clock() -> Any:
     return lambda: datetime.now(UTC)
 
 
-@autowired
 @dataclass(slots=True)
 class ProposalReviewService:
-    store: ProposalStore = Depends(get_proposal_store)
-    pipeline: PipelineService = Depends(get_pipeline_service)
-    clock: Any = Depends(get_clock)
+    store: ProposalStore
+    pipeline: PipelineService = field(default_factory=PipelineService)
+    clock: Any = field(default_factory=get_clock)
 
     def generate(self, request: PipelineRequest) -> list[ProposalRecord]:
         artifacts = self.pipeline.collect(request)

@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.pipeline.api.schemas import ProposalStatus, ProposalType
+from app.pipeline.router import ProposalStatus, ProposalType
 from app.proposals.domain import ProposalRecord
 
 POSTGRES_DATABASE_URL = os.getenv("POSTGRES_DATABASE_URL")

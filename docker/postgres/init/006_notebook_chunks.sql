@@ -24,11 +24,34 @@ CREATE TABLE IF NOT EXISTS notebook_chunks (
     file_path text,
     chunk_index integer NOT NULL,
     language text,
+    format text,
+    heading_path jsonb,
+    page integer,
+    start_line integer,
+    end_line integer,
+    start_offset integer,
+    end_offset integer,
+    content_hash text,
+    parent_chunk_id text,
+    prev_chunk_id text,
+    next_chunk_id text,
     text text NOT NULL,
     embedding vector(1536),
     content_tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple', text)) STORED,
     created_at timestamptz NOT NULL
 );
+
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS format text;
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS heading_path jsonb;
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS page integer;
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS start_line integer;
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS end_line integer;
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS start_offset integer;
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS end_offset integer;
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS content_hash text;
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS parent_chunk_id text;
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS prev_chunk_id text;
+ALTER TABLE notebook_chunks ADD COLUMN IF NOT EXISTS next_chunk_id text;
 
 CREATE INDEX IF NOT EXISTS ix_notebook_chunks_notebook_id ON notebook_chunks (notebook_id);
 CREATE INDEX IF NOT EXISTS ix_notebook_chunks_source_id ON notebook_chunks (source_id);
@@ -40,3 +63,22 @@ ON notebook_chunks USING gin (content_tsv);
 -- 벡터(의미검색): 코사인 거리 HNSW
 CREATE INDEX IF NOT EXISTS ix_notebook_chunks_embedding_hnsw
 ON notebook_chunks USING hnsw (embedding vector_cosine_ops);
+
+CREATE TABLE IF NOT EXISTS notebook_index_progress (
+    source_id text PRIMARY KEY REFERENCES notebook_sources(id) ON DELETE CASCADE,
+    notebook_id text NOT NULL REFERENCES notebooks(id) ON DELETE CASCADE,
+    status text NOT NULL,
+    total_files integer NOT NULL DEFAULT 0,
+    processed_files integer NOT NULL DEFAULT 0,
+    skipped_files integer NOT NULL DEFAULT 0,
+    total_chunks integer NOT NULL DEFAULT 0,
+    indexed_chunks integer NOT NULL DEFAULT 0,
+    files jsonb NOT NULL DEFAULT '[]'::jsonb,
+    error text,
+    content_hash text,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    last_synced_at timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS ix_notebook_index_progress_notebook_id
+ON notebook_index_progress (notebook_id);

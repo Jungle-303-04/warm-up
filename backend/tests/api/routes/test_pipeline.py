@@ -16,7 +16,7 @@ from app.pipeline import (
     REPO_SYNC,
     ProposalStatus,
 )
-from app.pipeline.api.router import router as pipeline_router
+from app.pipeline.router import router as pipeline_router
 from app.repo_rag.api.router import router as repo_rag_router
 
 app = FastAPI()

@@ -15,19 +15,17 @@ from app.notebooks.domain.records import (
 
 
 class CreateNotebookRequest(BaseModel):
-    title: str
-    summary: str | None = None
+    title: str | None = None
 
     @model_validator(mode="after")
     def validate_fields(self) -> "CreateNotebookRequest":
-        if not self.title or not self.title.strip():
+        if self.title is not None and not self.title.strip():
             raise DomainValidationError("title은 비어 있을 수 없습니다")
         return self
 
 
 class UpdateNotebookRequest(BaseModel):
     title: str | None = None
-    summary: str | None = None
 
     @model_validator(mode="after")
     def validate_fields(self) -> "UpdateNotebookRequest":
@@ -43,6 +41,8 @@ class CreateSourceRequest(BaseModel):
     url: str | None = None
     repository_url: str | None = None
     branch: str | None = None
+    derived_from_artifact_id: str | None = None
+    lineage_source_ids: list[str] | None = None
 
     @model_validator(mode="after")
     def validate_fields(self) -> "CreateSourceRequest":
@@ -147,7 +147,6 @@ class NotebookView(BaseModel):
 
     id: str
     title: str
-    summary: str | None = None
     source_count: int
     created_at: datetime
     updated_at: datetime
@@ -157,7 +156,6 @@ class NotebookView(BaseModel):
         return cls(
             id=record.id,
             title=record.title,
-            summary=record.summary,
             source_count=source_count,
             created_at=record.created_at,
             updated_at=record.updated_at,
@@ -174,6 +172,9 @@ class SourceView(BaseModel):
     url: str | None = None
     repository_url: str | None = None
     branch: str | None = None
+    content_hash: str | None = None
+    derived_from_artifact_id: str | None = None
+    lineage_source_ids: list[str] | None = None
     created_at: datetime
 
     @classmethod
@@ -186,6 +187,9 @@ class SourceView(BaseModel):
             url=record.url,
             repository_url=record.repository_url,
             branch=record.branch,
+            content_hash=record.content_hash,
+            derived_from_artifact_id=record.derived_from_artifact_id,
+            lineage_source_ids=record.lineage_source_ids,
             created_at=record.created_at,
         )
 
@@ -205,6 +209,9 @@ class SourceDetailView(SourceView):
             url=record.url,
             repository_url=record.repository_url,
             branch=record.branch,
+            content_hash=record.content_hash,
+            derived_from_artifact_id=record.derived_from_artifact_id,
+            lineage_source_ids=record.lineage_source_ids,
             created_at=record.created_at,
             content=record.content,
         )
@@ -225,7 +232,6 @@ class NotebookDetailView(NotebookView):
         return cls(
             id=record.id,
             title=record.title,
-            summary=record.summary,
             source_count=len(sources),
             created_at=record.created_at,
             updated_at=record.updated_at,
@@ -289,6 +295,7 @@ class IndexProgressView(BaseModel):
     percent: int
     files: list[IndexFileView]
     error: str | None = None
+    content_hash: str | None = None
     updated_at: str
     # 마지막으로 SQL/벡터DB를 최신화한 시각(ISO8601). 한 번도 완료 전이면 null.
     last_synced_at: str | None = None
@@ -307,6 +314,7 @@ class IndexProgressView(BaseModel):
             percent=view["percent"],
             files=[IndexFileView(**file) for file in view["files"]],
             error=view["error"],
+            content_hash=view.get("content_hash"),
             updated_at=view["updated_at"],
             last_synced_at=view.get("last_synced_at"),
         )
