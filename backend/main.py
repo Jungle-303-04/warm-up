@@ -44,6 +44,7 @@ def get_posts():
         for post in posts:
 
             font = session.get(Font, post.font_id)
+            user = session.get(User, post.user_id)
 
             result.append(
                 {
@@ -51,6 +52,9 @@ def get_posts():
                     "title": post.title,
                     "content": post.content,
                     "created_at": post.created_at,
+                    "user": {
+                        "nickname": user.nickname
+                    },
                     "font": {
                         "name": font.name,
                         "tags": font.tags

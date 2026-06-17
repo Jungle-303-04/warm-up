@@ -33,7 +33,7 @@ function getPreviewFontClass(fontName) {
   return "font-['Pretendard'] font-normal";
 }
 
-function transformPostToBoardPost(post) {
+function createBoardPostCardData(post) {
   const fontName = post.font?.name ?? "Unknown";
 
   return {
@@ -193,7 +193,7 @@ function Board() {
         }
 
         const boardPosts = postResponse.map((post) =>
-          transformPostToBoardPost(post),
+          createBoardPostCardData(post),
         );
 
         setPosts(boardPosts);
