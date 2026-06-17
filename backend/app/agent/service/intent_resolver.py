@@ -12,6 +12,7 @@ from app.agent.service.agent_intent import (
     INTENT_LIST_BRANCHES,
     INTENT_LIST_FILES,
     INTENT_LIST_REPOSITORIES,
+    INTENT_SEARCH_REPOSITORY_TARGETS,
     INTENT_RAG_ANSWER,
     INTENT_SHOW_BASIS,
     AgentIntent,
@@ -24,6 +25,7 @@ from app.rag.service.ports import TextGenerator
 VALID_INTENTS = {
     INTENT_LIST_REPOSITORIES,
     INTENT_LIST_BRANCHES,
+    INTENT_SEARCH_REPOSITORY_TARGETS,
     INTENT_LIST_FILES,
     INTENT_SHOW_BASIS,
     INTENT_CHANGE_BASIS,
@@ -45,9 +47,12 @@ INTENT_RESOLVER_SYSTEM_PROMPT = (
     "Return JSON only. Do not answer the user.\n\n"
     "Intents:\n"
     "- list_repositories: user asks what repositories are registered/indexed/analyzed. "
-    "Examples: '무슨 레포들이 있지?', '분석된 저장소 뭐 있어?', '레포 보여줘', 'ㄹㅍㅁㄹ', 'ㄿㅁㄹ'.\n"
+    "Examples: '무슨 레포들이 있지?', '분석된 저장소 뭐 있어?', '레포 보여줘', "
+    "'레포 이름', '레포명', 'ㄹㅍㅁㄹ', 'ㄿㅁㄹ'.\n"
     "- list_branches: user asks branch list for a repository. "
     "Examples: '1 ㅂㄹㅊ', '1번 레포 브랜치', 'Jungle-303-04/warm-up 브랜치 목록'.\n"
+    "- search_repository_targets: user asks to find/list repositories or branches containing a word. "
+    "Examples: '민정이 들어간 레포나 브랜치 명단 전부 가져와', 'minjeong 포함된 브랜치 찾아줘'.\n"
     "- list_files: user asks what files/folders/directories exist in the selected repository snapshot. "
     "Examples: '도메인 폴더가 뭐가 있지?', '우녕 브랜치의 모든 파일', '파일 구조 보여줘', "
     "'백엔드에 앱에 어스에 있는 거 전부 줘', '백엔드, 앱, 어스 안에꺼'. "
@@ -60,7 +65,9 @@ INTENT_RESOLVER_SYSTEM_PROMPT = (
     "  If the message mainly names or selects a repository/branch without asking a content question, "
     "classify it as change_basis with basis_mode replace. "
     "Commands like '다시 빼', '그거 빼', '기준 빼', '민정 브랜치 빼', '우녕 빼' "
-    "also mean change_basis with basis_mode remove.\n"
+    "also mean change_basis with basis_mode remove. "
+    "Commands like '우녕 빼고 민정으로 하자' mean change_basis with basis_mode replace, "
+    "selecting the replacement target only.\n"
     "- general_chat: greeting or casual talk not asking repository/code facts.\n"
     "- rag_answer: code, plan, implementation, document, or repository content question.\n\n"
     "For change_basis, set basis_mode to replace/add/remove/clear. "

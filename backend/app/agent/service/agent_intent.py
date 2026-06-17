@@ -3,6 +3,7 @@ from typing import Literal
 
 INTENT_LIST_REPOSITORIES = "list_repositories"
 INTENT_LIST_BRANCHES = "list_branches"
+INTENT_SEARCH_REPOSITORY_TARGETS = "search_repository_targets"
 INTENT_LIST_FILES = "list_files"
 INTENT_SHOW_BASIS = "show_basis"
 INTENT_CHANGE_BASIS = "change_basis"
@@ -89,6 +90,15 @@ TARGET_SELECTION_BLOCKERS = (
     "하이",
     "ㅎㅇ",
     "욜",
+    "앞으로",
+    "참고",
+    "기준",
+    "추가",
+    "빼",
+    "제외",
+    "제거",
+    "해제",
+    "초기화",
 )
 MIN_BARE_TARGET_TOKENS = 2
 MAX_BARE_TARGET_TOKENS = 5
@@ -96,6 +106,7 @@ MAX_BARE_TARGET_TOKENS = 5
 AgentIntent = Literal[
     "list_repositories",
     "list_branches",
+    "search_repository_targets",
     "list_files",
     "show_basis",
     "change_basis",
@@ -115,11 +126,16 @@ def is_repository_list_question(user_input: str) -> bool:
         keyword in text
         for keyword in (
             "레포 목록",
+            "레포 이름",
+            "레포명",
             "레포지토리 목록",
+            "레포지토리 이름",
             "저장소 목록",
+            "저장소 이름",
             "분석된 레포",
             "등록된 레포",
             "repository list",
+            "repository name",
         )
     )
 
@@ -134,6 +150,30 @@ def is_branch_list_question(user_input: str) -> bool:
     return has_digit(text) or any(
         keyword in text
         for keyword in ("목록", "리스트", "뭐", "어떤", "있", "없", "보여", "알려")
+    )
+
+
+def is_repository_target_search_question(user_input: str) -> bool:
+    """특정 단어가 들어간 레포/브랜치 후보를 모두 찾으라는 요청인지 판별한다."""
+
+    text = normalize_text(user_input)
+    if not any(keyword in text for keyword in ("레포", "레포지토리", "저장소", "브랜치")):
+        return False
+    return any(keyword in text for keyword in ("들어간", "포함", "찾", "검색")) and any(
+        keyword in text
+        for keyword in ("명단", "목록", "전부", "전체", "가져", "보여", "알려")
+    )
+
+
+def is_branch_target_selection(user_input: str) -> bool:
+    """'민정 브랜치'처럼 목록 요청 없이 브랜치 기준을 고르는 짧은 입력인지 본다."""
+
+    text = normalize_text(user_input)
+    if "브랜치" not in text or is_branch_list_question(text):
+        return False
+    return not any(
+        keyword in text
+        for keyword in ("명단", "목록", "리스트", "전부", "전체", "뭐", "어떤", "보여", "알려")
     )
 
 
@@ -244,11 +284,22 @@ def detect_basis_mode(user_input: str) -> BasisMode:
     text = normalize_text(user_input)
     if any(keyword in text for keyword in ("초기화", "해제", "비워", "전체 삭제", "전부 삭제")):
         return BASIS_MODE_CLEAR
+    if is_replacement_after_exclusion_request(text):
+        return BASIS_MODE_REPLACE
     if any(keyword in text for keyword in ("빼", "제외", "빼줘")):
         return BASIS_MODE_REMOVE
     if any(keyword in text for keyword in ("추가", "도 참고", "같이 참고", "함께 참고")):
         return BASIS_MODE_ADD
     return BASIS_MODE_REPLACE
+
+
+def is_replacement_after_exclusion_request(user_input: str) -> bool:
+    """'A 빼고 B로 하자'처럼 제거가 아니라 새 기준으로 교체하라는 표현인지 본다."""
+
+    text = normalize_text(user_input)
+    return any(keyword in text for keyword in ("빼고", "제외하고", "말고")) and any(
+        keyword in text for keyword in ("으로", "로 하", "로 해", "로 가", "기준")
+    )
 
 
 def normalize_text(value: str) -> str:

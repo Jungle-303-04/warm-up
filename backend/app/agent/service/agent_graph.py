@@ -23,6 +23,7 @@ from app.agent.service.agent_intent import (
     INTENT_LIST_FILES,
     INTENT_LIST_REPOSITORIES,
     INTENT_RAG_ANSWER,
+    INTENT_SEARCH_REPOSITORY_TARGETS,
     INTENT_SHOW_BASIS,
     AgentIntent,
     BasisMode,
@@ -32,9 +33,11 @@ from app.agent.service.agent_intent import (
     is_basis_change_request,
     is_branch_list_question,
     is_bare_target_selection,
+    is_branch_target_selection,
     is_current_basis_question,
     is_file_list_question,
     is_repository_list_question,
+    is_repository_target_search_question,
     is_short_remove_request,
     normalize_text,
 )
@@ -62,6 +65,7 @@ from app.agent.service.repository_context import (
     build_inferred_repository_ref,
     build_next_basis_refs,
     build_repository_list_answer,
+    build_repository_target_search_answer,
     get_latest_unique_runs_by_repository_branch,
     is_snapshot_comparison_question,
     resolve_runs_from_refs,
@@ -167,6 +171,7 @@ class AgentGraph:
             {
                 INTENT_LIST_REPOSITORIES: "answer_repository_metadata",
                 INTENT_LIST_BRANCHES: "answer_repository_metadata",
+                INTENT_SEARCH_REPOSITORY_TARGETS: "answer_repository_metadata",
                 INTENT_LIST_FILES: "answer_repository_files",
                 INTENT_SHOW_BASIS: "answer_repository_metadata",
                 INTENT_CHANGE_BASIS: "change_repository_basis",
@@ -242,6 +247,19 @@ class AgentGraph:
         if is_repository_list_question(user_input):
             return {"intent": INTENT_LIST_REPOSITORIES}
 
+        if is_repository_target_search_question(user_input):
+            return {
+                "intent": INTENT_SEARCH_REPOSITORY_TARGETS,
+                "target_runs": self.resolve_target_runs(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
+                    prefer_planner=True,
+                    allow_repository_default=False,
+                ),
+            }
+
         if is_current_basis_question(user_input):
             return {"intent": INTENT_SHOW_BASIS}
 
@@ -271,6 +289,19 @@ class AgentGraph:
                     current_refs=current_refs,
                     messages=messages,
                     basis_mode=basis_mode,
+                ),
+            }
+
+        if is_branch_target_selection(user_input):
+            return {
+                "intent": INTENT_CHANGE_BASIS,
+                "basis_mode": detect_bare_target_basis_mode(current_refs),
+                "target_runs": self.resolve_basis_change_target_runs(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
+                    basis_mode=detect_bare_target_basis_mode(current_refs),
                 ),
             }
 
@@ -323,9 +354,6 @@ class AgentGraph:
     ) -> AgentGraphState:
         """분류된 intent를 LangGraph state로 바꾼다."""
 
-        if intent == INTENT_CHANGE_BASIS and is_bare_target_selection(user_input):
-            basis_mode = detect_bare_target_basis_mode(current_refs)
-
         if intent == INTENT_LIST_REPOSITORIES:
             return {"intent": INTENT_LIST_REPOSITORIES}
         if intent == INTENT_LIST_BRANCHES:
@@ -336,6 +364,18 @@ class AgentGraph:
                     latest_runs=latest_runs,
                     current_refs=current_refs,
                     messages=messages,
+                ),
+            }
+        if intent == INTENT_SEARCH_REPOSITORY_TARGETS:
+            return {
+                "intent": INTENT_SEARCH_REPOSITORY_TARGETS,
+                "target_runs": self.resolve_target_runs(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
+                    prefer_planner=True,
+                    allow_repository_default=False,
                 ),
             }
         if intent == INTENT_SHOW_BASIS:
@@ -353,6 +393,11 @@ class AgentGraph:
                 ),
             }
         if intent == INTENT_CHANGE_BASIS:
+            basis_mode = resolve_basis_mode(
+                user_input=user_input,
+                current_refs=current_refs,
+                fallback_mode=basis_mode,
+            )
             return {
                 "intent": INTENT_CHANGE_BASIS,
                 "basis_mode": basis_mode,
@@ -383,6 +428,12 @@ class AgentGraph:
                 target_runs=state.get("target_runs", []),
                 current_refs=current_refs,
                 messages=state.get("messages", []),
+            )
+        elif intent == INTENT_SEARCH_REPOSITORY_TARGETS:
+            final_answer = build_repository_target_search_answer(
+                user_input=state["turn"].user_input,
+                latest_runs=latest_runs,
+                target_runs=state.get("target_runs", []),
             )
         else:
             final_answer = build_current_basis_answer(current_refs)
@@ -454,20 +505,28 @@ class AgentGraph:
         target_runs = state.get("target_runs", [])
         mode = state.get("basis_mode", BASIS_MODE_REPLACE)
 
-        if mode == BASIS_MODE_REMOVE and not target_runs and current_refs:
-            return {
-                "final_answer": build_basis_changed_answer([], BASIS_MODE_CLEAR),
-                "final_refs": [],
-                "repository_basis_changed": True,
-            }
-
         final_refs = build_next_basis_refs(
             current_refs=current_refs,
             target_runs=target_runs,
             mode=mode,
         )
 
-        if mode != BASIS_MODE_CLEAR and not target_runs:
+        if mode == BASIS_MODE_REMOVE and not target_runs:
+            final_refs = remove_last_basis_ref_if_short_request(
+                user_input=state["turn"].user_input,
+                current_refs=current_refs,
+            )
+            if final_refs == current_refs:
+                return {
+                    "final_answer": (
+                        "어떤 답변 기준을 뺄지 찾지 못했습니다. "
+                        "예: minjeong 브랜치 빼, woonyong 빼처럼 제거할 브랜치를 적어 주세요."
+                    ),
+                    "final_refs": current_refs,
+                    "repository_basis_changed": False,
+                }
+
+        elif mode != BASIS_MODE_CLEAR and not target_runs:
             return {
                 "final_answer": (
                     "어떤 레포지토리를 답변 기준으로 바꿀지 찾지 못했습니다. "
@@ -818,10 +877,12 @@ def correct_intent_with_explicit_markers(
 ) -> AgentIntent:
     """LLM intent가 명시적인 파일/브랜치 표현과 충돌하면 안전한 쪽으로 보정한다."""
 
-    if is_bare_target_selection(user_input):
+    if is_bare_target_selection(user_input) or is_branch_target_selection(user_input):
         return INTENT_CHANGE_BASIS
     if is_basis_change_request(user_input):
         return INTENT_CHANGE_BASIS
+    if is_repository_target_search_question(user_input):
+        return INTENT_SEARCH_REPOSITORY_TARGETS
     if is_file_list_question(user_input):
         return INTENT_LIST_FILES
     if is_branch_list_question(user_input):
@@ -829,6 +890,31 @@ def correct_intent_with_explicit_markers(
     if is_repository_list_question(user_input):
         return INTENT_LIST_REPOSITORIES
     return intent
+
+
+def resolve_basis_mode(
+    user_input: str,
+    current_refs: list[InferredRepositoryRef],
+    fallback_mode: BasisMode,
+) -> BasisMode:
+    """명시적인 기준 변경 동사가 있으면 LLM의 basis_mode보다 사용자 문장을 우선한다."""
+
+    if is_basis_change_request(user_input):
+        return detect_basis_mode(user_input)
+    if is_bare_target_selection(user_input) or is_branch_target_selection(user_input):
+        return detect_bare_target_basis_mode(current_refs)
+    return fallback_mode
+
+
+def remove_last_basis_ref_if_short_request(
+    user_input: str,
+    current_refs: list[InferredRepositoryRef],
+) -> list[InferredRepositoryRef]:
+    """'빼', '다시 빼'처럼 대상이 없는 짧은 제거 요청은 마지막 기준 하나만 제거한다."""
+
+    if is_short_remove_request(user_input) and current_refs:
+        return current_refs[:-1]
+    return current_refs
 
 
 class SimpleIntentPlan:

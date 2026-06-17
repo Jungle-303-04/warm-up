@@ -4,7 +4,7 @@ from typing import Any
 from openai import OpenAI
 
 
-DEFAULT_AGENT_LLM_MODEL = os.getenv("OPENAI_LLM_MODEL", "gpt-4o-mini")
+DEFAULT_AGENT_LLM_MODEL = os.getenv("OPENAI_LLM_MODEL", "gpt-4o")
 
 
 class OpenAITextGenerator:

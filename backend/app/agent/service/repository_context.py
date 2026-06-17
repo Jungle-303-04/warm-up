@@ -218,6 +218,27 @@ def build_branch_list_answer(
     return "\n".join(lines)
 
 
+def build_repository_target_search_answer(
+    user_input: str,
+    latest_runs: list[Any],
+    target_runs: list[Any],
+) -> str:
+    """사용자가 말한 단어와 관련된 레포/브랜치 분석 run 명단을 답한다."""
+
+    matched_runs = target_runs or find_runs_by_search_terms(user_input, latest_runs)
+    if not matched_runs:
+        return "조건에 맞는 분석 레포지토리나 브랜치를 찾지 못했습니다."
+
+    lines = ["조건에 맞는 분석 대상입니다."]
+    for index, run in enumerate(dedupe_runs(matched_runs), start=1):
+        branch = run.branch or "기본 브랜치"
+        lines.append(
+            f"{index}. {run.repository_full_name} · {branch} "
+            f"- 마지막 분석 {format_indexed_at(run)}, 코드 버전 {format_commit(run.commit_sha)}"
+        )
+    return "\n".join(lines)
+
+
 def build_file_list_answer(
     user_input: str,
     target_runs: list[Any],
@@ -759,6 +780,65 @@ def resolve_runs_for_repository(
         return []
 
     return repository_runs[:1]
+
+
+def find_runs_by_search_terms(user_input: str, latest_runs: list[Any]) -> list[Any]:
+    """문장에 남은 검색어가 레포명이나 브랜치명에 포함되는 run을 찾는다."""
+
+    terms = extract_repository_target_search_terms(user_input)
+    if not terms:
+        return []
+
+    matched_runs = []
+    for run in latest_runs:
+        searchable_text = normalize_text(
+            f"{run.repository_full_name} {run.branch or ''}"
+        )
+        if any(term in searchable_text for term in terms):
+            matched_runs.append(run)
+    return dedupe_runs(matched_runs)
+
+
+def extract_repository_target_search_terms(user_input: str) -> list[str]:
+    """레포/브랜치 명단 요청 문장에서 실제 검색어처럼 보이는 단어만 남긴다."""
+
+    text = normalize_text(user_input)
+    for keyword in (
+        "레포지토리",
+        "레포",
+        "저장소",
+        "브랜치",
+        "명단",
+        "목록",
+        "전부",
+        "전체",
+        "가져와",
+        "가져",
+        "보여줘",
+        "보여",
+        "알려줘",
+        "알려",
+        "들어간",
+        "포함된",
+        "포함",
+        "찾아줘",
+        "찾아",
+        "검색",
+        "이나",
+        "나",
+        "이",
+        "가",
+    ):
+        text = text.replace(keyword, " ")
+
+    terms = []
+    for token in text.split():
+        term = token.strip()
+        if len(term) < 2:
+            continue
+        if term not in terms:
+            terms.append(term)
+    return terms
 
 
 def find_branch_names_in_text(user_input: str, runs: list[Any]) -> set[str]:

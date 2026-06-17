@@ -31,6 +31,8 @@ TARGET_PLANNER_SYSTEM_PROMPT = (
     "Do not return every branch of the repository in this mode.\n"
     "- If the user asks to remove/exclude answer basis, select the runs to remove, not the runs to keep. "
     "When removing a repository without a branch name, select all matching candidate runs for that repository.\n"
+    "- If the user says 'A 빼고 B로/으로', 'A 말고 B', or equivalent, select only replacement target B. "
+    "Do not select excluded target A.\n"
     "- If the user asks to compare or use multiple repositories or branches, choose all needed newest matching runs.\n"
     "- If neither the question nor recent conversation identifies a repository clearly and there is more than one repository, choose none.\n"
     "- If there is exactly one available repository and the question is about code, you may choose its newest run.\n"

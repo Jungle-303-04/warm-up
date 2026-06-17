@@ -12,8 +12,11 @@ export function ChatbotDrawer({
   selectedRunIds = [],
   onSelectedRunIdsChange = () => undefined,
 }) {
+  const draftInputRef = useRef(null)
+  const draftFocusTimeoutRef = useRef(null)
   const messagesEndRef = useRef(null)
   const selectedRunIdsSignatureRef = useRef(createRunIdsSignature(selectedRunIds))
+  const shouldRestoreDraftFocusRef = useRef(false)
   const sessionIdRef = useRef(INITIAL_SESSION_ID + 1)
   const messageIdRef = useRef(100)
   const [isOpen, setIsOpen] = useState(false)
@@ -46,6 +49,25 @@ export function ChatbotDrawer({
   const isChatInputDisabled = Boolean(activeSession?.isGenerating)
   const hasMultipleSessions = sessions.length > 1
 
+  function requestDraftFocus() {
+    shouldRestoreDraftFocusRef.current = true
+    window.requestAnimationFrame(() => {
+      restoreDraftFocusIfReady()
+      window.clearTimeout(draftFocusTimeoutRef.current)
+      draftFocusTimeoutRef.current = window.setTimeout(restoreDraftFocusIfReady, 50)
+    })
+  }
+
+  function restoreDraftFocusIfReady() {
+    const input = draftInputRef.current
+    if (!input || input.disabled) {
+      return
+    }
+
+    shouldRestoreDraftFocusRef.current = false
+    input.focus({ preventScroll: true })
+  }
+
   useEffect(() => {
     document.body.classList.toggle('chatbot-drawer-open', isOpen)
 
@@ -54,6 +76,10 @@ export function ChatbotDrawer({
     }
   }, [isOpen])
 
+  useEffect(() => () => {
+    window.clearTimeout(draftFocusTimeoutRef.current)
+  }, [])
+
   useEffect(() => {
     if (!isOpen) {
       return
@@ -61,6 +87,15 @@ export function ChatbotDrawer({
 
     messagesEndRef.current?.scrollIntoView({ block: 'end' })
   }, [activeSessionId, messages.length, activeSession?.isGenerating, isOpen])
+
+  useEffect(() => {
+    if (!isOpen || isChatInputDisabled || !shouldRestoreDraftFocusRef.current) {
+      return undefined
+    }
+
+    const frameId = window.requestAnimationFrame(restoreDraftFocusIfReady)
+    return () => window.cancelAnimationFrame(frameId)
+  }, [isOpen, isChatInputDisabled, activeSessionId, messages.length])
 
   useEffect(() => {
     const nextSignature = createRunIdsSignature(selectedRunIds)
@@ -101,11 +136,13 @@ export function ChatbotDrawer({
     setActiveSessionId(nextSession.id)
     setDraft('')
     setDraftError('')
+    requestDraftFocus()
   }
 
   function openDrawer() {
     setIsOpen(true)
     setDraftError('')
+    shouldRestoreDraftFocusRef.current = true
   }
 
   function closeDrawer() {
@@ -164,6 +201,7 @@ export function ChatbotDrawer({
     const nextQuestion = draft.trim()
     if (!nextQuestion) {
       setDraftError('질문을 입력한 뒤 보내기를 눌러 주세요.')
+      requestDraftFocus()
       return
     }
 
@@ -186,9 +224,11 @@ export function ChatbotDrawer({
       agentSessionId = await ensureAgentSession(sessionId, nextTitle)
     } catch (error) {
       setDraftError(toKoreanErrorMessage(error.message))
+      requestDraftFocus()
       return
     }
 
+    shouldRestoreDraftFocusRef.current = true
     setSessions((currentSessions) =>
       currentSessions.map((session) => {
         if (session.id !== sessionId) {
@@ -303,6 +343,10 @@ export function ChatbotDrawer({
       return
     }
 
+    if (isChatInputDisabled) {
+      return
+    }
+
     event.preventDefault()
     void sendChatMessage()
   }
@@ -332,6 +376,7 @@ export function ChatbotDrawer({
         }
       }),
     )
+    requestDraftFocus()
   }
 
   function replaceSessionWithAgentResponse(sessionId, response, title) {
@@ -352,6 +397,7 @@ export function ChatbotDrawer({
         }
       }),
     )
+    requestDraftFocus()
   }
 
   return (
@@ -481,6 +527,7 @@ export function ChatbotDrawer({
                             setActiveSessionId(session.id)
                             setDraft('')
                             setDraftError('')
+                            requestDraftFocus()
                           }}
                         >
                           <strong>{session.title}</strong>
@@ -527,6 +574,7 @@ export function ChatbotDrawer({
           <form className="chatbot-form" onSubmit={submitChatMessage}>
             <label htmlFor="chatbot-question">질문</label>
             <textarea
+              ref={draftInputRef}
               id="chatbot-question"
               value={draft}
               onChange={(event) => {
@@ -540,7 +588,6 @@ export function ChatbotDrawer({
                 ? '이 레포지토리로 다음 구현 계획을 제안해줘'
                 : '레포지토리 이름이나 브랜치를 포함해서 질문해 보세요'}
               rows="4"
-              disabled={isChatInputDisabled}
               aria-invalid={Boolean(draftError)}
               aria-describedby={draftError ? 'chatbot-question-error' : undefined}
             />
