@@ -62,7 +62,13 @@ def get_comments(post_id: int):
             .order_by(Comment.created_at.asc())
         ).all()
 
-        return [build_comment_response(session, comment) for comment in comments]
+        comment_responses = []
+
+        for comment in comments:
+            comment_response = build_comment_response(session, comment)
+            comment_responses.append(comment_response)
+
+        return comment_responses
 
 
 @router.post("/posts/{post_id}/comments", response_model=CommentRead)
