@@ -38,6 +38,23 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
   const [errorField, setErrorField] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [focusedField, setFocusedField] = useState("");
+
+  const getFocusedFieldGuideMessage = () => {
+    if (focusedField === "nickname") {
+      return "닉네임은 20자 이내로 입력해주세요.";
+    }
+
+    if (focusedField === "password") {
+      return "영문 대소문자를 구분, 숫자를 포함해 8~20자로 입력해주세요.";
+    }
+
+    return "";
+  };
+
+  const guideMessage = getFocusedFieldGuideMessage();
+  const helperMessage = errorMessage || guideMessage;
+  const helperMessageColor = errorMessage ? "text-black" : "text-[#d4d4d4]";
 
   const validateAuthForm = () => {
     const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,20}$/;
@@ -66,8 +83,7 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
     if (!passwordPattern.test(password)) {
       return {
         field: "password",
-        message:
-          "비밀번호는 영문 대소문자를 구분하며, 숫자를 포함해 8~20자로 입력해주세요.",
+        message: "영문 대소문자를 구분, 숫자를 포함해 8~20자로 입력해주세요.",
       };
     }
 
@@ -88,6 +104,14 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
 
   const handleTogglePasswordVisible = () => {
     setIsPasswordVisible((currentValue) => !currentValue);
+  };
+
+  const handleNicknameFocus = () => {
+    setFocusedField("nickname");
+  };
+
+  const handlePasswordFocus = () => {
+    setFocusedField("password");
   };
 
   const handleSubmit = async (event) => {
@@ -136,6 +160,7 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
                   : "border-gray-300",
               ].join(" ")}
               onChange={handleNicknameChange}
+              onFocus={handleNicknameFocus}
               placeholder="닉네임을 입력하세요"
               type="text"
               value={nickname}
@@ -149,7 +174,8 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
                     : "border-transparent",
                 ].join(" ")}
                 onChange={handlePasswordChange}
-                placeholder="영문 대소문자 구분 + 숫자 비밀번호"
+                onFocus={handlePasswordFocus}
+                placeholder="비밀번호를 입력하세요"
                 type={isPasswordVisible ? "text" : "password"}
                 value={password}
               />
@@ -170,8 +196,8 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
             </div>
           </div>
 
-          <p className="mt-3 min-h-5 text-right text-sm text-neutral-600">
-            {errorMessage}
+          <p className={`mt-3 min-h-5 text-right text-sm ${helperMessageColor}`}>
+            {helperMessage}
           </p>
 
           <button
