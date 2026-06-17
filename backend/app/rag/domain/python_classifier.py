@@ -1,4 +1,3 @@
-# Classifies Python AST nodes into chunk types.
 import ast
 from typing import TypeAlias
 
@@ -47,7 +46,6 @@ PYTHON_MODEL_FIELD_CALL_NAMES = {
 PythonChunkNode: TypeAlias = ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
 
 
-# python chunk classification DTO
 class PythonChunkClassificationDTO(BaseModel):
     """파일 경로와 AST 의미 분석 결과를 하나로 모아 최종 chunk_type 결정을 돕는다."""
 
@@ -59,7 +57,6 @@ class PythonChunkClassificationDTO(BaseModel):
     is_test: bool = False
 
 
-# python chunk type classifier
 class PythonChunkClassifier:
     """Python AST 노드를 SQL/RAG 검색에 쓸 수 있는 안정적인 chunk_type으로 분류한다."""
 
@@ -98,13 +95,11 @@ class PythonChunkClassifier:
         return build_python_chunk_type(role, classification.node_kind)
 
 
-# default classifier
 DEFAULT_PYTHON_CHUNK_CLASSIFIER = PythonChunkClassifier()
 
 
-# legacy helper functions
 def detect_python_chunk_type(node: PythonChunkNode, path: str) -> str:
-    """기존 함수형 호출부를 깨지 않기 위한 호환용 진입점."""
+    """기본 classifier로 Python AST 노드의 최종 chunk_type을 얻는다."""
 
     return DEFAULT_PYTHON_CHUNK_CLASSIFIER.detect_chunk_type(node, path)
 

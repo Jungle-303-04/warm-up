@@ -133,7 +133,7 @@ def build_sources(rows: list[VectorResultRow]) -> list[RagAskSourceDTO]:
 
 
 def build_retrieval_summary(rows: list[VectorResultRow]) -> str:
-    """하위 호환용 answer 필드에 LLM 답변 대신 검색 결과 요약만 담는다."""
+    """API answer 필드에는 LLM 답변이 아니라 검색 결과 요약을 담는다."""
 
     if not rows:
         return NO_EVIDENCE_ANSWER

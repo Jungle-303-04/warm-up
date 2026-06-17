@@ -10,12 +10,8 @@ from app.rag.api.schema import (
 from app.rag.service.ports import AnswerGraph, RagStore
 
 
-# 라우터가 LangGraph나 RagAnswerGraph를 직접 알게 만들지 않기 위한 use case 경계
-# 라우터 입장에서는 "RAG 조회 기능은 answer(db, request)를 가진다"만 알면 됨.
-# 추후 그래프 노드 구성, 검색 전략, 메모리, 에이전트 액션이 추가되어도
-# 라우터는 그대로 두고 이 use case 안쪽 조립과 graph 실행 흐름만 바꾸면 된다.
 class RagAnswerService:
-    """질문 요청의 코드 기준을 SQL에서 확정한 뒤 RAG 검색 graph에 위임한다."""
+    """라우터 요청을 실제 인덱싱 run으로 확정하고 RAG 검색 graph를 실행한다."""
 
     def __init__(self, answer_graph: AnswerGraph, sql_repository: RagStore) -> None:
         self.answer_graph = answer_graph
@@ -80,7 +76,7 @@ class RagAnswerService:
         self,
         request: RagAskRequestDTO,
     ) -> RagAskRepositoryRefDTO:
-        """하위 호환용 단일 레포 필드를 내부 공통 구조로 바꾼다."""
+        """단일 레포 필드를 내부 공통 ref 구조로 바꾼다."""
 
         if request.repository_full_name is None:
             raise ValueError("repository_full_name or repository_refs must be provided")

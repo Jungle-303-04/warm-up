@@ -4,7 +4,7 @@ from app.agent.domain.chat import ChatMessage, ChatSession, new_chat_id, now_utc
 
 
 class InMemoryChatStore:
-    """DB 연결 전에도 채팅 흐름을 테스트할 수 있게 하는 임시 저장소."""
+    """현재 프로세스 안에서 채팅 세션과 메시지를 보관하는 메모리 저장소."""
 
     def __init__(self) -> None:
         self._lock = RLock()

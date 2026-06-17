@@ -39,12 +39,12 @@ def build_chunk_hash(
     file_snapshot: GitHubFileSnapshotDTO,
     chunk: RagEvidenceChunkDraftDTO,
 ) -> str:
-    """기존 함수형 호출부가 클래스 구현을 몰라도 hash를 만들 수 있게 한다."""
+    """기본 identity service로 청크 hash를 만든다."""
 
     return DEFAULT_CHUNK_IDENTITY_SERVICE.build_hash(file_snapshot, chunk)
 
 
 def build_chunk_id(file_snapshot: GitHubFileSnapshotDTO, chunk_hash: str) -> str:
-    """기존 함수형 호출부가 클래스 구현을 몰라도 chunk id를 만들 수 있게 한다."""
+    """기본 identity service로 SQL/vector 공통 chunk id를 만든다."""
 
     return DEFAULT_CHUNK_IDENTITY_SERVICE.build_id(file_snapshot, chunk_hash)
