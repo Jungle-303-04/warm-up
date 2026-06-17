@@ -80,6 +80,7 @@ function transformPostDetail(post) {
 
   return {
     author: post.user?.nickname ?? post.nickname ?? "작성자",
+    authorId: post.user?.id,
     content: post.content,
     date: formattedDate.date,
     dateTime: formattedDate.dateTime,
@@ -304,22 +305,24 @@ function PostDetail({ user }) {
             <p className="text-sm font-semibold text-black">
               {postDetail.author}
             </p>
-            <div className="flex items-center gap-4">
-              <button
-                className="cursor-pointer text-xs text-black transition-colors hover:text-[#d4d4d4]"
-                onClick={() => navigate(`/posts/${postId}/edit`)}
-                type="button"
-              >
-                수정
-              </button>
-              <button
-                className="cursor-pointer text-xs text-black transition-colors hover:text-[#d4d4d4]"
-                onClick={() => setIsDeleteDialogOpen(true)}
-                type="button"
-              >
-                삭제
-              </button>
-            </div>
+            {user?.id === postDetail.authorId ? (
+              <div className="flex items-center gap-4">
+                <button
+                  className="cursor-pointer text-xs text-black transition-colors hover:text-[#d4d4d4]"
+                  onClick={() => navigate(`/posts/${postId}/edit`)}
+                  type="button"
+                >
+                  수정
+                </button>
+                <button
+                  className="cursor-pointer text-xs text-black transition-colors hover:text-[#d4d4d4]"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  type="button"
+                >
+                  삭제
+                </button>
+              </div>
+            ) : null}
           </div>
         </article>
 

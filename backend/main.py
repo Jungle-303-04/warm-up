@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from agent.recommend_agent import run_recommend_agent
 from routers.comments import router as comments_router
 from routers.auth import router as auth_router
+from routers.auth import get_current_user_from_access_token
 
 app = FastAPI()
 
@@ -112,6 +113,7 @@ def get_post(post_id : int):
                     "created_at": post.created_at,
                     "updated_at": post.updated_at,
                     "user": {
+                        "id": user.id,
                         "nickname": user.nickname
                     },
                     "font": {
@@ -153,14 +155,19 @@ def update_post(post_id : int, post_data: Post):
 
 
 @app.delete("/posts/{post_id}")
-def delete_post(post_id : int):
+def delete_post(post_id : int, request: Request):
     # 해당 post_id를 db에서 찾아서 있으면 삭제하고 결과반환
+
+    current_user = get_current_user_from_access_token(request)
 
     with Session (engine) as session:
         post = session.get(Post, post_id)
 
         if post is None:
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        
+        if post.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="게시글 삭제 권한이 없습니다.")
 
         session.delete(post)
         session.commit()
