@@ -1,6 +1,6 @@
 # LangGraph 제안 그래프
 
-이 문서는 `backend/app/pipeline/proposer.py`의 `LangGraphProposer` 실행 흐름을
+이 문서는 `backend/app/pipeline/agent_graph.py`의 `LangGraphProposer` 실행 흐름을
 시각화한 자료입니다. 그래프 노드나 조건부 엣지를 수정한 뒤에는 아래 명령으로 문서를
 다시 생성하세요.
 

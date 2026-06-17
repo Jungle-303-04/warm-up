@@ -484,6 +484,51 @@ def test_chat_expands_neighbor_chunks_for_context() -> None:
     assert any("이후 맥락" in snippet for snippet in snippets)
 
 
+def test_chat_dedupes_duplicate_context_before_answering() -> None:
+    notebook_service, _indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    source = notebook_service.add_source(
+        notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+    )
+    duplicate_text = "duplicate-context token refresh flow"
+    chat.chunk_store.add_many(
+        [
+            NotebookChunk(
+                id="chunk-a",
+                notebook_id=notebook.id,
+                source_id=source.id,
+                chunk_index=0,
+                text=duplicate_text,
+                file_path="app/auth/session.py",
+            ),
+            NotebookChunk(
+                id="chunk-b",
+                notebook_id=notebook.id,
+                source_id=source.id,
+                chunk_index=1,
+                text=duplicate_text,
+                file_path="app/auth/session.py",
+            ),
+        ]
+    )
+    captured: list[Any] = []
+
+    def answerer(_question: str, chunks: list[Any]) -> str:
+        captured.extend(chunks)
+        return "deduped"
+
+    chat.answerer = answerer
+
+    result = chat.ask(notebook.id, question="duplicate-context")
+
+    assert result.answer == "deduped"
+    assert len(captured) == 1
+
+
 def test_chat_reports_repo_document_fact_conflict() -> None:
     notebook_service, _indexing, chat = _build()
     notebook = notebook_service.create_notebook(title="RepoLM")

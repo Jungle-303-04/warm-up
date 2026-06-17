@@ -30,9 +30,6 @@ from app.notebooks.domain.chunk_records import ChunkSearchHit
 from app.notebooks.domain.ports import ChunkStore, ContextExpander, NotebookStore
 from app.notebooks.domain.records import ChatMessageRecord, SourceRecord
 from app.notebooks.domain.source_evidence import (
-    is_code_path as is_evidence_code_path,
-)
-from app.notebooks.domain.source_evidence import (
     is_repo_code_source,
     is_repo_document_source,
 )
@@ -252,6 +249,7 @@ class ChatService:
         if not hits:
             return ChatResult(answer=NO_EVIDENCE_ANSWER, citations=[])
 
+        hits = _dedupe_hits_for_context(hits)
         all_evidence = [
             TextChunk(
                 source_id=hit.chunk.source_id,
@@ -276,6 +274,7 @@ class ChatService:
             hits,
             source_by_id,
         )
+        hits = _dedupe_hits_for_context(hits)
         if not hits:
             return ChatResult(answer=NO_EVIDENCE_ANSWER, citations=[])
 
@@ -552,6 +551,23 @@ def _dedupe_citations(citations: list[ChatCitation]) -> list[ChatCitation]:
     return deduped
 
 
+def _dedupe_hits_for_context(hits: list[ChunkSearchHit]) -> list[ChunkSearchHit]:
+    """LLM context precision을 위해 같은 청크/같은 본문 근거를 한 번만 유지한다."""
+    seen: set[tuple[str, str | None, str]] = set()
+    deduped: list[ChunkSearchHit] = []
+    for hit in hits:
+        key = (
+            hit.chunk.source_id,
+            hit.chunk.file_path,
+            " ".join(hit.chunk.text.split()),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(hit)
+    return deduped
+
+
 _MULTI_REPO_SCOPE_KEYWORDS = (
     "이 레포",
     "이 저장소",
@@ -824,10 +840,6 @@ def _code_hit_priority(
     if source.kind == "repo" and path:
         return 1
     return 0
-
-
-def _is_code_path(path: str) -> bool:
-    return is_evidence_code_path(path)
 
 
 def _fallback_answer(evidence: list[TextChunk]) -> str:

@@ -47,7 +47,7 @@ from app.notebooks.domain.artifact_records import ArtifactRecord
 from app.notebooks.domain.ports import ChunkStore, IndexingProgressStore
 from app.notebooks.domain.records import NotebookRecord, SourceRecord
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_claims)])
 
 # SSE 폴링 주기/안전 한도.
 SSE_POLL_SECONDS = 0.3
@@ -62,7 +62,6 @@ SSE_MAX_TICKS = 600  # 약 3분 후 강제 종료(연결 누수 방지)
     response_model=NotebookView,
     status_code=status.HTTP_201_CREATED,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def create_notebook(
     request: CreateNotebookRequest,
@@ -78,7 +77,6 @@ def create_notebook(
 @router.get(
     "/notebooks",
     response_model=NotebookListResponse,
-    dependencies=[Depends(get_current_claims)],
 )
 def list_notebooks(
     claims: SessionClaims = Depends(get_current_claims),
@@ -97,7 +95,6 @@ def list_notebooks(
     "/notebooks/{notebook_id}",
     response_model=NotebookDetailView,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def get_notebook(
     notebook_id: str,
@@ -111,7 +108,6 @@ def get_notebook(
     "/notebooks/{notebook_id}",
     response_model=NotebookView,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def update_notebook(
     notebook_id: str,
@@ -130,7 +126,6 @@ def update_notebook(
     "/notebooks/{notebook_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def delete_notebook(
     notebook_id: str,
@@ -148,7 +143,6 @@ def delete_notebook(
     "/notebooks/{notebook_id}/chat",
     response_model=ChatResponse,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def chat(
     notebook_id: str,
@@ -169,7 +163,6 @@ def chat(
     "/notebooks/{notebook_id}/chat/messages",
     response_model=ChatMessageListResponse,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def list_chat_messages(
     notebook_id: str,
@@ -185,7 +178,6 @@ def list_chat_messages(
 @router.delete(
     "/notebooks/{notebook_id}/chat/messages",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(get_current_claims)],
 )
 def clear_chat_messages(
     notebook_id: str,
@@ -201,7 +193,6 @@ def clear_chat_messages(
     response_model=SourceView,
     status_code=status.HTTP_201_CREATED,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def create_source(
     notebook_id: str,
@@ -233,7 +224,6 @@ def create_source(
     "/notebooks/{notebook_id}/sources",
     response_model=SourceListResponse,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def list_sources(
     notebook_id: str,
@@ -248,7 +238,6 @@ def list_sources(
     "/notebooks/{notebook_id}/sources/{source_id}",
     response_model=SourceDetailView,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def get_source(
     notebook_id: str,
@@ -263,7 +252,6 @@ def get_source(
     "/notebooks/{notebook_id}/sources/{source_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def delete_source(
     notebook_id: str,
@@ -285,7 +273,6 @@ def delete_source(
     "/notebooks/{notebook_id}/sources/{source_id}/tree",
     response_model=TreeResponse,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def get_source_tree(
     notebook_id: str,
@@ -305,7 +292,6 @@ def get_source_tree(
     "/notebooks/{notebook_id}/sources/{source_id}/file",
     response_model=FileResponse,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def get_source_file(
     notebook_id: str,
@@ -369,7 +355,6 @@ def _require_progress(
     "/notebooks/{notebook_id}/sources/{source_id}/index",
     response_model=IndexProgressView,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def get_source_index(
     notebook_id: str,
@@ -393,7 +378,6 @@ def get_source_index(
 
 @router.get(
     "/notebooks/{notebook_id}/sources/{source_id}/index/stream",
-    dependencies=[Depends(get_current_claims)],
 )
 def stream_source_index(
     notebook_id: str,
@@ -448,7 +432,6 @@ def stream_source_index(
     "/notebooks/{notebook_id}/sources/{source_id}/reindex",
     response_model=IndexProgressView,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def reindex_source(
     notebook_id: str,
@@ -479,7 +462,6 @@ def reindex_source(
     response_model=ArtifactView,
     status_code=status.HTTP_201_CREATED,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def generate_artifact(
     notebook_id: str,
@@ -501,7 +483,6 @@ def generate_artifact(
     response_model=ArtifactView,
     status_code=status.HTTP_201_CREATED,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def create_note(
     notebook_id: str,
@@ -521,7 +502,6 @@ def create_note(
     "/notebooks/{notebook_id}/artifacts",
     response_model=ArtifactListResponse,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def list_artifacts(
     notebook_id: str,
@@ -538,7 +518,6 @@ def list_artifacts(
     "/notebooks/{notebook_id}/artifacts/{artifact_id}",
     response_model=ArtifactView,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def get_artifact(
     notebook_id: str,
@@ -557,7 +536,6 @@ def get_artifact(
     "/notebooks/{notebook_id}/artifacts/{artifact_id}",
     response_model=ArtifactView,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def update_artifact(
     notebook_id: str,
@@ -579,7 +557,6 @@ def update_artifact(
     "/notebooks/{notebook_id}/artifacts/{artifact_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=BAD_REQUEST_RESPONSE,
-    dependencies=[Depends(get_current_claims)],
 )
 def delete_artifact(
     notebook_id: str,

@@ -1,3 +1,5 @@
+import logging
+import sys
 from typing import Any
 
 from langchain_core.tools import StructuredTool
@@ -5,12 +7,13 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from pydantic import Field, create_model
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class MCPClient:
     def __init__(self, server_path: str = "app.mcp.server"):
         # stdio 기반으로 python -m app.mcp.server 프로세스를 띄우는 설정
         # sys.executable을 쓰면 가상환경(venv) 내의 python 바이너리가 정확히 지정됩니다.
-        import sys
         self.server_params = StdioServerParameters(
             command=sys.executable,
             args=["-m", server_path],
@@ -28,8 +31,8 @@ class MCPClient:
                 for tool in mcp_tools.tools:
                     lc_tools.append(self._to_langchain_tool(tool))
                 return lc_tools
-        except Exception as e:
-            print(f"Error fetching tools from MCP Server: {e}")
+        except Exception as exc:
+            _LOGGER.warning("MCP 서버 도구 목록 조회 실패", extra={"error": str(exc)})
             return []
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> str:

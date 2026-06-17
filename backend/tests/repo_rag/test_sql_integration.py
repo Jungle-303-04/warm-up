@@ -104,14 +104,11 @@ def test_sync_and_hybrid_search_end_to_end() -> None:
 def test_poller_processes_queued_job() -> None:
     from app.pipeline.router import RepoFile
     from app.repo_rag.api.schemas import RepoRagSyncRequest
-    from app.repo_rag.application.service import RepoRagSyncService
-    from app.repo_rag.infrastructure.embeddings import DeterministicEmbeddingClient
     from app.repo_rag.infrastructure.sql_store import SqlRepoRagStore
     from app.repo_rag.infrastructure.sql_unit_of_work import SqlUnitOfWork
     from app.repo_rag.poller import SyncJobPoller
 
     session_factory = _bootstrap_schema()
-    embeddings = DeterministicEmbeddingClient(dimension=1536)
 
     def uow_factory() -> SqlUnitOfWork:
         return SqlUnitOfWork(session_factory)
@@ -125,8 +122,7 @@ def test_poller_processes_queued_job() -> None:
             )
         )
 
-    service = RepoRagSyncService(uow_factory=uow_factory, embedder=embeddings)
-    poller = SyncJobPoller(uow_factory, service)
+    poller = SyncJobPoller(uow_factory)
     job_id = poller.run_once()
 
     assert job_id is not None

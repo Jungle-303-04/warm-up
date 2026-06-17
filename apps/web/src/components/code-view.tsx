@@ -2,58 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-// 확장자 → highlight.js 언어명 매핑. 미등록 확장자는 자동 감지로 폴백한다.
-const EXT_TO_LANG: Record<string, string> = {
-  py: "python",
-  pyi: "python",
-  js: "javascript",
-  jsx: "javascript",
-  mjs: "javascript",
-  cjs: "javascript",
-  ts: "typescript",
-  tsx: "typescript",
-  json: "json",
-  jsonc: "json",
-  html: "xml",
-  htm: "xml",
-  xml: "xml",
-  svg: "xml",
-  css: "css",
-  scss: "scss",
-  less: "less",
-  sh: "bash",
-  bash: "bash",
-  zsh: "bash",
-  yml: "yaml",
-  yaml: "yaml",
-  toml: "ini",
-  ini: "ini",
-  cfg: "ini",
-  sql: "sql",
-  go: "go",
-  rs: "rust",
-  java: "java",
-  kt: "kotlin",
-  c: "c",
-  h: "c",
-  cpp: "cpp",
-  cc: "cpp",
-  hpp: "cpp",
-  cs: "csharp",
-  rb: "ruby",
-  php: "php",
-  swift: "swift",
-  dockerfile: "dockerfile",
-};
-
-// 파일 경로에서 highlight.js 언어명을 추정한다. 없으면 undefined(자동 감지).
-function languageOf(filePath?: string): string | undefined {
-  if (!filePath) return undefined;
-  const name = filePath.toLowerCase().split("/").pop() ?? "";
-  if (name === "dockerfile") return "dockerfile";
-  const ext = name.includes(".") ? name.split(".").pop()! : "";
-  return EXT_TO_LANG[ext];
-}
+import { languageOfPath } from "../lib/file-kind";
 
 // 줄 수 계산(마지막 빈 줄은 거터 번호에서 제외).
 function countLines(text: string): number {
@@ -80,7 +29,7 @@ export function CodeView({ content, filePath }: { content: string; filePath?: st
       .then((mod) => {
         if (!active) return;
         const hljs = mod.default;
-        const lang = languageOf(filePath);
+        const lang = languageOfPath(filePath);
         try {
           const result =
             lang && hljs.getLanguage(lang)

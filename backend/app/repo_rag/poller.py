@@ -8,12 +8,14 @@ RepoRagSyncService.process로 처리한다(실패 시 별도 트랜잭션으로 
 """
 
 import contextlib
+import logging
 import time
 from collections.abc import Callable
 
-from app.repo_rag.application.service import RepoRagSyncService
 from app.repo_rag.application.types import UowFactory
 from app.repo_rag.application.worker_stages import PipelineStageProcessor
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class StageJobPoller:
@@ -51,7 +53,6 @@ class SyncJobPoller(StageJobPoller):
     def __init__(
         self,
         uow_factory: UowFactory,
-        service: RepoRagSyncService,
         *,
         idle_sleep: float = 2.0,
     ) -> None:
@@ -62,7 +63,6 @@ class SyncJobPoller(StageJobPoller):
 
 def main() -> None:
     from app.config import get_settings
-    from app.repo_rag.dependencies import build_embedding_client
     from app.repo_rag.infrastructure.db import create_db_engine, create_session_factory
     from app.repo_rag.infrastructure.sql_unit_of_work import SqlUnitOfWork
 
@@ -75,9 +75,8 @@ def main() -> None:
     def uow_factory() -> SqlUnitOfWork:
         return SqlUnitOfWork(session_factory)
 
-    service = RepoRagSyncService(uow_factory=uow_factory, embedder=build_embedding_client(settings))
-    print("repo-rag sync 워커를 시작합니다", flush=True)
-    SyncJobPoller(uow_factory, service).run_forever()
+    _LOGGER.info("repo-rag sync 워커를 시작합니다")
+    SyncJobPoller(uow_factory).run_forever()
 
 
 if __name__ == "__main__":

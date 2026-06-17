@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { cn } from "../lib/cn";
 
 import { ARTIFACT_META, getArtifact, getFile, getSource, isMermaidArtifact } from "../lib/api";
+import { isCodePath } from "../lib/file-kind";
 import { fileIconForPath, SOURCE_KINDS } from "../lib/fixtures";
 import { classifyLink } from "../lib/links";
 import { useWorkspace } from "../lib/store";
@@ -15,58 +16,6 @@ import { MarkdownView } from "./markdown-view";
 import { MermaidRender } from "./mermaid-render";
 import { SourceIcon } from "./source-icon";
 import { Button } from "./ui/button";
-
-// 코드 뷰어로 강조해 보여줄 확장자. 마크다운/PDF는 제외(별도 분기).
-const CODE_EXTENSIONS = new Set([
-  "py",
-  "pyi",
-  "js",
-  "jsx",
-  "mjs",
-  "cjs",
-  "ts",
-  "tsx",
-  "json",
-  "jsonc",
-  "html",
-  "htm",
-  "xml",
-  "svg",
-  "css",
-  "scss",
-  "less",
-  "sh",
-  "bash",
-  "zsh",
-  "yml",
-  "yaml",
-  "toml",
-  "ini",
-  "cfg",
-  "sql",
-  "go",
-  "rs",
-  "java",
-  "kt",
-  "c",
-  "h",
-  "cpp",
-  "cc",
-  "hpp",
-  "cs",
-  "rb",
-  "php",
-  "swift",
-]);
-
-// 파일 경로가 코드 뷰어 대상인지 판정(확장자 기반). 확장자 없는 Dockerfile도 코드 취급.
-function isCodePath(filePath?: string): boolean {
-  if (!filePath) return false;
-  const name = filePath.toLowerCase().split("/").pop() ?? "";
-  if (name === "dockerfile") return true;
-  const ext = name.includes(".") ? name.split(".").pop()! : "";
-  return CODE_EXTENSIONS.has(ext);
-}
 
 function EmptyState() {
   return (

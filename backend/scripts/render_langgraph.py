@@ -12,7 +12,7 @@ from pathlib import Path
 
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-from app.pipeline.proposer import LangGraphProposer
+from app.pipeline.agent_graph import LangGraphProposer
 
 ROOT = Path(__file__).resolve().parents[2]
 DOC_PATH = ROOT / "docs" / "woonyong" / "langgraph-proposer-graph.md"
@@ -30,7 +30,7 @@ def build_mermaid() -> str:
 def build_document(mermaid: str) -> str:
     return f"""# LangGraph 제안 그래프
 
-이 문서는 `backend/app/pipeline/proposer.py`의 `LangGraphProposer` 실행 흐름을
+이 문서는 `backend/app/pipeline/agent_graph.py`의 `LangGraphProposer` 실행 흐름을
 시각화한 자료입니다. 그래프 노드나 조건부 엣지를 수정한 뒤에는 아래 명령으로 문서를
 다시 생성하세요.
 
