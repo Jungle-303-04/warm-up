@@ -351,7 +351,7 @@ function PostDetail({ user }) {
             </button>
           </div>
 
-          <p className="mt-2 min-h-5 text-right text-sm text-neutral-600">
+          <p className="mt-2 min-h-5 text-left text-sm text-neutral-600">
             {commentErrorMessage}
           </p>
 
@@ -394,7 +394,7 @@ function PostDetail({ user }) {
               ))}
             </ul>
           ) : (
-            <p className="mt-8 text-center text-sm text-[#9ca3af]">
+            <p className="mt-8 text-center text-sm text-[#d4d4d4]">
               첫 댓글을 달아보세요!
             </p>
           )}
