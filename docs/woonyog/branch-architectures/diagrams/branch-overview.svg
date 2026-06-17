@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="920" viewBox="0 0 1500 920" role="img" aria-label="5개 브랜치 아키텍처 비교">
+    <defs><style>
+      .bg { fill: #f7f7f7; }
+      .title { font: 800 36px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #171717; }
+      .sub { font: 500 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #595959; }
+      .row { fill: #fff; stroke: #a3a3a3; stroke-width: 1.3; }
+      .branch { font: 800 22px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #222; }
+      .desc { font: 600 15px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #555; }
+      .cell { font: 700 18px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #262626; }
+      .muted { font: 500 14px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #707070; }
+    </style></defs>
+    <rect width="100%" height="100%" class="bg"/>
+    <text x="750" y="70" text-anchor="middle" class="title">5개 브랜치 아키텍처 비교</text>
+    <text x="750" y="105" text-anchor="middle" class="sub">창빈2 · 민정 · 가인 · 우현 · 우녕 브랜치의 기술 구조와 AI/RAG/MCP 적용 수준</text>
+    <g>
+      <rect x="70" y="150" width="1360" height="100" rx="12" class="row"/>
+      <text x="110" y="188" class="branch">chanbin2</text>
+      <text x="110" y="218" class="desc">TeamLog 초기 골격</text>
+      <text x="430" y="188" class="cell">React/Vite + FastAPI + SQLAlchemy</text>
+      <text x="430" y="218" class="muted">주요 기술 스택</text>
+      <text x="940" y="188" class="cell">AI/RAG는 health/doc 수준</text>
+      <text x="940" y="218" class="muted">AI/RAG/MCP 성격</text>
+    </g>
+<g>
+      <rect x="70" y="285" width="1360" height="100" rx="12" class="row"/>
+      <text x="110" y="323" class="branch">minjeong</text>
+      <text x="110" y="353" class="desc">Board + GitHub RAG</text>
+      <text x="430" y="323" class="cell">FastAPI DI + SQL + Chroma</text>
+      <text x="430" y="353" class="muted">주요 기술 스택</text>
+      <text x="940" y="323" class="cell">LangGraph RAG 답변 흐름</text>
+      <text x="940" y="353" class="muted">AI/RAG/MCP 성격</text>
+    </g>
+<g>
+      <rect x="70" y="420" width="1360" height="100" rx="12" class="row"/>
+      <text x="110" y="458" class="branch">gain</text>
+      <text x="110" y="488" class="desc">폰트 추천 게시판</text>
+      <text x="430" y="458" class="cell">SQLModel + OpenAI + ChromaDB</text>
+      <text x="430" y="488" class="muted">주요 기술 스택</text>
+      <text x="940" y="458" class="cell">MCP로 폰트 후보/상세 조회</text>
+      <text x="940" y="488" class="muted">AI/RAG/MCP 성격</text>
+    </g>
+<g>
+      <rect x="70" y="555" width="1360" height="100" rx="12" class="row"/>
+      <text x="110" y="593" class="branch">woohyun</text>
+      <text x="110" y="623" class="desc">AI Team Sync Board</text>
+      <text x="430" y="593" class="cell">Raw SQL + GitHub/Notion + pgvector</text>
+      <text x="430" y="623" class="muted">주요 기술 스택</text>
+      <text x="940" y="593" class="cell">브리핑/팀요약/문서질의</text>
+      <text x="940" y="623" class="muted">AI/RAG/MCP 성격</text>
+    </g>
+<g>
+      <rect x="70" y="690" width="1360" height="100" rx="12" class="row"/>
+      <text x="110" y="728" class="branch">woonyong</text>
+      <text x="110" y="758" class="desc">RepoLM 제품화</text>
+      <text x="430" y="728" class="cell">Next.js + FastAPI + pgvector + workers</text>
+      <text x="430" y="758" class="muted">주요 기술 스택</text>
+      <text x="940" y="728" class="cell">노트북/RAG/산출물/채팅 통합</text>
+      <text x="940" y="758" class="muted">AI/RAG/MCP 성격</text>
+    </g>
+  </svg>

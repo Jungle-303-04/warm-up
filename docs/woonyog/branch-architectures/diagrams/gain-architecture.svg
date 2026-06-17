@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="820" viewBox="0 0 1420 820" role="img" aria-label="gain · Font Recommendation Board">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#555" />
+    </marker>
+    <style>
+      .bg { fill: #f7f7f7; }
+      .title { font: 700 34px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #171717; }
+      .subtitle { font: 500 15px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #595959; }
+      .box { fill: #ffffff; stroke: #a3a3a3; stroke-width: 1.4; }
+      .boxHead { fill: #eeeeee; stroke: none; }
+      .rule { stroke: #a3a3a3; stroke-width: 1.2; }
+      .sectionTitle { font: 700 18px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #262626; }
+      .item { font: 500 15px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #333333; }
+      .arrow { stroke: #555; stroke-width: 2; fill: none; }
+      .labelBg { fill: #f7f7f7; stroke: #c7c7c7; }
+      .flowLabel { font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #333333; }
+    </style>
+  </defs>
+  <rect width="100%" height="100%" class="bg"/>
+  <text x="710" y="70" text-anchor="middle" class="title">gain · Font Recommendation Board</text>
+  <text x="710" y="102" text-anchor="middle" class="subtitle">프론트엔드 · 백엔드 · 데이터베이스 · AI/RAG/MCP 연결 구조</text>
+  
+  <g>
+    <rect x="70" y="150" width="280" height="300" rx="12" class="box"/>
+    <rect x="70" y="150" width="280" height="48" rx="12" class="boxHead"/>
+    <line x1="70" y1="198" x2="350" y2="198" class="rule"/>
+    <text x="210" y="181" text-anchor="middle" class="sectionTitle">Frontend</text>
+    <text x="94" y="236" class="item">• React 19</text>
+<text x="94" y="260" class="item">• Vite 8</text>
+<text x="94" y="284" class="item">• React Router</text>
+<text x="94" y="308" class="item">• Tailwind CSS 4</text>
+<text x="94" y="332" class="item">• Board/Login/Write/MyPage</text>
+  </g>
+
+  <g>
+    <rect x="430" y="150" width="310" height="300" rx="12" class="box"/>
+    <rect x="430" y="150" width="310" height="48" rx="12" class="boxHead"/>
+    <line x1="430" y1="198" x2="740" y2="198" class="rule"/>
+    <text x="585" y="181" text-anchor="middle" class="sectionTitle">Backend</text>
+    <text x="454" y="236" class="item">• FastAPI</text>
+<text x="454" y="260" class="item">• SQLModel</text>
+<text x="454" y="284" class="item">• Cookie JWT</text>
+<text x="454" y="308" class="item">• OpenAI Responses parse</text>
+<text x="454" y="332" class="item">• recommend_agent</text>
+  </g>
+
+  <g>
+    <rect x="810" y="150" width="310" height="300" rx="12" class="box"/>
+    <rect x="810" y="150" width="310" height="48" rx="12" class="boxHead"/>
+    <line x1="810" y1="198" x2="1120" y2="198" class="rule"/>
+    <text x="965" y="181" text-anchor="middle" class="sectionTitle">Database</text>
+    <text x="834" y="236" class="item">• PostgreSQL</text>
+<text x="834" y="260" class="item">• users</text>
+<text x="834" y="284" class="item">• fonts</text>
+<text x="834" y="308" class="item">• posts</text>
+<text x="834" y="332" class="item">• comments</text>
+<text x="834" y="356" class="item">• SQLModel create_all</text>
+  </g>
+
+  <g>
+    <rect x="430" y="520" width="500" height="230" rx="12" class="box"/>
+    <rect x="430" y="520" width="500" height="48" rx="12" class="boxHead"/>
+    <line x1="430" y1="568" x2="930" y2="568" class="rule"/>
+    <text x="680" y="551" text-anchor="middle" class="sectionTitle">RAG + MCP</text>
+    <text x="454" y="606" class="item">• ChromaDB ./chroma_db</text>
+<text x="454" y="630" class="item">• font_guides collection</text>
+<text x="454" y="654" class="item">• font_guides_embedded.json</text>
+<text x="454" y="678" class="item">• FastMCP font server</text>
+<text x="454" y="702" class="item">• candidate/detail tools</text>
+  </g>
+  
+  <g>
+    <line x1="350" y1="300" x2="430" y2="300" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="336" y="284" width="108" height="26" rx="13" class="labelBg"/>
+    <text x="390" y="305" text-anchor="middle" class="flowLabel">HTTP cookie</text>
+  </g>
+
+  <g>
+    <line x1="740" y1="300" x2="810" y2="300" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="721" y="284" width="108" height="26" rx="13" class="labelBg"/>
+    <text x="775" y="305" text-anchor="middle" class="flowLabel">SQLModel</text>
+  </g>
+
+  <g>
+    <line x1="740" y1="300" x2="430" y2="635" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="531" y="451.5" width="108" height="26" rx="13" class="labelBg"/>
+    <text x="585" y="472.5" text-anchor="middle" class="flowLabel">font recommend</text>
+  </g>
+
+  <g>
+    <line x1="930" y1="635" x2="810" y2="300" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="816" y="451.5" width="108" height="26" rx="13" class="labelBg"/>
+    <text x="870" y="472.5" text-anchor="middle" class="flowLabel">font tools</text>
+  </g>
+</svg>
