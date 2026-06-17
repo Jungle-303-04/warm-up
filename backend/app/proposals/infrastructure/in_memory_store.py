@@ -1,10 +1,11 @@
-"""ProposalStore의 in-memory 구현(개발/테스트/단일 프로세스용)."""
-
 from app.pipeline.api.schemas import ProposalStatus
+from app.proposals.domain.ports import ProposalStore
 from app.proposals.domain.records import ProposalRecord
+from app.api.errors import EntityNotFoundError
 
 
-class InMemoryProposalStore:
+class InMemoryProposalStore(ProposalStore):
+
     def __init__(self) -> None:
         self._records: dict[str, ProposalRecord] = {}
 
@@ -26,6 +27,8 @@ class InMemoryProposalStore:
         return sorted(items, key=lambda record: record.created_at)
 
     def get(self, proposal_id: str) -> ProposalRecord:
+        if proposal_id not in self._records:
+            raise EntityNotFoundError(proposal_id)
         return self._records[proposal_id]
 
     def update(self, record: ProposalRecord) -> None:

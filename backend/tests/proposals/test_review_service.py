@@ -5,12 +5,18 @@ import pytest
 from app.pipeline.api.schemas import PipelineRequest, ProposalStatus, RepoFile
 from app.proposals.application.service import ProposalReviewService
 from app.proposals.infrastructure.in_memory_store import InMemoryProposalStore
+from app.api.errors import DomainConflictError, EntityNotFoundError
 
 FIXED_NOW = datetime(2026, 6, 15, 12, 0, tzinfo=UTC)
 
 
 def _service() -> ProposalReviewService:
-    return ProposalReviewService(store=InMemoryProposalStore(), clock=lambda: FIXED_NOW)
+    from app.pipeline.application.service import PipelineService
+    return ProposalReviewService(
+        store=InMemoryProposalStore(),
+        pipeline=PipelineService(),
+        clock=lambda: FIXED_NOW,
+    )
 
 
 def _request() -> PipelineRequest:
@@ -56,12 +62,12 @@ def test_deciding_twice_raises() -> None:
     [record] = service.generate(_request())
     service.approve(record.id)
 
-    with pytest.raises(ValueError, match="이미 처리된"):
+    with pytest.raises(DomainConflictError, match="이미 처리된"):
         service.approve(record.id)
 
 
 def test_get_missing_proposal_raises_key_error() -> None:
     service = _service()
 
-    with pytest.raises(KeyError):
+    with pytest.raises(EntityNotFoundError):
         service.get("nope")

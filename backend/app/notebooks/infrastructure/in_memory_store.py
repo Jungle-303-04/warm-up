@@ -3,10 +3,13 @@
 노트북 삭제 시 소속 소스를 cascade로 함께 제거한다.
 """
 
+from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import ChatMessageRecord, NotebookRecord, SourceRecord
+from app.api.errors import EntityNotFoundError
 
 
-class InMemoryNotebookStore:
+class InMemoryNotebookStore(NotebookStore):
+
     def __init__(self) -> None:
         self._notebooks: dict[str, NotebookRecord] = {}
         self._sources: dict[str, SourceRecord] = {}
@@ -18,6 +21,8 @@ class InMemoryNotebookStore:
         self._notebooks[record.id] = record
 
     def get_notebook(self, notebook_id: str) -> NotebookRecord:
+        if notebook_id not in self._notebooks:
+            raise EntityNotFoundError(notebook_id)
         return self._notebooks[notebook_id]
 
     def list_notebooks(self) -> list[NotebookRecord]:
@@ -25,12 +30,12 @@ class InMemoryNotebookStore:
 
     def update_notebook(self, record: NotebookRecord) -> None:
         if record.id not in self._notebooks:
-            raise KeyError(record.id)
+            raise EntityNotFoundError(record.id)
         self._notebooks[record.id] = record
 
     def delete_notebook(self, notebook_id: str) -> None:
         if notebook_id not in self._notebooks:
-            raise KeyError(notebook_id)
+            raise EntityNotFoundError(notebook_id)
         del self._notebooks[notebook_id]
         # cascade: 소속 소스 제거
         for source_id in [
@@ -62,13 +67,13 @@ class InMemoryNotebookStore:
     def get_source(self, notebook_id: str, source_id: str) -> SourceRecord:
         source = self._sources.get(source_id)
         if source is None or source.notebook_id != notebook_id:
-            raise KeyError(source_id)
+            raise EntityNotFoundError(source_id)
         return source
 
     def delete_source(self, notebook_id: str, source_id: str) -> None:
         source = self._sources.get(source_id)
         if source is None or source.notebook_id != notebook_id:
-            raise KeyError(source_id)
+            raise EntityNotFoundError(source_id)
         del self._sources[source_id]
 
     # --- 채팅 메시지 ---

@@ -11,16 +11,9 @@ from app.proposals.api.schemas import (
     ProposalView,
 )
 from app.proposals.application.service import ProposalReviewService
-from app.proposals.dependencies import get_proposal_review_service
+from app.proposals.domain.records import ProposalRecord
 
 router = APIRouter(dependencies=[Depends(get_current_claims)])
-
-NOT_FOUND: dict[type[Exception], int] = {KeyError: status.HTTP_404_NOT_FOUND}
-NOT_FOUND_OR_CONFLICT: dict[type[Exception], int] = {
-    KeyError: status.HTTP_404_NOT_FOUND,
-    ValueError: status.HTTP_409_CONFLICT,
-}
-
 
 @router.post(
     "/proposals",
@@ -30,23 +23,20 @@ NOT_FOUND_OR_CONFLICT: dict[type[Exception], int] = {
 )
 def generate_proposals(
     request: GenerateProposalsRequest,
-    service: ProposalReviewService = Depends(get_proposal_review_service),
+    service: ProposalReviewService = Depends(ProposalReviewService),
 ) -> ProposalListResponse:
-    def run() -> ProposalListResponse:
-        records = service.generate(request)
-        return ProposalListResponse(proposals=[ProposalView.from_record(r) for r in records])
-
-    return http_error(run, {ValueError: status.HTTP_400_BAD_REQUEST})
+    records = service.generate(request)
+    return ProposalListResponse(proposals=records)
 
 
 @router.get("/proposals", response_model=ProposalListResponse)
 def list_proposals(
     repository: str | None = Query(default=None),
     status_filter: ProposalStatus | None = Query(default=None, alias="status"),
-    service: ProposalReviewService = Depends(get_proposal_review_service),
+    service: ProposalReviewService = Depends(ProposalReviewService),
 ) -> ProposalListResponse:
     records = service.list(repository=repository, status=status_filter)
-    return ProposalListResponse(proposals=[ProposalView.from_record(r) for r in records])
+    return ProposalListResponse(proposals=records)
 
 
 @router.get(
@@ -56,9 +46,9 @@ def list_proposals(
 )
 def get_proposal(
     proposal_id: str,
-    service: ProposalReviewService = Depends(get_proposal_review_service),
-) -> ProposalView:
-    return http_error(lambda: ProposalView.from_record(service.get(proposal_id)), NOT_FOUND)
+    service: ProposalReviewService = Depends(ProposalReviewService),
+) -> ProposalRecord:
+    return service.get(proposal_id)
 
 
 @router.post(
@@ -69,12 +59,9 @@ def get_proposal(
 def approve_proposal(
     proposal_id: str,
     body: ProposalDecisionRequest,
-    service: ProposalReviewService = Depends(get_proposal_review_service),
-) -> ProposalView:
-    return http_error(
-        lambda: ProposalView.from_record(service.approve(proposal_id, body.reason)),
-        NOT_FOUND_OR_CONFLICT,
-    )
+    service: ProposalReviewService = Depends(ProposalReviewService),
+) -> ProposalRecord:
+    return service.approve(proposal_id, body.reason)
 
 
 @router.post(
@@ -85,9 +72,7 @@ def approve_proposal(
 def reject_proposal(
     proposal_id: str,
     body: ProposalDecisionRequest,
-    service: ProposalReviewService = Depends(get_proposal_review_service),
-) -> ProposalView:
-    return http_error(
-        lambda: ProposalView.from_record(service.reject(proposal_id, body.reason)),
-        NOT_FOUND_OR_CONFLICT,
-    )
+    service: ProposalReviewService = Depends(ProposalReviewService),
+) -> ProposalRecord:
+    return service.reject(proposal_id, body.reason)
+

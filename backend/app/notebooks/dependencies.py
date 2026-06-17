@@ -11,10 +11,6 @@ from functools import lru_cache
 from fastapi import Depends
 
 from app.config import Settings, get_settings
-from app.notebooks.application.artifact_service import ArtifactService
-from app.notebooks.application.chat_service import ChatAnswerer, ChatService
-from app.notebooks.application.indexing_service import IndexingService
-from app.notebooks.application.service import NotebookService
 from app.notebooks.domain.artifact_ports import ArtifactStore, LlmArtifactGenerator
 from app.notebooks.domain.indexing_progress import (
     IndexProgressRegistry,
@@ -54,9 +50,9 @@ def _sql_artifact_store() -> ArtifactStore:
         raise RuntimeError("POSTGRES_DATABASE_URL is required for SQL storage")
 
     from app.notebooks.infrastructure.sql_artifact_store import SqlArtifactStore
-    from app.repo_rag.infrastructure.db import create_db_engine, create_session_factory
+    from app.repo_rag.infrastructure.db import get_shared_session_factory
 
-    session_factory = create_session_factory(create_db_engine(settings.postgres_database_url))
+    session_factory = get_shared_session_factory(settings.postgres_database_url)
     return SqlArtifactStore(session_factory)
 
 
@@ -67,9 +63,9 @@ def _sql_store() -> NotebookStore:
         raise RuntimeError("POSTGRES_DATABASE_URL is required for SQL storage")
 
     from app.notebooks.infrastructure.sql_store import SqlNotebookStore
-    from app.repo_rag.infrastructure.db import create_db_engine, create_session_factory
+    from app.repo_rag.infrastructure.db import get_shared_session_factory
 
-    session_factory = create_session_factory(create_db_engine(settings.postgres_database_url))
+    session_factory = get_shared_session_factory(settings.postgres_database_url)
     return SqlNotebookStore(session_factory)
 
 
@@ -80,9 +76,9 @@ def _sql_chunk_store() -> ChunkStore:
         raise RuntimeError("POSTGRES_DATABASE_URL is required for SQL storage")
 
     from app.notebooks.infrastructure.sql_chunk_store import SqlChunkStore
-    from app.repo_rag.infrastructure.db import create_db_engine, create_session_factory
+    from app.repo_rag.infrastructure.db import get_shared_session_factory
 
-    session_factory = create_session_factory(create_db_engine(settings.postgres_database_url))
+    session_factory = get_shared_session_factory(settings.postgres_database_url)
     return SqlChunkStore(session_factory, text_config=settings.search_text_config)
 
 
@@ -129,47 +125,11 @@ def get_artifact_generator(
     return _build_artifact_generator(settings)
 
 
-def get_artifact_service(
-    store: NotebookStore = Depends(get_notebook_store),
-    artifact_store: ArtifactStore = Depends(get_artifact_store),
-    generator: LlmArtifactGenerator = Depends(get_artifact_generator),
-) -> ArtifactService:
-    return ArtifactService(
-        store=store,
-        artifact_store=artifact_store,
-        generator=generator,
-    )
-
-
 def get_progress_registry_dep() -> IndexProgressRegistry:
     return get_progress_registry()
 
 
-def get_notebook_service(
-    store: NotebookStore = Depends(get_notebook_store),
-) -> NotebookService:
-    return NotebookService(store=store)
-
-
-def get_indexing_service(
-    store: NotebookStore = Depends(get_notebook_store),
-    chunk_store: ChunkStore = Depends(get_chunk_store),
-    embedder: EmbeddingClient = Depends(get_embedding_client),
-    registry: IndexProgressRegistry = Depends(get_progress_registry_dep),
-) -> IndexingService:
-    # repo 재풀링(reindex 최신화)을 위해 RepoSyncService를 주입한다.
-    from app.repository_source.infrastructure.repo_sync import RepoSyncService
-
-    return IndexingService(
-        store=store,
-        chunk_store=chunk_store,
-        embedder=embedder,
-        registry=registry,
-        repo_sync=RepoSyncService(),
-    )
-
-
-def _build_llm_answerer(settings: Settings) -> ChatAnswerer | None:
+def _build_llm_answerer(settings: Settings) -> "ChatAnswerer | None":
     """채팅 답변기 선택.
 
     llm_provider="openai"이고 키가 있으면 LangChain ChatOpenAI 답변기를 주입하고,
@@ -191,15 +151,7 @@ def _build_llm_answerer(settings: Settings) -> ChatAnswerer | None:
     return None
 
 
-def get_notebook_chat_service(
-    store: NotebookStore = Depends(get_notebook_store),
-    chunk_store: ChunkStore = Depends(get_chunk_store),
-    embedder: EmbeddingClient = Depends(get_embedding_client),
+def get_chat_answerer(
     settings: Settings = Depends(get_settings),
-) -> ChatService:
-    return ChatService(
-        store=store,
-        chunk_store=chunk_store,
-        embedder=embedder,
-        answerer=_build_llm_answerer(settings),
-    )
+) -> "ChatAnswerer | None":
+    return _build_llm_answerer(settings)

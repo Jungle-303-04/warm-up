@@ -6,10 +6,13 @@ get/update/delete는 notebook_id가 일치하지 않으면 KeyError를 던진다
 
 import threading
 
+from app.notebooks.domain.artifact_ports import ArtifactStore
 from app.notebooks.domain.artifact_records import ArtifactRecord
+from app.api.errors import EntityNotFoundError
 
 
-class InMemoryArtifactStore:
+class InMemoryArtifactStore(ArtifactStore):
+
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._artifacts: dict[str, ArtifactRecord] = {}
@@ -22,7 +25,7 @@ class InMemoryArtifactStore:
         with self._lock:
             record = self._artifacts.get(artifact_id)
             if record is None or record.notebook_id != notebook_id:
-                raise KeyError(artifact_id)
+                raise EntityNotFoundError(artifact_id)
             return record
 
     def list_by_notebook(self, notebook_id: str) -> list[ArtifactRecord]:
@@ -42,12 +45,12 @@ class InMemoryArtifactStore:
         with self._lock:
             existing = self._artifacts.get(record.id)
             if existing is None or existing.notebook_id != record.notebook_id:
-                raise KeyError(record.id)
+                raise EntityNotFoundError(record.id)
             self._artifacts[record.id] = record
 
     def delete(self, notebook_id: str, artifact_id: str) -> None:
         with self._lock:
             record = self._artifacts.get(artifact_id)
             if record is None or record.notebook_id != notebook_id:
-                raise KeyError(artifact_id)
+                raise EntityNotFoundError(artifact_id)
             del self._artifacts[artifact_id]

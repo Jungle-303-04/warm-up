@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, model_validator
 
+from app.api.errors import DomainValidationError
 from app.notebooks.application.chat_service import ChatCitation, ChatResult
 from app.notebooks.domain.artifact_records import ArtifactRecord, ArtifactType
 from app.notebooks.domain.records import (
@@ -17,10 +18,22 @@ class CreateNotebookRequest(BaseModel):
     title: str
     summary: str | None = None
 
+    @model_validator(mode="after")
+    def validate_fields(self) -> "CreateNotebookRequest":
+        if not self.title or not self.title.strip():
+            raise DomainValidationError("title은 비어 있을 수 없습니다")
+        return self
+
 
 class UpdateNotebookRequest(BaseModel):
     title: str | None = None
     summary: str | None = None
+
+    @model_validator(mode="after")
+    def validate_fields(self) -> "UpdateNotebookRequest":
+        if self.title is not None and not self.title.strip():
+            raise DomainValidationError("title은 비어 있을 수 없습니다")
+        return self
 
 
 class CreateSourceRequest(BaseModel):
@@ -31,6 +44,24 @@ class CreateSourceRequest(BaseModel):
     repository_url: str | None = None
     branch: str | None = None
 
+    @model_validator(mode="after")
+    def validate_fields(self) -> "CreateSourceRequest":
+        # 1) md, text, pdf 소스는 content 필수
+        if self.kind in ("md", "text", "pdf"):
+            if self.content is None or not self.content.strip():
+                raise DomainValidationError(f"{self.kind} 소스는 content가 필요합니다")
+        # 2) url 소스는 url 필수
+        elif self.kind == "url":
+            if self.url is None or not self.url.strip():
+                raise DomainValidationError("url 소스는 url이 필요합니다")
+        # 3) repo 소스는 repository_url 필수
+        elif self.kind == "repo":
+            if self.repository_url is None or not self.repository_url.strip():
+                raise DomainValidationError("repo 소스는 repository_url이 필요합니다")
+        else:
+            raise DomainValidationError(f"지원하지 않는 소스 종류입니다: {self.kind}")
+        return self
+
 
 class ChatRequest(BaseModel):
     question: str
@@ -40,6 +71,8 @@ class ChatRequest(BaseModel):
 
 
 class ChatCitationView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     source_id: str
     source_title: str
     # path는 기존 필드명을 유지하고, file_path를 별칭으로 함께 노출(프론트 호환).
@@ -70,6 +103,8 @@ class ChatCitationView(BaseModel):
 
 
 class ChatResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     answer: str
     citations: list[ChatCitationView]
 
@@ -82,6 +117,8 @@ class ChatResponse(BaseModel):
 
 
 class ChatMessageView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     role: ChatRole
     content: str
@@ -106,6 +143,8 @@ class ChatMessageListResponse(BaseModel):
 
 
 class NotebookView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     title: str
     summary: str | None = None
@@ -126,6 +165,8 @@ class NotebookView(BaseModel):
 
 
 class SourceView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     notebook_id: str
     kind: SourceKind
@@ -150,6 +191,8 @@ class SourceView(BaseModel):
 
 
 class SourceDetailView(SourceView):
+    model_config = ConfigDict(from_attributes=True)
+
     content: str | None = None
 
     @classmethod
@@ -168,6 +211,8 @@ class SourceDetailView(SourceView):
 
 
 class NotebookDetailView(NotebookView):
+    model_config = ConfigDict(from_attributes=True)
+
     sources: list[SourceView]
 
     @classmethod
@@ -286,6 +331,8 @@ class UpdateArtifactRequest(BaseModel):
 
 
 class ArtifactView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     notebook_id: str
     type: ArtifactType

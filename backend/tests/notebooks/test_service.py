@@ -5,6 +5,7 @@ import pytest
 
 from app.notebooks.application.service import NotebookService, build_tree
 from app.notebooks.infrastructure.in_memory_store import InMemoryNotebookStore
+from app.api.errors import DomainValidationError, EntityNotFoundError
 
 FIXED_NOW = datetime(2026, 6, 15, 12, 0, tzinfo=UTC)
 
@@ -32,7 +33,7 @@ def test_create_and_get_notebook() -> None:
 def test_create_notebook_rejects_blank_title() -> None:
     service = _service()
 
-    with pytest.raises(ValueError, match="title"):
+    with pytest.raises(DomainValidationError, match="title"):
         service.create_notebook(title="   ")
 
 
@@ -76,13 +77,13 @@ def test_delete_notebook_cascades_sources() -> None:
 
     service.delete_notebook(notebook.id)
 
-    with pytest.raises(KeyError):
+    with pytest.raises(EntityNotFoundError):
         service.get_notebook(notebook.id)
 
 
 def test_get_unknown_notebook_raises() -> None:
     service = _service()
-    with pytest.raises(KeyError):
+    with pytest.raises(EntityNotFoundError):
         service.get_notebook("nope")
 
 
@@ -90,7 +91,7 @@ def test_add_md_source_requires_content() -> None:
     service = _service()
     notebook = service.create_notebook(title="nb")
 
-    with pytest.raises(ValueError, match="content"):
+    with pytest.raises(DomainValidationError, match="content"):
         service.add_source(notebook.id, kind="md", title="doc")
 
 
@@ -112,7 +113,7 @@ def test_add_url_source_requires_url() -> None:
     service = _service()
     notebook = service.create_notebook(title="nb")
 
-    with pytest.raises(ValueError, match="url"):
+    with pytest.raises(DomainValidationError, match="url"):
         service.add_source(notebook.id, kind="url", title="link")
 
 
@@ -191,7 +192,7 @@ def test_repo_source_tree_and_file_lookup() -> None:
     file = service.get_source_file(notebook.id, "src-1", "src/util/io.py")
     assert file == {"path": "src/util/io.py", "content": "B"}
 
-    with pytest.raises(KeyError):
+    with pytest.raises(EntityNotFoundError):
         service.get_source_file(notebook.id, "src-1", "missing.py")
 
 
@@ -200,7 +201,7 @@ def test_tree_on_non_repo_source_raises() -> None:
     notebook = service.create_notebook(title="nb")
     md = service.add_source(notebook.id, kind="md", title="doc", content="# hi")
 
-    with pytest.raises(ValueError, match="repo"):
+    with pytest.raises(DomainValidationError, match="repo"):
         service.get_source_tree(notebook.id, md.id)
 
 

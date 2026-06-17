@@ -2,9 +2,12 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
+from app.api.errors import EntityNotFoundError, DomainValidationError, DomainConflictError, DomainError
 from app.api.router import api_router
 from app.config import get_settings
 
@@ -66,6 +69,70 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.exception_handler(EntityNotFoundError)
+async def entity_not_found_handler(request: Request, exc: EntityNotFoundError):
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": str(exc)},
+    )
+
+
+@app.exception_handler(KeyError)
+async def key_error_handler(request: Request, exc: KeyError):
+    # KeyError의 인자가 문자열이 아닐 수도 있으므로 강제 형변환
+    key_str = str(exc.args[0]) if exc.args else str(exc)
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": f"요청한 리소스를 찾을 수 없습니다: {key_str}"},
+    )
+
+
+@app.exception_handler(DomainValidationError)
+async def domain_validation_handler(request: Request, exc: DomainValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)},
+    )
+
+
+@app.exception_handler(DomainConflictError)
+async def domain_conflict_handler(request: Request, exc: DomainConflictError):
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    # 에러가 Request Body(DTO)에서 발생한 것인지 판별
+    is_body_error = any(err.get("loc", []) and err.get("loc")[0] == "body" for err in errors)
+
+    if is_body_error:
+        detail = errors[0].get("msg", "입력 데이터 유효성 검증 실패") if errors else "입력 데이터 유효성 검증 실패"
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": detail},
+        )
+
+    # 쿼리 파라미터나 경로 파라미터 오류 등은 FastAPI의 기본 422 처리기로 위임
+    from fastapi.exception_handlers import request_validation_exception_handler
+    return await request_validation_exception_handler(request, exc)
+
+
+
+
+
 allowed_origins = {
     get_settings().web_app_url,
     "http://localhost:3000",
@@ -81,3 +148,4 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+

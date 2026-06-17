@@ -11,6 +11,8 @@ from datetime import UTC, datetime
 from subprocess import CalledProcessError
 from uuid import uuid4
 
+from app.api.errors import DomainValidationError, EntityNotFoundError
+
 from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import (
     NotebookRecord,
@@ -19,32 +21,40 @@ from app.notebooks.domain.records import (
 )
 from app.pipeline.api.schemas import DEFAULT_BRANCH, PipelineRequest
 from app.repository_source.infrastructure.repo_sync import RepoSyncService
+from fastapi import Depends
+from app.notebooks.dependencies import get_notebook_store
+
+def get_clock() -> Callable[[], datetime]:
+    return lambda: datetime.now(UTC)
 
 
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
-
-
-def _new_id() -> str:
-    return uuid4().hex
+def get_id_factory() -> Callable[[], str]:
+    return lambda: uuid4().hex
 
 
 # content 필수 종류 / url 필수 종류
 _CONTENT_KINDS = ("md", "text", "pdf")
 
 
-@dataclass(slots=True)
+@dataclass
 class NotebookService:
-    store: NotebookStore
-    repo_sync: RepoSyncService = field(default_factory=RepoSyncService)
-    clock: Callable[[], datetime] = _utcnow
-    id_factory: Callable[[], str] = _new_id
+    store: NotebookStore = Depends(get_notebook_store)
+    repo_sync: RepoSyncService = Depends(lambda: RepoSyncService())
+    clock: Callable[[], datetime] = Depends(get_clock)
+    id_factory: Callable[[], str] = Depends(get_id_factory)
+
+    def __post_init__(self) -> None:
+        from fastapi.params import Depends as DependsClass
+        if isinstance(self.clock, DependsClass):
+            self.clock = self.clock.dependency()
+        if isinstance(self.id_factory, DependsClass):
+            self.id_factory = self.id_factory.dependency()
 
     # --- 노트북 ---
 
     def create_notebook(self, *, title: str, summary: str | None = None) -> NotebookRecord:
         if not title or not title.strip():
-            raise ValueError("title은 비어 있을 수 없습니다")
+            raise DomainValidationError("title은 비어 있을 수 없습니다")
         now = self.clock()
         record = NotebookRecord(
             id=self.id_factory(),
@@ -52,17 +62,23 @@ class NotebookService:
             summary=summary,
             created_at=now,
             updated_at=now,
+            sources=[],
         )
         self.store.add_notebook(record)
         return record
 
     def get_notebook(self, notebook_id: str) -> NotebookRecord:
-        return self.store.get_notebook(notebook_id)
+        record = self.store.get_notebook(notebook_id)
+        record.sources = self.store.list_sources(notebook_id)
+        return record
 
     def list_notebooks(self) -> list[NotebookRecord]:
         # created_at 내림차순
+        records = self.store.list_notebooks()
+        for r in records:
+            r.sources = self.store.list_sources(r.id)
         return sorted(
-            self.store.list_notebooks(),
+            records,
             key=lambda record: record.created_at,
             reverse=True,
         )
@@ -77,12 +93,13 @@ class NotebookService:
         record = self.store.get_notebook(notebook_id)
         if title is not None:
             if not title.strip():
-                raise ValueError("title은 비어 있을 수 없습니다")
+                raise DomainValidationError("title은 비어 있을 수 없습니다")
             record.title = title.strip()
         if summary is not None:
             record.summary = summary
         record.updated_at = self.clock()
         self.store.update_notebook(record)
+        record.sources = self.store.list_sources(notebook_id)
         return record
 
     def delete_notebook(self, notebook_id: str) -> None:
@@ -122,7 +139,7 @@ class NotebookService:
                 notebook_id, title, repository_url, branch
             )
         else:
-            raise ValueError(f"지원하지 않는 소스 종류입니다: {kind}")
+            raise DomainValidationError(f"지원하지 않는 소스 종류입니다: {kind}")
 
         self.store.add_source(record)
         # 소스 추가는 노트북 변경으로 간주 → updated_at 갱신
@@ -138,7 +155,7 @@ class NotebookService:
         content: str | None,
     ) -> SourceRecord:
         if content is None or not content.strip():
-            raise ValueError(f"{kind} 소스는 content가 필요합니다")
+            raise DomainValidationError(f"{kind} 소스는 content가 필요합니다")
         return SourceRecord(
             id=self.id_factory(),
             notebook_id=notebook_id,
@@ -155,7 +172,7 @@ class NotebookService:
         url: str | None,
     ) -> SourceRecord:
         if url is None or not url.strip():
-            raise ValueError("url 소스는 url이 필요합니다")
+            raise DomainValidationError("url 소스는 url이 필요합니다")
         return SourceRecord(
             id=self.id_factory(),
             notebook_id=notebook_id,
@@ -173,7 +190,7 @@ class NotebookService:
         branch: str | None,
     ) -> SourceRecord:
         if repository_url is None or not repository_url.strip():
-            raise ValueError("repo 소스는 repository_url이 필요합니다")
+            raise DomainValidationError("repo 소스는 repository_url이 필요합니다")
         effective_branch = (branch or "").strip() or DEFAULT_BRANCH
         effective_title = (title or "").strip() or _repo_name_from_url(repository_url)
 
@@ -186,8 +203,8 @@ class NotebookService:
                 )
             )
         except (ValueError, CalledProcessError) as exc:
-            # clone/검증 실패는 400으로 변환되도록 ValueError로 통일
-            raise ValueError(f"저장소 동기화에 실패했습니다: {exc}") from exc
+            # clone/검증 실패는 400으로 변환되도록 DomainValidationError로 통일
+            raise DomainValidationError(f"저장소 동기화에 실패했습니다: {exc}") from exc
 
         repo_snapshot = [
             {"path": file.path, "content": file.content} for file in snapshot.files
@@ -208,18 +225,18 @@ class NotebookService:
     def get_source_tree(self, notebook_id: str, source_id: str) -> list[dict]:
         source = self.store.get_source(notebook_id, source_id)
         if source.kind != "repo" or source.repo_snapshot is None:
-            raise ValueError("repo 소스에서만 트리를 조회할 수 있습니다")
+            raise DomainValidationError("repo 소스에서만 트리를 조회할 수 있습니다")
         paths = [entry["path"] for entry in source.repo_snapshot]
         return build_tree(paths)
 
     def get_source_file(self, notebook_id: str, source_id: str, path: str) -> dict:
         source = self.store.get_source(notebook_id, source_id)
         if source.kind != "repo" or source.repo_snapshot is None:
-            raise ValueError("repo 소스에서만 파일을 조회할 수 있습니다")
+            raise DomainValidationError("repo 소스에서만 파일을 조회할 수 있습니다")
         for entry in source.repo_snapshot:
             if entry["path"] == path:
                 return {"path": path, "content": entry["content"]}
-        raise KeyError(path)
+        raise EntityNotFoundError(path)
 
 
 def _repo_name_from_url(repository_url: str) -> str:

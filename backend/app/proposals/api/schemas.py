@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.pipeline.api.schemas import PipelineRequest, ProposalStatus, ProposalType
 from app.proposals.domain.records import ProposalRecord
@@ -15,6 +15,8 @@ class ProposalDecisionRequest(BaseModel):
 
 
 class ProposalView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     repository: str
     target_path: str

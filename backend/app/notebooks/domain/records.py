@@ -20,6 +20,11 @@ class NotebookRecord:
     summary: str | None
     created_at: datetime
     updated_at: datetime
+    sources: list["SourceRecord"] = field(default_factory=list)
+
+    @property
+    def source_count(self) -> int:
+        return len(self.sources)
 
 
 @dataclass(slots=True)

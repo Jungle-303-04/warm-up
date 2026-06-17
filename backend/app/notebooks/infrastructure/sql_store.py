@@ -8,7 +8,9 @@ cascade — DB FK ON DELETE CASCADE와 동작을 맞춘다).
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import ChatMessageRecord, NotebookRecord, SourceRecord
+from app.api.errors import EntityNotFoundError
 from app.notebooks.infrastructure.mappers import (
     chat_message_to_model,
     chat_message_to_record,
@@ -21,7 +23,8 @@ from app.notebooks.infrastructure.models import ChatMessageModel, NotebookModel,
 from app.repo_rag.infrastructure.db import session_scope
 
 
-class SqlNotebookStore:
+class SqlNotebookStore(NotebookStore):
+
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
 
@@ -35,7 +38,7 @@ class SqlNotebookStore:
         with session_scope(self._session_factory) as session:
             model = session.get(NotebookModel, notebook_id)
             if model is None:
-                raise KeyError(notebook_id)
+                raise EntityNotFoundError(notebook_id)
             return notebook_to_record(model)
 
     def list_notebooks(self) -> list[NotebookRecord]:
@@ -46,14 +49,14 @@ class SqlNotebookStore:
     def update_notebook(self, record: NotebookRecord) -> None:
         with session_scope(self._session_factory) as session:
             if session.get(NotebookModel, record.id) is None:
-                raise KeyError(record.id)
+                raise EntityNotFoundError(record.id)
             session.merge(notebook_to_model(record))
 
     def delete_notebook(self, notebook_id: str) -> None:
         with session_scope(self._session_factory) as session:
             model = session.get(NotebookModel, notebook_id)
             if model is None:
-                raise KeyError(notebook_id)
+                raise EntityNotFoundError(notebook_id)
             session.execute(
                 delete(SourceModel).where(SourceModel.notebook_id == notebook_id)
             )
@@ -81,14 +84,14 @@ class SqlNotebookStore:
         with session_scope(self._session_factory) as session:
             model = session.get(SourceModel, source_id)
             if model is None or model.notebook_id != notebook_id:
-                raise KeyError(source_id)
+                raise EntityNotFoundError(source_id)
             return source_to_record(model)
 
     def delete_source(self, notebook_id: str, source_id: str) -> None:
         with session_scope(self._session_factory) as session:
             model = session.get(SourceModel, source_id)
             if model is None or model.notebook_id != notebook_id:
-                raise KeyError(source_id)
+                raise EntityNotFoundError(source_id)
             session.delete(model)
 
     # --- 채팅 메시지 ---
@@ -100,7 +103,7 @@ class SqlNotebookStore:
     def list_chat_messages(self, notebook_id: str) -> list[ChatMessageRecord]:
         with session_scope(self._session_factory) as session:
             if session.get(NotebookModel, notebook_id) is None:
-                raise KeyError(notebook_id)
+                raise EntityNotFoundError(notebook_id)
             stmt = (
                 select(ChatMessageModel)
                 .where(ChatMessageModel.notebook_id == notebook_id)
@@ -111,6 +114,6 @@ class SqlNotebookStore:
     def clear_chat_messages(self, notebook_id: str) -> None:
         with session_scope(self._session_factory) as session:
             if session.get(NotebookModel, notebook_id) is None:
-                raise KeyError(notebook_id)
+                raise EntityNotFoundError(notebook_id)
             stmt = delete(ChatMessageModel).where(ChatMessageModel.notebook_id == notebook_id)
             session.execute(stmt)

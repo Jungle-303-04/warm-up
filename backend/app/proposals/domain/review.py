@@ -6,6 +6,7 @@
 
 from enum import StrEnum
 
+from app.api.errors import DomainConflictError
 from app.pipeline.api.schemas import ProposalStatus
 
 TERMINAL_STATUSES = frozenset({ProposalStatus.APPROVED, ProposalStatus.REJECTED})
@@ -24,5 +25,6 @@ _ACTION_RESULT = {
 
 def decide(current: ProposalStatus, action: ReviewAction) -> ProposalStatus:
     if current != ProposalStatus.PENDING:
-        raise ValueError(f"이미 처리된 제안({current})은 다시 결정할 수 없습니다")
+        raise DomainConflictError(f"이미 처리된 제안({current})은 다시 결정할 수 없습니다")
     return _ACTION_RESULT[action]
+

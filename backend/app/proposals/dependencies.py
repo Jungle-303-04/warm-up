@@ -13,7 +13,6 @@ from app.config import Settings, get_settings
 from app.pipeline.application.service import PipelineService
 from app.pipeline.dependencies import build_llm_proposer
 from app.pipeline.domain.agent import AgentProposalService
-from app.proposals.application.service import ProposalReviewService
 from app.proposals.domain.ports import ProposalStore
 from app.proposals.infrastructure.in_memory_store import InMemoryProposalStore
 
@@ -30,19 +29,18 @@ def _sql_store() -> ProposalStore:
         raise RuntimeError("POSTGRES_DATABASE_URL is required for SQL storage")
 
     from app.proposals.infrastructure.sql_store import SqlProposalStore
-    from app.repo_rag.infrastructure.db import create_db_engine, create_session_factory
+    from app.repo_rag.infrastructure.db import get_shared_session_factory
 
-    session_factory = create_session_factory(create_db_engine(settings.postgres_database_url))
+    session_factory = get_shared_session_factory(settings.postgres_database_url)
     return SqlProposalStore(session_factory)
+
 
 
 def get_proposal_store(settings: Settings = Depends(get_settings)) -> ProposalStore:
     return _sql_store() if settings.uses_postgres else _in_memory_store()
 
 
-def get_proposal_review_service(
+def get_pipeline_service(
     settings: Settings = Depends(get_settings),
-    store: ProposalStore = Depends(get_proposal_store),
-) -> ProposalReviewService:
-    pipeline = PipelineService(agent=AgentProposalService(proposer=build_llm_proposer(settings)))
-    return ProposalReviewService(store=store, pipeline=pipeline)
+) -> PipelineService:
+    return PipelineService(agent=AgentProposalService(proposer=build_llm_proposer(settings)))

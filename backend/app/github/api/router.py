@@ -17,7 +17,7 @@ from app.github.dependencies import get_comment_client, get_webhook_service
 from app.github.domain.ports import GitHubCommentClient
 from app.github.domain.signature import verify_signature
 from app.proposals.application.service import ProposalReviewService
-from app.proposals.dependencies import get_proposal_review_service
+from app.api.errors import EntityNotFoundError
 
 router = APIRouter()
 
@@ -75,7 +75,7 @@ def publish_proposal(
     proposal_id: str,
     body: PublishProposalRequest,
     client: GitHubCommentClient = Depends(get_comment_client),
-    proposals: ProposalReviewService = Depends(get_proposal_review_service),
+    proposals: ProposalReviewService = Depends(ProposalReviewService),
     _claims = Depends(get_current_claims),
 ) -> PublishProposalResponse:
     def run() -> PublishProposalResponse:
@@ -83,4 +83,4 @@ def publish_proposal(
         url = ProposalPublishService(client=client).publish(record, body.issue_number)
         return PublishProposalResponse(comment_url=url)
 
-    return http_error(run, {KeyError: status.HTTP_404_NOT_FOUND})
+    return http_error(run, {EntityNotFoundError: status.HTTP_404_NOT_FOUND})

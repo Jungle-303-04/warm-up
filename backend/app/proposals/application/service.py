@@ -16,15 +16,24 @@ from app.proposals.domain.records import ProposalRecord
 from app.proposals.domain.review import ReviewAction, decide
 
 
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
+from fastapi import Depends
+from app.proposals.dependencies import get_proposal_store, get_pipeline_service
+
+
+def get_clock() -> Callable[[], datetime]:
+    return lambda: datetime.now(UTC)
 
 
 @dataclass(slots=True)
 class ProposalReviewService:
-    store: ProposalStore
-    pipeline: PipelineService = field(default_factory=PipelineService)
-    clock: Callable[[], datetime] = _utcnow
+    store: ProposalStore = Depends(get_proposal_store)
+    pipeline: PipelineService = Depends(get_pipeline_service)
+    clock: Callable[[], datetime] = Depends(get_clock)
+
+    def __post_init__(self) -> None:
+        from fastapi.params import Depends as DependsClass
+        if isinstance(self.clock, DependsClass):
+            self.clock = self.clock.dependency()
 
     def generate(self, request: PipelineRequest) -> list[ProposalRecord]:
         artifacts = self.pipeline.collect(request)

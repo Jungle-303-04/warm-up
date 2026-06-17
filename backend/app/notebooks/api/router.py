@@ -4,7 +4,6 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 
-from app.api.errors import http_error
 from app.api.responses import BAD_REQUEST_RESPONSE
 from app.auth.dependencies import get_current_claims
 from app.notebooks.api.schemas import (
@@ -32,15 +31,11 @@ from app.notebooks.api.schemas import (
     UpdateNotebookRequest,
 )
 from app.notebooks.application.artifact_service import ArtifactService
-from app.notebooks.application.chat_service import ChatService
+from app.notebooks.application.chat_service import ChatService, ChatResult
 from app.notebooks.application.indexing_service import IndexingService
 from app.notebooks.application.service import NotebookService
-from app.notebooks.dependencies import (
-    get_artifact_service,
-    get_indexing_service,
-    get_notebook_chat_service,
-    get_notebook_service,
-)
+from app.notebooks.domain.records import NotebookRecord, SourceRecord, ChatMessageRecord
+from app.notebooks.domain.artifact_records import ArtifactRecord
 from app.notebooks.domain.indexing_progress import (
     IndexProgressRegistry,
     get_progress_registry,
@@ -51,12 +46,6 @@ router = APIRouter()
 # SSE 폴링 주기/안전 한도.
 SSE_POLL_SECONDS = 0.3
 SSE_MAX_TICKS = 600  # 약 3분 후 강제 종료(연결 누수 방지)
-
-NOT_FOUND: dict[type[Exception], int] = {KeyError: status.HTTP_404_NOT_FOUND}
-NOT_FOUND_OR_BAD_REQUEST: dict[type[Exception], int] = {
-    KeyError: status.HTTP_404_NOT_FOUND,
-    ValueError: status.HTTP_400_BAD_REQUEST,
-}
 
 
 # --- 노트북 ---
@@ -71,13 +60,9 @@ NOT_FOUND_OR_BAD_REQUEST: dict[type[Exception], int] = {
 )
 def create_notebook(
     request: CreateNotebookRequest,
-    service: NotebookService = Depends(get_notebook_service),
-) -> NotebookView:
-    def run() -> NotebookView:
-        record = service.create_notebook(title=request.title, summary=request.summary)
-        return NotebookView.from_record(record, source_count=0)
-
-    return http_error(run, {ValueError: status.HTTP_400_BAD_REQUEST})
+    service: NotebookService = Depends(NotebookService),
+) -> NotebookRecord:
+    return service.create_notebook(title=request.title, summary=request.summary)
 
 
 @router.get(
@@ -86,17 +71,10 @@ def create_notebook(
     dependencies=[Depends(get_current_claims)],
 )
 def list_notebooks(
-    service: NotebookService = Depends(get_notebook_service),
+    service: NotebookService = Depends(NotebookService),
 ) -> NotebookListResponse:
     records = service.list_notebooks()
-    notebooks = [
-        NotebookView.from_record(
-            record,
-            source_count=len(service.store.list_sources(record.id)),
-        )
-        for record in records
-    ]
-    return NotebookListResponse(notebooks=notebooks)
+    return NotebookListResponse(notebooks=records)
 
 
 @router.get(
@@ -107,14 +85,9 @@ def list_notebooks(
 )
 def get_notebook(
     notebook_id: str,
-    service: NotebookService = Depends(get_notebook_service),
-) -> NotebookDetailView:
-    def run() -> NotebookDetailView:
-        record = service.get_notebook(notebook_id)
-        sources = service.list_sources(notebook_id)
-        return NotebookDetailView.from_record(record, sources=sources)
-
-    return http_error(run, NOT_FOUND)
+    service: NotebookService = Depends(NotebookService),
+) -> NotebookRecord:
+    return service.get_notebook(notebook_id)
 
 
 @router.patch(
@@ -126,16 +99,11 @@ def get_notebook(
 def update_notebook(
     notebook_id: str,
     request: UpdateNotebookRequest,
-    service: NotebookService = Depends(get_notebook_service),
-) -> NotebookView:
-    def run() -> NotebookView:
-        record = service.update_notebook(
-            notebook_id, title=request.title, summary=request.summary
-        )
-        source_count = len(service.store.list_sources(notebook_id))
-        return NotebookView.from_record(record, source_count=source_count)
-
-    return http_error(run, NOT_FOUND_OR_BAD_REQUEST)
+    service: NotebookService = Depends(NotebookService),
+) -> NotebookRecord:
+    return service.update_notebook(
+        notebook_id, title=request.title, summary=request.summary
+    )
 
 
 @router.delete(
@@ -146,9 +114,9 @@ def update_notebook(
 )
 def delete_notebook(
     notebook_id: str,
-    service: NotebookService = Depends(get_notebook_service),
+    service: NotebookService = Depends(NotebookService),
 ) -> Response:
-    http_error(lambda: service.delete_notebook(notebook_id), NOT_FOUND)
+    service.delete_notebook(notebook_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -164,18 +132,14 @@ def delete_notebook(
 def chat(
     notebook_id: str,
     request: ChatRequest,
-    service: ChatService = Depends(get_notebook_chat_service),
-) -> ChatResponse:
-    def run() -> ChatResponse:
-        result = service.ask(
-            notebook_id,
-            question=request.question,
-            source_ids=request.source_ids,
-            file_paths=request.file_paths,
-        )
-        return ChatResponse.from_result(result)
-
-    return http_error(run, NOT_FOUND_OR_BAD_REQUEST)
+    service: ChatService = Depends(ChatService),
+) -> ChatResult:
+    return service.ask(
+        notebook_id,
+        question=request.question,
+        source_ids=request.source_ids,
+        file_paths=request.file_paths,
+    )
 
 
 @router.get(
@@ -186,15 +150,10 @@ def chat(
 )
 def list_chat_messages(
     notebook_id: str,
-    service: ChatService = Depends(get_notebook_chat_service),
+    service: ChatService = Depends(ChatService),
 ) -> ChatMessageListResponse:
-    def run() -> ChatMessageListResponse:
-        messages = service.list_messages(notebook_id)
-        return ChatMessageListResponse(
-            messages=[ChatMessageView.from_record(message) for message in messages]
-        )
-
-    return http_error(run, NOT_FOUND)
+    messages = service.list_messages(notebook_id)
+    return ChatMessageListResponse(messages=messages)
 
 
 @router.delete(
@@ -204,9 +163,9 @@ def list_chat_messages(
 )
 def clear_chat_messages(
     notebook_id: str,
-    service: ChatService = Depends(get_notebook_chat_service),
+    service: ChatService = Depends(ChatService),
 ) -> Response:
-    http_error(lambda: service.clear_messages(notebook_id), NOT_FOUND)
+    service.clear_messages(notebook_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -221,25 +180,22 @@ def create_source(
     notebook_id: str,
     request: CreateSourceRequest,
     background_tasks: BackgroundTasks,
-    service: NotebookService = Depends(get_notebook_service),
-    indexing: IndexingService = Depends(get_indexing_service),
-) -> SourceView:
-    def run() -> SourceView:
-        record = service.add_source(
-            notebook_id,
-            kind=request.kind,
-            title=request.title,
-            content=request.content,
-            url=request.url,
-            repository_url=request.repository_url,
-            branch=request.branch,
-        )
-        # 진행 레지스트리에 queued 등록 후 인덱싱은 비동기 실행(응답은 즉시 반환).
-        indexing.register(record)
-        background_tasks.add_task(indexing.index_source, notebook_id, record.id)
-        return SourceView.from_record(record)
-
-    return http_error(run, NOT_FOUND_OR_BAD_REQUEST)
+    service: NotebookService = Depends(NotebookService),
+    indexing: IndexingService = Depends(IndexingService),
+) -> SourceRecord:
+    record = service.add_source(
+        notebook_id,
+        kind=request.kind,
+        title=request.title,
+        content=request.content,
+        url=request.url,
+        repository_url=request.repository_url,
+        branch=request.branch,
+    )
+    # 진행 레지스트리에 queued 등록 후 인덱싱은 비동기 실행(응답은 즉시 반환).
+    indexing.register(record)
+    background_tasks.add_task(indexing.index_source, notebook_id, record.id)
+    return record
 
 
 @router.get(
@@ -250,13 +206,10 @@ def create_source(
 )
 def list_sources(
     notebook_id: str,
-    service: NotebookService = Depends(get_notebook_service),
+    service: NotebookService = Depends(NotebookService),
 ) -> SourceListResponse:
-    def run() -> SourceListResponse:
-        sources = service.list_sources(notebook_id)
-        return SourceListResponse(sources=[SourceView.from_record(s) for s in sources])
-
-    return http_error(run, NOT_FOUND)
+    sources = service.list_sources(notebook_id)
+    return SourceListResponse(sources=sources)
 
 
 @router.get(
@@ -268,12 +221,9 @@ def list_sources(
 def get_source(
     notebook_id: str,
     source_id: str,
-    service: NotebookService = Depends(get_notebook_service),
-) -> SourceDetailView:
-    return http_error(
-        lambda: SourceDetailView.from_record(service.get_source(notebook_id, source_id)),
-        NOT_FOUND,
-    )
+    service: NotebookService = Depends(NotebookService),
+) -> SourceRecord:
+    return service.get_source(notebook_id, source_id)
 
 
 @router.delete(
@@ -285,10 +235,10 @@ def get_source(
 def delete_source(
     notebook_id: str,
     source_id: str,
-    service: NotebookService = Depends(get_notebook_service),
-    indexing: IndexingService = Depends(get_indexing_service),
+    service: NotebookService = Depends(NotebookService),
+    indexing: IndexingService = Depends(IndexingService),
 ) -> Response:
-    http_error(lambda: service.delete_source(notebook_id, source_id), NOT_FOUND)
+    service.delete_source(notebook_id, source_id)
     # 소스가 사라지면 청크/진행 상태도 함께 정리.
     indexing.cleanup_source(source_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -306,14 +256,10 @@ def delete_source(
 def get_source_tree(
     notebook_id: str,
     source_id: str,
-    service: NotebookService = Depends(get_notebook_service),
+    service: NotebookService = Depends(NotebookService),
 ) -> TreeResponse:
-    def run() -> TreeResponse:
-        tree_data = service.get_source_tree(notebook_id, source_id)
-        tree_nodes = [TreeNode.from_dict(node) for node in tree_data]
-        return TreeResponse(tree=tree_nodes)
-
-    return http_error(run, NOT_FOUND_OR_BAD_REQUEST)
+    tree_data = service.get_source_tree(notebook_id, source_id)
+    return TreeResponse(tree=tree_data)
 
 
 @router.get(
@@ -326,12 +272,9 @@ def get_source_file(
     notebook_id: str,
     source_id: str,
     path: str = Query(...),
-    service: NotebookService = Depends(get_notebook_service),
+    service: NotebookService = Depends(NotebookService),
 ) -> FileResponse:
-    return http_error(
-        lambda: FileResponse(**service.get_source_file(notebook_id, source_id, path)),
-        NOT_FOUND_OR_BAD_REQUEST,
-    )
+    return service.get_source_file(notebook_id, source_id, path)
 
 
 # --- 인덱싱 진행 상태 ---
@@ -359,14 +302,11 @@ def _require_progress(
 def get_source_index(
     notebook_id: str,
     source_id: str,
-    service: NotebookService = Depends(get_notebook_service),
+    service: NotebookService = Depends(NotebookService),
 ) -> IndexProgressView:
     registry = get_progress_registry()
-    return http_error(
-        lambda: IndexProgressView.from_view(
-            _require_progress(notebook_id, source_id, service, registry)
-        ),
-        NOT_FOUND,
+    return IndexProgressView.from_view(
+        _require_progress(notebook_id, source_id, service, registry)
     )
 
 
@@ -377,7 +317,7 @@ def get_source_index(
 def stream_source_index(
     notebook_id: str,
     source_id: str,
-    service: NotebookService = Depends(get_notebook_service),
+    service: NotebookService = Depends(NotebookService),
 ) -> StreamingResponse:
     registry = get_progress_registry()
     # 연결 시작 전에 소스/진행 상태 존재를 확인(없으면 404).
@@ -421,24 +361,20 @@ def reindex_source(
     notebook_id: str,
     source_id: str,
     background_tasks: BackgroundTasks,
-    service: NotebookService = Depends(get_notebook_service),
-    indexing: IndexingService = Depends(get_indexing_service),
+    service: NotebookService = Depends(NotebookService),
+    indexing: IndexingService = Depends(IndexingService),
 ) -> IndexProgressView:
     registry = get_progress_registry()
-
-    def run() -> IndexProgressView:
-        record = service.get_source(notebook_id, source_id)
-        # 진행 레지스트리를 queued로 리셋(정지/실패한 인덱싱도 이 경로로 복구).
-        indexing.register(record)
-        # repo 소스면 재클론으로 최신 스냅샷 갱신 후 재인덱싱(resync_repo=True).
-        background_tasks.add_task(
-            indexing.index_source, notebook_id, source_id, resync_repo=True
-        )
-        view = registry.get(source_id)
-        assert view is not None  # register 직후이므로 항상 존재
-        return IndexProgressView.from_view(view)
-
-    return http_error(run, NOT_FOUND)
+    record = service.get_source(notebook_id, source_id)
+    # 진행 레지스트리를 queued로 리셋(정지/실패한 인덱싱도 이 경로로 복구).
+    indexing.register(record)
+    # repo 소스면 재클론으로 최신 스냅샷 갱신 후 재인덱싱(resync_repo=True).
+    background_tasks.add_task(
+        indexing.index_source, notebook_id, source_id, resync_repo=True
+    )
+    view = registry.get(source_id)
+    assert view is not None  # register 직후이므로 항상 존재
+    return IndexProgressView.from_view(view)
 
 
 # --- 산출물(artifacts) ---
@@ -454,16 +390,12 @@ def reindex_source(
 def generate_artifact(
     notebook_id: str,
     request: GenerateArtifactRequest,
-    service: ArtifactService = Depends(get_artifact_service),
-) -> ArtifactView:
+    service: ArtifactService = Depends(ArtifactService),
+) -> ArtifactRecord:
     # 동기 처리. LLM 호출은 짧게 유지하며, 키가 없으면 결정론/골격으로 즉시 반환한다.
-    def run() -> ArtifactView:
-        record = service.generate(
-            notebook_id, type=request.type, source_ids=request.source_ids
-        )
-        return ArtifactView.from_record(record)
-
-    return http_error(run, NOT_FOUND_OR_BAD_REQUEST)
+    return service.generate(
+        notebook_id, type=request.type, source_ids=request.source_ids
+    )
 
 
 @router.post(
@@ -476,15 +408,11 @@ def generate_artifact(
 def create_note(
     notebook_id: str,
     request: CreateNoteRequest,
-    service: ArtifactService = Depends(get_artifact_service),
-) -> ArtifactView:
-    def run() -> ArtifactView:
-        record = service.create_note(
-            notebook_id, content=request.content, title=request.title
-        )
-        return ArtifactView.from_record(record)
-
-    return http_error(run, NOT_FOUND_OR_BAD_REQUEST)
+    service: ArtifactService = Depends(ArtifactService),
+) -> ArtifactRecord:
+    return service.create_note(
+        notebook_id, content=request.content, title=request.title
+    )
 
 
 @router.get(
@@ -495,15 +423,10 @@ def create_note(
 )
 def list_artifacts(
     notebook_id: str,
-    service: ArtifactService = Depends(get_artifact_service),
+    service: ArtifactService = Depends(ArtifactService),
 ) -> ArtifactListResponse:
-    def run() -> ArtifactListResponse:
-        records = service.list_artifacts(notebook_id)
-        return ArtifactListResponse(
-            artifacts=[ArtifactView.from_record(record) for record in records]
-        )
-
-    return http_error(run, NOT_FOUND)
+    records = service.list_artifacts(notebook_id)
+    return ArtifactListResponse(artifacts=records)
 
 
 @router.get(
@@ -515,14 +438,9 @@ def list_artifacts(
 def get_artifact(
     notebook_id: str,
     artifact_id: str,
-    service: ArtifactService = Depends(get_artifact_service),
-) -> ArtifactView:
-    return http_error(
-        lambda: ArtifactView.from_record(
-            service.get_artifact(notebook_id, artifact_id)
-        ),
-        NOT_FOUND,
-    )
+    service: ArtifactService = Depends(ArtifactService),
+) -> ArtifactRecord:
+    return service.get_artifact(notebook_id, artifact_id)
 
 
 @router.patch(
@@ -535,18 +453,14 @@ def update_artifact(
     notebook_id: str,
     artifact_id: str,
     request: UpdateArtifactRequest,
-    service: ArtifactService = Depends(get_artifact_service),
-) -> ArtifactView:
-    def run() -> ArtifactView:
-        record = service.update_artifact(
-            notebook_id,
-            artifact_id,
-            title=request.title,
-            content=request.content,
-        )
-        return ArtifactView.from_record(record)
-
-    return http_error(run, NOT_FOUND_OR_BAD_REQUEST)
+    service: ArtifactService = Depends(ArtifactService),
+) -> ArtifactRecord:
+    return service.update_artifact(
+        notebook_id,
+        artifact_id,
+        title=request.title,
+        content=request.content,
+    )
 
 
 @router.delete(
@@ -558,9 +472,7 @@ def update_artifact(
 def delete_artifact(
     notebook_id: str,
     artifact_id: str,
-    service: ArtifactService = Depends(get_artifact_service),
+    service: ArtifactService = Depends(ArtifactService),
 ) -> Response:
-    http_error(
-        lambda: service.delete_artifact(notebook_id, artifact_id), NOT_FOUND
-    )
+    service.delete_artifact(notebook_id, artifact_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

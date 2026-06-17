@@ -8,13 +8,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.pipeline.api.schemas import ProposalStatus
+from app.proposals.domain.ports import ProposalStore
 from app.proposals.domain.records import ProposalRecord
-from app.proposals.infrastructure.mappers import to_model, to_record
+from app.api.errors import EntityNotFoundError
+from app.proposals.infrastructure.mappers import to_record, to_model
 from app.proposals.infrastructure.models import ProposalModel
 from app.repo_rag.infrastructure.db import session_scope
 
 
-class SqlProposalStore:
+class SqlProposalStore(ProposalStore):
+
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
 
@@ -42,7 +45,7 @@ class SqlProposalStore:
         with session_scope(self._session_factory) as session:
             model = session.get(ProposalModel, proposal_id)
             if model is None:
-                raise KeyError(proposal_id)
+                raise EntityNotFoundError(proposal_id)
             return to_record(model)
 
     def update(self, record: ProposalRecord) -> None:

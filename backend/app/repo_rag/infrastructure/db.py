@@ -7,6 +7,7 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+import threading
 
 from sqlalchemy import DateTime, create_engine
 from sqlalchemy.engine import Engine
@@ -50,3 +51,20 @@ def session_scope(session_factory: sessionmaker[Session]) -> Iterator[Session]:
         raise
     finally:
         session.close()
+
+
+_engine_lock = threading.Lock()
+_shared_engine: Engine | None = None
+_shared_session_factory: sessionmaker[Session] | None = None
+
+
+def get_shared_session_factory(database_url: str) -> sessionmaker[Session]:
+    """전역적으로 하나의 데이터베이스 커넥션 풀(Engine)과 세션 팩토리를 공유하여 리소스를 절약합니다."""
+    global _shared_engine, _shared_session_factory
+    if _shared_session_factory is None:
+        with _engine_lock:
+            if _shared_session_factory is None:
+                _shared_engine = create_db_engine(database_url)
+                _shared_session_factory = create_session_factory(_shared_engine)
+    return _shared_session_factory
+

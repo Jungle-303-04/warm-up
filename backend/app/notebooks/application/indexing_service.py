@@ -24,17 +24,24 @@ from app.notebooks.domain.indexing_progress import (
 from app.notebooks.domain.ports import ChunkStore, NotebookStore
 from app.notebooks.domain.records import SourceRecord
 from app.repo_rag.domain.ports import EmbeddingClient
+from fastapi import Depends
+from app.notebooks.dependencies import (
+    get_notebook_store,
+    get_chunk_store,
+    get_embedding_client,
+    get_progress_registry_dep,
+)
 
 if TYPE_CHECKING:
     from app.repository_source.infrastructure.repo_sync import RepoSyncService
 
 
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
+def get_clock() -> Callable[[], datetime]:
+    return lambda: datetime.now(UTC)
 
 
-def _new_id() -> str:
-    return uuid4().hex
+def get_id_factory() -> Callable[[], str]:
+    return lambda: uuid4().hex
 
 
 @dataclass(slots=True)
@@ -49,15 +56,22 @@ class _FileChunks:
 
 @dataclass(slots=True)
 class IndexingService:
-    store: NotebookStore
-    chunk_store: ChunkStore
-    embedder: EmbeddingClient
-    registry: IndexProgressRegistry
-    clock: Callable[[], datetime] = _utcnow
-    id_factory: Callable[[], str] = _new_id
+    store: NotebookStore = Depends(get_notebook_store)
+    chunk_store: ChunkStore = Depends(get_chunk_store)
+    embedder: EmbeddingClient = Depends(get_embedding_client)
+    registry: IndexProgressRegistry = Depends(get_progress_registry_dep)
+    clock: Callable[[], datetime] = Depends(get_clock)
+    id_factory: Callable[[], str] = Depends(get_id_factory)
+
+    def __post_init__(self) -> None:
+        from fastapi.params import Depends as DependsClass
+        if isinstance(self.clock, DependsClass):
+            self.clock = self.clock.dependency()
+        if isinstance(self.id_factory, DependsClass):
+            self.id_factory = self.id_factory.dependency()
     # repo 재풀링(재클론)용. None이면 재풀링 없이 기존 스냅샷으로 인덱싱한다.
     # 헥사고날 경계: NotebookService와 동일한 RepoSyncService 포트를 주입받는다.
-    repo_sync: "Any | None" = None
+    repo_sync: "Any | None" = Depends(lambda: __import__('app.repository_source.infrastructure.repo_sync', fromlist=['RepoSyncService']).RepoSyncService())
 
     def register(self, source: SourceRecord) -> None:
         """소스 생성 직후 큐 등록(BackgroundTasks 실행 전 호출)."""
