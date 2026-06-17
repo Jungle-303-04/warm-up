@@ -54,8 +54,14 @@ def plan_search(
     question: str,
     intent_type: str,
     source_count: int,
+    *,
+    default_top_k: int = _DEFAULT_TOP_K,
+    architecture_top_k: int = _ARCHITECTURE_TOP_K,
 ) -> SearchPlan:
     """질문·의도·소스 수를 기반으로 검색 계획을 수립한다.
+
+    top_k 상한(default_top_k/architecture_top_k)은 Settings(.env)에서 주입되며,
+    기본값은 모듈 상수로 폴백한다(직접 호출/단위 테스트 호환).
 
     Parameters
     ----------
@@ -75,11 +81,11 @@ def plan_search(
     normalized = intent_type.upper().replace(" ", "_")
 
     if normalized == "CODE_SEARCH":
-        return _plan_code_search(question, source_count)
+        return _plan_code_search(question, source_count, default_top_k)
     if normalized == "ARCHITECTURE":
-        return _plan_architecture(question, source_count)
+        return _plan_architecture(question, source_count, architecture_top_k)
     if normalized == "BUG_ANALYSIS":
-        return _plan_bug_analysis(question, source_count)
+        return _plan_bug_analysis(question, source_count, default_top_k)
     # GENERAL_KNOWLEDGE, CONVERSATIONAL, 그 외
     return _plan_general(question, source_count)
 
@@ -89,7 +95,7 @@ def plan_search(
 # ------------------------------------------------------------------ #
 
 
-def _plan_code_search(question: str, source_count: int) -> SearchPlan:
+def _plan_code_search(question: str, source_count: int, top_k_cap: int) -> SearchPlan:
     """코드 검색: HYBRID + 코드 식별자 서브쿼리."""
     queries = [question]
     identifiers = _extract_code_identifiers(question)
@@ -98,7 +104,7 @@ def _plan_code_search(question: str, source_count: int) -> SearchPlan:
         if sub and sub not in queries:
             queries.append(sub)
 
-    top_k = min(_DEFAULT_TOP_K, max(source_count, 1))
+    top_k = min(top_k_cap, max(source_count, 1))
     return SearchPlan(
         strategy=SearchStrategy.HYBRID,
         queries=queries,
@@ -106,10 +112,10 @@ def _plan_code_search(question: str, source_count: int) -> SearchPlan:
     )
 
 
-def _plan_architecture(question: str, source_count: int) -> SearchPlan:
+def _plan_architecture(question: str, source_count: int, top_k_cap: int) -> SearchPlan:
     """아키텍처 질문: HYBRID + 높은 top_k."""
     queries = [question]
-    top_k = min(_ARCHITECTURE_TOP_K, max(source_count, 1))
+    top_k = min(top_k_cap, max(source_count, 1))
     return SearchPlan(
         strategy=SearchStrategy.HYBRID,
         queries=queries,
@@ -117,7 +123,7 @@ def _plan_architecture(question: str, source_count: int) -> SearchPlan:
     )
 
 
-def _plan_bug_analysis(question: str, source_count: int) -> SearchPlan:
+def _plan_bug_analysis(question: str, source_count: int, top_k_cap: int) -> SearchPlan:
     """버그/에러 분석: HYBRID + 에러 키워드 서브쿼리."""
     queries = [question]
     error_keywords = _extract_error_keywords(question)
@@ -125,7 +131,7 @@ def _plan_bug_analysis(question: str, source_count: int) -> SearchPlan:
         if kw not in queries:
             queries.append(kw)
 
-    top_k = min(_DEFAULT_TOP_K, max(source_count, 1))
+    top_k = min(top_k_cap, max(source_count, 1))
     return SearchPlan(
         strategy=SearchStrategy.HYBRID,
         queries=queries,

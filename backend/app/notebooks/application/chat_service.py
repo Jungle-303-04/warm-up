@@ -12,6 +12,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import uuid4
 
 from app.notebooks.application.intent_classifier import classify_intent, should_skip_rag
@@ -21,6 +22,7 @@ from app.notebooks.domain.chunk_records import ChunkSearchHit
 from app.notebooks.domain.ports import ChunkStore, NotebookStore
 from app.notebooks.domain.records import ChatMessageRecord, SourceRecord
 from app.repo_rag.domain.ports import EmbeddingClient
+from app.config import Settings, get_settings
 from fastapi import Depends
 from app.notebooks.dependencies import (
     get_notebook_store,
@@ -29,7 +31,6 @@ from app.notebooks.dependencies import (
     get_chat_answerer,
 )
 
-MAX_CHUNKS = 5
 SNIPPET_SIZE = 360
 TOKEN_RE = re.compile(r"[0-9A-Za-z가-힣_./-]+")
 
@@ -75,11 +76,14 @@ class ChatService:
     chunk_store: ChunkStore = Depends(get_chunk_store)
     embedder: EmbeddingClient = Depends(get_embedding_client)
     answerer: ChatAnswerer | None = Depends(get_chat_answerer)
-    clock: Callable[[], datetime] = Depends(get_clock)
-    id_factory: Callable[[], str] = Depends(get_id_factory)
+    settings: Settings = Depends(get_settings)
+    clock: Any = Depends(get_clock)
+    id_factory: Any = Depends(get_id_factory)
 
     def __post_init__(self) -> None:
         from fastapi.params import Depends as DependsClass
+        if isinstance(self.settings, DependsClass):
+            self.settings = self.settings.dependency()
         if isinstance(self.clock, DependsClass):
             self.clock = self.clock.dependency()
         if isinstance(self.id_factory, DependsClass):
@@ -151,6 +155,8 @@ class ChatService:
                     standalone_question,
                     intent_type=intent.value,
                     source_count=len(selected),
+                    default_top_k=self.settings.chat_default_top_k,
+                    architecture_top_k=self.settings.chat_architecture_top_k,
                 )
 
                 # 4) 계획된 쿼리들로 다중 검색 (단일/다중 모두 동일 경로)

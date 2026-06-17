@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     artifact_max_selected_files: int = 60  # 비-dependency 선별 파일 수 상한
     artifact_max_dependency_files: int = 250  # dependency 그래프용 .py 상한
 
+    # 채팅 RAG 검색 top_k(.env로 오버라이드 가능). 의도별 검색 계획에서 상한으로 쓰인다.
+    chat_default_top_k: int = 5  # 일반/코드/버그 질문 기본 top_k
+    chat_architecture_top_k: int = 8  # 아키텍처 질문은 더 넓게 검색
+
     @property
     def uses_postgres(self) -> bool:
         return bool(self.postgres_database_url)
