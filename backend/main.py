@@ -102,6 +102,8 @@ def get_post(post_id : int):
                 status_code=500,
                 detail="게시글과 연결된 폰트 정보를 찾을 수 없습니다."
     )
+        
+        user = session.get(User, post.user_id)
 
         return  {
                     "id": post.id,
@@ -109,6 +111,9 @@ def get_post(post_id : int):
                     "content": post.content,
                     "created_at": post.created_at,
                     "updated_at": post.updated_at,
+                    "user": {
+                        "nickname": user.nickname
+                    },
                     "font": {
                         "name": font.name,
                         "tags": font.tags
