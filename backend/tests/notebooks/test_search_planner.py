@@ -62,17 +62,17 @@ class TestTopK:
         plan = plan_search("프로젝트 구조를 알려줘", "ARCHITECTURE", 20)
         assert plan.top_k == 8
 
-    def test_architecture_top_k_capped_by_source_count(self):
+    def test_architecture_top_k_ignores_source_count(self):
         plan = plan_search("구조", "ARCHITECTURE", 3)
-        assert plan.top_k == 3
+        assert plan.top_k == 8
 
     def test_code_search_default_top_k(self):
         plan = plan_search("find_user 함수", "CODE_SEARCH", 20)
         assert plan.top_k == 5
 
-    def test_code_search_top_k_capped_by_source_count(self):
+    def test_code_search_top_k_ignores_source_count(self):
         plan = plan_search("find_user 함수", "CODE_SEARCH", 2)
-        assert plan.top_k == 2
+        assert plan.top_k == 5
 
     def test_general_lower_top_k(self):
         plan = plan_search("Python이란?", "GENERAL_KNOWLEDGE", 20)

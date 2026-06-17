@@ -138,7 +138,7 @@ def test_code_question_prefers_source_code_over_docs() -> None:
     )
     notebook_service.store.add_source(repo)
 
-    question = "로그인 구현 코드는 어디야?"
+    question = "login_user 구현 코드는 어디야?"
     embedding = chat.embedder.embed_query(question)
     indexing.chunk_store.add_many(
         [
@@ -157,7 +157,7 @@ def test_code_question_prefers_source_code_over_docs() -> None:
                 notebook_id=notebook.id,
                 source_id=repo.id,
                 chunk_index=0,
-                text="# 로그인 구현 코드\ndef login_user():\n    return issue_session_cookie()\n",
+                text="def login_user():\n    return issue_session_cookie()\n",
                 file_path="app/auth/session.py",
                 language="python",
                 embedding=embedding,
@@ -175,6 +175,107 @@ def test_code_question_prefers_source_code_over_docs() -> None:
     assert result.citations
     assert result.citations[0].source_id == repo.id
     assert result.citations[0].path == "app/auth/session.py"
+
+
+def test_code_question_ignores_unaligned_repo_docs_when_code_exists() -> None:
+    notebook_service, _indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+
+    repo = SourceRecord(
+        id="repo-code",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+
+    question = "login_user 구현 코드는 어디야?"
+    embedding = chat.embedder.embed_query(question)
+    chat.chunk_store.add_many(
+        [
+            NotebookChunk(
+                id="code-chunk",
+                notebook_id=notebook.id,
+                source_id=repo.id,
+                chunk_index=0,
+                text="def login_user():\n    return issue_session_cookie()\n",
+                file_path="app/auth/session.py",
+                language="python",
+                embedding=embedding,
+                created_at=FIXED_NOW,
+            ),
+            NotebookChunk(
+                id="repo-doc-chunk",
+                notebook_id=notebook.id,
+                source_id=repo.id,
+                chunk_index=1,
+                text="로그인 구현 문서는 비밀번호 파일 저장 방식을 설명한다.",
+                file_path="docs/legacy.md",
+                language="markdown",
+                embedding=embedding,
+                created_at=FIXED_NOW,
+            ),
+        ]
+    )
+
+    result = chat.ask(notebook.id, question=question, source_ids=[repo.id])
+
+    paths = [citation.path for citation in result.citations]
+    assert "app/auth/session.py" in paths
+    assert "docs/legacy.md" not in paths
+
+
+def test_chat_reports_conflict_between_repo_code_and_repo_docs() -> None:
+    notebook_service, _indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+
+    repo = SourceRecord(
+        id="repo-1",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+    chat.chunk_store.add_many(
+        [
+            NotebookChunk(
+                id="repo-code-fact",
+                notebook_id=notebook.id,
+                source_id=repo.id,
+                chunk_index=0,
+                file_path="app/settings.py",
+                language="python",
+                text="feature_x: true",
+            ),
+            NotebookChunk(
+                id="repo-doc-fact",
+                notebook_id=notebook.id,
+                source_id=repo.id,
+                chunk_index=1,
+                file_path="docs/feature.md",
+                language="markdown",
+                text="feature_x: false",
+            ),
+        ]
+    )
+
+    result = chat.ask(notebook.id, question="feature_x 코드 설정은?", source_ids=[repo.id])
+
+    assert "충돌 있음" in result.answer
+    assert "app/settings.py" in result.answer
+    assert "docs/feature.md" in result.answer
+    assert "trust=50" in result.answer
+    assert "trust=35" in result.answer
 
 
 def test_chat_asks_for_scope_when_multiple_different_repos_are_ambiguous() -> None:

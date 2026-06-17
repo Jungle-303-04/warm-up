@@ -29,6 +29,13 @@ from app.notebooks.application.trust import format_conflict_answer, resolve_conf
 from app.notebooks.domain.chunk_records import ChunkSearchHit
 from app.notebooks.domain.ports import ChunkStore, ContextExpander, NotebookStore
 from app.notebooks.domain.records import ChatMessageRecord, SourceRecord
+from app.notebooks.domain.source_evidence import (
+    is_code_path as is_evidence_code_path,
+)
+from app.notebooks.domain.source_evidence import (
+    is_repo_code_source,
+    is_repo_document_source,
+)
 from app.notebooks.domain.source_scope import select_sources
 from app.repo_rag.domain.ports import EmbeddingClient
 
@@ -245,6 +252,33 @@ class ChatService:
         if not hits:
             return ChatResult(answer=NO_EVIDENCE_ANSWER, citations=[])
 
+        all_evidence = [
+            TextChunk(
+                source_id=hit.chunk.source_id,
+                source_title=title_by_source.get(hit.chunk.source_id, hit.chunk.source_id),
+                text=hit.chunk.text,
+                path=hit.chunk.file_path,
+            )
+            for hit in hits
+        ]
+        all_citations = _dedupe_citations(
+            [_citation_from_chunk(chunk, question) for chunk in all_evidence]
+        )
+        conflicts = resolve_conflicts(hits, source_by_id)
+        if conflicts:
+            return ChatResult(
+                answer=format_conflict_answer(conflicts),
+                citations=all_citations,
+            )
+
+        hits = _keep_repo_docs_only_when_aligned_with_code(
+            question,
+            hits,
+            source_by_id,
+        )
+        if not hits:
+            return ChatResult(answer=NO_EVIDENCE_ANSWER, citations=[])
+
         evidence = [
             TextChunk(
                 source_id=hit.chunk.source_id,
@@ -257,12 +291,6 @@ class ChatService:
         citations = _dedupe_citations(
             [_citation_from_chunk(chunk, question) for chunk in evidence]
         )
-        conflicts = resolve_conflicts(hits, source_by_id)
-        if conflicts:
-            return ChatResult(
-                answer=format_conflict_answer(conflicts),
-                citations=citations,
-            )
 
         answer = self._answer(question, evidence, history, tools=tools)
         return ChatResult(answer=answer, citations=citations)
@@ -587,23 +615,31 @@ _SOURCE_CODE_QUESTION_KEYWORDS = (
     "next.js",
 )
 
-_CODE_EXTENSIONS = (
-    ".py",
-    ".pyi",
-    ".ts",
-    ".tsx",
-    ".js",
-    ".jsx",
-    ".sql",
-    ".json",
-    ".yaml",
-    ".yml",
-    ".toml",
-    ".env",
-    "dockerfile",
-)
-
-_DOC_LIKE_LANGUAGES = {"markdown", "text", "pdf", "url", None}
+_CODE_ALIGNMENT_STOPWORDS = {
+    "app",
+    "src",
+    "lib",
+    "def",
+    "class",
+    "return",
+    "self",
+    "import",
+    "from",
+    "const",
+    "let",
+    "var",
+    "function",
+    "export",
+    "default",
+    "true",
+    "false",
+    "none",
+    "null",
+    "str",
+    "int",
+    "dict",
+    "list",
+}
 
 
 def _title_by_source_map(sources: list[SourceRecord]) -> dict[str, str]:
@@ -702,6 +738,60 @@ def _prioritize_source_code_hits(
     )
 
 
+def _keep_repo_docs_only_when_aligned_with_code(
+    question: str,
+    hits: list[ChunkSearchHit],
+    source_by_id: dict[str, SourceRecord],
+) -> list[ChunkSearchHit]:
+    """코드 질문에서는 repo docs/README를 코드와 맞물릴 때만 보조 근거로 둔다."""
+    if not _is_source_code_question(question):
+        return hits
+
+    code_hits = [hit for hit in hits if _is_code_hit(hit, source_by_id)]
+    if not code_hits:
+        return hits
+
+    code_terms = _code_alignment_terms(code_hits)
+    if not code_terms:
+        return hits
+
+    filtered: list[ChunkSearchHit] = []
+    for hit in hits:
+        if not _is_repo_doc_hit(hit, source_by_id):
+            filtered.append(hit)
+            continue
+        doc_terms = _tokens(f"{hit.chunk.file_path or ''} {hit.chunk.text}")
+        if code_terms & doc_terms:
+            filtered.append(hit)
+    return filtered
+
+
+def _code_alignment_terms(hits: list[ChunkSearchHit]) -> set[str]:
+    terms: set[str] = set()
+    for hit in hits:
+        raw_terms = _tokens(f"{hit.chunk.file_path or ''} {hit.chunk.text}")
+        terms.update(
+            term
+            for term in raw_terms
+            if len(term.strip("._/-")) >= 3 and term not in _CODE_ALIGNMENT_STOPWORDS
+        )
+    return terms
+
+
+def _is_repo_doc_hit(
+    hit: ChunkSearchHit,
+    source_by_id: dict[str, SourceRecord],
+) -> bool:
+    source = source_by_id.get(hit.chunk.source_id)
+    if source is None:
+        return False
+    return is_repo_document_source(
+        source,
+        path=hit.chunk.file_path,
+        language=hit.chunk.language,
+    )
+
+
 def _is_source_code_question(question: str) -> bool:
     normalized = question.strip().lower()
     return any(keyword in normalized for keyword in _SOURCE_CODE_QUESTION_KEYWORDS)
@@ -711,7 +801,14 @@ def _is_code_hit(
     hit: ChunkSearchHit,
     source_by_id: dict[str, SourceRecord],
 ) -> bool:
-    return _code_hit_priority(hit, source_by_id) > 0
+    source = source_by_id.get(hit.chunk.source_id)
+    if source is None:
+        return False
+    return is_repo_code_source(
+        source,
+        path=hit.chunk.file_path,
+        language=hit.chunk.language,
+    )
 
 
 def _code_hit_priority(
@@ -719,21 +816,18 @@ def _code_hit_priority(
     source_by_id: dict[str, SourceRecord],
 ) -> int:
     source = source_by_id.get(hit.chunk.source_id)
-    if source is None or source.kind != "repo":
+    if source is None:
         return 0
     path = (hit.chunk.file_path or "").lower()
-    language = hit.chunk.language
-    if path and _is_code_path(path):
+    if is_repo_code_source(source, path=path, language=hit.chunk.language):
         return 3
-    if language not in _DOC_LIKE_LANGUAGES:
-        return 2
-    if path:
+    if source.kind == "repo" and path:
         return 1
     return 0
 
 
 def _is_code_path(path: str) -> bool:
-    return any(path.endswith(ext) for ext in _CODE_EXTENSIONS) or path.endswith("/dockerfile")
+    return is_evidence_code_path(path)
 
 
 def _fallback_answer(evidence: list[TextChunk]) -> str:

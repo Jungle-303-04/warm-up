@@ -3,8 +3,8 @@
 선택한 소스의 코드/문서 컨텍스트를 모아 타입별 생성기(LlmArtifactGenerator)로
 산출물 content를 만들고 ArtifactStore에 저장한다. 메모(note)는 생성 없이 직접 저장한다.
 
-외부 키 없이 동작: 생성기는 기본 결정론(Deterministic)이며, dependency는 import
-파싱으로 실제 그래프를, uml/erd/change_summary는 골격을 반환한다(에러 아님).
+외부 키 없이 동작: 생성기는 기본 결정론(Deterministic)이며, dependency/uml/erd는
+정적 파싱 기반 Mermaid를, change_summary는 코드 facts 기반 마크다운을 반환한다.
 
 컨텍스트 수집:
 - repo 소스: repo_snapshot의 .py/.md 파일을 path와 함께 컨텍스트로.
@@ -29,6 +29,7 @@ from app.notebooks.domain.artifact_ports import (
 from app.notebooks.domain.artifact_records import ArtifactRecord, ArtifactType
 from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import SourceRecord
+from app.notebooks.domain.source_evidence import is_code_path, is_repo_document_path
 from app.notebooks.domain.source_scope import select_sources
 
 # 컨텍스트 수집 상한의 "기본값". 실제 값은 Settings(.env)로 주입되며, 아래 상수는
@@ -274,13 +275,23 @@ def _relevance_score(artifact_type: ArtifactType, ctx: ArtifactContext) -> int:
     path = (ctx.path or "").lower()
     text = ctx.text
     score = 1  # 기본(관련 파일은 최소 1점)
+    is_doc_path = is_repo_document_path(path)
+    is_code_file = is_code_path(path) and not is_doc_path
 
     if artifact_type == "uml":
+        if is_code_file:
+            score += 20
+        if is_doc_path:
+            score -= 10
         score += text.count("class ") * 5
         score += (text.count("interface ") + text.count("def ")) * 1
         if _has_any(path, ("domain", "record", "model", "entity", "service", "schema")):
             score += 20
     elif artifact_type == "erd":
+        if is_code_file:
+            score += 20
+        if is_doc_path:
+            score -= 10
         if path.endswith(".sql"):
             score += 100
         score += (text.count("Column(") + text.count("mapped_column(")) * 8
@@ -289,11 +300,38 @@ def _relevance_score(artifact_type: ArtifactType, ctx: ArtifactContext) -> int:
         if _has_any(path, ("model", "schema", "entity", "table", "orm", "migration")):
             score += 25
     elif artifact_type == "change_summary":
-        if path.endswith(_DOC_EXTS):
-            score += 30
+        if is_code_file:
+            score += 35
+        if path.endswith(".sql"):
+            score += 35
+        if _has_any(
+            path,
+            (
+                "app/",
+                "src/",
+                "backend/",
+                "frontend/",
+                "api",
+                "router",
+                "route",
+                "service",
+                "domain",
+                "model",
+                "schema",
+                "store",
+                "migration",
+                "config",
+            ),
+        ):
+            score += 20
+        score += text.count("class ") * 3
+        score += text.count("def ") * 2
+        score += text.count("function ") * 2
+        score += text.count("export ") * 2
+        if is_doc_path:
+            score -= 12
         if _has_any(path, ("readme", "changelog", "changes", "history")):
-            score += 40
-        score += text.count("class ") + text.count("def ")
+            score += 5
 
     if "test" in path or path.endswith((".min.js", ".lock")):
         score -= 15

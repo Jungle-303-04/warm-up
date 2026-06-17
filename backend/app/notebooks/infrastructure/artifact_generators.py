@@ -5,8 +5,10 @@
 - DeterministicArtifactGenerator: 외부 키 없이 동작하는 결정론 생성기.
   - dependency: 파이썬 파일들의 import 문을 파싱해 모듈 간 의존 그래프를 Mermaid
     flowchart로 생성한다(키 불필요).
-  - uml/erd/change_summary: 빈 다이어그램 + "LLM 키가 필요합니다" 주석 골격을 반환한다
-    (에러가 아니라 명시적 폴백).
+  - uml/erd: AST/ORM/SQL에서 추출한 사실로 Mermaid를 생성하고, 추출 결과가 없을 때만
+    안내 골격으로 폴백한다.
+  - change_summary: 저장된 코드 스냅샷의 클래스/함수/라우트/테이블/exports를 한국어
+    마크다운으로 요약한다.
 - ChatOpenAIArtifactGenerator: llm_provider="openai"이고 키가 있을 때 LangChain
   ChatOpenAI로 타입별 system 프롬프트를 실행한다. LLM 호출/파싱 실패 시
   DeterministicArtifactGenerator로 안전하게 폴백한다(런타임 에러 0).
@@ -26,6 +28,7 @@ from app.notebooks.domain.artifact_ports import (
     LlmArtifactGenerator,
 )
 from app.notebooks.domain.artifact_records import ArtifactType
+from app.notebooks.domain.source_evidence import is_code_path, is_repo_document_path
 from app.notebooks.infrastructure.code_scaffold import (
     build_erd_mermaid,
     build_uml_mermaid,
@@ -40,6 +43,32 @@ MAX_CONTEXT_CHARS = 16000
 # LLM 키가 없을 때 골격에 들어가는 안내 주석.
 _NEED_KEY_NOTE = "LLM 키가 필요합니다"
 
+_SUMMARY_STOPWORDS = {
+    "app",
+    "src",
+    "lib",
+    "api",
+    "def",
+    "class",
+    "return",
+    "self",
+    "import",
+    "from",
+    "const",
+    "let",
+    "var",
+    "function",
+    "export",
+    "default",
+    "true",
+    "false",
+    "none",
+    "null",
+    "string",
+    "number",
+    "boolean",
+}
+
 
 class DeterministicArtifactGenerator(LlmArtifactGenerator):
     """키 없이 동작하는 결정론 생성기.
@@ -47,7 +76,7 @@ class DeterministicArtifactGenerator(LlmArtifactGenerator):
     - dependency: import 파싱으로 실제 그래프.
     - uml/erd: AST로 추출한 클래스/모델 골격으로 실제 Mermaid 생성(Python/ORM 한정).
       추출 결과가 없으면 안내 골격(skeleton)으로 폴백한다.
-    - change_summary: 요약은 결정론으로 만들 수 없어 골격을 돌려준다.
+    - change_summary: 코드 facts를 우선해 한국어 마크다운 요약을 만든다.
     """
 
     def generate(self, request: GenerationRequest) -> str:
@@ -57,6 +86,8 @@ class DeterministicArtifactGenerator(LlmArtifactGenerator):
             return build_uml_mermaid(request.contexts) or _skeleton("uml")
         if request.type == "erd":
             return build_erd_mermaid(request.contexts) or _skeleton("erd")
+        if request.type == "change_summary":
+            return build_change_summary_markdown(request.contexts)
         return _skeleton(request.type)
 
 
@@ -106,8 +137,9 @@ _SYSTEM_PROMPTS: dict[ArtifactType, str] = {
     ),
     "change_summary": (
         "당신은 코드/문서 변경을 요약하는 보조자입니다. "
-        "주어진 컨텍스트의 핵심을 한국어 마크다운으로 간결히 요약하세요. "
-        "필요하면 Mermaid 다이어그램을 마크다운에 포함해도 됩니다."
+        "repo 내부 docs/README보다 실제 코드·스키마·설정 파일을 우선 근거로 삼고, "
+        "문서는 코드와 일치하는 보조 근거일 때만 참조하세요. "
+        "주어진 컨텍스트의 핵심을 한국어 마크다운으로 간결히 요약하세요."
     ),
 }
 
@@ -184,11 +216,211 @@ def _skeleton(artifact_type: ArtifactType) -> str:
     if artifact_type == "change_summary":
         return (
             "## 변경 요약\n\n"
-            f"> {_NEED_KEY_NOTE}: llm_provider=openai 와 OPENAI_API_KEY 를 설정하면 "
-            "선택한 소스 기반 요약이 생성됩니다.\n"
+            "> 선택된 소스에서 요약할 컨텍스트를 찾지 못했습니다.\n"
         )
     # note 등 그 외 타입은 빈 골격.
     return f"%% {_NEED_KEY_NOTE}\n"
+
+
+# --- change_summary: 코드 facts 우선 마크다운 요약(결정론) ---
+
+
+def build_change_summary_markdown(contexts: list[ArtifactContext]) -> str:
+    """저장된 소스 스냅샷을 코드 우선으로 요약한다."""
+
+    if not contexts:
+        return _skeleton("change_summary")
+
+    code_contexts = [ctx for ctx in contexts if _is_code_context(ctx)]
+    doc_contexts = [ctx for ctx in contexts if _is_doc_context(ctx)]
+    primary_contexts = code_contexts or contexts
+
+    lines = [
+        "## 변경 요약",
+        "",
+        "> 저장된 소스 스냅샷 기준으로 생성한 코드 우선 요약입니다.",
+        "",
+        "### 코드 기준 핵심",
+    ]
+    facts_added = 0
+    for ctx in primary_contexts[:10]:
+        facts = _summarize_context(ctx)
+        if not facts:
+            continue
+        lines.append(f"- `{_where(ctx)}`: " + "; ".join(facts[:4]))
+        facts_added += 1
+    if facts_added == 0:
+        lines.append("- 정적으로 요약할 명확한 코드 심볼을 찾지 못했습니다.")
+
+    if doc_contexts and code_contexts:
+        code_terms = _context_terms(code_contexts)
+        aligned_docs = [
+            ctx for ctx in doc_contexts if _context_terms([ctx]) & code_terms
+        ]
+        if aligned_docs:
+            lines.extend(["", "### 문서 참고(코드와 맞물리는 항목)"])
+            for ctx in aligned_docs[:4]:
+                summary = _first_meaningful_line(ctx.text)
+                if summary:
+                    lines.append(f"- `{_where(ctx)}`: {summary}")
+        else:
+            lines.extend(
+                [
+                    "",
+                    "### 문서 참고",
+                    "- 코드 근거와 직접 맞물리는 repo 문서 내용은 별도로 확인되지 않았습니다.",
+                ]
+            )
+    elif doc_contexts and not code_contexts:
+        lines.extend(["", "### 문서 기준 참고"])
+        for ctx in doc_contexts[:4]:
+            summary = _first_meaningful_line(ctx.text)
+            if summary:
+                lines.append(f"- `{_where(ctx)}`: {summary}")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _is_code_context(ctx: ArtifactContext) -> bool:
+    path = ctx.path or ""
+    return is_code_path(path) and not is_repo_document_path(path)
+
+
+def _is_doc_context(ctx: ArtifactContext) -> bool:
+    path = ctx.path or ""
+    return is_repo_document_path(path) or not _is_code_context(ctx)
+
+
+def _where(ctx: ArtifactContext) -> str:
+    return ctx.path or ctx.source_title
+
+
+def _summarize_context(ctx: ArtifactContext) -> list[str]:
+    path = (ctx.path or "").lower()
+    if path.endswith((".py", ".pyi")):
+        return _summarize_python(ctx.text)
+    if path.endswith((".ts", ".tsx", ".js", ".jsx")):
+        return _summarize_javascript_like(ctx.text)
+    if path.endswith(".sql"):
+        return _summarize_sql(ctx.text)
+    if path.endswith((".json", ".yaml", ".yml", ".toml")):
+        return _summarize_config(ctx.text)
+    return [_first_meaningful_line(ctx.text)] if _first_meaningful_line(ctx.text) else []
+
+
+def _summarize_python(text: str) -> list[str]:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return []
+
+    classes: list[str] = []
+    functions: list[str] = []
+    routes: list[str] = []
+    imports: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            classes.append(node.name)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            functions.append(node.name)
+            routes.extend(_route_decorators(node))
+        elif isinstance(node, ast.Import):
+            imports.update(alias.name.split(".", maxsplit=1)[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module.split(".", maxsplit=1)[0])
+
+    facts: list[str] = []
+    if classes:
+        facts.append("클래스 " + ", ".join(classes[:6]))
+    if functions:
+        facts.append("함수 " + ", ".join(functions[:8]))
+    if routes:
+        facts.append("API 라우트 " + ", ".join(routes[:6]))
+    if imports:
+        facts.append("주요 의존 " + ", ".join(sorted(imports)[:6]))
+    return facts
+
+
+def _route_decorators(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
+    routes: list[str] = []
+    for decorator in node.decorator_list:
+        try:
+            text = ast.unparse(decorator)
+        except Exception:
+            continue
+        lowered = text.lower()
+        if any(method in lowered for method in (".get(", ".post(", ".put(", ".patch(", ".delete(")):
+            routes.append(f"{text} -> {node.name}")
+    return routes
+
+
+_JS_CLASS_RE = re.compile(r"\b(?:export\s+)?class\s+([A-Za-z_]\w*)")
+_JS_FUNCTION_RE = re.compile(
+    r"\b(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_]\w*)"
+)
+_JS_CONST_EXPORT_RE = re.compile(
+    r"\bexport\s+const\s+([A-Za-z_]\w*)\s*="
+)
+_JS_TYPE_RE = re.compile(r"\b(?:export\s+)?(?:interface|type)\s+([A-Za-z_]\w*)")
+
+
+def _summarize_javascript_like(text: str) -> list[str]:
+    classes = _dedupe(_JS_CLASS_RE.findall(text))
+    functions = _dedupe(_JS_FUNCTION_RE.findall(text) + _JS_CONST_EXPORT_RE.findall(text))
+    types = _dedupe(_JS_TYPE_RE.findall(text))
+    facts: list[str] = []
+    if classes:
+        facts.append("클래스 " + ", ".join(classes[:6]))
+    if functions:
+        facts.append("exports/functions " + ", ".join(functions[:8]))
+    if types:
+        facts.append("타입 " + ", ".join(types[:8]))
+    return facts
+
+
+_SQL_TABLE_RE = re.compile(
+    r"\bcreate\s+table\s+(?:if\s+not\s+exists\s+)?[\"`']?([A-Za-z_]\w*)",
+    re.IGNORECASE,
+)
+
+
+def _summarize_sql(text: str) -> list[str]:
+    tables = _dedupe(_SQL_TABLE_RE.findall(text))
+    if not tables:
+        return []
+    return ["테이블 " + ", ".join(tables[:10])]
+
+
+_CONFIG_KEY_RE = re.compile(r"^\s*[\"']?([A-Za-z_][\w.-]*)[\"']?\s*[:=]", re.MULTILINE)
+
+
+def _summarize_config(text: str) -> list[str]:
+    keys = _dedupe(_CONFIG_KEY_RE.findall(text))
+    if not keys:
+        return []
+    return ["설정 키 " + ", ".join(keys[:10])]
+
+
+def _first_meaningful_line(text: str) -> str:
+    for line in text.splitlines():
+        cleaned = line.strip(" #\t-")
+        if cleaned:
+            return cleaned[:180]
+    return ""
+
+
+def _context_terms(contexts: list[ArtifactContext]) -> set[str]:
+    terms: set[str] = set()
+    for ctx in contexts:
+        for token in re.findall(r"[0-9A-Za-z_./-]+", f"{ctx.path or ''} {ctx.text}"):
+            normalized = token.lower().strip("._/-")
+            if len(normalized) >= 3 and normalized not in _SUMMARY_STOPWORDS:
+                terms.add(normalized)
+    return terms
+
+
+def _dedupe(items: list[str]) -> list[str]:
+    return list(dict.fromkeys(items))
 
 
 # --- dependency: 파이썬 import 파싱 → Mermaid flowchart(결정론) ---

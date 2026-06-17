@@ -11,7 +11,8 @@ from itertools import count
 import pytest
 
 from app.api.errors import EntityNotFoundError
-from app.notebooks.application.artifact_service import ArtifactService
+from app.notebooks.application.artifact_service import ArtifactService, _select_contexts
+from app.notebooks.domain.artifact_ports import ArtifactContext
 from app.notebooks.domain.records import SourceRecord
 from app.notebooks.infrastructure.artifact_generators import (
     DeterministicArtifactGenerator,
@@ -91,6 +92,34 @@ def test_generate_dependency_from_repo_imports() -> None:
     assert record.source_ids == ["src-1"]
     # 저장도 됐는지 확인
     assert service.get_artifact(nb_id, record.id).id == record.id
+
+
+def test_change_summary_context_selection_prefers_code_over_repo_docs() -> None:
+    contexts = [
+        ArtifactContext(
+            source_id="src-1",
+            source_title="repo",
+            text="# README\n\n문서 설명",
+            path="README.md",
+            language="markdown",
+        ),
+        ArtifactContext(
+            source_id="src-1",
+            source_title="repo",
+            text="class BillingService:\n    def charge(self): ...\n",
+            path="app/billing/service.py",
+            language="python",
+        ),
+    ]
+
+    selected = _select_contexts(
+        contexts,
+        "change_summary",
+        max_total_chars=5000,
+        max_files=2,
+    )
+
+    assert selected[0].path == "app/billing/service.py"
 
 
 def test_generate_uml_without_key_returns_skeleton() -> None:

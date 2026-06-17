@@ -104,7 +104,10 @@ def _plan_code_search(question: str, source_count: int, top_k_cap: int) -> Searc
         if sub and sub not in queries:
             queries.append(sub)
 
-    top_k = min(top_k_cap, max(source_count, 1))
+    # source_count는 "선택된 소스 개수"이지 repo 내부 파일/청크 개수가 아니다.
+    # repo 하나에도 수백 개 파일이 있을 수 있으므로 코드 질문은 설정된 후보 수를
+    # 유지해 문서 청크 하나가 코드 청크를 가리는 상황을 피한다.
+    top_k = max(top_k_cap, 1)
     return SearchPlan(
         strategy=SearchStrategy.HYBRID,
         queries=queries,
@@ -115,7 +118,7 @@ def _plan_code_search(question: str, source_count: int, top_k_cap: int) -> Searc
 def _plan_architecture(question: str, source_count: int, top_k_cap: int) -> SearchPlan:
     """아키텍처 질문: HYBRID + 높은 top_k."""
     queries = [question]
-    top_k = min(top_k_cap, max(source_count, 1))
+    top_k = max(top_k_cap, 1)
     return SearchPlan(
         strategy=SearchStrategy.HYBRID,
         queries=queries,
@@ -131,7 +134,7 @@ def _plan_bug_analysis(question: str, source_count: int, top_k_cap: int) -> Sear
         if kw not in queries:
             queries.append(kw)
 
-    top_k = min(top_k_cap, max(source_count, 1))
+    top_k = max(top_k_cap, 1)
     return SearchPlan(
         strategy=SearchStrategy.HYBRID,
         queries=queries,

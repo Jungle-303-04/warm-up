@@ -165,7 +165,43 @@ def test_change_summary_fallback_returns_markdown() -> None:
     content = gen.generate(GenerationRequest(type="change_summary", contexts=[]))
 
     assert content.startswith("## 변경 요약")
-    assert "LLM 키가 필요합니다" in content
+    assert "요약할 컨텍스트를 찾지 못했습니다" in content
+
+
+def test_change_summary_from_code_without_key() -> None:
+    gen = DeterministicArtifactGenerator()
+    contexts = [
+        _ctx(
+            "app/api/router.py",
+            (
+                "from fastapi import APIRouter\n"
+                "router = APIRouter()\n"
+                "@router.get('/users')\n"
+                "def list_users():\n"
+                "    return []\n"
+                "class UserService:\n"
+                "    def find(self): ...\n"
+            ),
+        ),
+        ArtifactContext(
+            source_id="s1",
+            source_title="repo",
+            text="# 문서\n\n완전히 다른 운영 문서입니다.",
+            path="docs/ops.md",
+            language="markdown",
+        ),
+    ]
+
+    content = gen.generate(
+        GenerationRequest(type="change_summary", contexts=contexts)
+    )
+
+    assert content.startswith("## 변경 요약")
+    assert "LLM 키가 필요합니다" not in content
+    assert "`app/api/router.py`" in content
+    assert "UserService" in content
+    assert "list_users" in content
+    assert "docs/ops.md" not in content
 
 
 # ── 하이브리드(AST 골격): 키 없이도 Python 클래스/ORM이면 실제 다이어그램 ──

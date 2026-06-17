@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from app.notebooks.domain.chunk_records import ChunkSearchHit
 from app.notebooks.domain.records import SourceRecord
+from app.notebooks.domain.source_evidence import trust_rank_for_source
 
 _FACT_RE = re.compile(
     r"(?P<subject>[A-Za-z0-9_.\-/가-힣]{2,})\s*(?:=|:|은|는|is)\s*"
@@ -66,15 +67,19 @@ def resolve_conflicts(
                     source_title=source.title,
                     source_kind=source.kind,
                     path=hit.chunk.file_path,
-                    trust_rank=trust_rank(source),
+                    trust_rank=trust_rank(
+                        source,
+                        path=hit.chunk.file_path,
+                        language=hit.chunk.language,
+                    ),
                 )
             )
 
     conflicts: list[EvidenceConflict] = []
     for subject, facts in facts_by_subject.items():
         values = {fact.value for fact in facts}
-        source_ids = {fact.source_id for fact in facts}
-        if len(values) > 1 and len(source_ids) > 1:
+        locations = {(fact.source_id, fact.path) for fact in facts}
+        if len(values) > 1 and len(locations) > 1:
             conflicts.append(
                 EvidenceConflict(
                     subject=subject,
@@ -87,14 +92,13 @@ def resolve_conflicts(
     return conflicts
 
 
-def trust_rank(source: SourceRecord) -> int:
-    if source.kind == "repo":
-        return 40
-    if source.derived_from_artifact_id:
-        return 30
-    if source.kind in {"md", "text", "pdf", "url"}:
-        return 20
-    return 10
+def trust_rank(
+    source: SourceRecord,
+    *,
+    path: str | None = None,
+    language: str | None = None,
+) -> int:
+    return trust_rank_for_source(source, path=path, language=language)
 
 
 def format_conflict_answer(conflicts: list[EvidenceConflict]) -> str:
