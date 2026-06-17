@@ -27,6 +27,7 @@ const editablePost = {
   content:
     "Once upon a time, in a quiet village beside a silver forest, a small lantern learned how to glow. Every night it listened to the wind, gathered stories from the stars, and lit a narrow path for children who dreamed of finding a hidden garden beyond the hill.",
   font: recommendedFont,
+  title: "Boost your conversion rate",
 };
 
 function TypingWaitingMessage({ lines }) {
@@ -69,9 +70,11 @@ function Write() {
   const navigate = useNavigate();
   const { postId } = useParams();
   const isEditMode = Boolean(postId);
+  const initialTitle = isEditMode ? editablePost.title : "";
   const initialContent = isEditMode ? editablePost.content : "";
   const initialRecommendation = isEditMode ? editablePost.font : null;
   const [activeTab, setActiveTab] = useState("write");
+  const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
   const [isRecommending, setIsRecommending] = useState(false);
   const [recommendation, setRecommendation] = useState(initialRecommendation);
@@ -169,9 +172,18 @@ function Write() {
           </div>
         </div>
 
+        <input
+          className="mt-20 w-full border-b border-gray-200 px-1 py-2 text-base outline-none transition-colors placeholder:text-gray-300 focus:border-black"
+          maxLength={100}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="제목을 입력하세요."
+          type="text"
+          value={title}
+        />
+
         <div
           className={[
-            "relative z-10 mt-20 flex items-end gap-1 pl-2",
+            "relative z-10 mt-10 flex items-end gap-1 pl-2",
             isPreviewTab ? "border-b border-gray-200" : "-mb-px",
           ].join(" ")}
         >
