@@ -29,6 +29,10 @@ body,
   min-height: 100%;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 #root {
   display: flex;
   justify-content: center;

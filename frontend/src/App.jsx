@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { getCurrentUser, logoutUser } from "./api/auth";
 import Header from "./components/Header";
+import ScrollToTop from "./components/ScrollToTop";
 import Board from "./pages/Board";
 import Login from "./pages/Login";
 import MyPage from "./pages/MyPage";
@@ -58,6 +59,7 @@ function App() {
 
   return (
     <div className="min-h-screen w-full max-w-[1024px] rounded-[10px] bg-white">
+      <ScrollToTop />
       <Header onAccountClick={handleAccountClick} user={user} />
       <Routes>
         <Route element={<Board />} path="/" />
