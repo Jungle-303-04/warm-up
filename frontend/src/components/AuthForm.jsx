@@ -34,25 +34,75 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [errorField, setErrorField] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateAuthForm = () => {
+    const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,20}$/;
+
+    if (!nickname.trim()) {
+      return {
+        field: "nickname",
+        message: "닉네임을 입력해주세요.",
+      };
+    }
+
+    if (nickname.trim().length > 20) {
+      return {
+        field: "nickname",
+        message: "닉네임은 20자 이내로 입력해주세요.",
+      };
+    }
+
+    if (!password.trim()) {
+      return {
+        field: "password",
+        message: "비밀번호를 입력해주세요.",
+      };
+    }
+
+    if (!passwordPattern.test(password)) {
+      return {
+        field: "password",
+        message: "비밀번호는 영문과 숫자를 포함해 8~20자로 입력해주세요.",
+      };
+    }
+
+    return null;
+  };
 
   const handleNicknameChange = (event) => {
     setNickname(event.target.value);
+    setErrorMessage("");
+    setErrorField("");
   };
 
   const handlePasswordChange = (event) => {
     setPassword(event.target.value);
+    setErrorMessage("");
+    setErrorField("");
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setErrorMessage("");
+    setErrorField("");
+
+    const validationError = validateAuthForm();
+
+    if (validationError) {
+      setErrorMessage(validationError.message);
+      setErrorField(validationError.field);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       await onSubmit({ nickname, password });
     } catch (error) {
       setErrorMessage(error.message);
+      setErrorField("form");
     } finally {
       setIsSubmitting(false);
     }
@@ -72,27 +122,37 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
         <form className="mt-10 w-full" onSubmit={handleSubmit}>
           <div className="overflow-hidden rounded-md border border-gray-300">
             <input
-              className="h-10 w-full border-b border-gray-300 px-4 text-sm outline-none transition-colors placeholder:text-gray-300 focus:border-black"
+              className={[
+                "h-10 w-full border-b px-4 text-base outline-none transition-colors placeholder:text-base placeholder:text-gray-300 focus:border-black",
+                errorField === "nickname"
+                  ? "border-neutral-500"
+                  : "border-gray-300",
+              ].join(" ")}
               onChange={handleNicknameChange}
               placeholder="닉네임을 입력하세요"
               type="text"
               value={nickname}
             />
             <input
-              className="h-10 w-full border-b border-transparent px-4 text-sm outline-none transition-colors placeholder:text-gray-300 focus:border-black"
+              className={[
+                "h-10 w-full border-b px-4 text-base outline-none transition-colors placeholder:text-base placeholder:text-gray-300 focus:border-black",
+                errorField === "password"
+                  ? "border-neutral-500"
+                  : "border-transparent",
+              ].join(" ")}
               onChange={handlePasswordChange}
-              placeholder="패스워드를 입력하세요"
+              placeholder="영문+숫자 비밀번호를 입력하세요"
               type="password"
               value={password}
             />
           </div>
 
-          {errorMessage && (
-            <p className="mt-3 text-sm text-red-500">{errorMessage}</p>
-          )}
+          <p className="mt-3 min-h-5 text-right text-sm text-neutral-600">
+            {errorMessage}
+          </p>
 
           <button
-            className="mt-10 h-10 w-full cursor-pointer rounded-md border border-gray-300 text-sm font-normal text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-white disabled:hover:text-gray-300"
+            className="mt-6 h-10 w-full cursor-pointer rounded-md border border-gray-300 text-sm font-normal text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-white disabled:hover:text-gray-300"
             disabled={isSubmitting}
             type="submit"
           >
