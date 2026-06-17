@@ -20,6 +20,7 @@ artifact_generators.ChatOpenAIArtifactGenerator와 동일한 build 패턴(지연
 from __future__ import annotations
 
 from app.notebooks.application.chat_service import TextChunk
+from app.notebooks.infrastructure.utils import coerce_text
 
 # 컨텍스트로 LLM에 넘길 청크 개수 상한(토큰 과다 방지).
 MAX_CONTEXT_CHUNKS = 5
@@ -38,7 +39,7 @@ SYSTEM_PROMPT = (
     "   - **일반 상식/개발 지식/일상 대화 질문:** 질문이 제공된 [근거] 문서와 직접적인 관련이 없거나(예: 인사말, 일반적인 프로그래밍 문법, DFS 등 알고리즘 구현 방법, 범용 IT 상식 등), [근거] 문서만으로는 답변할 수 없는 경우에는 '답변할 근거가 부족합니다'라고 딱딱하게 끊지 말고, 너의 풍부한 내장 지식을 바탕으로 친절하고 상세하게 답변을 제공하라. 만약 제공된 문서에 관련 내용이 없어 자신의 지식으로 답하는 경우에는 그 사실을 부드럽게 언급하며 설명하라.\n\n"
     "2. 질문 의도별 출력 구조화:\n"
     "   - **코드 검증/버그 분석:** 발견된 잠재적 문제점, 발생 시나리오, 수정 코드 가이드라인(``` 코드 블록 사용)을 단락별로 구분하여 제시하라.\n"
-    "   - **아키텍처/구조 분석:** 구성 요소들 간의 관계나 의존성을 명확한 마크다운 테이블(Table) 또는 순서도로 시각화하여 가독성을 극대화하라.\n"
+    "   - **아키텍처/구조 분석:** 구성 요소들 간의 관계나 의존성은 마크다운 테이블(Table)이나 번호 목록으로 정리하라. ASCII 아트나 박스 그림으로 다이어그램을 직접 그리지 마라(채팅 영역에서는 깨져 보인다). 시각적 다이어그램(UML/ERD/의존성 그래프)이 필요하면, 오른쪽 스튜디오의 'UML/ERD/의존성 그래프' 생성 기능을 사용하도록 안내하라.\n"
     "   - **계획 수립/구현 가이드:** 번호 리스트(1., 2., 3.)를 사용해 실행 가능한 구체적 마크다운 가이드를 순차적으로 작성하라.\n\n"
     "3. 언어 및 톤앤매너:\n"
     "   - 전문적이면서도 매우 친절하고 부드러운 한국어 문체로 작성하라.\n"
@@ -87,7 +88,7 @@ class ChatOpenAIAnswerer:
         try:
             prompt = _build_messages(question, chunks, history)
             response = self._chat_model.invoke(prompt)  # type: ignore[attr-defined]
-            return _coerce_text(getattr(response, "content", response)).strip()
+            return coerce_text(getattr(response, "content", response)).strip()
         except Exception:
             return ""
 
@@ -160,9 +161,4 @@ def _format_context(chunks: list[TextChunk]) -> str:
     return "\n\n".join(parts)
 
 
-def _coerce_text(content: object) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        return "\n".join(str(part) for part in content)
-    return str(content)
+

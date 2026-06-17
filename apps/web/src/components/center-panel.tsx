@@ -1,10 +1,11 @@
 "use client";
 
 import { cn } from "../lib/cn";
-import { useWorkspace } from "../lib/store";
+import { selectScopeCount, useWorkspace } from "../lib/store";
 import type { CenterTab } from "../lib/types";
 import { ChatView } from "./chat-view";
 import { Icon } from "./icon";
+import { Button } from "./ui/button";
 import { Panel } from "./ui/panel";
 import { ViewerPanel } from "./viewer-panel";
 
@@ -14,6 +15,12 @@ const TABS: CenterTab[] = ["대화", "뷰어"];
 export function CenterPanel() {
   const tab = useWorkspace((s) => s.centerTab);
   const setTab = useWorkspace((s) => s.setCenterTab);
+  // 대화 컨트롤(기준 개수/메모저장/초기화)은 스크롤과 무관하게 항상 보이도록 탭 바 우측에 둔다.
+  const scopeCount = useWorkspace(selectScopeCount);
+  const chatMessageCount = useWorkspace((s) => s.chatMessageCount);
+  const requestResetChat = useWorkspace((s) => s.requestResetChat);
+  const requestSaveChat = useWorkspace((s) => s.requestSaveChat);
+  const hasChat = chatMessageCount > 0;
   return (
     <Panel className="flex-1">
       <div
@@ -51,6 +58,38 @@ export function CenterPanel() {
             </button>
           ))}
         </div>
+
+        {/* 대화 컨트롤: 기준 개수 배지 + 메모로 저장 + 초기화. 대화 탭에서만 노출. */}
+        {tab === "대화" ? (
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/60 px-2.5 py-0.5 text-[11px] font-medium text-accent-foreground">
+              <Icon name="check_circle" size={12.5} />
+              {scopeCount}개 기준
+            </span>
+            <Button
+              variant="outline"
+              size="xs"
+              icon="save_note"
+              onClick={requestSaveChat}
+              disabled={!hasChat}
+              title="대화를 메모로 저장"
+              aria-label="대화를 메모로 저장"
+            >
+              메모 저장
+            </Button>
+            <Button
+              variant="outline"
+              size="xs"
+              icon="delete"
+              onClick={requestResetChat}
+              disabled={!hasChat}
+              title="대화 초기화"
+              aria-label="대화 초기화"
+            >
+              초기화
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <div

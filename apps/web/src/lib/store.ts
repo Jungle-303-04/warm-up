@@ -76,6 +76,15 @@ interface WorkspaceStore {
   openFile: (sourceId: string, path: string) => void; // repo 파일을 뷰어에 열기
   openArtifact: (id: string) => void; // 산출물을 뷰어에 열기 + 뷰어 탭으로 이동
   setCenterTab: (tab: CenterTab) => void;
+
+  // ── 채팅 컨트롤 신호(센터 바 ↔ 채팅뷰) ──────────────────────────────
+  // 탭 바의 버튼이 채팅뷰의 동작을 트리거하는 1회성 신호(nonce). 영속화하지 않는다.
+  resetChatSignal: number; // 대화 초기화 요청
+  saveChatSignal: number; // 대화를 메모로 저장 요청
+  chatMessageCount: number; // 채팅뷰가 공개하는 현재 메시지 수(버튼 활성/비활성용)
+  requestResetChat: () => void;
+  requestSaveChat: () => void;
+  setChatMessageCount: (count: number) => void;
   setIndexProgress: (sourceId: string, progress: IndexProgress) => void;
   clearIndexProgress: (sourceId: string) => void;
 
@@ -107,6 +116,9 @@ export const useWorkspace = create<WorkspaceStore>()(
       generatingType: null,
       indexProgress: {},
       selectedFilePaths: {},
+      resetChatSignal: 0,
+      saveChatSignal: 0,
+      chatMessageCount: 0,
 
       initNotebook: (notebookId, sources) =>
         set({
@@ -255,6 +267,9 @@ export const useWorkspace = create<WorkspaceStore>()(
       openFile: (sourceId, path) => set({ viewer: { sourceId, path }, centerTab: "뷰어" }),
       openArtifact: (id) => set({ viewer: { artifactId: id }, centerTab: "뷰어" }),
       setCenterTab: (tab) => set({ centerTab: tab }),
+      requestResetChat: () => set((state) => ({ resetChatSignal: state.resetChatSignal + 1 })),
+      requestSaveChat: () => set((state) => ({ saveChatSignal: state.saveChatSignal + 1 })),
+      setChatMessageCount: (count) => set({ chatMessageCount: count }),
       setIndexProgress: (sourceId, progress) =>
         set((state) => ({
           indexProgress: { ...state.indexProgress, [sourceId]: progress },

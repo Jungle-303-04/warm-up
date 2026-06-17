@@ -10,6 +10,7 @@ import { selectScopeCount, useWorkspace } from "../lib/store";
 import type {
   ChatMessage,
   Citation,
+  GeneratableArtifactType,
   NotebookChatCitation,
   NotebookChatMessage,
   NotebookChatResponse,
@@ -23,6 +24,31 @@ const makeId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+// 채팅에서 "레포를 UML/ERD/의존성 그래프로 그려줘" 류 요청을 감지해, 텍스트 답변
+// 대신 스튜디오 산출물(다이어그램)을 생성하고 뷰어에서 열도록 라우팅한다.
+// 정의/개념 질문("UML이 뭐야")은 제외한다(시각화 의도가 아님).
+const DIAGRAM_LABELS: Record<"uml" | "erd" | "dependency", string> = {
+  uml: "UML 클래스 다이어그램",
+  erd: "ERD",
+  dependency: "의존성 그래프",
+};
+
+const VISUALIZE_CUE =
+  /(그려|그림|만들어|생성|시각화|보여|작성|도식|그래프로|diagram|draw|generate|create|visuali[sz]e|render)/i;
+const DEFINITIONAL_CUE = /(뭐야|뭔가요|무엇|이란|개념|차이|장단점|what\s+is|difference)/i;
+const DIAGRAM_WORD = /(다이어그램|diagram|그래프|graph)/i;
+
+function detectDiagramIntent(question: string): "uml" | "erd" | "dependency" | null {
+  if (DEFINITIONAL_CUE.test(question)) return null;
+  // "시각화/그려/생성" 같은 동사 단서나 "다이어그램/그래프" 명사가 있어야 한다.
+  if (!VISUALIZE_CUE.test(question) && !DIAGRAM_WORD.test(question)) return null;
+  if (/\berd\b|엔티티\s*관계|entity[\s-]*relationship|테이블\s*관계|스키마\s*다이어그램/i.test(question))
+    return "erd";
+  if (/uml|클래스\s*다이어그램|class\s*diagram|클래스\s*관계|클래스도/i.test(question)) return "uml";
+  if (/의존성|dependency|모듈\s*의존|import\s*관계/i.test(question)) return "dependency";
+  return null;
+}
 
 // 백엔드 인용 → UI 인용.
 function toCitations(citations: NotebookChatCitation[]): Citation[] {
@@ -71,6 +97,12 @@ export function ChatView() {
   const sources = useWorkspace((s) => s.sources);
   const indexProgress = useWorkspace((s) => s.indexProgress);
   const selectedFilePaths = useWorkspace((s) => s.selectedFilePaths);
+  const generateArtifact = useWorkspace((s) => s.generateArtifact);
+  const addNote = useWorkspace((s) => s.addNote);
+  // 센터 바(탭 줄)의 초기화/메모저장 버튼이 보내는 1회성 명령 신호.
+  const resetChatSignal = useWorkspace((s) => s.resetChatSignal);
+  const saveChatSignal = useWorkspace((s) => s.saveChatSignal);
+  const setChatMessageCount = useWorkspace((s) => s.setChatMessageCount);
 
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -97,7 +129,7 @@ export function ChatView() {
   const canSend = query.trim().length > 0 && scopeCount > 0 && !!notebookId;
 
   // 메시지 변화/타이핑 진행/대기 상태에 맞춰 하단 고정 스크롤.
-  const { scrollRef, onScroll } = useChatScroll([messages, pendingQuestion]);
+  const { scrollRef, onScroll, scrollToBottom } = useChatScroll([messages, pendingQuestion]);
 
   // 클라이언트 로캘 기준의 세션 날짜.
   const today = new Date().toLocaleDateString("ko-KR", {
@@ -227,10 +259,36 @@ export function ChatView() {
         ...prev,
         { id: makeId(), role: "user", kind: "answer", citations: [], content: question },
       ]);
+
+      // 다이어그램(UML/ERD/의존성) 요청이면 텍스트 답변 대신 스튜디오 산출물로
+      // 생성하고 가운데 "뷰어" 탭에서 열어 정식 다이어그램으로 보여준다.
+      const diagram = detectDiagramIntent(question);
+      if (diagram) {
+        const label = DIAGRAM_LABELS[diagram];
+        void generateArtifact(diagram, selectedSourceIdList).then((created) => {
+          // 성공 시 store가 뷰어 탭으로 전환하므로 별도 안내가 필요 없다.
+          // 실패 시에는 채팅에 안내 메시지를 남긴다(이 경로에선 탭 전환이 없다).
+          if (!created) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: makeId(),
+                role: "assistant",
+                kind: "notice",
+                citations: [],
+                animate: false,
+                content: `${label} 생성에 실패했습니다. 잠시 후 다시 시도하거나 오른쪽 스튜디오에서 직접 생성해 주세요.`,
+              },
+            ]);
+          }
+        });
+        return;
+      }
+
       // 항상 큐에 넣고, 위의 단일 드레인 효과가 순차 처리한다(직접 실행 금지).
       setQueuedQuestions((prev) => [...prev, question]);
     },
-    [notebookId, query, scopeCount],
+    [generateArtifact, notebookId, query, scopeCount, selectedSourceIdList],
   );
 
   const stopCurrent = () => {
@@ -258,6 +316,70 @@ export function ChatView() {
     }
   };
 
+  // 지금까지의 대화를 마크다운 메모로 정리해 스튜디오에 저장한다.
+  // 저장된 메모는 "소스로 추가"로 임베딩되어 이후 답변의 근거(RAG)로도 쓸 수 있다.
+  const saveConversationAsNote = () => {
+    const real = messages.filter((m) => m.kind !== "notice");
+    if (real.length === 0) return;
+    const lines: string[] = [`# 대화 정리 — ${today}`, ""];
+    for (const m of real) {
+      if (m.role === "user") {
+        lines.push("## 질문", "", m.content.trim(), "");
+      } else {
+        lines.push("**답변**", "", m.content.trim(), "");
+        if (m.citations.length > 0) {
+          const refs = m.citations
+            .map((c) => (c.path ? c.path.split("/").pop() || c.path : c.sourceName))
+            .join(", ");
+          lines.push(`> 출처: ${refs}`, "");
+        }
+      }
+    }
+    const content = lines.join("\n");
+    void addNote({ title: `대화 정리 · ${today}`, content }).then((created) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          role: "assistant",
+          kind: "notice",
+          citations: [],
+          animate: false,
+          content: created
+            ? '이번 대화를 메모로 저장했습니다. 오른쪽 스튜디오에서 "소스로 추가"하면 임베딩되어 이후 답변의 근거로도 쓸 수 있어요.'
+            : "대화 메모 저장에 실패했습니다.",
+        },
+      ]);
+    });
+  };
+
+  // 센터 바의 초기화/메모저장 버튼은 store 신호(nonce)로 전달된다.
+  // 마운트 직후(초기 0값) 오작동을 막기 위해 첫 실행은 건너뛴다.
+  const resetSignalInit = useRef(true);
+  useEffect(() => {
+    if (resetSignalInit.current) {
+      resetSignalInit.current = false;
+      return;
+    }
+    resetConversation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetChatSignal]);
+
+  const saveSignalInit = useRef(true);
+  useEffect(() => {
+    if (saveSignalInit.current) {
+      saveSignalInit.current = false;
+      return;
+    }
+    saveConversationAsNote();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveChatSignal]);
+
+  // 센터 바 버튼의 활성/비활성 판단용으로 메시지 개수를 store에 공개한다.
+  useEffect(() => {
+    setChatMessageCount(messages.length);
+  }, [messages.length, setChatMessageCount]);
+
   // 마지막 사용자 질문으로 재생성.
   const regenerate = () => {
     if (sending) return;
@@ -275,46 +397,30 @@ export function ChatView() {
 
   return (
     <>
-      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
-        {/* 콘텐츠를 패널 폭 전체로 사용(중앙 정렬·max-width 제거, 좌우 패딩만). */}
-        <div className="w-full px-6 py-5">
+      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto scroll-smooth">
+        <div className="mx-auto w-full max-w-3xl px-6 py-5">
           {/* 헤더 카드 */}
-          <div className="rounded-[24px] border border-border/80 bg-card p-5.5 shadow-sm">
+          <div className="rounded-2xl border border-border/50 bg-card/80 p-5">
             <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/80 text-accent-foreground shadow-sm">
-                <Icon name="hub" size={18} />
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary">
+                <Icon name="hub" size={16} />
               </span>
               <div className="min-w-0 flex-1">
-                <h1 className="truncate text-[15.5px] font-bold tracking-tight text-foreground/90">RepoLM 대화</h1>
-                <p className="mt-0.5 truncate text-[11.5px] font-medium text-muted-foreground/85">
+                <h1 className="truncate text-[15px] font-semibold tracking-tight">RepoLM 대화</h1>
+                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                   소스 {sourceCount}개 연결됨 · {today}
                 </p>
               </div>
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent/90 px-3 py-1 text-[11.5px] font-bold text-accent-foreground">
-                <Icon name="check_circle" size={12.5} />
-                {scopeCount}개 기준
-              </span>
-              {/* 대화 초기화: 현재 노트북의 화면 메시지와 입력 초안을 비운다. */}
-              <Button
-                variant="outline"
-                size="xs"
-                icon="delete"
-                onClick={resetConversation}
-                disabled={messages.length === 0 && query.trim().length === 0}
-                title="대화 초기화"
-                aria-label="대화 초기화"
-              >
-                초기화
-              </Button>
+              {/* 기준/초기화/메모저장 컨트롤은 상단 탭 바(center-panel)로 이동했다. */}
             </div>
-            <p className="mt-3.5 text-[13.5px] leading-relaxed text-muted-foreground/90 font-medium">
+            <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
               연결된 저장소·문서를 근거로 질문에 답하고, 코드와 문서가 어긋난 부분을 찾습니다.
               답변에는 항상 출처(파일·라인)가 따라옵니다.
             </p>
           </div>
 
           {loadingHistory || historyError ? (
-            <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-border bg-surface-raised px-3 py-2 text-[11.5px] text-muted-foreground">
+            <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-border/50 bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
               <Icon
                 name={loadingHistory ? "progress_activity" : "report"}
                 size={13}
@@ -338,7 +444,7 @@ export function ChatView() {
                     type="button"
                     onClick={() => send(q)}
                     disabled={scopeCount === 0}
-                    className="transition-all duration-200 ease-in-out group flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5 text-left text-[13px] text-foreground hover:border-primary/40 hover:bg-secondary hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
+                    className="transition-all duration-150 group flex w-full items-center gap-3 rounded-xl border border-border/40 bg-card/50 px-3.5 py-2.5 text-left text-[13px] text-foreground hover:border-primary/30 hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <span className="flex-1 leading-snug">{q}</span>
                     <Icon
@@ -353,7 +459,7 @@ export function ChatView() {
           ) : null}
 
           {/* 대화 메시지 */}
-          <div className="mt-6 space-y-5">
+          <div className="mt-6 space-y-4">
             {messages.map((message) => (
               <ChatMessageView
                 key={message.id}
@@ -368,11 +474,11 @@ export function ChatView() {
 
             {/* 생각 중 표시(점 애니메이션). */}
             {sending && pendingQuestion ? (
-              <div className="transition-all duration-200 flex items-center gap-2.5 text-[12.5px] text-muted-foreground">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
-                  <Icon name="hub" size={15} />
+              <div className="transition-all duration-200 flex items-center gap-2.5 text-[12px] text-muted-foreground animate-in fade-in slide-in-from-bottom-2">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                  <Icon name="hub" size={14} />
                 </span>
-                <div className="rounded-2xl rounded-tl-md border border-border bg-card px-3 py-2 shadow-sm">
+                <div className="rounded-2xl rounded-tl-md border border-border/50 bg-card/80 px-3 py-2">
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1" aria-hidden>
                       <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -403,8 +509,8 @@ export function ChatView() {
       </div>
 
       {/* 하단 입력바 - 중앙 플로팅 알약형 캡슐 */}
-      <div className="shrink-0 px-6 pb-6 pt-2">
-        <div className="mx-auto flex max-w-2xl w-full items-end gap-3 rounded-[32px] border border-border bg-card px-5 py-3 shadow-md focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-200">
+      <div className="shrink-0 px-4 pb-4 pt-2">
+        <div className="mx-auto flex max-w-2xl w-full items-end gap-2.5 rounded-3xl border border-border/50 bg-card/90 px-4 py-2.5 shadow-sm focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/15 transition-all duration-150 backdrop-blur-sm">
           <textarea
             rows={1}
             value={query}
@@ -422,11 +528,11 @@ export function ChatView() {
                 : "질문하거나 창작하세요"
             }
             aria-label="메시지 입력"
-            className="max-h-32 flex-1 resize-none self-center bg-transparent py-1.5 pl-1.5 text-[13px] leading-relaxed outline-none placeholder:text-muted-foreground/75 disabled:cursor-not-allowed"
+            className="max-h-32 flex-1 resize-none self-center bg-transparent py-1 pl-1 text-[13px] leading-relaxed outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed"
           />
           <div className="flex shrink-0 items-center gap-2 self-end pb-0.5">
             {scopeCount > 0 ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground/90 bg-secondary px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-full">
                 소스 {scopeCount}개
               </span>
             ) : null}
@@ -435,13 +541,13 @@ export function ChatView() {
               onClick={() => send()}
               disabled={!canSend}
               aria-label="보내기"
-              className="transition-all duration-200 ease-in-out grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:scale-105 hover:opacity-95 active:scale-95 disabled:opacity-35 disabled:hover:scale-100 disabled:active:scale-100"
+              className="transition-all duration-150 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:opacity-90 active:scale-95 disabled:opacity-30"
             >
               <Icon name="arrow_forward" size={16} />
             </button>
           </div>
         </div>
-        <p className="mt-2.5 w-full text-center text-[10.5px] font-medium text-muted-foreground/70">
+        <p className="mt-2 w-full text-center text-[10px] text-muted-foreground/50">
           RepoLM의 답변은 부정확할 수 있으니 반드시 출처를 확인하세요.
         </p>
       </div>
