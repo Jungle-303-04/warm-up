@@ -425,8 +425,9 @@ function Write() {
             <>
               <textarea
                 className="thin-transparent-scrollbar h-36 w-full resize-none overflow-y-auto rounded-md border border-gray-300 px-5 py-4 text-base leading-relaxed outline-none transition-colors placeholder:text-gray-300 focus:border-black"
+                maxLength={1500}
                 onChange={handleContentChange}
-                placeholder="게시글 내용을 입력하세요."
+                placeholder="게시글 내용을 입력하세요. 1500자 이내"
                 value={content}
               />
               <div className="mt-3 flex justify-end">
