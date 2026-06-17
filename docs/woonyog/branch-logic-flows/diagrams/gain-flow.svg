@@ -1,0 +1,258 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1750" height="1110" viewBox="0 0 1750 1110" role="img" aria-label="gain · AI 폰트 추천 로직 전체 흐름">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#4b5563" />
+    </marker>
+    <style>
+      .bg { fill: #ffffff; }
+      .title { font: 800 34px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #111827; }
+      .subtitle { font: 500 15px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #5b6472; }
+      .lane { stroke-width: 1.2; }
+      .lane.user { fill: #eef4ff; stroke: #7d96c7; }
+      .lane.frontend { fill: #f7f7f7; stroke: #a3a3a3; }
+      .lane.backend { fill: #f3f0ff; stroke: #9585c7; }
+      .lane.llm { fill: #effbf4; stroke: #70a982; }
+      .lane.rag { fill: #eef6ff; stroke: #74a5d8; }
+      .lane.mcp { fill: #fff5e8; stroke: #d59b55; }
+      .lane.db { fill: #f4f4f5; stroke: #8e8e8e; }
+      .laneTitle { font: 800 17px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #1f2937; }
+      .laneSub { font: 500 12px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #606a78; }
+      .card { stroke-width: 1.1; filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.10)); }
+      .card.user { fill: #f8fbff; stroke: #7d96c7; }
+      .card.frontend { fill: #ffffff; stroke: #a3a3a3; }
+      .card.backend { fill: #fbfaff; stroke: #9585c7; }
+      .card.llm { fill: #f7fff9; stroke: #70a982; }
+      .card.rag { fill: #f8fbff; stroke: #74a5d8; }
+      .card.mcp { fill: #fffaf2; stroke: #d59b55; }
+      .card.db { fill: #ffffff; stroke: #8e8e8e; }
+      .badge { fill: #2563eb; }
+      .badgeText { font: 800 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #ffffff; }
+      .cardTitle { font: 800 14px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #1f2937; }
+      .cardText { font: 500 12.5px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #374151; }
+      .arrow { stroke: #4b5563; stroke-width: 1.8; fill: none; }
+      .arrowLabelBg { fill: #ffffff; stroke: #d1d5db; }
+      .arrowLabel { font: 700 11px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #374151; }
+      .summaryBox { fill: #f9fafb; stroke: #cbd5e1; }
+      .summaryTitle { font: 800 14px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #1f2937; }
+      .summaryText { font: 500 12.5px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; fill: #4b5563; }
+    </style>
+  </defs>
+  <rect width="100%" height="100%" class="bg"/>
+  <text x="875" y="45" text-anchor="middle" class="title">gain · AI 폰트 추천 로직 전체 흐름</text>
+  <text x="875" y="72" text-anchor="middle" class="subtitle">사용자 글에 맞는 폰트를 추천하기까지 Agent, LLM, RAG, MCP가 상호작용하는 흐름</text>
+  <g>
+    <rect x="50" y="96" width="185" height="62" rx="10" class="lane user"/>
+    <text x="142.5" y="122" text-anchor="middle" class="laneTitle">User</text>
+    <text x="142.5" y="144" text-anchor="middle" class="laneSub">입력/확인</text>
+  </g>
+  <g>
+    <rect x="285" y="96" width="185" height="62" rx="10" class="lane frontend"/>
+    <text x="377.5" y="122" text-anchor="middle" class="laneTitle">Frontend</text>
+    <text x="377.5" y="144" text-anchor="middle" class="laneSub">화면/상태</text>
+  </g>
+  <g>
+    <rect x="520" y="96" width="185" height="62" rx="10" class="lane backend"/>
+    <text x="612.5" y="122" text-anchor="middle" class="laneTitle">Agent</text>
+    <text x="612.5" y="144" text-anchor="middle" class="laneSub">검증/분기/조립</text>
+  </g>
+  <g>
+    <rect x="780" y="96" width="185" height="62" rx="10" class="lane llm"/>
+    <text x="872.5" y="122" text-anchor="middle" class="laneTitle">LLM</text>
+    <text x="872.5" y="144" text-anchor="middle" class="laneSub">분석/생성</text>
+  </g>
+  <g>
+    <rect x="1035" y="96" width="185" height="62" rx="10" class="lane rag"/>
+    <text x="1127.5" y="122" text-anchor="middle" class="laneTitle">RAG / Search</text>
+    <text x="1127.5" y="144" text-anchor="middle" class="laneSub">검색/근거</text>
+  </g>
+  <g>
+    <rect x="1280" y="96" width="185" height="62" rx="10" class="lane mcp"/>
+    <text x="1372.5" y="122" text-anchor="middle" class="laneTitle">MCP Tool</text>
+    <text x="1372.5" y="144" text-anchor="middle" class="laneSub">도구/외부</text>
+  </g>
+  <g>
+    <rect x="1515" y="96" width="185" height="62" rx="10" class="lane db"/>
+    <text x="1607.5" y="122" text-anchor="middle" class="laneTitle">Database</text>
+    <text x="1607.5" y="144" text-anchor="middle" class="laneSub">영속 저장</text>
+  </g>
+  <g>
+    <path d="M 235 229 C 377.5 229, 377.5 229, 520 229" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="327.5" y="214" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="377.5" y="232" text-anchor="middle" class="arrowLabel">input</text>
+  </g>
+<g>
+    <path d="M 705 229 C 742.5 229, 742.5 256, 780 256" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="692.5" y="227.5" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="742.5" y="245.5" text-anchor="middle" class="arrowLabel">분석 요청</text>
+  </g>
+<g>
+    <path d="M 965 256 C 1000 256, 1000 229, 1035 229" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="950" y="227.5" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="1000" y="245.5" text-anchor="middle" class="arrowLabel">query</text>
+  </g>
+<g>
+    <path d="M 1220 229 C 1367.5 229, 1367.5 229, 1515 229" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="1317.5" y="214" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="1367.5" y="232" text-anchor="middle" class="arrowLabel">vector</text>
+  </g>
+<g>
+    <path d="M 1700 229 C 1110 229, 1110 454, 520 454" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="1060" y="326.5" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="1110" y="344.5" text-anchor="middle" class="arrowLabel">guide</text>
+  </g>
+<g>
+    <path d="M 705 229 C 992.5 229, 992.5 454, 1280 454" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="942.5" y="326.5" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="992.5" y="344.5" text-anchor="middle" class="arrowLabel">후보 요청</text>
+  </g>
+<g>
+    <path d="M 1465 454 C 992.5 454, 992.5 454, 520 454" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="942.5" y="439" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="992.5" y="457" text-anchor="middle" class="arrowLabel">후보 목록</text>
+  </g>
+<g>
+    <path d="M 705 454 C 742.5 454, 742.5 454, 780 454" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="692.5" y="439" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="742.5" y="457" text-anchor="middle" class="arrowLabel">최종 선택</text>
+  </g>
+<g>
+    <path d="M 965 454 C 1122.5 454, 1122.5 679, 1280 679" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="1072.5" y="551.5" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="1122.5" y="569.5" text-anchor="middle" class="arrowLabel">font_id</text>
+  </g>
+<g>
+    <path d="M 1465 679 C 1490 679, 1490 679, 1515 679" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="1440" y="664" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="1490" y="682" text-anchor="middle" class="arrowLabel">SQL</text>
+  </g>
+<g>
+    <path d="M 1700 679 C 992.5 679, 992.5 843, 285 843" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="942.5" y="746" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="992.5" y="764" text-anchor="middle" class="arrowLabel">상세</text>
+  </g>
+<g>
+    <path d="M 470 843 C 260 843, 260 825, 50 825" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="210" y="819" width="100" height="24" rx="12" class="arrowLabelBg"/>
+    <text x="260" y="837" text-anchor="middle" class="arrowLabel">화면</text>
+  </g>
+  <g id="step-1">
+      <rect x="50" y="175" width="185" height="108" rx="12" class="card user"/>
+      <circle cx="72" cy="199" r="13" class="badge"/>
+      <text x="72" y="204" text-anchor="middle" class="badgeText">1</text>
+      <text x="93" y="204" class="cardTitle">글 입력</text>
+      <text x="68" y="231" class="cardText">오늘 마음이 조금 가라앉고...</text>
+<text x="68" y="267" class="cardText">preferred_tone 선택</text>
+    </g>
+<g id="step-2">
+      <rect x="520" y="175" width="185" height="108" rx="12" class="card backend"/>
+      <circle cx="542" cy="199" r="13" class="badge"/>
+      <text x="542" y="204" text-anchor="middle" class="badgeText">2</text>
+      <text x="563" y="204" class="cardTitle">Agent 시작</text>
+      <text x="538" y="231" class="cardText">run_recommend_agent</text>
+<text x="538" y="267" class="cardText">전체 추천 흐름 조립</text>
+    </g>
+<g id="step-3">
+      <rect x="780" y="175" width="185" height="162" rx="12" class="card llm"/>
+      <circle cx="802" cy="199" r="13" class="badge"/>
+      <text x="802" y="204" text-anchor="middle" class="badgeText">3</text>
+      <text x="823" y="204" class="cardTitle">글 분석</text>
+      <text x="798" y="231" class="cardText">emotion</text>
+<text x="798" y="267" class="cardText">visual_traits</text>
+<text x="798" y="303" class="cardText">writing_style</text>
+<text x="798" y="339" class="cardText">energy</text>
+<text x="798" y="375" class="cardText">keywords</text>
+    </g>
+<g id="step-4">
+      <rect x="1035" y="175" width="185" height="108" rx="12" class="card rag"/>
+      <circle cx="1057" cy="199" r="13" class="badge"/>
+      <text x="1057" y="204" text-anchor="middle" class="badgeText">4</text>
+      <text x="1078" y="204" class="cardTitle">query embedding</text>
+      <text x="1053" y="231" class="cardText">분석 결과 + 원문</text>
+<text x="1053" y="267" class="cardText">font_guides 검색</text>
+    </g>
+<g id="step-5">
+      <rect x="1515" y="175" width="185" height="108" rx="12" class="card db"/>
+      <circle cx="1537" cy="199" r="13" class="badge"/>
+      <text x="1537" y="204" text-anchor="middle" class="badgeText">5</text>
+      <text x="1558" y="204" class="cardTitle">ChromaDB</text>
+      <text x="1533" y="231" class="cardText">font_guides</text>
+<text x="1533" y="247" class="cardText">collection</text>
+<text x="1533" y="267" class="cardText">Top 3 guide 반환</text>
+    </g>
+<g id="step-6">
+      <rect x="1280" y="400" width="185" height="108" rx="12" class="card mcp"/>
+      <circle cx="1302" cy="424" r="13" class="badge"/>
+      <text x="1302" y="429" text-anchor="middle" class="badgeText">6</text>
+      <text x="1323" y="429" class="cardTitle">후보 폰트 조회</text>
+      <text x="1298" y="456" class="cardText">list_candidate_fonts</text>
+<text x="1298" y="492" class="cardText">PostgreSQL fonts</text>
+    </g>
+<g id="step-7">
+      <rect x="520" y="400" width="185" height="108" rx="12" class="card backend"/>
+      <circle cx="542" cy="424" r="13" class="badge"/>
+      <text x="542" y="429" text-anchor="middle" class="badgeText">7</text>
+      <text x="563" y="429" class="cardTitle">근거 조립</text>
+      <text x="538" y="456" class="cardText">RAG context</text>
+<text x="538" y="492" class="cardText">후보 폰트 목록</text>
+    </g>
+<g id="step-8">
+      <rect x="780" y="400" width="185" height="108" rx="12" class="card llm"/>
+      <circle cx="802" cy="424" r="13" class="badge"/>
+      <text x="802" y="429" text-anchor="middle" class="badgeText">8</text>
+      <text x="823" y="429" class="cardTitle">최종 폰트 선택</text>
+      <text x="798" y="456" class="cardText">후보 id만 허용</text>
+<text x="798" y="492" class="cardText">reason/display_reason</text>
+    </g>
+<g id="step-9">
+      <rect x="1280" y="625" width="185" height="108" rx="12" class="card mcp"/>
+      <circle cx="1302" cy="649" r="13" class="badge"/>
+      <text x="1302" y="654" text-anchor="middle" class="badgeText">9</text>
+      <text x="1323" y="654" class="cardTitle">폰트 상세 조회</text>
+      <text x="1298" y="681" class="cardText">get_font_detail_by_id</text>
+<text x="1298" y="717" class="cardText">선택 font_id</text>
+    </g>
+<g id="step-10">
+      <rect x="1515" y="625" width="185" height="108" rx="12" class="card db"/>
+      <circle cx="1537" cy="649" r="13" class="badge"/>
+      <text x="1537" y="654" text-anchor="middle" class="badgeText">10</text>
+      <text x="1558" y="654" class="cardTitle">Font DB</text>
+      <text x="1533" y="681" class="cardText">license/tags/webfonts</text>
+<text x="1533" y="717" class="cardText">download_url</text>
+    </g>
+<g id="step-11">
+      <rect x="285" y="780" width="185" height="126" rx="12" class="card frontend"/>
+      <circle cx="307" cy="804" r="13" class="badge"/>
+      <text x="307" y="809" text-anchor="middle" class="badgeText">11</text>
+      <text x="328" y="809" class="cardTitle">추천 결과 반환</text>
+      <text x="303" y="836" class="cardText">analysis</text>
+<text x="303" y="872" class="cardText">selection</text>
+<text x="303" y="908" class="cardText">font detail</text>
+    </g>
+<g id="step-12">
+      <rect x="50" y="780" width="185" height="90" rx="12" class="card user"/>
+      <circle cx="72" cy="804" r="13" class="badge"/>
+      <text x="72" y="809" text-anchor="middle" class="badgeText">12</text>
+      <text x="93" y="809" class="cardTitle">결과 확인</text>
+      <text x="68" y="836" class="cardText">추천 폰트와 설명 확인</text>
+    </g>
+  <g>
+      <rect x="50" y="1000" width="330" height="74" rx="12" class="summaryBox"/>
+      <text x="68" y="1028" class="summaryTitle">사용자</text>
+      <text x="68" y="1054" class="summaryText">추천받을 글과 선호 톤 입력</text>
+    </g>
+<g>
+      <rect x="395" y="1000" width="330" height="74" rx="12" class="summaryBox"/>
+      <text x="413" y="1028" class="summaryTitle">Agent</text>
+      <text x="413" y="1054" class="summaryText">LLM, RAG, MCP 호출 순서를 조립</text>
+    </g>
+<g>
+      <rect x="740" y="1000" width="330" height="74" rx="12" class="summaryBox"/>
+      <text x="758" y="1028" class="summaryTitle">RAG</text>
+      <text x="758" y="1054" class="summaryText">폰트 선택 가이드 근거 검색</text>
+    </g>
+<g>
+      <rect x="1085" y="1000" width="330" height="74" rx="12" class="summaryBox"/>
+      <text x="1103" y="1028" class="summaryTitle">MCP</text>
+      <text x="1103" y="1054" class="summaryText">DB 폰트 후보와 상세 조회</text>
+    </g>
+</svg>
