@@ -13,9 +13,8 @@ from collections.abc import Callable
 
 from app.repo_rag.application.service import RepoRagSyncService
 from app.repo_rag.application.types import UowFactory
-
-
 from app.repo_rag.application.worker_stages import PipelineStageProcessor
+
 
 class StageJobPoller:
     def __init__(
@@ -35,9 +34,8 @@ class StageJobPoller:
         if claimed is None:
             return None
 
-        with contextlib.suppress(Exception):
-            with self._uow_factory() as uow:
-                self._processor.process(claimed.id, uow)
+        with contextlib.suppress(Exception), self._uow_factory() as uow:
+            self._processor.process(claimed.id, uow)
         return claimed.id
 
     def run_forever(self, should_stop: Callable[[], bool] | None = None) -> None:

@@ -1,5 +1,6 @@
 import math
 import re
+
 from app.repo_rag.domain.ports import EmbeddingClient
 from app.repo_rag.domain.retrieval import SearchHit, fuse_scores, rank_fused
 from app.repo_rag.infrastructure.in_memory_store import InMemoryRepoRagStore
@@ -14,7 +15,7 @@ def _tokenize(text: str) -> set[str]:
 def _cosine_similarity(v1: list[float], v2: list[float]) -> float:
     if len(v1) != len(v2) or not v1 or not v2:
         return 0.0
-    dot_product = sum(a * b for a, b in zip(v1, v2))
+    dot_product = sum(a * b for a, b in zip(v1, v2, strict=False))
     norm_a = math.sqrt(sum(a * a for a in v1))
     norm_b = math.sqrt(sum(b * b for b in v2))
     if norm_a == 0.0 or norm_b == 0.0:

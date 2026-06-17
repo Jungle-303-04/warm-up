@@ -1,5 +1,6 @@
 import logging
 from typing import Protocol
+
 from app.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,10 @@ class RealGitHubAppConfigVerifier:
         client_secret = self._settings.github_oauth_client_secret
 
         if not client_id or not client_secret:
-            logger.warning("GitHub OAuth 설정 누락: GITHUB_OAUTH_CLIENT_ID 또는 CLIENT_SECRET 미설정")
+            logger.warning(
+                "GitHub OAuth 설정 누락: "
+                "GITHUB_OAUTH_CLIENT_ID 또는 CLIENT_SECRET 미설정"
+            )
             return False
 
         logger.info("GitHub App 및 OAuth 설정 확인 완료")

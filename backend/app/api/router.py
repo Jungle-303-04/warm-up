@@ -6,8 +6,8 @@ from app.github.api.router import router as github_router
 from app.health.api.router import router as health_router
 from app.link_metadata.api.router import router as link_metadata_router
 from app.notebooks.api.router import router as notebooks_router
-from app.pipeline.api.router import router as pipeline_router
-from app.proposals.api.router import router as proposals_router
+from app.pipeline.router import router as pipeline_router
+from app.proposals.router import router as proposals_router
 from app.repo_rag.api.router import router as repo_rag_router
 
 api_router = APIRouter()

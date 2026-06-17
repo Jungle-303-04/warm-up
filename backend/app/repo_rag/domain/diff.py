@@ -1,4 +1,4 @@
-from app.pipeline.api.schemas import RepoSnapshot
+from app.pipeline.router import RepoSnapshot
 from app.repo_rag.api.schemas import RepoFileChange
 from app.repo_rag.domain.identity import file_hash
 from app.repo_rag.domain.records import FileRecord

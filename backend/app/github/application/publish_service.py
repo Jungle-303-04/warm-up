@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from app.github.domain.comment import format_proposal_comment
 from app.github.domain.ports import GitHubCommentClient
-from app.proposals.domain.records import ProposalRecord
+from app.proposals.domain import ProposalRecord
 
 
 @dataclass(slots=True)

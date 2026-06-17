@@ -7,7 +7,7 @@ DB에 의존하지 않으므로 단위테스트로 검증한다.
 
 from dataclasses import dataclass
 
-from app.pipeline.api.schemas import RetrievalChunk
+from app.pipeline.router import RetrievalChunk
 
 
 @dataclass(slots=True)

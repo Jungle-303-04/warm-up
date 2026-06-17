@@ -1,4 +1,4 @@
-from app.pipeline.api.schemas import (
+from app.pipeline.router import (
     DEFAULT_BRANCH,
     DEFAULT_REPO,
     AgentProposal,
@@ -12,8 +12,8 @@ from app.pipeline.api.schemas import (
     RetrievalChunk,
     StageResult,
 )
-from app.pipeline.application.service import PipelineService
-from app.pipeline.domain.stages import (
+from app.pipeline.service import PipelineService
+from app.pipeline.domain import (
     AGENT_PROPOSAL,
     ALL,
     APPROVAL,

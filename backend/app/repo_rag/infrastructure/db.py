@@ -4,10 +4,10 @@
 설정됐을 때)만 lazy하게 import 되도록 호출부를 구성한다.
 """
 
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-import threading
 
 from sqlalchemy import DateTime, create_engine
 from sqlalchemy.engine import Engine

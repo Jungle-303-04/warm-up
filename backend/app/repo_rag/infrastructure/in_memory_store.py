@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
+from app.pipeline.router import RepoSnapshot, RetrievalChunk
 from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest, SyncJobStatus
 from app.repo_rag.domain.identity import (
     file_hash,
@@ -102,7 +102,7 @@ class InMemoryRepoRagStore:
         job = self.get_job(job_id)
         from typing import cast
         job.status = cast(SyncJobStatus, status)
-        self.record_event(job.id, f"status_changed", f"job status changed to {status}")
+        self.record_event(job.id, "status_changed", f"job status changed to {status}")
         return job
 
     def get_job(self, job_id: str) -> SyncJobRecord:

@@ -2,7 +2,7 @@ import ast
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
+from app.pipeline.router import RepoSnapshot, RetrievalChunk
 from app.repo_rag.api.schemas import RepoFileChange
 from app.repo_rag.domain.chunk_identity import (
     ChunkDraft,

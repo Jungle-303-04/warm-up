@@ -1,6 +1,6 @@
 """승인된 제안을 GitHub 코멘트 마크다운으로 변환 (순수 로직)."""
 
-from app.proposals.domain.records import ProposalRecord
+from app.proposals.domain import ProposalRecord
 
 
 def format_proposal_comment(record: ProposalRecord) -> str:

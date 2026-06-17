@@ -1,8 +1,6 @@
-import os
 import subprocess
 from pathlib import Path
 from typing import Protocol
-from urllib.parse import urlparse
 
 GIT_TIMEOUT = 30
 

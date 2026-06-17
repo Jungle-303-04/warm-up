@@ -8,9 +8,9 @@ cascade — DB FK ON DELETE CASCADE와 동작을 맞춘다).
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.api.errors import EntityNotFoundError
 from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import ChatMessageRecord, NotebookRecord, SourceRecord
-from app.api.errors import EntityNotFoundError
 from app.notebooks.infrastructure.mappers import (
     chat_message_to_model,
     chat_message_to_record,

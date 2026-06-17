@@ -1,14 +1,13 @@
 import logging
-import sys
 from typing import Protocol
+
+from app.pipeline.service import RepoSyncPort
+from app.pipeline.domain import AgentProposalService, CodeIndexService
+from app.repo_rag.application.indexing import IndexingService
 from app.repo_rag.application.unit_of_work import UnitOfWork
 from app.repo_rag.domain.diff import RepoDiffService
-from app.repo_rag.application.indexing import IndexingService
-from app.repository_source import RepoSyncService
-from app.pipeline.domain.agent import AgentProposalService
-from app.pipeline.domain.code_index import CodeIndexService
-from app.pipeline.application.service import RepoSyncPort
 from app.repo_rag.domain.ports import EmbeddingClient
+from app.repository_source import RepoSyncService
 
 logger = logging.getLogger(__name__)
 

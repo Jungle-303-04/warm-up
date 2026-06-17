@@ -7,7 +7,7 @@
 
 from functools import lru_cache
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 
 from app.config import Settings, get_settings
 from app.repo_rag.application.service import RepoRagSyncService

@@ -7,7 +7,7 @@
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
-from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
+from app.pipeline.router import RepoSnapshot, RetrievalChunk
 from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest
 from app.repo_rag.domain.records import (
     ChunkRecord,

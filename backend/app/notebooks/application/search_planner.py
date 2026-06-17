@@ -6,7 +6,7 @@
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 # ---- 코드 식별자 추출 패턴 ---- #

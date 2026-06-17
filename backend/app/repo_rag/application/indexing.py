@@ -6,7 +6,7 @@ embedder가 없으면 임베딩 없이(None) 청크만 만든다(in-memory 경�
 
 from dataclasses import dataclass, field
 
-from app.pipeline.api.schemas import RepoSnapshot
+from app.pipeline.router import RepoSnapshot
 from app.repo_rag.api.schemas import RepoFileChange
 from app.repo_rag.domain.chunking import ChunkingService
 from app.repo_rag.domain.ports import EmbeddingClient

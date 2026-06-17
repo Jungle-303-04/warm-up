@@ -148,10 +148,7 @@ def _contains_any(text_lower: str, keywords: frozenset[str]) -> bool:
     (예: '에러가' → '에러' 토큰으로 분리되지 않음).
     따라서 모든 키워드를 부분 문자열 매칭으로 검사한다.
     """
-    for kw in keywords:
-        if kw in text_lower:
-            return True
-    return False
+    return any(kw in text_lower for kw in keywords)
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +213,4 @@ def should_skip_rag(intent: IntentType, *, has_sources: bool = True) -> bool:
     """
     if intent == IntentType.CONVERSATIONAL:
         return True
-    if intent == IntentType.GENERAL_KNOWLEDGE and not has_sources:
-        return True
-    return False
+    return bool(intent == IntentType.GENERAL_KNOWLEDGE and not has_sources)

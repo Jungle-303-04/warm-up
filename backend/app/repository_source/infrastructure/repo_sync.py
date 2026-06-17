@@ -2,18 +2,17 @@ import os
 import subprocess
 from hashlib import sha1
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from urllib.parse import unquote, urlparse
 
-from app.pipeline.api.schemas import (
+from app.pipeline.router import (
     DEFAULT_BRANCH,
     DEFAULT_REPO,
     PipelineRequest,
     RepoFile,
     RepoSnapshot,
 )
+from app.repository_source.fetcher import GitSubprocessFetcher, RepositoryFetcher
 from app.validation import required_text
-from app.repository_source.fetcher import RepositoryFetcher, GitSubprocessFetcher
 
 MAX_BYTES = 200_000
 ALLOW_FILE_URL = "REPOLM_ALLOW_FILE_REPOSITORY_URL"

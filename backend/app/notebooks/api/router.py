@@ -10,7 +10,6 @@ from app.notebooks.api.schemas import (
     ArtifactListResponse,
     ArtifactView,
     ChatMessageListResponse,
-    ChatMessageView,
     ChatRequest,
     ChatResponse,
     CreateNotebookRequest,
@@ -25,21 +24,20 @@ from app.notebooks.api.schemas import (
     SourceDetailView,
     SourceListResponse,
     SourceView,
-    TreeNode,
     TreeResponse,
     UpdateArtifactRequest,
     UpdateNotebookRequest,
 )
 from app.notebooks.application.artifact_service import ArtifactService
-from app.notebooks.application.chat_service import ChatService, ChatResult
+from app.notebooks.application.chat_service import ChatResult, ChatService
 from app.notebooks.application.indexing_service import IndexingService
 from app.notebooks.application.service import NotebookService
-from app.notebooks.domain.records import NotebookRecord, SourceRecord, ChatMessageRecord
 from app.notebooks.domain.artifact_records import ArtifactRecord
 from app.notebooks.domain.indexing_progress import (
     IndexProgressRegistry,
     get_progress_registry,
 )
+from app.notebooks.domain.records import NotebookRecord, SourceRecord
 
 router = APIRouter()
 

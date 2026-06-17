@@ -2,7 +2,7 @@ import json
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
-from app.api.errors import http_error
+from app.api.errors import EntityNotFoundError, http_error
 from app.api.responses import BAD_REQUEST_RESPONSE
 from app.auth.dependencies import get_current_claims
 from app.config import Settings, get_settings
@@ -16,8 +16,7 @@ from app.github.application.webhook_service import GitHubWebhookService
 from app.github.dependencies import get_comment_client, get_webhook_service
 from app.github.domain.ports import GitHubCommentClient
 from app.github.domain.signature import verify_signature
-from app.proposals.application.service import ProposalReviewService
-from app.api.errors import EntityNotFoundError
+from app.proposals.service import ProposalReviewService
 
 router = APIRouter()
 

@@ -12,9 +12,17 @@ md/text/pdf 소스는 각각 마크다운 청커/텍스트 분할기로 처리�
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from fastapi import Depends
+
+from app.notebooks.dependencies import (
+    get_chunk_store,
+    get_embedding_client,
+    get_notebook_store,
+    get_progress_registry_dep,
+)
 from app.notebooks.domain.chunk_records import NotebookChunk
 from app.notebooks.domain.indexing_progress import (
     FileProgress,
@@ -24,16 +32,9 @@ from app.notebooks.domain.indexing_progress import (
 from app.notebooks.domain.ports import ChunkStore, NotebookStore
 from app.notebooks.domain.records import SourceRecord
 from app.repo_rag.domain.ports import EmbeddingClient
-from fastapi import Depends
-from app.notebooks.dependencies import (
-    get_notebook_store,
-    get_chunk_store,
-    get_embedding_client,
-    get_progress_registry_dep,
-)
 
 if TYPE_CHECKING:
-    from app.repository_source.infrastructure.repo_sync import RepoSyncService
+    pass
 
 
 def get_clock() -> Callable[[], datetime]:
@@ -60,8 +61,8 @@ class IndexingService:
     chunk_store: ChunkStore = Depends(get_chunk_store)
     embedder: EmbeddingClient = Depends(get_embedding_client)
     registry: IndexProgressRegistry = Depends(get_progress_registry_dep)
-    clock: Callable[[], datetime] = Depends(get_clock)
-    id_factory: Callable[[], str] = Depends(get_id_factory)
+    clock: Any = Depends(get_clock)
+    id_factory: Any = Depends(get_id_factory)
 
     def __post_init__(self) -> None:
         from fastapi.params import Depends as DependsClass
@@ -144,7 +145,7 @@ class IndexingService:
         # 무거운 의존성은 함수 내 지연 import.
         from subprocess import CalledProcessError
 
-        from app.pipeline.api.schemas import DEFAULT_BRANCH, PipelineRequest
+        from app.pipeline.router import DEFAULT_BRANCH, PipelineRequest
 
         try:
             snapshot = self.repo_sync.sync(

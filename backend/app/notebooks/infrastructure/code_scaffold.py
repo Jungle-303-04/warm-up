@@ -47,7 +47,7 @@ def _name_of(node: ast.AST) -> str:
         return node.attr
     try:
         return ast.unparse(node)
-    except Exception:  # noqa: BLE001 - 복원 실패는 빈 문자열로 흡수
+    except Exception:
         return ""
 
 

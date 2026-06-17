@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
-from app.pipeline.domain.stages import REPO_SYNC
+from app.pipeline.domain import REPO_SYNC
 
 StopPredicate = Callable[[], bool]
 
@@ -60,7 +60,6 @@ def build_worker(
     *,
     sync_worker_factory: Callable[[], Worker] | None = None,
 ) -> Worker:
-    from app.pipeline.domain.stages import REPO_SYNC
 
     if kind == REPO_SYNC and sync_worker_factory is not None:
         return sync_worker_factory()
@@ -68,11 +67,11 @@ def build_worker(
     if kind != REPO_SYNC:
         return HeartbeatWorker(kind=kind)
 
-    from app.repo_rag.application.worker_stages import RepoSyncStageProcessor
-    from app.repo_rag.poller import StageJobPoller
     from app.config import get_settings
+    from app.repo_rag.application.worker_stages import RepoSyncStageProcessor
     from app.repo_rag.infrastructure.db import create_db_engine, create_session_factory
     from app.repo_rag.infrastructure.sql_unit_of_work import SqlUnitOfWork
+    from app.repo_rag.poller import StageJobPoller
 
     settings = get_settings()
     if not settings.uses_postgres or settings.postgres_database_url is None:

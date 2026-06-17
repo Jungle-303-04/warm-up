@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from app.pipeline.api.schemas import RetrievalChunk
+from app.pipeline.router import RetrievalChunk
 from app.repo_rag.api.schemas import (
     RepoRagSyncRequest,
     SyncEventView,

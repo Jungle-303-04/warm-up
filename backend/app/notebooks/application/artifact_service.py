@@ -13,11 +13,19 @@
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from uuid import uuid4
 from typing import Any
+from uuid import uuid4
 
+from fastapi import Depends
+
+from app.config import Settings, get_settings
+from app.notebooks.dependencies import (
+    get_artifact_generator,
+    get_artifact_store,
+    get_notebook_store,
+)
 from app.notebooks.domain.artifact_ports import (
     ArtifactContext,
     ArtifactStore,
@@ -27,9 +35,6 @@ from app.notebooks.domain.artifact_ports import (
 from app.notebooks.domain.artifact_records import ArtifactRecord, ArtifactType
 from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import SourceRecord
-from app.config import Settings, get_settings
-from fastapi import Depends
-from app.notebooks.dependencies import get_notebook_store, get_artifact_store, get_artifact_generator
 
 # 컨텍스트 수집 상한의 "기본값". 실제 값은 Settings(.env)로 주입되며, 아래 상수는
 # 설정이 없을 때(직접 호출/단위 테스트)의 폴백 기본값으로만 쓰인다.
@@ -58,12 +63,12 @@ def get_id_factory() -> Callable[[], str]:
 
 @dataclass
 class ArtifactService:
-    store: NotebookStore = Depends(get_notebook_store)
-    artifact_store: ArtifactStore = Depends(get_artifact_store)
-    generator: LlmArtifactGenerator = Depends(get_artifact_generator)
-    settings: Settings = Depends(get_settings)
-    clock: Any = Depends(get_clock)
-    id_factory: Any = Depends(get_id_factory)
+    store: NotebookStore = Depends(get_notebook_store)  # noqa: RUF009
+    artifact_store: ArtifactStore = Depends(get_artifact_store)  # noqa: RUF009
+    generator: LlmArtifactGenerator = Depends(get_artifact_generator)  # noqa: RUF009
+    settings: Settings = Depends(get_settings)  # noqa: RUF009
+    clock: Any = Depends(get_clock)  # noqa: RUF009
+    id_factory: Any = Depends(get_id_factory)  # noqa: RUF009
 
     def __post_init__(self) -> None:
         from fastapi.params import Depends as DependsClass
@@ -185,7 +190,11 @@ class ArtifactService:
                         ArtifactContext(
                             source_id=source.id,
                             source_title=source.title,
-                            text=(entry.get("content") or "")[:self.settings.artifact_max_file_chars],
+                            text=(
+                        (entry.get("content") or "")[
+                            :self.settings.artifact_max_file_chars
+                        ]
+                    ),
                             path=path,
                             language=_language_of(path),
                         )

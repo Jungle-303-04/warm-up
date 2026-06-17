@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from app.pipeline.api.schemas import PipelineRequest
+from app.pipeline.router import PipelineRequest
 from app.repo_rag.api.schemas import RepoRagSyncRequest, SyncTriggerType
 from app.repo_rag.domain.records import SyncJobRecord
 from app.repo_rag.infrastructure.store import RepoRagStore

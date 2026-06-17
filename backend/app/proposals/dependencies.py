@@ -10,11 +10,11 @@ from functools import lru_cache
 from fastapi import Depends
 
 from app.config import Settings, get_settings
-from app.pipeline.application.service import PipelineService
+from app.pipeline.service import PipelineService
 from app.pipeline.dependencies import build_llm_proposer
-from app.pipeline.domain.agent import AgentProposalService
-from app.proposals.domain.ports import ProposalStore
-from app.proposals.infrastructure.in_memory_store import InMemoryProposalStore
+from app.pipeline.domain import AgentProposalService
+from app.proposals.ports import ProposalStore
+from app.proposals.stores import InMemoryProposalStore
 
 
 @lru_cache(maxsize=1)
@@ -28,7 +28,7 @@ def _sql_store() -> ProposalStore:
     if settings.postgres_database_url is None:
         raise RuntimeError("POSTGRES_DATABASE_URL is required for SQL storage")
 
-    from app.proposals.infrastructure.sql_store import SqlProposalStore
+    from app.proposals.stores import SqlProposalStore
     from app.repo_rag.infrastructure.db import get_shared_session_factory
 
     session_factory = get_shared_session_factory(settings.postgres_database_url)

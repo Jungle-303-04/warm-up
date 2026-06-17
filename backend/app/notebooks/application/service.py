@@ -6,23 +6,25 @@
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from subprocess import CalledProcessError
+from typing import Any
 from uuid import uuid4
 
-from app.api.errors import DomainValidationError, EntityNotFoundError
+from fastapi import Depends
 
+from app.api.errors import DomainValidationError, EntityNotFoundError
+from app.notebooks.dependencies import get_notebook_store
 from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import (
     NotebookRecord,
     SourceKind,
     SourceRecord,
 )
-from app.pipeline.api.schemas import DEFAULT_BRANCH, PipelineRequest
+from app.pipeline.router import DEFAULT_BRANCH, PipelineRequest
 from app.repository_source.infrastructure.repo_sync import RepoSyncService
-from fastapi import Depends
-from app.notebooks.dependencies import get_notebook_store
+
 
 def get_clock() -> Callable[[], datetime]:
     return lambda: datetime.now(UTC)
@@ -38,10 +40,10 @@ _CONTENT_KINDS = ("md", "text", "pdf")
 
 @dataclass
 class NotebookService:
-    store: NotebookStore = Depends(get_notebook_store)
-    repo_sync: RepoSyncService = Depends(lambda: RepoSyncService())
-    clock: Callable[[], datetime] = Depends(get_clock)
-    id_factory: Callable[[], str] = Depends(get_id_factory)
+    store: NotebookStore = Depends(get_notebook_store)  # noqa: RUF009
+    repo_sync: RepoSyncService = Depends(lambda: RepoSyncService())  # noqa: RUF009
+    clock: Any = Depends(get_clock)  # noqa: RUF009
+    id_factory: Any = Depends(get_id_factory)  # noqa: RUF009
 
     def __post_init__(self) -> None:
         from fastapi.params import Depends as DependsClass

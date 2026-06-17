@@ -7,7 +7,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.errors import EntityNotFoundError, DomainValidationError, DomainConflictError, DomainError
+from app.api.errors import (
+    DomainConflictError,
+    DomainValidationError,
+    EntityNotFoundError,
+)
 from app.api.router import api_router
 from app.config import get_settings
 
@@ -23,9 +27,10 @@ def check_database_connection() -> None:
 
 
 def check_github_app_configuration() -> None:
-    from app.github.verifier import RealGitHubAppConfigVerifier, MockGitHubAppConfigVerifier
+    from app.github.verifier import MockGitHubAppConfigVerifier, RealGitHubAppConfigVerifier
     settings = get_settings()
-    # local 또는 postgres가 활성화되지 않았을 때는 Mock 검증기, 상용 환경 등에서는 Real 검증기를 가동
+    # local 또는 postgres가 활성화되지 않았을 때는 Mock 검증기,
+    # 상용 환경 등에서는 Real 검증기를 가동
     if settings.repolm_env == "local":
         verifier = MockGitHubAppConfigVerifier()
     else:
@@ -119,7 +124,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     is_body_error = any(err.get("loc", []) and err.get("loc")[0] == "body" for err in errors)
 
     if is_body_error:
-        detail = errors[0].get("msg", "입력 데이터 유효성 검증 실패") if errors else "입력 데이터 유효성 검증 실패"
+        detail = (
+            errors[0].get("msg", "입력 데이터 유효성 검증 실패")
+            if errors
+            else "입력 데이터 유효성 검증 실패"
+        )
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": detail},

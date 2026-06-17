@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-from app.pipeline.api.schemas import (
+from app.pipeline.router import (
     DEFAULT_BRANCH,
     DEFAULT_REPO,
     PipelineRequest,

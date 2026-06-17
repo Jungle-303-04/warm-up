@@ -13,8 +13,8 @@ from datetime import datetime
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.pipeline.api.schemas import RepoSnapshot, RetrievalChunk
-from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest, SyncJobStatus
+from app.pipeline.router import RepoSnapshot, RetrievalChunk
+from app.repo_rag.api.schemas import RepoFileChange, RepoRagSyncRequest
 from app.repo_rag.domain.identity import (
     file_hash,
     hash_text,
@@ -147,7 +147,7 @@ class SqlRepoRagStore:
         with self._session() as session:
             job = self._require_job(session, job_id)
             job.status = status
-            self._add_event(session, job.id, f"status_changed", f"job status changed to {status}")
+            self._add_event(session, job.id, "status_changed", f"job status changed to {status}")
             session.flush()
             return _to_job_record(job)
 
