@@ -15,8 +15,16 @@ class ChatSessionCreateRequestDTO(BaseModel):
         return title or None
 
 
+class AgentRepositoryRefRequestDTO(BaseModel):
+    run_id: int | None = None
+    repository_full_name: str
+    branch: str | None = None
+    commit_sha: str | None = None
+
+
 class ChatSendMessageRequestDTO(BaseModel):
     content: str = Field(min_length=1)
+    repository_refs: list[AgentRepositoryRefRequestDTO] = Field(default_factory=list)
 
     @field_validator("content")
     @classmethod
@@ -55,4 +63,5 @@ class AgentInferredRepositoryRefDTO(BaseModel):
 
 class ChatSendMessageResponseDTO(ChatSessionDetailResponseDTO):
     processed_turns: int
-    inferred_repository_refs: list[AgentInferredRepositoryRefDTO] | None = None
+    repository_basis_changed: bool = False
+    inferred_repository_refs: list[AgentInferredRepositoryRefDTO] = Field(default_factory=list)

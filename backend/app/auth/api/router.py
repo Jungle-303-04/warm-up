@@ -36,7 +36,9 @@ DEFAULT_FRONTEND_CALLBACK_URL = "http://localhost:5173/auth/callback"
 FRONTEND_CALLBACK_URL_ENV = "GITHUB_OAUTH_FRONTEND_CALLBACK_URL"
 AUTH_REDIRECT_STATUS_CODE = status.HTTP_303_SEE_OTHER
 AUTH_COOKIE_SECURE_ENV = "AUTH_COOKIE_SECURE"
-AUTH_COOKIE_SAMESITE = "lax"
+AUTH_COOKIE_SAMESITE_ENV = "AUTH_COOKIE_SAMESITE"
+DEFAULT_AUTH_COOKIE_SAMESITE = "lax"
+SUPPORTED_COOKIE_SAMESITE_VALUES = {"lax", "strict", "none"}
 
 
 @auth.get(
@@ -146,7 +148,7 @@ def set_auth_cookie(response: Response, token_response: AuthTokenResponseDTO) ->
         max_age=token_response.expires_in,
         httponly=True,
         secure=is_auth_cookie_secure(),
-        samesite=AUTH_COOKIE_SAMESITE,
+        samesite=get_auth_cookie_samesite(),
         path="/",
     )
 
@@ -158,7 +160,7 @@ def clear_auth_cookie(response: Response) -> None:
         key=AUTH_COOKIE_NAME,
         httponly=True,
         secure=is_auth_cookie_secure(),
-        samesite=AUTH_COOKIE_SAMESITE,
+        samesite=get_auth_cookie_samesite(),
         path="/",
     )
 
@@ -174,3 +176,12 @@ def is_auth_cookie_secure() -> bool:
 
     value = os.getenv(AUTH_COOKIE_SECURE_ENV, "")
     return value.lower() in {"1", "true", "yes", "on"}
+
+
+def get_auth_cookie_samesite() -> str:
+    """프론트와 백엔드가 다른 도메인일 때 SameSite=None을 환경변수로 적용한다."""
+
+    value = os.getenv(AUTH_COOKIE_SAMESITE_ENV, DEFAULT_AUTH_COOKIE_SAMESITE).lower()
+    if value in SUPPORTED_COOKIE_SAMESITE_VALUES:
+        return value
+    return DEFAULT_AUTH_COOKIE_SAMESITE

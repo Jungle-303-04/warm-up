@@ -29,15 +29,6 @@ class ChatMessage:
 
 
 @dataclass(frozen=True)
-class ChatTurn:
-    """에이전트가 처리해야 하는 사용자 입력 한 건을 큐에 넣기 위한 작업 단위."""
-
-    session_id: str
-    user_message_id: str
-    user_input: str
-
-
-@dataclass(frozen=True)
 class InferredRepositoryRef:
     """agent가 이번 turn에서 답변 기준으로 추론한 분석 run 정보."""
 
@@ -48,11 +39,22 @@ class InferredRepositoryRef:
 
 
 @dataclass(frozen=True)
+class ChatTurn:
+    """에이전트가 처리해야 하는 사용자 입력 한 건을 큐에 넣기 위한 작업 단위."""
+
+    session_id: str
+    user_message_id: str
+    user_input: str
+    repository_refs: tuple[InferredRepositoryRef, ...] = ()
+
+
+@dataclass(frozen=True)
 class AgentTurnResult:
     """프론트에 보여줄 답변과 이번 turn의 추론 결과를 함께 담는다."""
 
     content: str
     inferred_repository_refs: list[InferredRepositoryRef] | None = None
+    repository_basis_changed: bool = False
 
 
 class TurnQueue(Iterator[ChatTurn]):

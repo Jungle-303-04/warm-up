@@ -1,4 +1,5 @@
 import {
+  AUTH_SESSION_HINT_STORAGE_KEY,
   CALLBACK_PATH,
   LEGACY_ACCESS_TOKEN_STORAGE_KEY,
   OAUTH_STATE_STORAGE_KEY,
@@ -15,4 +16,5 @@ export function clearCallbackUrl() {
 export function clearSession() {
   window.localStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
   window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_STORAGE_KEY)
+  window.localStorage.removeItem(AUTH_SESSION_HINT_STORAGE_KEY)
 }

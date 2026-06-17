@@ -182,31 +182,5 @@ class Chunker(Protocol):
     ) -> list[RagEvidenceChunkDTO]: ...
 
 
-class LlmClient(Protocol):
-    def answer_with_evidence(
-        self,
-        question: str,
-        documents: list[str],
-        metadatas: list[dict],
-    ) -> str: ...
-
-
-class PromptBuilder(Protocol):
-    def build_messages(
-        self,
-        question: str,
-        documents: list[str],
-        metadatas: list[dict],
-    ) -> list[dict[str, str]]: ...
-
-
-class EvidenceFormatter(Protocol):
-    def format(
-        self,
-        documents: list[str],
-        metadatas: list[dict],
-    ) -> str: ...
-
-
 class TextGenerator(Protocol):
     def generate(self, messages: list[dict[str, Any]]) -> str: ...

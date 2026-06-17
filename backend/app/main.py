@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.container import container
@@ -57,6 +58,22 @@ def unwire_container() -> None:
     container.unwire()
 
 
+def configure_cors(app: FastAPI) -> None:
+    """로컬 백엔드와 Vercel 프론트가 개발/시연 중 서로 API를 호출하게 허용한다."""
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
+        allow_origin_regex=r"https://.*\.vercel\.app",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """서버 시작 전 DB/벡터 DB 점검과 DI 연결을 수행하고 종료 시 wiring을 해제한다."""
@@ -72,6 +89,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(lifespan=lifespan)
+configure_cors(app)
 
 app.include_router(board_router_module.board, tags=["board"])
 app.include_router(auth_router_module.auth, tags=["auth"])

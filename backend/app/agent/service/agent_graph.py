@@ -1,6 +1,6 @@
-import re
-from typing import Any, Literal, TypedDict
+from typing import Any, TypedDict
 
+from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,50 @@ from app.agent.domain.chat import (
     ChatTurn,
     InferredRepositoryRef,
 )
+from app.agent.service.agent_intent import (
+    BASIS_MODE_CLEAR,
+    BASIS_MODE_REMOVE,
+    BASIS_MODE_REPLACE,
+    INTENT_CHANGE_BASIS,
+    INTENT_CLARIFY,
+    INTENT_GENERAL_CHAT,
+    INTENT_LIST_BRANCHES,
+    INTENT_LIST_REPOSITORIES,
+    INTENT_RAG_ANSWER,
+    INTENT_SHOW_BASIS,
+    AgentIntent,
+    BasisMode,
+    detect_basis_mode,
+    is_general_chat,
+    is_basis_change_request,
+    is_branch_list_question,
+    is_current_basis_question,
+    is_repository_list_question,
+    is_short_remove_request,
+    normalize_text,
+)
+from app.agent.service.intent_resolver import FALLBACK_REASON_PREFIX
+from app.agent.service.ports import IntentResolver, RepositoryPlanner, ToolCallingLlm
+from app.agent.service.rag_answer_prompt import (
+    build_answer_messages,
+    build_evidence_fallback_answer,
+    build_no_evidence_answer,
+    get_message_content,
+)
+from app.agent.service.repository_context import (
+    build_basis_changed_answer,
+    build_branch_list_answer,
+    build_clarification_answer,
+    build_current_basis_answer,
+    build_inferred_repository_ref,
+    build_next_basis_refs,
+    build_repository_list_answer,
+    get_latest_unique_runs_by_repository_branch,
+    resolve_runs_from_refs,
+    resolve_runs_from_recent_list_ordinal,
+    resolve_runs_from_text,
+    resolve_single_repository_fallback,
+)
 from app.rag.api.schema import (
     RagAskRepositoryRefDTO,
     RagAskRequestDTO,
@@ -19,36 +63,46 @@ from app.rag.api.schema import (
 from app.rag.service.ports import AnswerUseCase, RagStore
 
 
-AgentRoute = Literal["rag_answer", "direct_answer"]
-RAG_ANSWER_ROUTE: AgentRoute = "rag_answer"
-DIRECT_ANSWER_ROUTE: AgentRoute = "direct_answer"
-REPOSITORY_NAME_PATTERN = re.compile(r"[\w.-]+/[\w.-]+")
+GENERAL_CHAT_SYSTEM_PROMPT = (
+    "You are a Korean coding assistant for a code-trust kanban service. "
+    "Respond naturally and briefly. Do not invent repository facts. "
+    "If the user seems to need repository/code analysis, suggest asking for the repository list "
+    "or naming a repository."
+)
 
 
 class AgentGraphState(TypedDict, total=False):
-    # 큰 agent graph가 공유하는 작업 메모리다.
-    # 나중에 MCP action, board action, user confirmation state도 이 state에 추가한다.
+    # 각 노드가 다음 노드로 넘기는 작업 메모리다.
     db: Session
     session: ChatSession
     messages: list[ChatMessage]
     turn: ChatTurn
     latest_runs: list[Any]
-    inferred_repository_refs: list[InferredRepositoryRef] | None
-    route: AgentRoute
+    intent: AgentIntent
+    basis_mode: BasisMode
+    target_runs: list[Any]
+    final_refs: list[InferredRepositoryRef]
     rag_response: RagAskResponseDTO
     final_answer: str
+    repository_basis_changed: bool
 
 
 class AgentGraph:
-    """RAG, MCP, 보드 작업을 한 대화 흐름에서 조립할 상위 AI graph."""
+    """채팅 turn 하나를 SQL 메타데이터, 기준 변경, RAG 답변 흐름 중 하나로 보낸다."""
 
     def __init__(
         self,
         rag_answer_service: AnswerUseCase,
         sql_repository: RagStore,
+        tool_calling_llm: ToolCallingLlm,
+        repository_planner: RepositoryPlanner | None = None,
+        intent_resolver: IntentResolver | None = None,
     ) -> None:
         self.rag_answer_service = rag_answer_service
         self.sql_repository = sql_repository
+        self.tool_calling_llm = tool_calling_llm
+        self.repository_planner = repository_planner
+        self.intent_resolver = intent_resolver
         self.graph = self.build_graph()
 
     def run(
@@ -58,7 +112,7 @@ class AgentGraph:
         messages: list[ChatMessage],
         turn: ChatTurn,
     ) -> AgentTurnResult:
-        """사용자 turn 하나를 큰 agent graph에 태워 답변과 추론 결과를 반환한다."""
+        """사용자 입력을 graph에 태우고 최종 답변과 다음 답변 기준을 반환한다."""
 
         state = self.graph.invoke(
             {
@@ -70,247 +124,518 @@ class AgentGraph:
         )
         return AgentTurnResult(
             content=state["final_answer"],
-            inferred_repository_refs=state.get("inferred_repository_refs"),
+            inferred_repository_refs=state.get("final_refs"),
+            repository_basis_changed=state.get("repository_basis_changed", False),
         )
 
     def build_graph(self):
         graph = StateGraph(AgentGraphState)
 
-        # 현재 상위 graph는 최소 뼈대다.
-        # plan_turn은 나중에 LLM planner로 교체하고, call_rag_answer는 RAG LangGraph를 노드처럼 호출한다.
         graph.add_node("collect_repository_context", self.collect_repository_context)
-        graph.add_node("plan_turn", self.plan_turn)
-        graph.add_node("call_rag_answer", self.call_rag_answer)
-        graph.add_node("build_direct_answer", self.build_direct_answer)
+        graph.add_node("classify_intent", self.classify_intent)
+        graph.add_node("answer_repository_metadata", self.answer_repository_metadata)
+        graph.add_node("change_repository_basis", self.change_repository_basis)
+        graph.add_node("resolve_rag_basis", self.resolve_rag_basis)
+        graph.add_node("retrieve_rag", self.retrieve_rag)
+        graph.add_node("generate_answer", self.generate_answer)
+        graph.add_node("answer_general_chat", self.answer_general_chat)
+        graph.add_node("ask_clarification", self.ask_clarification)
 
         graph.set_entry_point("collect_repository_context")
-        graph.add_edge("collect_repository_context", "plan_turn")
+        graph.add_edge("collect_repository_context", "classify_intent")
         graph.add_conditional_edges(
-            "plan_turn",
-            self.route_after_plan,
+            "classify_intent",
+            route_intent,
             {
-                RAG_ANSWER_ROUTE: "call_rag_answer",
-                DIRECT_ANSWER_ROUTE: "build_direct_answer",
+                INTENT_LIST_REPOSITORIES: "answer_repository_metadata",
+                INTENT_LIST_BRANCHES: "answer_repository_metadata",
+                INTENT_SHOW_BASIS: "answer_repository_metadata",
+                INTENT_CHANGE_BASIS: "change_repository_basis",
+                INTENT_RAG_ANSWER: "resolve_rag_basis",
+                INTENT_GENERAL_CHAT: "answer_general_chat",
+                INTENT_CLARIFY: "ask_clarification",
             },
         )
-        graph.add_edge("call_rag_answer", END)
-        graph.add_edge("build_direct_answer", END)
+        graph.add_conditional_edges(
+            "resolve_rag_basis",
+            route_resolved_rag_basis,
+            {
+                "retrieve": "retrieve_rag",
+                "clarify": "ask_clarification",
+            },
+        )
+        graph.add_edge("retrieve_rag", "generate_answer")
+        graph.add_edge("answer_repository_metadata", END)
+        graph.add_edge("change_repository_basis", END)
+        graph.add_edge("generate_answer", END)
+        graph.add_edge("answer_general_chat", END)
+        graph.add_edge("ask_clarification", END)
 
         return graph.compile()
 
     def collect_repository_context(self, state: AgentGraphState) -> AgentGraphState:
-        """agent가 답변 기준을 고를 수 있도록 최근 분석 run을 SQL에서 가져온다."""
+        """SQL에 저장된 최신 레포/브랜치별 분석 run만 모아 다음 노드에 넘긴다."""
 
         return {
-            "latest_runs": [
-                run
-                for run in self.sql_repository.list_runs(state["db"], limit=50)
-                if run.repository_full_name
-            ],
+            "latest_runs": get_latest_unique_runs_by_repository_branch(
+                self.sql_repository.list_runs(state["db"], limit=100)
+            )
         }
 
-    def plan_turn(self, state: AgentGraphState) -> AgentGraphState:
-        """사용자 입력에서 답변에 쓸 레포/브랜치를 고른다.
+    def classify_intent(self, state: AgentGraphState) -> AgentGraphState:
+        """LLM으로 먼저 자연어 의도를 분류하고 실패할 때만 코드 helper로 보강한다."""
 
-        지금은 명시적 owner/repo, repo 이름, branch 문자열을 이용한 최소 추론이다.
-        TODO(agent): 이 노드를 LLM planner로 바꾸면 질문 의도, 여러 레포 선택,
-        MCP action 필요 여부, 사용자 재질문 여부를 함께 결정할 수 있다.
-        """
-
-        inferred_repository_refs = infer_repository_refs(
-            user_input=state["turn"].user_input,
-            runs=state.get("latest_runs", []),
-        )
-        if inferred_repository_refs:
-            return {
-                "inferred_repository_refs": inferred_repository_refs,
-                "route": RAG_ANSWER_ROUTE,
-            }
-
-        return {
-            "inferred_repository_refs": None,
-            "route": DIRECT_ANSWER_ROUTE,
-        }
-
-    def route_after_plan(self, state: AgentGraphState) -> AgentRoute:
-        """planner가 고른 route에 따라 RAG 답변 또는 직접 안내로 분기한다."""
-
-        return state.get("route", DIRECT_ANSWER_ROUTE)
-
-    def call_rag_answer(self, state: AgentGraphState) -> AgentGraphState:
-        """상위 agent graph 안에서 기존 RAG answer graph를 하나의 노드처럼 호출한다."""
-
-        rag_request = RagAskRequestDTO(
-            question=state["turn"].user_input,
-            repository_refs=[
-                to_rag_repository_ref(ref)
-                for ref in state.get("inferred_repository_refs") or []
-            ],
-            limit=5,
-        )
-        rag_response = self.rag_answer_service.answer(state["db"], rag_request)
-        return {
-            "rag_response": rag_response,
-            "final_answer": format_rag_agent_answer(rag_response),
-        }
-
-    def build_direct_answer(self, state: AgentGraphState) -> AgentGraphState:
-        """RAG 기준을 고르지 못했을 때 사용자에게 다음 입력 방법을 안내한다."""
-
+        user_input = state["turn"].user_input
         latest_runs = state.get("latest_runs", [])
-        if not latest_runs:
+        current_refs = list(state["turn"].repository_refs)
+        messages = state.get("messages", [])
+
+        intent_plan = self.resolve_intent_plan_with_llm(user_input, messages)
+        if not is_intent_resolver_fallback(intent_plan):
+            return self.build_intent_state(
+                intent=intent_plan.intent,
+                basis_mode=intent_plan.basis_mode or BASIS_MODE_REPLACE,
+                user_input=user_input,
+                latest_runs=latest_runs,
+                current_refs=current_refs,
+                messages=messages,
+            )
+
+        return self.classify_intent_with_code_fallback(
+            user_input=user_input,
+            latest_runs=latest_runs,
+            current_refs=current_refs,
+            messages=messages,
+        )
+
+    def classify_intent_with_code_fallback(
+        self,
+        user_input: str,
+        latest_runs: list[Any],
+        current_refs: list[InferredRepositoryRef],
+        messages: list[ChatMessage],
+    ) -> AgentGraphState:
+        """LLM intent 분류가 실패했을 때만 기존 키워드 helper로 최소 동작을 보장한다."""
+
+        if is_repository_list_question(user_input):
+            return {"intent": INTENT_LIST_REPOSITORIES}
+
+        if is_current_basis_question(user_input):
+            return {"intent": INTENT_SHOW_BASIS}
+
+        if is_general_chat(user_input):
+            return {"intent": INTENT_GENERAL_CHAT}
+
+        if is_short_follow_up_selection(user_input):
             return {
-                "final_answer": (
-                    "아직 답변에 사용할 레포지토리 분석 결과가 없습니다. "
-                    "먼저 레포지토리를 등록하고 분석해 주세요."
+                "intent": INTENT_CHANGE_BASIS,
+                "basis_mode": BASIS_MODE_REPLACE,
+                "target_runs": self.resolve_target_runs(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
                 ),
             }
 
-        examples = ", ".join(
-            format_run_choice(run)
-            for run in latest_runs[:3]
-        )
+        if is_branch_list_question(user_input):
+            return {
+                "intent": INTENT_LIST_BRANCHES,
+                "target_runs": self.resolve_target_runs(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
+                ),
+            }
+
+        if is_basis_change_request(user_input):
+            basis_mode = detect_basis_mode(user_input)
+            return {
+                "intent": INTENT_CHANGE_BASIS,
+                "basis_mode": basis_mode,
+                "target_runs": self.resolve_basis_change_target_runs(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
+                    basis_mode=basis_mode,
+                ),
+            }
+
+        return {"intent": INTENT_RAG_ANSWER}
+
+    def build_intent_state(
+        self,
+        intent: AgentIntent,
+        basis_mode: BasisMode,
+        user_input: str,
+        latest_runs: list[Any],
+        current_refs: list[InferredRepositoryRef],
+        messages: list[ChatMessage],
+    ) -> AgentGraphState:
+        """분류된 intent를 LangGraph state로 바꾼다."""
+
+        if intent == INTENT_LIST_REPOSITORIES:
+            return {"intent": INTENT_LIST_REPOSITORIES}
+        if intent == INTENT_LIST_BRANCHES:
+            return {
+                "intent": INTENT_LIST_BRANCHES,
+                "target_runs": self.resolve_target_runs(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
+                ),
+            }
+        if intent == INTENT_SHOW_BASIS:
+            return {"intent": INTENT_SHOW_BASIS}
+        if intent == INTENT_GENERAL_CHAT:
+            return {"intent": INTENT_GENERAL_CHAT}
+        if intent == INTENT_CHANGE_BASIS:
+            return {
+                "intent": INTENT_CHANGE_BASIS,
+                "basis_mode": basis_mode,
+                "target_runs": self.resolve_basis_change_target_runs(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
+                    basis_mode=basis_mode,
+                ),
+            }
+
+        return {"intent": INTENT_RAG_ANSWER}
+
+    def answer_repository_metadata(self, state: AgentGraphState) -> AgentGraphState:
+        """레포 목록, 브랜치 목록, 현재 기준은 RAG 없이 SQL 메타데이터만으로 답한다."""
+
+        intent = state["intent"]
+        latest_runs = state.get("latest_runs", [])
+        current_refs = list(state["turn"].repository_refs)
+
+        if intent == INTENT_LIST_REPOSITORIES:
+            final_answer = build_repository_list_answer(latest_runs)
+        elif intent == INTENT_LIST_BRANCHES:
+            final_answer = build_branch_list_answer(
+                user_input=state["turn"].user_input,
+                latest_runs=latest_runs,
+                target_runs=state.get("target_runs", []),
+                current_refs=current_refs,
+                messages=state.get("messages", []),
+            )
+        else:
+            final_answer = build_current_basis_answer(current_refs)
+
         return {
-            "final_answer": (
-                "어떤 레포지토리 기준으로 답할지 아직 고르지 못했습니다. "
-                f"질문에 레포지토리 이름이나 브랜치를 함께 적어 주세요. 예: {examples}"
+            "final_answer": final_answer,
+            "final_refs": current_refs,
+            "repository_basis_changed": False,
+        }
+
+    def change_repository_basis(self, state: AgentGraphState) -> AgentGraphState:
+        """사용자가 지정한 레포 이름을 SQL run에 매핑해 다음 답변 기준으로 저장한다."""
+
+        current_refs = list(state["turn"].repository_refs)
+        target_runs = state.get("target_runs", [])
+        mode = state.get("basis_mode", BASIS_MODE_REPLACE)
+
+        if mode == BASIS_MODE_REMOVE and not target_runs and current_refs:
+            return {
+                "final_answer": build_basis_changed_answer([], BASIS_MODE_CLEAR),
+                "final_refs": [],
+                "repository_basis_changed": True,
+            }
+
+        final_refs = build_next_basis_refs(
+            current_refs=current_refs,
+            target_runs=target_runs,
+            mode=mode,
+        )
+
+        if mode != BASIS_MODE_CLEAR and not target_runs:
+            return {
+                "final_answer": (
+                    "어떤 레포지토리를 답변 기준으로 바꿀지 찾지 못했습니다. "
+                    "예: Jungle-303-04/warm-up, minmings111/github.io처럼 레포 이름을 적어 주세요."
+                ),
+                "final_refs": current_refs,
+                "repository_basis_changed": False,
+            }
+
+        return {
+            "final_answer": build_basis_changed_answer(final_refs, mode),
+            "final_refs": final_refs,
+            "repository_basis_changed": True,
+        }
+
+    def resolve_rag_basis(self, state: AgentGraphState) -> AgentGraphState:
+        """RAG 검색 전에 질문이 어떤 분석 run을 기준으로 삼는지 확정한다."""
+
+        current_refs = list(state["turn"].repository_refs)
+        if current_refs:
+            return {
+                "target_runs": resolve_runs_from_refs(current_refs, state.get("latest_runs", [])),
+                "final_refs": current_refs,
+            }
+
+        target_runs = self.resolve_target_runs(
+            user_input=state["turn"].user_input,
+            latest_runs=state.get("latest_runs", []),
+            current_refs=current_refs,
+            messages=state.get("messages", []),
+            prefer_planner=is_short_follow_up_selection(state["turn"].user_input),
+        )
+        if target_runs:
+            return {
+                "target_runs": target_runs,
+                "final_refs": [build_inferred_repository_ref(run) for run in target_runs],
+                "repository_basis_changed": True,
+            }
+
+        single_run = resolve_single_repository_fallback(state.get("latest_runs", []))
+        if single_run is not None:
+            return {
+                "target_runs": [single_run],
+                "final_refs": [build_inferred_repository_ref(single_run)],
+                "repository_basis_changed": True,
+            }
+
+        return {
+            "target_runs": [],
+            "final_refs": current_refs,
+        }
+
+    def retrieve_rag(self, state: AgentGraphState) -> AgentGraphState:
+        """확정된 run 기준을 RAG DTO로 바꿔 vector 검색과 LLM용 근거 조회를 실행한다."""
+
+        refs = [
+            RagAskRepositoryRefDTO(
+                repository_full_name=run.repository_full_name,
+                branch=run.branch,
+                commit_sha=run.commit_sha,
+            )
+            for run in state.get("target_runs", [])
+            if run.repository_full_name
+        ]
+        rag_response = self.rag_answer_service.answer(
+            state["db"],
+            RagAskRequestDTO(
+                question=state["turn"].user_input,
+                repository_refs=refs,
+                limit=5,
             ),
+        )
+        return {"rag_response": rag_response}
+
+    def resolve_target_runs(
+        self,
+        user_input: str,
+        latest_runs: list[Any],
+        current_refs: list[InferredRepositoryRef],
+        messages: list[ChatMessage],
+        prefer_planner: bool = False,
+        allow_repository_default: bool = True,
+    ) -> list[Any]:
+        """규칙으로 먼저 찾고, 애매한 표현은 LLM planner가 SQL 후보 안에서만 다시 고른다."""
+
+        ordinal_runs = resolve_runs_from_recent_list_ordinal(
+            user_input=user_input,
+            latest_runs=latest_runs,
+            messages=messages,
+        )
+        if ordinal_runs:
+            return ordinal_runs
+
+        if prefer_planner:
+            planner_runs = self.infer_runs_with_planner(user_input, latest_runs, messages)
+            if planner_runs:
+                return planner_runs
+
+        target_runs = resolve_runs_from_text(
+            user_input=user_input,
+            latest_runs=latest_runs,
+            current_refs=current_refs,
+            messages=messages,
+            allow_repository_default=allow_repository_default,
+        )
+        if target_runs:
+            return target_runs
+
+        return self.infer_runs_with_planner(user_input, latest_runs, messages)
+
+    def resolve_basis_change_target_runs(
+        self,
+        user_input: str,
+        latest_runs: list[Any],
+        current_refs: list[InferredRepositoryRef],
+        messages: list[ChatMessage],
+        basis_mode: BasisMode,
+    ) -> list[Any]:
+        """기준 변경 요청에서 실제로 추가/교체/제거할 SQL run을 찾는다."""
+
+        if basis_mode == BASIS_MODE_CLEAR:
+            return []
+
+        if basis_mode != BASIS_MODE_REMOVE:
+            return self.resolve_target_runs(
+                user_input=user_input,
+                latest_runs=latest_runs,
+                current_refs=current_refs,
+                messages=messages,
+                prefer_planner=True,
+                allow_repository_default=False,
+            )
+
+        if is_short_remove_request(user_input):
+            return []
+
+        current_runs = resolve_runs_from_refs(current_refs, latest_runs)
+        if not current_runs:
+            return []
+
+        target_runs = resolve_runs_from_text(
+            user_input=user_input,
+            latest_runs=current_runs,
+            current_refs=current_refs,
+            messages=messages,
+            allow_repository_default=False,
+        )
+        if target_runs:
+            return target_runs
+
+        return self.infer_runs_with_planner(
+            user_input=build_remove_planner_input(user_input),
+            latest_runs=current_runs,
+            messages=messages,
+        )
+
+    def resolve_intent_plan_with_llm(
+        self,
+        user_input: str,
+        messages: list[ChatMessage],
+    ) -> Any:
+        """키워드 helper가 놓친 자연어 의도를 LLM resolver로 한 번 더 분류한다."""
+
+        if self.intent_resolver is None:
+            return SimpleIntentPlan(intent=INTENT_RAG_ANSWER, basis_mode=None)
+        return self.intent_resolver.resolve_intent(user_input, messages)
+
+    def infer_runs_with_planner(
+        self,
+        user_input: str,
+        latest_runs: list[Any],
+        messages: list[ChatMessage],
+    ) -> list[Any]:
+        """LLM resolver 결과를 실제 SQL run 객체 목록으로 되돌린다."""
+
+        if self.repository_planner is None:
+            return []
+
+        plan = self.repository_planner.infer_repository_refs(
+            user_input=user_input,
+            runs=latest_runs,
+            messages=messages,
+        )
+        if not plan.inferred_repository_refs:
+            return []
+        return resolve_runs_from_refs(plan.inferred_repository_refs, latest_runs)
+
+    def generate_answer(self, state: AgentGraphState) -> AgentGraphState:
+        """검색 근거가 있을 때만 LLM을 호출해 최종 자연어 답변을 만든다."""
+
+        rag_response = state["rag_response"]
+        if not rag_response.sources:
+            return {
+                "final_answer": build_no_evidence_answer(state.get("final_refs", [])),
+            }
+
+        try:
+            ai_message = self.tool_calling_llm.invoke(
+                build_answer_messages(
+                    question=state["turn"].user_input,
+                    rag_response=rag_response,
+                ),
+                tools=[],
+            )
+            final_answer = get_message_content(ai_message)
+        except Exception:
+            final_answer = build_evidence_fallback_answer(rag_response)
+
+        return {
+            "final_answer": final_answer,
+        }
+
+    def answer_general_chat(self, state: AgentGraphState) -> AgentGraphState:
+        """레포 검색이 아닌 짧은 대화는 LLM으로 자연스럽게 응답한다."""
+
+        try:
+            ai_message = self.tool_calling_llm.invoke(
+                [
+                    SystemMessage(content=GENERAL_CHAT_SYSTEM_PROMPT),
+                    HumanMessage(content=state["turn"].user_input),
+                ],
+                tools=[],
+            )
+            final_answer = get_message_content(ai_message)
+        except Exception:
+            final_answer = "응. 레포 기준이 필요하면 레포 목록부터 보여줄게."
+
+        return {
+            "final_answer": final_answer,
+            "final_refs": list(state["turn"].repository_refs),
+            "repository_basis_changed": False,
+        }
+
+    def ask_clarification(self, state: AgentGraphState) -> AgentGraphState:
+        """검색 기준을 확정하지 못했을 때 가능한 레포 예시를 보여준다."""
+
+        return {
+            "final_answer": build_clarification_answer(state.get("latest_runs", [])),
+            "final_refs": list(state["turn"].repository_refs),
+            "repository_basis_changed": False,
         }
 
 
-def infer_repository_refs(
-    user_input: str,
-    runs: list[Any],
-) -> list[InferredRepositoryRef]:
-    """질문에 언급된 레포/브랜치를 최근 분석 run의 정확한 commit 기준으로 바꾼다."""
+def route_intent(state: AgentGraphState) -> AgentIntent:
+    return state.get("intent", INTENT_CLARIFY)
 
-    if not runs:
-        return []
 
-    normalized_input = normalize_text(user_input)
-    mentioned_repositories = set(REPOSITORY_NAME_PATTERN.findall(normalized_input))
-    scored_runs = [
-        (run, score_run_mention(normalized_input, mentioned_repositories, run))
-        for run in runs
-    ]
-    matched_runs = [
-        (run, score)
-        for run, score in scored_runs
-        if score > 0
-    ]
+def route_resolved_rag_basis(state: AgentGraphState) -> str:
+    if state.get("target_runs"):
+        return "retrieve"
+    return "clarify"
 
-    if not matched_runs:
-        unique_repositories = {normalize_text(run.repository_full_name) for run in runs}
-        if len(unique_repositories) == 1:
-            return [build_inferred_repository_ref(runs[0])]
-        return []
 
-    highest_score = max(score for _, score in matched_runs)
-    best_runs = [run for run, score in matched_runs if score == highest_score]
-    latest_runs = get_latest_runs_by_repository_and_branch(
-        best_runs,
-        keep_branch=highest_score >= 50,
+def is_short_follow_up_selection(user_input: str) -> bool:
+    """숫자 하나처럼 문맥 후보를 보고 해석해야 하는 짧은 후속 입력인지 본다."""
+
+    text = normalize_text(user_input)
+    stripped_number = text.replace("번", "").replace(".", "").strip()
+    return stripped_number.isdigit() or text in {"그거", "이거", "위에거"}
+
+
+def is_intent_resolver_fallback(intent_plan: Any) -> bool:
+    """LLM intent resolver가 실패해서 기본값을 돌려준 상태인지 확인한다."""
+
+    reason = getattr(intent_plan, "reason", None)
+    return isinstance(reason, str) and reason.startswith(FALLBACK_REASON_PREFIX)
+
+
+class SimpleIntentPlan:
+    """intent resolver가 없을 때 쓰는 최소 fallback plan."""
+
+    def __init__(self, intent: AgentIntent, basis_mode: BasisMode | None) -> None:
+        self.intent = intent
+        self.basis_mode = basis_mode
+        self.reason = None
+
+
+def build_remove_planner_input(user_input: str) -> str:
+    """planner가 남길 기준이 아니라 제거할 기준을 고르도록 요청을 보강한다."""
+
+    return (
+        "현재 답변 기준 후보 중에서 제거할 대상만 골라라. "
+        "남길 대상은 절대 고르지 마라. "
+        f"사용자 요청: {user_input}"
     )
-
-    return [build_inferred_repository_ref(run) for run in latest_runs]
-
-
-def score_run_mention(
-    normalized_input: str,
-    mentioned_repositories: set[str],
-    run: Any,
-) -> int:
-    repository_full_name = normalize_text(run.repository_full_name)
-    repository_name = normalize_text(str(run.repository_full_name or "").split("/")[-1])
-    branch = normalize_text(run.branch)
-
-    has_full_repository = (
-        repository_full_name in mentioned_repositories
-        or repository_full_name in normalized_input
-    )
-    has_repository_name = bool(repository_name and repository_name in normalized_input)
-    has_branch = bool(branch and branch in normalized_input)
-
-    if has_full_repository and has_branch:
-        return 60
-    if has_repository_name and has_branch:
-        return 50
-    if has_full_repository:
-        return 40
-    if has_repository_name:
-        return 30
-    if has_branch:
-        return 20
-    return 0
-
-
-def get_latest_runs_by_repository_and_branch(
-    runs: list[Any],
-    keep_branch: bool,
-) -> list[Any]:
-    latest_runs: dict[str, Any] = {}
-
-    for run in runs:
-        repository = normalize_text(run.repository_full_name)
-        branch = normalize_text(run.branch)
-        key = f"{repository}:{branch}" if keep_branch else repository
-        current = latest_runs.get(key)
-        if current is None or run.id > current.id:
-            latest_runs[key] = run
-
-    return list(latest_runs.values())
-
-
-def build_inferred_repository_ref(run: Any) -> InferredRepositoryRef:
-    """최신 run 선택 결과를 프론트에 돌려줄 추론 결과로 바꾼다."""
-
-    return InferredRepositoryRef(
-        run_id=run.id,
-        repository_full_name=run.repository_full_name,
-        branch=run.branch,
-        commit_sha=run.commit_sha,
-    )
-
-
-def to_rag_repository_ref(ref: InferredRepositoryRef) -> RagAskRepositoryRefDTO:
-    """agent 추론 결과를 RAG answer graph가 받는 요청 DTO로 바꾼다."""
-
-    return RagAskRepositoryRefDTO(
-        repository_full_name=ref.repository_full_name,
-        branch=ref.branch,
-        commit_sha=ref.commit_sha,
-    )
-
-
-def format_rag_agent_answer(response: RagAskResponseDTO) -> str:
-    basis = "\n".join(
-        format_response_ref(ref)
-        for ref in response.repository_refs
-        if ref.repository_full_name
-    )
-    sources = "\n".join(
-        f"{index + 1}. {source.citation or source.path or '출처 정보 없음'}"
-        for index, source in enumerate(response.sources[:5])
-    )
-
-    answer = response.answer
-    if basis:
-        answer = f"답변에 사용한 분석 결과\n{basis}\n\n{answer}"
-    if sources:
-        answer = f"{answer}\n\n출처\n{sources}"
-    return answer
-
-
-def format_response_ref(ref: Any) -> str:
-    branch = ref.branch or "기본 브랜치"
-    version = f" · 코드 버전 {ref.commit_sha[:7]}" if ref.commit_sha else ""
-    return f"{ref.repository_full_name} · {branch}{version}"
-
-
-def format_run_choice(run: Any) -> str:
-    branch = run.branch or "기본 브랜치"
-    return f"{run.repository_full_name} {branch}"
-
-
-def normalize_text(value: Any) -> str:
-    return str(value or "").strip().lower()

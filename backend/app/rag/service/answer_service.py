@@ -11,18 +11,18 @@ from app.rag.service.ports import AnswerGraph, RagStore
 
 
 # 라우터가 LangGraph나 RagAnswerGraph를 직접 알게 만들지 않기 위한 use case 경계
-# 라우터 입장에서는 "답변 기능은 answer(db, request)를 가진다"만 알면 됨.
-# 추후 그래프 노드 구성, 검색 전략, 프롬프트 조립, 메모리, 에이전트 액션이 추가되어도
+# 라우터 입장에서는 "RAG 조회 기능은 answer(db, request)를 가진다"만 알면 됨.
+# 추후 그래프 노드 구성, 검색 전략, 메모리, 에이전트 액션이 추가되어도
 # 라우터는 그대로 두고 이 use case 안쪽 조립과 graph 실행 흐름만 바꾸면 된다.
 class RagAnswerService:
-    """질문 요청의 코드 기준을 SQL에서 확정한 뒤 graph runner에 위임한다."""
+    """질문 요청의 코드 기준을 SQL에서 확정한 뒤 RAG 검색 graph에 위임한다."""
 
     def __init__(self, answer_graph: AnswerGraph, sql_repository: RagStore) -> None:
         self.answer_graph = answer_graph
         self.sql_repository = sql_repository
 
     def answer(self, db: Session, request: RagAskRequestDTO) -> RagAskResponseDTO:
-        """레포/브랜치/커밋 기준의 최신 인덱싱 run들을 찾아 답변한다."""
+        """레포/브랜치/커밋 기준의 최신 인덱싱 run들을 찾아 근거를 검색한다."""
 
         index_runs = self.find_index_runs(db, request)
         return self.answer_graph.run(request, index_runs)

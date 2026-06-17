@@ -25,6 +25,7 @@ import {
 } from '../shared/auth/session'
 import {
   API_BASE_URL,
+  AUTH_SESSION_HINT_STORAGE_KEY,
   INITIAL_STATUS,
   LEGACY_ACCESS_TOKEN_STORAGE_KEY,
   OAUTH_STATE_STORAGE_KEY,
@@ -247,6 +248,7 @@ function App() {
         // }
         // user_id는 DB 내부 사용자 id이고, board.user_id와 매칭되는 기준이다.
         const payload = await fetchJson(`${API_BASE_URL}/auth/me`)
+        window.localStorage.setItem(AUTH_SESSION_HINT_STORAGE_KEY, '1')
         setUser(payload.user)
         setStatus({ type: 'success', message: '깃허브 로그인이 완료되었습니다.' })
         void loadBoards(payload.user)
@@ -770,17 +772,11 @@ function App() {
 
   useEffect(() => {
     if (!user || !isRepositoryPageOpen) {
-      setRepositoryBranches([])
-      setRepositoryBranchMessage('')
-      setIsLoadingRepositoryBranches(false)
       return undefined
     }
 
     const repositoryName = normalizeRepositoryInput(repositoryFullName)
     if (!repositoryName) {
-      setRepositoryBranches([])
-      setRepositoryBranchMessage('')
-      setIsLoadingRepositoryBranches(false)
       return undefined
     }
 
@@ -853,9 +849,11 @@ function App() {
         return
       }
 
-      void loadAuthenticatedUser('기존 로그인 상태를 확인하는 중입니다.', {
-        silentUnauthenticated: true,
-      })
+      if (window.localStorage.getItem(AUTH_SESSION_HINT_STORAGE_KEY)) {
+        void loadAuthenticatedUser('기존 로그인 상태를 확인하는 중입니다.', {
+          silentUnauthenticated: true,
+        })
+      }
     }, 0)
 
     return () => window.clearTimeout(timerId)

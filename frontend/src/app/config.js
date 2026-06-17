@@ -4,6 +4,7 @@ export const API_BASE_URL = normalizeApiBaseUrl(
 
 export const OAUTH_STATE_STORAGE_KEY = 'warm-up.auth.githubState'
 export const LEGACY_ACCESS_TOKEN_STORAGE_KEY = 'warm-up.auth.accessToken'
+export const AUTH_SESSION_HINT_STORAGE_KEY = 'warm-up.auth.hasSession'
 export const CALLBACK_PATH = '/auth/callback'
 
 export const INITIAL_STATUS = {

@@ -363,6 +363,7 @@ class RagAskSourceDTO(BaseModel):
     path: str
     chunk_type: str
     distance: float | None = None
+    content: str | None = None
 
 
 class RagAskRunReferenceDTO(BaseModel):

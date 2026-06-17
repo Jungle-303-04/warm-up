@@ -4,9 +4,13 @@ from dependency_injector import containers, providers
 from dotenv import load_dotenv
 
 from app.agent.external.memory_store import InMemoryChatStore
+from app.agent.external.text_generator import OpenAITextGenerator
+from app.agent.external.tool_calling_llm import LangChainToolCallingLlm
 from app.agent.service.agent_graph import AgentGraph
 from app.agent.service.chat_service import AgentChatService
 from app.agent.service.graph_responder import GraphAgentResponder
+from app.agent.service.intent_resolver import AgentIntentResolver
+from app.agent.service.repository_planner import AgentRepositoryPlanner
 from app.external.http import HttpClient, UserAgentFilter
 from app.auth.service.auth_service import AuthService
 from app.auth.domain.jwt_service import JwtService
@@ -38,12 +42,6 @@ from app.rag.domain.python_chunker import PythonChunker
 from app.rag.domain.python_classifier import PythonChunkClassifier
 from app.rag.domain.snapshot_validator import SnapshotValidator
 from app.rag.external.embedding import OpenAIEmbeddingService
-from app.rag.external.llm_client import (
-    EvidenceFormatter,
-    OpenAIGenerator,
-    PromptBuilder,
-    RagLlm,
-)
 from app.rag.external.sql_repository import RagSqlRepository
 from app.rag.external.vector_repository import RagVectorRepository
 
@@ -159,22 +157,10 @@ class AppContainer(containers.DeclarativeContainer):
         repository_source=github_repository_client,
     )
 
-    # RAG ask: 저장된 evidence를 찾고 LLM 답변으로 바꾸는 흐름을 조립한다.
-    rag_evidence_formatter = providers.Singleton(EvidenceFormatter)
-    rag_prompt_builder = providers.Singleton(
-        PromptBuilder,
-        evidence_formatter=rag_evidence_formatter,
-    )
-    rag_text_generator = providers.Singleton(OpenAIGenerator)
-    rag_llm_client = providers.Singleton(
-        RagLlm,
-        prompt_builder=rag_prompt_builder,
-        text_generator=rag_text_generator,
-    )
+    # RAG ask: 저장된 evidence를 벡터 유사도 기반으로 찾는 검색 tool 역할만 맡는다.
     rag_answer_graph = providers.Singleton(
         RagAnswerGraph,
         vector_repository=rag_vector_repository,
-        llm_client=rag_llm_client,
     )
     rag_answer_service = providers.Singleton(
         RagAnswerService,
@@ -182,13 +168,27 @@ class AppContainer(containers.DeclarativeContainer):
         sql_repository=rag_sql_repository,
     )
 
-    # Agent chat: 상위 agent graph가 RAG 답변 graph를 노드처럼 호출하는 구조다.
-    # TODO(agent): planner, MCP action, 사용자 승인 노드를 AgentGraph에 추가한다.
+    # Agent chat: graph가 먼저 질문 의도를 나누고, 코드 질문일 때만 RAG evidence와 LLM 답변 생성을 연결한다.
+    # 기준 변경은 tool 호출이 아니라 AgentGraph의 change_repository_basis 노드에서 refs를 계산한다.
+    # TODO(agent): MCP action, 사용자 승인 노드를 AgentGraph에 추가한다.
     agent_chat_store = providers.Singleton(InMemoryChatStore)
+    agent_tool_calling_llm = providers.Singleton(LangChainToolCallingLlm)
+    agent_text_generator = providers.Singleton(OpenAITextGenerator)
+    agent_repository_planner = providers.Singleton(
+        AgentRepositoryPlanner,
+        text_generator=agent_text_generator,
+    )
+    agent_intent_resolver = providers.Singleton(
+        AgentIntentResolver,
+        text_generator=agent_text_generator,
+    )
     agent_graph = providers.Singleton(
         AgentGraph,
         rag_answer_service=rag_answer_service,
         sql_repository=rag_sql_repository,
+        tool_calling_llm=agent_tool_calling_llm,
+        repository_planner=agent_repository_planner,
+        intent_resolver=agent_intent_resolver,
     )
     agent_responder = providers.Singleton(
         GraphAgentResponder,

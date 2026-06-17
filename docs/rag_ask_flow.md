@@ -1,146 +1,61 @@
 # RAG Ask Flow
 
-이 문서는 사용자가 프롬프트를 입력한 뒤, 저장된 RAG 근거를 검색하고, LLM 답변을 받아 사용자에게 돌려주는 흐름을 실제 코드에 매핑해서 설명한다.
+이 문서는 현재 코드 기준으로 `/rag/ask`가 어떻게 동작하는지 설명한다.
 
-먼저 목표로 삼는 사고 사이클은 아래와 같다.
+핵심부터 말하면, 현재 RAG ask는 최종 대화형 LLM 답변을 직접 완성하는 흐름이 아니다. 저장된 코드 chunk를 vector DB에서 찾고, 그 근거를 `RagAskResponseDTO`로 반환하는 evidence 검색 흐름이다. 최종 자연어 답변은 agent 쪽 `AgentGraph.generate_answer()`가 이 근거를 받아 생성한다.
 
-```text
-사용자 입력
--> 입력을 요청 DTO로 받기
--> 어떤 작업인지 판단
--> 검색 계획 세우기
--> SQL 검색 / Vector 검색
--> 검색 결과 결합
--> LLM에게 질문 + 근거 전달
--> LLM 결과 해석
--> 사용자에게 답변하거나, 다음 로직 실행
-```
-
-현재 코드의 `/rag/ask`는 이 사이클 전체를 모두 구현한 최종 agent workflow는 아니다. 지금 구현은 아래 흐름에 더 가깝다.
+## 현재 결론
 
 ```text
 사용자 질문
 -> RagAskRequestDTO
--> ask_repository_rag()
--> RagAnswerService.answer(db, request)
--> SQL에서 질문 기준 index_run 조회
--> RagAnswerGraph.run(request, index_run)
--> commit_sha 기준 Vector 검색
--> 검색 결과 row 변환
--> LLM에게 질문 + Vector 근거 전달
--> RagAskResponseDTO로 사용자에게 반환
+-> RagAnswerService
+-> SQL에서 실제 인덱싱 run 확정
+-> RagAnswerGraph
+-> Vector DB 검색
+-> RagAskResponseDTO(answer 요약 + sources + 실제 기준 refs)
 ```
 
-즉 현재 구현된 것은 `SQL로 코드 기준을 확정한 뒤 Vector 검색으로 답변하는 RAG 흐름`이다. SQL keyword 검색, SQL/Vector 결과 결합, 작업 판단, 다음 로직 실행은 확장 포인트로 남아 있다.
-
-## 현재 구현과 구조만 있는 흐름
-
-아래 표는 목표 사이클을 기준으로 현재 코드 상태를 나눈 것이다.
-
-| 단계 | 현재 상태 | 코드 위치 |
-| --- | --- | --- |
-| 사용자 입력 | 구현됨 | `backend/app/rag/api/router.py`의 `ask_repository_rag()` |
-| 입력을 요청 DTO로 받기 | 구현됨 | `backend/app/rag/api/schema.py`의 `RagAskRequestDTO` |
-| 어떤 작업인지 판단 | 구조만 있음 | `/rag/ask`로 들어온 요청은 무조건 답변 생성으로 처리한다. 별도 intent 판단 구현은 아직 없다. |
-| 검색 계획 세우기 | 구조만 있음 | `RagAnswerGraph`가 `retrieve_vector -> generate_answer -> build_response` 선형 graph를 실행한다. 별도 planner 객체는 아직 없다. |
-| SQL 기준 조회 | 구현됨 | `RagAnswerService`가 `RagSqlRepository.find_latest_run()`으로 레포/브랜치/커밋에 맞는 인덱싱 run을 찾는다. |
-| SQL keyword 검색 | 일부 구현됨, ask 흐름에는 미연결 | `RagSqlRepository.search_chunks_by_keyword()` 같은 정확 단어 검색 기능은 있지만 `/rag/ask`의 evidence 결합에는 아직 연결되지 않았다. |
-| Vector 검색 | 구현됨 | `RagVectorRepository.search()` |
-| 검색 결과 결합 | 구조만 있음 | `VectorResultRow`로 vector 결과를 row화하지만 SQL/Vector fusion 로직은 아직 없다. |
-| LLM에게 질문 + 근거 전달 | 구현됨 | `RagLlm.answer_with_evidence()`, `PromptBuilder`, `EvidenceFormatter` |
-| LLM 결과 해석 | 단순 구현 | `OpenAIGenerator.generate()`가 텍스트만 반환한다. 구조화 파싱은 아직 없다. |
-| 사용자에게 답변 | 구현됨 | `RagAskResponseDTO` |
-| 다음 로직 실행 | 구조만 있음 | action executor나 agent router는 아직 `/rag/ask` 흐름에 없다. |
-
-여기서 `구조만 있음`은 코드가 아예 없다는 뜻만은 아니다. DTO, interface, service 분리처럼 나중에 끼워 넣을 자리는 있지만, 실제 분기나 처리 구현은 아직 없다는 뜻이다.
-
-## 실제 파일 순서
-
-사용자가 프롬프트를 입력해서 답변을 받는 현재 코드 흐름은 아래 순서로 읽는다.
+여기서 `answer` 필드는 LLM 답변이 아니라 검색 결과 요약이다.
 
 ```text
-router.py
+RAG 검색 결과 5개를 찾았습니다. 최종 답변은 agent가 이 근거를 바탕으로 생성합니다.
+```
+
+근거가 없으면 아래 문장이 들어간다.
+
+```text
+저장된 RAG 근거를 찾지 못했습니다. 먼저 레포지토리 분석을 실행해 주세요.
+```
+
+## 파일 읽는 순서
+
+```text
+backend/app/rag/api/router.py
   ask_repository_rag()
-    ↓
-schema.py
+
+backend/app/rag/api/schema.py
+  RagAskRepositoryRefDTO
   RagAskRequestDTO
-    ↓
-container.py
-  rag_answer_graph 조립 후 rag_answer_service 주입
-    ↓
-answer_service.py
-  answer(db, request)가 SQL에서 기준 run을 찾고 graph runner에 위임
-    ↓
-answer_graph.py
-  RagAnswerGraph.run(request, index_run)
-    ↓
-vector_repository.py
-  search(question, limit, repository_full_name, branch, commit_sha)
-    ↓
-embedding.py
-  embed_text(question)
-    ↓
-vector_result.py
-  검색 결과 row 구조
-    ↓
-llm_client.py
-  검색 근거로 LLM 답변 생성
-    ↓
-answer_graph.py
-  RagAskResponseDTO로 포장
-    ↓
-router.py
-  클라이언트에게 응답
+  RagAskResponseDTO
+  RagAskSourceDTO
+
+backend/app/rag/service/answer_service.py
+  RagAnswerService.answer()
+  find_index_runs()
+  find_index_run_by_ref()
+
+backend/app/rag/service/answer_graph.py
+  RagAnswerGraph.run()
+  retrieve_vector()
+  build_response()
+
+backend/app/rag/external/vector_repository.py
+  RagVectorRepository.search()
+  build_where_filter()
 ```
 
-## 1. 사용자 입력
-
-사용자는 프론트나 Postman 같은 클라이언트에서 질문을 보낸다.
-
-예시 요청은 이런 모양이다.
-
-```http
-POST /rag/ask
-Content-Type: application/json
-Cookie: warm_up_auth_token=...
-```
-
-```json
-{
-  "question": "이 레포에서 RAG 인덱싱 흐름을 설명해줘",
-  "repository_full_name": "Jungle-303-04/warm-up",
-  "branch": "minjeong",
-  "commit_sha": "abc123...",
-  "limit": 5
-}
-```
-
-이 요청에서 중요한 값은 다섯 가지다.
-
-```text
-question
-  사용자가 LLM에게 묻고 싶은 질문이다.
-
-repository_full_name
-  사용자가 질문하려는 GitHub 레포다.
-  owner/repo 형식이나 GitHub URL을 받을 수 있고, 서버에서 owner/repo 형식으로 정리한다.
-
-branch
-  사용자가 보고 있는 브랜치다.
-  없으면 서버는 해당 레포의 저장된 최신 인덱싱 결과를 기준으로 찾을 수 있다.
-
-commit_sha
-  실제 코드 기준이다.
-  있으면 이 커밋에서 만든 chunk만 검색한다.
-  없으면 SQL에서 repository_full_name과 branch에 맞는 최신 인덱싱 run을 찾아 commit_sha를 확정한다.
-
-limit
-  vector DB에서 최대 몇 개의 관련 chunk를 가져올지 정하는 값이다.
-```
-
-현재 코드에서 사용자 입력을 받는 HTTP 입구는 `backend/app/rag/api/router.py`의 `ask_repository_rag()` 함수다.
-
-## 2. 입력을 요청 DTO로 받기
+## 요청 DTO
 
 파일:
 
@@ -148,88 +63,87 @@ limit
 backend/app/rag/api/schema.py
 ```
 
-관련 코드:
+현재 `/rag/ask` 요청은 두 가지 방식으로 기준 레포를 받을 수 있다.
 
-```python
-class RagAskRequestDTO(BaseModel):
-    question: str
-    repository_full_name: str
-    branch: str | None = None
-    commit_sha: str | None = None
-    limit: int = Field(default=5, ge=1, le=MAX_SEARCH_LIMIT)
+첫 번째는 단일 레포 방식이다.
 
-    @field_validator("question")
-    @classmethod
-    def validate_question(cls, value: str) -> str:
-        question = value.strip()
-        if not question:
-            raise ValueError("question must not be empty")
-        return question
+```json
+{
+  "question": "이 레포의 인증 흐름을 설명해줘",
+  "repository_full_name": "Jungle-303-04/warm-up",
+  "branch": "minjeong",
+  "commit_sha": "842d49559f83cd89d0500049efe80909500d99f5",
+  "limit": 5
+}
 ```
 
-FastAPI는 클라이언트가 보낸 JSON body를 보고 `RagAskRequestDTO` 객체를 만든다.
+두 번째는 여러 레포 기준을 한 번에 넘기는 방식이다.
 
-```text
-JSON body
--> RagAskRequestDTO(question, repository_full_name, branch, commit_sha, limit)
+```json
+{
+  "question": "두 레포를 참고해서 구현 흐름을 비교해줘",
+  "repository_refs": [
+    {
+      "repository_full_name": "Jungle-303-04/warm-up",
+      "branch": "minjeong",
+      "commit_sha": "842d49559f83cd89d0500049efe80909500d99f5"
+    },
+    {
+      "repository_full_name": "minmings111/github.io",
+      "branch": "main",
+      "commit_sha": "dbaf93ad9fc38d3cbf70d3efb03df1ca871b375f"
+    }
+  ],
+  "limit": 5
+}
 ```
 
-이 DTO가 하는 일은 단순히 값을 담는 것만이 아니다.
+`question`은 필수이고 빈 문자열이면 거절된다.
 
-`question`은 앞뒤 공백을 제거하고, 빈 문자열이면 거부한다.
+`repository_full_name` 또는 `repository_refs` 중 하나는 반드시 있어야 한다.
 
-`repository_full_name`은 질문 대상 레포다.
-사용자는 보통 화면에서 레포 URL이나 `owner/repo`를 입력한다.
+`branch`와 `commit_sha`는 선택값이다. 둘 다 주면 가장 정확하다. `commit_sha`가 없으면 SQL에서 해당 레포/브랜치의 최신 인덱싱 run을 찾는다.
 
-`branch`는 선택값이다.
-사용자가 특정 브랜치를 보고 있다면 같이 보낸다.
+`limit`은 vector DB에서 레포 기준마다 가져올 최대 chunk 수다. 현재 기본값은 5다.
 
-`commit_sha`도 선택값이다.
-프론트가 직전에 인덱싱 응답에서 받은 commit_sha를 알고 있으면 같이 보내는 것이 가장 정확하다.
+## 응답 DTO
 
-흐름으로 보면 이렇다.
+응답은 아래 정보를 담는다.
 
-```text
-레포지토리 인덱싱 실행
--> 서버가 index_run_id 또는 job_id 성격의 run_id를 만든다
--> GitHub에서 현재 branch의 commit_sha를 확인한다
--> 파일과 chunk는 commit_sha, path, chunk_hash를 기준으로 저장한다
--> 질문할 때는 repository_full_name, branch, commit_sha 기준으로 검색한다
--> run_id는 저장 작업의 상태, 진행률, 실패 원인, 재시도 이력을 추적한다
+```json
+{
+  "answer": "RAG 검색 결과 5개를 찾았습니다. 최종 답변은 agent가 이 근거를 바탕으로 생성합니다.",
+  "repository_full_name": "Jungle-303-04/warm-up",
+  "branch": "minjeong",
+  "commit_sha": "842d49559f83cd89d0500049efe80909500d99f5",
+  "run_id": 25,
+  "repository_refs": [
+    {
+      "run_id": 25,
+      "repository_full_name": "Jungle-303-04/warm-up",
+      "branch": "minjeong",
+      "commit_sha": "842d49559f83cd89d0500049efe80909500d99f5"
+    }
+  ],
+  "sources": [
+    {
+      "citation": "backend/app/rag/service/answer_graph.py:63-85@842d495...",
+      "path": "backend/app/rag/service/answer_graph.py",
+      "chunk_type": "python_function",
+      "distance": 0.32,
+      "content": "검색된 chunk 원문"
+    }
+  ]
+}
 ```
 
-그래서 일반 사용 화면에서는 사용자가 `run_id`를 외워 입력하는 식이 아니다. 사용자는 보통 레포와 브랜치 또는 특정 커밋을 선택하고, 서버는 그 선택을 SQL의 인덱싱 이력과 연결해 `commit_sha` 기준으로 검색한다.
+`repository_full_name`, `branch`, `commit_sha`, `run_id`는 대표 기준이다. 여러 레포를 검색한 경우 첫 번째 run이 대표값으로 들어간다.
 
-`/rag/ask` 요청 DTO에는 `run_id`를 직접 넣지 않는다. 특정 작업 이력을 재현하거나 확인해야 할 때는 `/rag/runs/{run_id}` 같은 조회 API나 `/rag/vector/search`의 개발용 필터에서 `run_id`를 사용한다.
+여러 기준 전체는 `repository_refs`에 들어간다.
 
-인덱싱 저장도 같은 기준을 사용한다.
+`sources`는 agent가 최종 답변을 만들 때 사용할 실제 근거 목록이다.
 
-```text
-repository_full_name + branch + commit_sha가 이미 SQL에 있다
--> 같은 코드 버전을 이미 분석한 것이다
--> GitHub 파일 본문 수집, chunk 생성, SQL 저장, vector 저장을 다시 하지 않는다
--> 기존 run을 재사용하고 응답에 reused=true를 내려준다
-
-repository_full_name + branch + commit_sha 조합이 없다
--> 처음 보는 코드 버전이다
--> GitHub 파일을 수집하고 SQL/vector DB에 새로 저장한다
--> 응답에 reused=false를 내려준다
-```
-
-이 기준 때문에 같은 브랜치를 여러 번 분석해도 branch가 가리키는 commit이 그대로면 DB가 계속 커지지 않는다. 반대로 commit이 바뀌면 실제 코드 기준이 바뀐 것이므로 새 스냅샷으로 저장한다.
-
-`limit`은 기본값 5이고, 1 이상 `MAX_SEARCH_LIMIT` 이하로 제한된다.
-
-즉 이 단계는 사용자 입력을 코드에서 신뢰할 수 있는 형태로 바꾸는 단계다.
-
-목표 사이클에서 이 부분에 해당한다.
-
-```text
-사용자 입력
--> 입력을 요청 DTO로 받기
-```
-
-## 3. 라우터에서 요청을 받기
+## 라우터
 
 파일:
 
@@ -237,232 +151,18 @@ repository_full_name + branch + commit_sha 조합이 없다
 backend/app/rag/api/router.py
 ```
 
-관련 함수:
-
-```python
-@rag.post(
-    "/ask",
-    tags=["rag"],
-    response_model=RagAskResponseDTO,
-)
-@inject
-def ask_repository_rag(
-    request: RagAskRequestDTO,
-    authorization: str | None = Header(default=None),
-    auth_cookie: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
-    db: Session = Depends(get_session),
-    auth_service: AuthServicePort = Depends(Provide[AppContainer.auth_service]),
-    answer_service: AnswerUseCase = Depends(Provide[AppContainer.rag_answer_service]),
-) -> RagAskResponseDTO:
-    """저장된 RAG 근거를 검색하고 LLM 답변과 출처를 함께 반환한다."""
-
-    try:
-        resolve_github_account(db, auth_service, authorization, auth_cookie)
-        return answer_service.answer(db, request)
-    except AuthTokenError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-```
-
-이 함수는 `/rag/ask` API의 입구다.
-
-`@rag.post("/ask")`는 이 함수를 POST API로 등록한다.
-
-`response_model=RagAskResponseDTO`는 이 API가 최종적으로 `RagAskResponseDTO` 모양의 응답을 반환한다고 FastAPI에 알려준다.
-
-`@inject`는 `Provide[AppContainer...]`로 표시된 의존성을 실제 객체로 바꿔 넣는 역할을 한다.
-
-여기서 함수가 받는 값은 크게 두 종류다.
+`ask_repository_rag()`는 인증 컨텍스트를 확인한 뒤 `RagAnswerService.answer()`로 넘긴다.
 
 ```text
-클라이언트 요청에서 오는 값
-  request
-  authorization
-  auth_cookie
-
-서버 내부에서 주입되는 값
-  db
-  auth_service
-  answer_service
+request
+-> resolve_auth_context
+-> auth_context.github_account()
+-> answer_service.answer(auth_context.db, request)
 ```
 
-`request`는 사용자의 질문이다.
+라우터는 LangGraph, Chroma, SQL 검색 세부 구현을 직접 알지 않는다.
 
-`authorization`, `auth_cookie`는 로그인 여부를 확인하기 위한 인증 토큰이다.
-
-`db`는 DB 세션이다.
-
-`auth_service`는 인증된 GitHub 계정인지 확인하는 서비스다.
-
-`answer_service`가 SQL에서 질문 기준 index run을 찾고 RAG 답변 생성을 시작하는 서비스다.
-
-라우터 함수 안에서 가장 중요한 줄은 이 두 줄이다.
-
-```python
-resolve_github_account(db, auth_service, authorization, auth_cookie)
-return answer_service.answer(db, request)
-```
-
-첫 번째 줄은 인증 확인이다. 로그인된 사용자만 RAG ask를 실행하게 막는다.
-
-두 번째 줄은 SQL에서 기준 index run을 찾은 뒤 RAG 답변 생성으로 넘어가는 부분이다.
-
-목표 사이클 기준으로 보면 현재 라우터는 아직 복잡한 작업 판단을 하지 않는다. 인증만 확인하고, 모든 `/rag/ask` 요청을 `answer_service.answer()`로 보낸다.
-
-```text
-입력을 요청 DTO로 받기
--> 어떤 작업인지 판단
-```
-
-현재 구현에서 `어떤 작업인지 판단`은 사실상 고정되어 있다.
-
-```text
-/rag/ask로 들어온 요청은 RAG 답변 요청이다.
-```
-
-나중에 agent workflow로 확장하면 이 지점에서 `질문 답변`, `이슈 생성`, `코드 분석`, `보드 업데이트` 같은 의도를 나눌 수 있다.
-
-## 4. AppContainer가 Answer Service를 조립한다
-
-파일:
-
-```text
-backend/app/container.py
-```
-
-관련 코드:
-
-```python
-rag_vector_repository = providers.Singleton(
-    RagVectorRepository,
-    embedding_service=rag_embedding_service,
-)
-
-rag_evidence_formatter = providers.Singleton(EvidenceFormatter)
-rag_prompt_builder = providers.Singleton(
-    PromptBuilder,
-    evidence_formatter=rag_evidence_formatter,
-)
-rag_text_generator = providers.Singleton(OpenAIGenerator)
-rag_llm_client = providers.Singleton(
-    RagLlm,
-    prompt_builder=rag_prompt_builder,
-    text_generator=rag_text_generator,
-)
-rag_answer_graph = providers.Singleton(
-    RagAnswerGraph,
-    vector_repository=rag_vector_repository,
-    llm_client=rag_llm_client,
-)
-rag_answer_service = providers.Singleton(
-    RagAnswerService,
-    answer_graph=rag_answer_graph,
-    sql_repository=rag_sql_repository,
-)
-```
-
-`RagAnswerGraph`는 실제 RAG 답변 workflow를 실행한다. 필요한 부품을 생성자에서 받는다.
-
-```text
-RagAnswerGraph
-  vector_repository
-  llm_client
-```
-
-`vector_repository`는 vector DB 검색 담당이다.
-
-`llm_client`는 검색된 근거를 LLM에게 전달하고 답변을 받는 담당이다.
-
-`RagAnswerService`는 이 graph runner를 받아 API use case 입구 역할만 한다.
-
-```text
-RagAnswerService
-  answer_graph
-  sql_repository
-```
-
-`@inject`와 `Depends(Provide[AppContainer.rag_answer_service])`는 이 컨테이너 설정을 보고 `ask_repository_rag()` 함수에 `answer_service`를 넣어준다.
-
-이 단계의 핵심은 조립이다.
-
-```text
-router는 직접 RagAnswerService(...)를 만들지 않는다.
-AppContainer가 RagAnswerGraph와 하위 객체까지 조립해서 주입한다.
-```
-
-목표 사이클에서 말한 `흐름 만들기`, `인터페이스화`, `조립 가능한 형태`는 이 레이어와 관련이 깊다.
-
-처음 읽을 때는 `container.py`를 비즈니스 로직 파일로 보면 헷갈린다. 이 파일은 질문에 답하거나, chunk를 만들거나, GitHub API를 직접 호출하는 파일이 아니다. 역할은 아래 한 문장에 가깝다.
-
-```text
-각 기능 객체를 어떤 부품으로 만들고, 어떤 객체에 꽂아 넣을지 정하는 조립 설명서
-```
-
-예를 들어 `/rag/ask` 답변 기능 하나만 보더라도 실제로는 여러 부품이 필요하다.
-
-```text
-질문을 embedding으로 바꾸는 객체
--> vector DB에서 근거를 찾는 객체
--> 근거를 프롬프트로 정리하는 객체
--> OpenAI에 요청하는 객체
--> graph 흐름을 실행하는 객체
--> 라우터가 호출할 answer service
-```
-
-이 부품들을 라우터 안에서 직접 만들면 라우터가 너무 복잡해진다. 그래서 `container.py`가 대신 아래 작업을 담당한다.
-
-```text
-RagVectorRepository 만들기
-RagLlm 만들기
-RagAnswerGraph 만들기
-RagAnswerService 만들기
-FastAPI 라우터에 RagAnswerService 주입하기
-```
-
-그래서 `container.py`에 코드가 많아 보이는 이유는, 여러 기능의 실제 처리 로직이 들어 있어서가 아니라 "프로젝트 전체 객체 조립표"가 한 곳에 모여 있기 때문이다. 현재는 auth, board, github, rag, agent 부품이 모두 같은 컨테이너에 있으므로 더 많아 보인다.
-
-초보자 기준으로 읽을 때는 이 파일을 위에서부터 전부 외우려고 하지 말고, 지금 필요한 기능 묶음만 보면 된다. `/rag/ask`를 공부 중이라면 아래 묶음만 먼저 보면 충분하다.
-
-```text
-rag_embedding_service
-rag_vector_repository
-rag_evidence_formatter
-rag_prompt_builder
-rag_text_generator
-rag_llm_client
-rag_answer_graph
-rag_answer_service
-```
-
-여기서 마지막 줄이 라우터로 들어간다.
-
-```python
-rag_answer_service = providers.Singleton(
-    RagAnswerService,
-    answer_graph=rag_answer_graph,
-    sql_repository=rag_sql_repository,
-)
-```
-
-이 코드는 풀어서 말하면 아래와 같다.
-
-```text
-RagAnswerService 객체를 하나 만들어라.
-그 객체를 만들 때 answer_graph 자리에는 위에서 만든 rag_answer_graph를 넣어라.
-그 객체를 만들 때 sql_repository 자리에는 SQL 인덱싱 이력을 조회할 rag_sql_repository를 넣어라.
-이렇게 만든 객체는 한 번 만들고 계속 재사용하라.
-```
-
-`providers.Singleton(...)`은 "앱이 실행되는 동안 같은 객체 하나를 계속 사용하겠다"는 의미다. 반대로 매번 새 객체를 만들고 싶을 때는 `providers.Factory(...)` 같은 방식을 쓸 수 있다.
-
-## 5. Answer Service가 Graph Runner에 위임한다
+## Answer Service
 
 파일:
 
@@ -470,72 +170,38 @@ RagAnswerService 객체를 하나 만들어라.
 backend/app/rag/service/answer_service.py
 ```
 
-관련 코드:
-
-```python
-class RagAnswerService:
-    """질문 요청의 코드 기준을 SQL에서 확정한 뒤 graph runner에 위임한다."""
-
-    def __init__(self, answer_graph: AnswerGraph, sql_repository: RagStore) -> None:
-        self.answer_graph = answer_graph
-        self.sql_repository = sql_repository
-
-    def answer(self, db: Session, request: RagAskRequestDTO) -> RagAskResponseDTO:
-        """레포/브랜치/커밋 기준의 최신 인덱싱 run을 찾아 답변한다."""
-
-        index_run = self.find_index_run(db, request)
-        return self.answer_graph.run(request, index_run)
-```
-
-`RagAnswerService`는 vector 검색과 LLM 호출 순서를 직접 들고 있지 않다. 대신 SQL에서 질문 기준이 될 인덱싱 run을 먼저 찾고, 실제 실행 흐름은 `RagAnswerGraph`에 위임한다.
-
-이렇게 나누면 라우터 입장에서는 여전히 아래 한 줄만 보면 된다.
+`RagAnswerService`의 책임은 하나다.
 
 ```text
-answer_service.answer(db, request)
+사용자가 보낸 레포 기준
+-> SQL에 저장된 실제 인덱싱 run
 ```
 
-하지만 내부 구현은 LangGraph workflow로 분리된다.
-
-처음 공부할 때는 이 클래스를 어렵게 보지 않아도 된다. 핵심은 아래 두 줄이다.
-
-```python
-index_run = self.find_index_run(db, request)
-return self.answer_graph.run(request, index_run)
-```
-
-즉 `RagAnswerService`는 "내가 직접 답변을 만들겠다"가 아니라 "어떤 커밋 기준으로 답해야 하는지 확정한 뒤 graph에게 일을 넘기겠다"는 use case 입구다.
+현재 흐름은 아래와 같다.
 
 ```text
-router.py
--> answer_service.answer(db, request)
--> SQL에서 repository_full_name, branch, commit_sha에 맞는 index_run 조회
--> answer_graph.run(request, index_run)
+answer(db, request)
+-> find_index_runs(db, request)
+-> build_repository_refs(request)
+-> find_index_run_by_ref(db, ref)
+-> answer_graph.run(request, index_runs)
 ```
 
-왜 이런 클래스를 두냐면, 라우터가 graph 내부 흐름과 SQL 기준 조회 방식을 직접 알지 않게 만들기 위해서다. 라우터는 `answer(db, request)`라는 계약만 알고 있으면 된다. 나중에 graph 안쪽에 SQL keyword 검색, 검색 결과 결합, 메모리, 에이전트 액션 노드가 추가되어도 라우터 코드는 그대로 둘 수 있다.
+`build_repository_refs()`는 요청에 `repository_refs`가 있으면 그대로 쓴다. 없으면 기존 단일 필드인 `repository_full_name`, `branch`, `commit_sha`를 `RagAskRepositoryRefDTO` 하나로 감싼다.
 
-다만 이 클래스가 "추상화 그 자체"는 아니다. 더 정확히 말하면 `AnswerUseCase`라는 인터페이스 계약을 실제로 구현한 use case 입구다.
+`find_index_run_by_ref()`는 SQL 저장소의 `find_latest_run()`을 호출한다.
+
+검색 기준은 아래 값이다.
 
 ```text
-AnswerUseCase
-  answer(db, request)를 가져야 한다는 계약
-
-RagAnswerService
-  그 계약을 구현하고, 실제 처리는 RagAnswerGraph에 맡기는 클래스
+repository_full_name
+branch
+commit_sha
 ```
 
-그래서 `answer_service.py`를 읽을 때는 아래 정도만 먼저 이해하면 된다.
+해당 기준으로 저장된 인덱싱 run이 없으면 `ValueError`가 발생한다. 즉 질문 전에 먼저 레포 인덱싱이 되어 있어야 한다.
 
-```text
-1. 생성자에서 answer_graph를 받는다.
-2. 생성자에서 sql_repository를 받는다.
-3. answer(db, request)가 호출되면 SQL에서 기준 index_run을 찾는다.
-4. self.answer_graph.run(request, index_run)를 실행한다.
-5. 그 결과인 RagAskResponseDTO를 그대로 반환한다.
-```
-
-## 6. Answer Graph가 선형 RAG 흐름을 실행한다
+## Answer Graph
 
 파일:
 
@@ -543,290 +209,77 @@ RagAnswerService
 backend/app/rag/service/answer_graph.py
 ```
 
-관련 구조:
-
-```python
-class RagAnswerState(TypedDict, total=False):
-    request: RagAskRequestDTO
-    index_run: Any
-    rows: list[VectorResultRow]
-    answer: str
-    sources: list[RagAskSourceDTO]
-    response: RagAskResponseDTO
-```
-
-`RagAnswerState`는 graph 노드들이 공유하는 작업 상태다.
-
-현재 graph는 아래 네 노드와 하나의 조건부 엣지로 실행된다.
+현재 `RagAnswerGraph`의 노드는 두 개뿐이다.
 
 ```text
 retrieve_vector
--> route_after_retrieval
-   -> rows 있음: generate_answer
-   -> rows 없음: build_no_evidence_answer
 -> build_response
 -> END
 ```
 
-관련 코드:
-
-```python
-def build_graph(self):
-    graph = StateGraph(RagAnswerState)
-    graph.add_node("retrieve_vector", self.retrieve_vector)
-    graph.add_node("generate_answer", self.generate_answer)
-    graph.add_node("build_no_evidence_answer", self.build_no_evidence_answer)
-    graph.add_node("build_response", self.build_response)
-
-    graph.set_entry_point("retrieve_vector")
-    graph.add_conditional_edges(
-        "retrieve_vector",
-        self.route_after_retrieval,
-        {
-            HAS_EVIDENCE_ROUTE: "generate_answer",
-            NO_EVIDENCE_ROUTE: "build_no_evidence_answer",
-        },
-    )
-    graph.add_edge("generate_answer", "build_response")
-    graph.add_edge("build_no_evidence_answer", "build_response")
-    graph.add_edge("build_response", END)
-
-    return graph.compile()
-```
-
-현재는 전체 agent workflow는 아니지만, 근거 유무 판단은 이미 조건부 엣지로 분리되어 있다. 그래서 나중에 근거가 없을 때 SQL 검색, 질문 재작성, 검색 범위 확장 같은 노드를 끼우기 쉽다.
-
-### 현재 LangGraph의 실제 논리
-
-현재 `RagAnswerGraph`는 전체 LLM agent workflow가 아니다. 지금 graph가 담당하는 범위는 `/rag/ask` 요청 하나를 받아서 저장된 RAG 근거로 답변을 만드는 최소 흐름이다.
+Mermaid로 보면 아래와 같다.
 
 ```mermaid
-flowchart LR
-    A["초기 state<br/>request + index_run"] --> B["retrieve_vector"]
-    B --> C{"route_after_retrieval<br/>rows 있음?"}
-    C -->|"yes"| D["generate_answer"]
-    C -->|"no"| E["build_no_evidence_answer"]
-    D --> F["build_response"]
-    E --> F
-    F --> G["END"]
+flowchart TD
+    A["request + index_runs"] --> B["retrieve_vector"]
+    B --> C["build_response"]
+    C --> D["END"]
 ```
 
-초기 state에는 두 값이 들어간다.
+예전처럼 `generate_answer` 노드나 `llm_client` 호출은 없다. RAG graph는 evidence 검색까지만 담당한다.
+
+## retrieve_vector
+
+`retrieve_vector()`는 SQL에서 확정된 run 목록을 기준으로 vector DB를 검색한다.
+
+여러 레포가 들어오면 각 run마다 검색한다.
 
 ```text
-request
-  사용자의 질문, repository_full_name, branch, commit_sha, limit을 담은 DTO다.
-
-index_run
-  RagAnswerService가 SQL에서 먼저 찾은 인덱싱 run이다.
-  graph는 이 값을 기준으로 실제 답변에 사용할 repository_full_name, branch, commit_sha를 확정한다.
-```
-
-여기서 중요한 점은 `index_run`을 graph 내부에서 직접 찾지 않는다는 것이다.
-
-```text
-RagAnswerService
--> SQL에서 index_run 조회
--> RagAnswerGraph.run(request, index_run)
-```
-
-즉 graph는 “어떤 코드 기준으로 답할 것인가”를 판단하는 곳이 아니라, 이미 확정된 코드 기준 안에서 검색과 답변 생성을 실행하는 곳이다.
-
-### 노드별 책임
-
-| 노드 | 입력으로 보는 state | 새로 만드는 state | 현재 판단 기준 |
-| --- | --- | --- | --- |
-| `retrieve_vector` | `request`, `index_run` | `rows` | SQL에서 확정된 `repository_full_name`, `branch`, `commit_sha`로 vector 검색 범위를 제한한다. |
-| `route_after_retrieval` | `rows` | 다음 노드 이름 | `rows`가 있으면 `generate_answer`, 없으면 `build_no_evidence_answer`로 보낸다. |
-| `generate_answer` | `request`, `rows` | `answer`, `sources` | 검색 근거가 있는 경우에만 LLM에 질문과 근거를 넘긴다. |
-| `build_no_evidence_answer` | `rows` | `answer`, `sources` | 검색 근거가 없으면 LLM을 호출하지 않고 기본 답변을 만든다. |
-| `build_response` | `answer`, `sources`, `index_run` | `response` | API 응답 DTO에 답변, 출처, 실제 기준 레포/브랜치/커밋, 추적용 run_id를 담는다. |
-
-### 엣지 기준
-
-현재 graph에는 조건부 엣지 하나와 일반 엣지 세 개가 있다.
-
-```text
-retrieve_vector -> route_after_retrieval
-  rows 존재 여부를 검사한다.
-
-route_after_retrieval -> generate_answer
-  rows가 있으면 이동한다.
-
-route_after_retrieval -> build_no_evidence_answer
-  rows가 없으면 이동한다.
-
-generate_answer -> build_response
-  조건 없음.
-  LLM 답변을 response로 포장해야 하므로 다음 노드로 간다.
-
-build_no_evidence_answer -> build_response
-  조건 없음.
-  기본 답변도 response로 포장해야 하므로 다음 노드로 간다.
-
-build_response -> END
-  조건 없음.
-  응답 DTO가 만들어지면 graph 실행을 끝낸다.
-```
-
-현재 조건부 엣지는 아래 코드가 담당한다.
-
-```python
-graph.add_conditional_edges(
-    "retrieve_vector",
-    self.route_after_retrieval,
-    {
-        HAS_EVIDENCE_ROUTE: "generate_answer",
-        NO_EVIDENCE_ROUTE: "build_no_evidence_answer",
-    }
-)
-```
-
-조건 함수는 아래처럼 단순하다.
-
-```python
-def route_after_retrieval(self, state: RagAnswerState) -> EvidenceRoute:
-    if state.get("rows"):
-        return HAS_EVIDENCE_ROUTE
-    return NO_EVIDENCE_ROUTE
-```
-
-의미는 아래와 같다.
-
-```text
-검색 근거가 없음
--> LLM 호출 안 함
--> "저장된 RAG 근거를 찾지 못했습니다..." 기본 답변 생성
-
-검색 근거가 있음
--> LLM 호출
--> 질문 + documents + metadatas로 답변 생성
-```
-
-이렇게 한 이유는 두 가지다.
-
-```text
-1. 근거가 없을 때 모델이 일반 지식으로 추측하는 것을 막는다.
-2. 나중에 근거 없음 경로를 재검색 workflow로 확장할 수 있게 한다.
-```
-
-현재 `build_no_evidence_answer`는 기본 답변만 만든다. 하지만 이후에는 이 노드를 아래 흐름으로 바꿀 수 있다.
-
-```text
-build_no_evidence_answer
--> retrieve_sql
--> rewrite_query
--> expand_repository_scope
--> ask_user_for_more_context
-```
-
-### 아직 LangGraph에 들어오지 않은 것
-
-현재 graph에는 아래 로직이 없다.
-
-```text
-intent 판단
-SQL keyword 검색
-SQL/Vector 결과 결합
-보드 수정 제안
-GitHub issue 생성
-에이전트 액션 실행
-사용자 선택지에 따른 분기
-채팅 메모리 반영
-```
-
-이 기능들이 들어오면 조건부 엣지가 더 늘어난다. 예를 들어 아래처럼 갈라질 수 있다.
-
-```text
-classify_intent
--> 질문이면 retrieve_evidence
--> 보드 수정 요청이면 suggest_board_update
--> 이슈 생성 요청이면 prepare_github_issue
-```
-
-그때의 LangGraph는 현재보다 더 agent workflow에 가까워진다. 지금 graph는 그 전 단계인 “저장된 코드 근거로 질문에 답하기”만 담당한다.
-
-```text
-classify_intent
-retrieve_sql
-merge_evidence
-decide_action
-execute_action
-```
-
-목표 사이클 기준으로 보면 현재 graph는 아래 단계만 실제 구현한다.
-
-```text
-검색 계획 세우기
--> Vector 검색
--> LLM에게 질문 + 근거 전달
--> 사용자에게 답변
-```
-
-SQL 검색, 검색 결과 결합, action 실행은 아직 구조만 있는 확장 지점이다.
-
-## 7. Answer Graph가 Vector 검색을 실행한다
-
-파일:
-
-```text
-backend/app/rag/service/answer_graph.py
-```
-
-관련 코드:
-
-```python
-def retrieve_vector(self, state: RagAnswerState) -> RagAnswerState:
-    """질문과 확정된 commit 기준으로 vector DB에서 관련 청크를 찾는다."""
-
-    request = state["request"]
-    index_run = state["index_run"]
-    search_result = self.vector_repository.search(
-        query=request.question,
-        limit=request.limit,
-        repository_full_name=index_run.repository_full_name,
-        branch=index_run.branch,
-        commit_sha=index_run.commit_sha,
-    )
-    return {"rows": parse_vector_result(search_result)}
-```
-
-여기서 현재 구현된 검색 계획은 단순하다.
-
-```text
-질문을 vector 검색한다.
-SQL에서 확정한 repository_full_name, branch, commit_sha 안에서만 찾는다.
-limit 개수만큼 가져온다.
-```
-
-코드에서는 아래 줄이 실제 검색 실행이다.
-
-```python
-search_result = self.vector_repository.search(
+for index_run in index_runs:
+  vector_repository.search(
     query=request.question,
     limit=request.limit,
     repository_full_name=index_run.repository_full_name,
     branch=index_run.branch,
     commit_sha=index_run.commit_sha,
-)
+  )
 ```
 
-`request.question`은 사용자의 프롬프트다.
+중요한 점은 `commit_sha`가 검색어가 아니라 filter라는 것이다.
 
-`request.limit`은 가져올 근거 chunk 개수다.
+사용자가 질문에 적은 말은 신뢰 기준이 아니다. 실제 코드 기준은 SQL에 저장된 `index_run.repository_full_name`, `branch`, `commit_sha`이고, vector DB는 그 범위 안에서만 유사 chunk를 찾는다.
 
-`index_run.commit_sha`는 SQL에서 찾은 실제 코드 기준이다.
-여기서 중요한 점은 `commit_sha`가 검색어가 아니라 filter라는 것이다.
-질문 문장과 비슷한 chunk를 찾되, 그 후보군을 해당 레포의 해당 커밋에서 나온 chunk로 제한한다.
+검색 결과는 Chroma 원본 구조에서 `VectorResultRow` 목록으로 변환된다.
+
+여러 레포에서 검색한 row는 `distance`가 작은 순서로 정렬된다. 보통 distance가 작을수록 질문과 더 가까운 근거다.
+
+## build_response
+
+`build_response()`는 graph state를 API 응답 DTO로 포장한다.
 
 ```text
-현재 코드 기준
-  repository_full_name + branch + commit_sha 있음
-  -> 해당 레포의 해당 커밋에서 나온 chunk만 후보로 두고
-  -> 그 안에서 question과 가까운 chunk 검색
+rows 있음
+-> answer = "RAG 검색 결과 N개를 찾았습니다..."
+-> sources = citation/path/chunk_type/distance/content
+
+rows 없음
+-> answer = "저장된 RAG 근거를 찾지 못했습니다..."
+-> sources = []
 ```
 
-## 8. Vector Repository가 실제 Vector DB를 검색한다
+`sources`에 들어가는 정보는 vector metadata와 document에서 온다.
+
+```text
+citation
+path
+chunk_type
+distance
+content
+```
+
+agent는 이 `sources`를 보고 최종 답변을 만든다.
+
+## Vector Repository
 
 파일:
 
@@ -834,951 +287,91 @@ search_result = self.vector_repository.search(
 backend/app/rag/external/vector_repository.py
 ```
 
-관련 코드:
+`RagVectorRepository.search()`는 질문을 embedding으로 바꾸고 Chroma collection을 조회한다.
 
-```python
-def search(
-    self,
-    query: str,
-    limit: int = 5,
-    run_id: int | None = None,
-    repository_full_name: str | None = None,
-    branch: str | None = None,
-    commit_sha: str | None = None,
-) -> dict:
-    """질문을 embedding으로 바꾼 뒤 지정된 코드 기준 안에서 유사 청크를 찾는다."""
-
-    query_arguments = {
-        "query_embeddings": [self.embedding_service.embed_text(query)],
-        "n_results": limit,
-    }
-    where_filter = build_where_filter(
-        run_id=run_id,
-        repository_full_name=repository_full_name,
-        branch=branch,
-        commit_sha=commit_sha,
-    )
-    if where_filter:
-        query_arguments["where"] = where_filter
-
-    return self.collection.query(**query_arguments)
-```
-
-여기서 하는 일은 세 가지다.
-
-첫째, 사용자의 질문 문자열을 embedding vector로 바꾼다.
-
-```python
-self.embedding_service.embed_text(query)
-```
-
-둘째, Chroma에 몇 개를 검색할지 알려준다.
-
-```python
-"n_results": limit
-```
-
-셋째, `repository_full_name`, `branch`, `commit_sha` 같은 기준이 있으면 metadata filter를 건다.
-
-```python
-query_arguments["where"] = {
-    "$and": [
-        {"repository_full_name": repository_full_name},
-        {"branch": branch},
-        {"commit_sha": commit_sha},
-    ]
-}
-```
-
-즉 사용자가 몇 번째 run인지 몰라도, 서버가 SQL에서 찾은 commit_sha를 기준으로 vector DB 후보군을 좁힌다.
-
-`run_id`는 아래처럼 작업 이력과 진행 상태 추적에 쓰는 편이 맞다.
+검색 조건은 `build_where_filter()`에서 만들어진다.
 
 ```text
-run_id 또는 index_run_id
-  이번 인덱싱 작업 번호
-  진행률 표시
-  실패/성공 상태 기록
-  어떤 commit_sha를 수집했는지 연결
-
+run_id
+repository_full_name
+branch
 commit_sha
-  실제 코드 기준
-  RAG 검색의 신뢰 기준
-  chunk 중복 판단과 재사용 기준
 ```
 
-예를 들어 같은 commit_sha를 다시 인덱싱한다면 chunk_id는 아래처럼 안정적으로 만들 수 있다.
+`/rag/ask` 흐름에서는 보통 `repository_full_name`, `branch`, `commit_sha`가 들어간다.
+
+`run_id` filter는 개발용 vector search나 상세 검증에서 쓸 수 있지만, 일반 사용자가 질문할 때 직접 입력하는 기준은 아니다.
+
+## run_id와 commit_sha
+
+`run_id`는 인덱싱 실행 기록 번호다.
+
+용도:
 
 ```text
-path@commit_sha:chunk_hash
+어떤 인덱싱 작업에서 나온 chunk인지 추적
+run detail 조회
+파일/청크/스킵 파일 목록 확인
+프론트에서 선택한 분석 결과를 다시 서버에 넘길 때 보조 식별자로 사용
 ```
 
-그러면 같은 코드 조각은 같은 ID를 가지므로 중복 저장을 줄이고, RAG 검색도 "실제 코드 버전" 기준으로 정렬된다.
+`commit_sha`는 실제 코드 버전 기준이다.
 
-정리하면 `run_id`는 아래 용도에 가깝다.
+용도:
 
 ```text
-인덱싱 작업 상태 추적
-프로그레스바 표시
-실패한 작업 재시도
-어떤 commit_sha를 수집했는지 감사 로그로 남기기
-테스트할 때 특정 작업 실행을 재현하기
+같은 브랜치가 시간이 지나도 어떤 코드 버전 기준인지 고정
+vector DB 검색 범위 제한
+LLM 답변의 근거가 어떤 코드 스냅샷인지 설명
 ```
 
-마지막 줄:
+따라서 질문 정확도를 위해서는 `repository_full_name + branch + commit_sha` 조합이 가장 중요하다.
 
-```python
-return self.collection.query(**query_arguments)
-```
+## Agent와의 관계
 
-이 줄이 실제 Chroma vector DB 검색이다.
-
-현재 구현에서 vector DB는 이미 저장된 chunk를 대상으로 검색한다. chunk 저장은 `/rag/ask` 흐름이 아니라 인덱싱 흐름에서 미리 이루어진다.
-
-## 9. Embedding Service가 질문을 숫자 벡터로 바꾼다
+agent는 `/rag/ask`를 직접 HTTP로 호출하지 않고, 같은 백엔드 내부에서 `RagAnswerService.answer()`를 주입받아 호출한다.
 
 파일:
 
 ```text
-backend/app/rag/external/embedding.py
+backend/app/agent/service/agent_graph.py
 ```
 
-관련 코드:
-
-```python
-class OpenAIEmbeddingService:
-    def __init__(self, model: str = OPENAI_EMBEDDING_MODEL) -> None:
-        self.embedding_model = OpenAIEmbeddings(model=model)
-
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        return self.embedding_model.embed_documents(texts)
-
-    def embed_text(self, text: str) -> list[float]:
-        return self.embedding_model.embed_query(text)
-```
-
-vector DB는 문자열 자체를 비교하지 않는다. 질문 문자열을 숫자 배열로 바꾼 뒤, 저장된 chunk vector들과 가까운 것을 찾는다.
-
-`embed_text()`는 질문 하나를 검색용 vector로 바꾼다.
+agent 흐름에서는 아래처럼 사용된다.
 
 ```text
-"RAG 흐름 설명해줘"
--> [0.012, -0.033, 0.144, ...]
+AgentGraph.resolve_rag_basis()
+-> AgentGraph.retrieve_rag()
+-> RagAnswerService.answer(db, RagAskRequestDTO(...))
+-> RagAnswerGraph가 evidence 반환
+-> AgentGraph.generate_answer()가 LLM 최종 답변 생성
 ```
 
-인덱싱 시점에는 `embed_texts()`가 여러 chunk 텍스트를 저장용 vector로 바꾼다.
+이 구조 때문에 RAG는 “최종 답변 생성기”라기보다 “근거 검색 도구”에 가깝다.
 
-ask 시점에는 `embed_text()`가 사용자 질문을 검색용 vector로 바꾼다.
+## 현재 구현되지 않은 것
 
-## 10. Vector 검색 결과를 Row 구조로 바꾼다
-
-파일:
+아래 항목은 아직 `/rag/ask` 내부 구현이 아니다.
 
 ```text
-backend/app/rag/domain/vector_result.py
+SQL keyword 검색과 vector 검색의 점수 결합
+검색 결과 재랭킹
+근거 부족 시 자동 재검색
+보드 내용과 코드 근거의 신뢰도 비교
+MCP action 실행
+사용자 승인 workflow
 ```
 
-관련 코드:
+이 기능들은 나중에 더 큰 agent graph에서 RAG 결과와 SQL 결과를 함께 보고 판단하는 노드로 추가하는 편이 자연스럽다.
 
-```python
-@dataclass(frozen=True)
-class VectorResultRow:
-    """Chroma가 별도 배열로 주는 검색 결과를 한 행 단위로 묶은 값 객체."""
+## 짧은 요약
 
-    id: str
-    document: str
-    metadata: dict[str, Any]
-    distance: float | None
-```
-
-Chroma의 검색 결과는 사람이 바로 쓰기 좋은 row 형태가 아니다. 보통 이런 식으로 같은 index끼리 맞춰야 하는 여러 배열 형태다.
+현재 `/rag/ask`는 이렇게 이해하면 된다.
 
 ```text
-ids
-documents
-metadatas
-distances
+질문 + 레포 기준
+-> SQL에서 실제 저장된 코드 스냅샷 확정
+-> commit_sha 기준으로 vector DB 검색
+-> 근거 chunk 목록 반환
+-> 최종 자연어 답변은 agent가 생성
 ```
-
-그래서 `parse_vector_result()`가 이 배열들을 같은 index 기준으로 묶는다.
-
-```python
-def parse_vector_result(result: dict[str, Any]) -> list[VectorResultRow]:
-    """ids, documents, metadata, distance 배열을 같은 index 기준의 row 목록으로 변환한다."""
-
-    ids = get_first_result_list(result, "ids")
-    documents = get_first_result_list(result, "documents")
-    metadatas = get_first_result_list(result, "metadatas")
-    distances = get_first_result_list(result, "distances")
-
-    return [
-        VectorResultRow(
-            id=chunk_id,
-            document=get_list_value(documents, index, ""),
-            metadata=get_list_value(metadatas, index, {}) or {},
-            distance=get_list_value(distances, index, None),
-        )
-        for index, chunk_id in enumerate(ids)
-    ]
-```
-
-이 변환 후에는 answer graph가 검색 결과를 다루기 쉬워진다.
-
-```text
-VectorResultRow
-  id
-  document
-  metadata
-  distance
-```
-
-`document`는 LLM에게 줄 근거 텍스트다.
-
-`metadata`에는 citation, path, chunk_type, run_id 같은 추적 정보가 들어 있다.
-
-`distance`는 질문과 chunk 사이의 거리다. 값의 해석은 vector DB 설정에 따라 다르지만, 일반적으로 검색 유사도 판단에 사용된다.
-
-목표 사이클의 `검색 결과 결합`은 현재 코드에서는 아직 복잡하게 구현되어 있지 않다. 현재는 vector 검색 결과를 row로 정리해서 그대로 사용한다.
-
-나중에 SQL 검색과 함께 섞으려면 이 `VectorResultRow` 같은 구조가 결과 결합의 출발점이 될 수 있다.
-
-## 11. 검색 결과가 없으면 기본 답변을 반환한다
-
-파일:
-
-```text
-backend/app/rag/service/answer_graph.py
-```
-
-관련 코드:
-
-```python
-graph.add_conditional_edges(
-    "retrieve_vector",
-    self.route_after_retrieval,
-    {
-        HAS_EVIDENCE_ROUTE: "generate_answer",
-        NO_EVIDENCE_ROUTE: "build_no_evidence_answer",
-    },
-)
-```
-
-검색 결과가 없으면 LLM을 호출하지 않는다.
-
-왜냐하면 `route_after_retrieval` 조건부 엣지가 `rows` 없음 상태를 `build_no_evidence_answer` 노드로 보내기 때문이다. 이 RAG 서비스의 원칙은 저장된 근거만 사용해 답변하는 것이다. 근거가 없는데 LLM을 호출하면 모델이 일반 지식으로 추측할 수 있다.
-
-그래서 현재 코드는 근거가 없을 때 명확히 말한다.
-
-```text
-저장된 RAG 근거를 찾지 못했습니다. 먼저 레포지토리 분석을 실행해 주세요.
-```
-
-이것은 목표 사이클의 `LLM에게 질문 + 근거 전달` 이전에 있는 방어 로직이다.
-
-## 12. LLM에게 질문과 근거를 전달한다
-
-파일:
-
-```text
-backend/app/rag/service/answer_graph.py
-backend/app/rag/external/llm_client.py
-```
-
-answer graph는 검색 결과가 있으면 `generate_answer` 노드에서 LLM client를 호출한다.
-
-```python
-self.llm_client.answer_with_evidence(
-        question=request.question,
-        documents=[row.document for row in rows],
-        metadatas=[row.metadata for row in rows],
-)
-```
-
-여기서 LLM으로 넘어가는 값은 세 가지다.
-
-```text
-question
-  사용자의 원래 질문
-
-documents
-  vector 검색으로 찾은 chunk 텍스트들
-
-metadatas
-  각 chunk의 citation, path, chunk_type 같은 정보
-```
-
-LLM client 쪽에서는 먼저 `RagLlm.answer_with_evidence()`가 호출된다.
-
-```python
-class RagLlm:
-    def answer_with_evidence(
-        self,
-        question: str,
-        documents: list[str],
-        metadatas: list[dict],
-    ) -> str:
-        """질문과 근거 목록을 메시지로 바꾼 뒤 선택된 text generator에 위임한다."""
-
-        messages = self.prompt_builder.build_messages(
-            question=question,
-            documents=documents,
-            metadatas=metadatas,
-        )
-        return self.text_generator.generate(messages)
-```
-
-여기서 중요한 분리는 두 가지다.
-
-```text
-PromptBuilder
-  질문과 근거를 LLM 메시지 구조로 만든다.
-
-TextGenerator
-  만들어진 메시지를 실제 모델에 보내고 텍스트 답변을 받는다.
-```
-
-이 구조 덕분에 나중에 프롬프트 형식을 바꾸거나 LLM provider를 바꿔도 전체 answer service를 크게 바꾸지 않아도 된다.
-
-## 13. PromptBuilder가 System/User 메시지를 만든다
-
-파일:
-
-```text
-backend/app/rag/external/llm_client.py
-```
-
-관련 코드:
-
-```python
-class PromptBuilder:
-    """LLM이 레포 근거만 사용하도록 system/user 메시지 구조를 만든다."""
-
-    def build_messages(
-        self,
-        question: str,
-        documents: list[str],
-        metadatas: list[dict],
-    ) -> list[dict[str, str]]:
-        """모델 교체와 무관하게 유지할 Chat/Responses API 입력 메시지를 만든다."""
-
-        return [
-            {"role": "system", "content": self.system_prompt},
-            {
-                "role": "user",
-                "content": self.build_user_prompt(question, documents, metadatas),
-            },
-        ]
-```
-
-`system` 메시지는 모델의 행동 규칙이다.
-
-현재 기본 system prompt는 이런 역할을 한다.
-
-```text
-한국어로 답하라.
-제공된 repository evidence만 사용하라.
-근거가 부족하면 무엇이 부족한지 말하라.
-실용적으로 답하고, 필요하면 citation을 포함하라.
-```
-
-`user` 메시지는 실제 질문과 검색 근거를 합친 내용이다.
-
-```python
-def build_user_prompt(
-    self,
-    question: str,
-    documents: list[str],
-    metadatas: list[dict],
-) -> str:
-    """질문과 citation이 붙은 evidence block을 하나의 사용자 프롬프트로 합친다."""
-
-    evidence = self.evidence_formatter.format(documents, metadatas)
-    return f"Question:\n{question.strip()}\n\nEvidence:\n{evidence}"
-```
-
-이 단계가 목표 사이클의 이 부분이다.
-
-```text
-LLM에게 질문 + 근거 전달
-```
-
-## 14. EvidenceFormatter가 근거 블록을 만든다
-
-파일:
-
-```text
-backend/app/rag/external/llm_client.py
-```
-
-관련 코드:
-
-```python
-class EvidenceFormatter:
-    """검색된 청크와 metadata를 LLM이 인용 가능한 근거 목록 텍스트로 바꾼다."""
-
-    def format(self, documents: list[str], metadatas: list[dict]) -> str:
-        """여러 근거 청크를 번호가 붙은 block으로 이어 붙인다."""
-
-        blocks = [
-            self.format_one(index, document, metadatas)
-            for index, document in enumerate(documents, start=1)
-        ]
-        return "\n\n".join(blocks)
-```
-
-각 chunk는 citation과 함께 하나의 근거 block으로 바뀐다.
-
-```python
-def format_one(
-    self,
-    index: int,
-    document: str,
-    metadatas: list[dict],
-) -> str:
-    """청크 하나에 citation을 붙여 답변 근거로 추적 가능하게 만든다."""
-
-    metadata = get_list_value(metadatas, index - 1, {}) or {}
-    citation = metadata.get("citation", UNKNOWN_CITATION)
-    return f"[{index}] citation={citation}\n{document.strip()}"
-```
-
-결과적으로 LLM에게 들어가는 Evidence는 이런 모양에 가까워진다.
-
-```text
-[1] citation=backend/app/rag/service/answer_service.py:26-49
-...chunk text...
-
-[2] citation=backend/app/rag/external/vector_repository.py:69-81
-...chunk text...
-```
-
-이 구조는 모델이 답변할 때 어떤 파일/라인을 근거로 삼았는지 추적할 수 있게 해준다.
-
-## 15. TextGenerator가 실제 LLM을 호출한다
-
-파일:
-
-```text
-backend/app/rag/external/llm_client.py
-```
-
-관련 코드:
-
-```python
-class OpenAIGenerator:
-    """OpenAI Responses API 호출을 감싸 다른 LLM provider로 교체하기 쉽게 한다."""
-
-    def __init__(self, model: str = DEFAULT_LLM_MODEL) -> None:
-        self.model = model
-        self.client = OpenAI()
-
-    def generate(self, messages: list[dict[str, Any]]) -> str:
-        """조립된 메시지를 모델에 보내고 화면에 표시할 텍스트만 반환한다."""
-
-        response = self.client.responses.create(
-            model=self.model,
-            input=messages,
-        )
-        return response.output_text.strip()
-```
-
-이 단계에서 실제 OpenAI API 호출이 일어난다.
-
-입력은 PromptBuilder가 만든 `messages`다.
-
-출력은 화면에 표시할 최종 텍스트다.
-
-현재 구현은 LLM 결과를 복잡하게 JSON으로 파싱하지 않고, `response.output_text.strip()`으로 텍스트 답변만 꺼낸다.
-
-목표 사이클의 `LLM 결과 해석`은 현재 구현에서는 아주 단순하다.
-
-```text
-LLM 결과 해석
--> output_text를 문자열 답변으로 사용
-```
-
-나중에 agent workflow로 확장하면 이 부분에서 결과를 구조화할 수 있다.
-
-예:
-
-```text
-answer
-action_required
-action_type
-action_payload
-confidence
-```
-
-## 16. 응답 DTO로 포장한다
-
-파일:
-
-```text
-backend/app/rag/service/answer_graph.py
-backend/app/rag/api/schema.py
-```
-
-LLM 답변을 받은 뒤 `RagAnswerGraph.build_response()`는 최종 응답 DTO를 만든다.
-
-```python
-return {
-    "response": RagAskResponseDTO(
-        answer=state["answer"],
-        repository_full_name=index_run.repository_full_name,
-        branch=index_run.branch,
-        commit_sha=index_run.commit_sha,
-        run_id=index_run.id,
-        sources=state.get("sources", []),
-    )
-}
-```
-
-응답 DTO 구조는 이렇다.
-
-```python
-class RagAskResponseDTO(BaseModel):
-    answer: str
-    repository_full_name: str | None = None
-    branch: str | None = None
-    commit_sha: str | None = None
-    run_id: int | None = None
-    sources: list[RagAskSourceDTO]
-```
-
-`answer`는 LLM이 만든 최종 답변이다.
-
-`repository_full_name`, `branch`, `commit_sha`는 실제 답변 기준이 된 코드 스냅샷이다.
-
-`run_id`는 그 코드 스냅샷을 저장한 인덱싱 작업 번호다.
-사용자가 직접 알아야 하는 값이 아니라, 서버가 SQL에서 찾은 결과를 응답에 표시하는 값이다.
-
-`sources`는 답변 아래에 보여줄 출처 목록이다.
-
-출처 목록은 `build_sources()`에서 만든다.
-
-```python
-def build_sources(rows: list[VectorResultRow]) -> list[RagAskSourceDTO]:
-    """LLM 답변 아래에 노출할 citation, path, 거리 정보를 검색 결과에서 추출한다."""
-
-    sources: list[RagAskSourceDTO] = []
-    for row in rows:
-        sources.append(
-            RagAskSourceDTO(
-                citation=str(row.metadata.get("citation", "")),
-                path=str(row.metadata.get("path", "")),
-                chunk_type=str(row.metadata.get("chunk_type", "")),
-                distance=row.distance,
-            )
-        )
-    return sources
-```
-
-`sources`는 사용자가 답변의 근거를 확인할 수 있게 해준다.
-
-예:
-
-```json
-{
-  "answer": "이 레포의 RAG ask 흐름은 ...",
-  "repository_full_name": "Jungle-303-04/warm-up",
-  "branch": "minjeong",
-  "commit_sha": "abc123...",
-  "run_id": 3,
-  "sources": [
-    {
-      "citation": "backend/app/rag/service/answer_service.py:26-49",
-      "path": "backend/app/rag/service/answer_service.py",
-      "chunk_type": "function",
-      "distance": 0.22
-    }
-  ]
-}
-```
-
-## 17. 라우터가 클라이언트에게 응답한다
-
-다시 파일:
-
-```text
-backend/app/rag/api/router.py
-```
-
-`ask_repository_rag()`는 `answer_service.answer(db, request)`의 결과를 그대로 반환한다.
-
-```python
-return answer_service.answer(db, request)
-```
-
-FastAPI는 이 반환값을 `response_model=RagAskResponseDTO`에 맞춰 JSON으로 직렬화한다.
-
-즉 전체 흐름은 이렇게 끝난다.
-
-```text
-RagAnswerService.answer(db, request)
--> SQL에서 repository_full_name, branch, commit_sha에 맞는 index_run 조회
--> RagAnswerGraph.run(request, index_run)
--> RagAskResponseDTO
--> FastAPI JSON response
--> Client
-```
-
-## 목표 사이클과 현재 코드 매핑
-
-아래 표는 처음에 세운 사고 사이클을 현재 코드에 매핑한 것이다.
-
-| 목표 사이클 | 현재 코드 | 상태 |
-| --- | --- | --- |
-| 사용자 입력 | `POST /rag/ask` | 구현됨 |
-| 입력을 요청 DTO로 받기 | `RagAskRequestDTO` | 구현됨 |
-| 어떤 작업인지 판단 | `/rag/ask`로 들어오면 RAG 답변으로 고정 | 구조만 있음 |
-| 검색 계획 세우기 | `RagAnswerGraph`가 `retrieve_vector -> generate_answer -> build_response` 순서로 실행 | 구조만 있음 |
-| SQL 검색 / Vector 검색 | `RagSqlRepository.find_latest_run()`, `RagVectorRepository.search()` | SQL 기준 조회와 Vector 검색은 구현됨, SQL keyword evidence 결합은 미구현 |
-| 검색 결과 결합 | `parse_vector_result()`로 row 정리 | 구조만 있음 |
-| LLM에게 질문 + 근거 전달 | `RagLlm.answer_with_evidence()` | 구현됨 |
-| LLM 결과 해석 | `OpenAIGenerator.generate()`가 텍스트 반환 | 단순 구현 |
-| 사용자에게 답변하거나, 다음 로직 실행 | `RagAskResponseDTO` 반환 | 사용자 응답만 구현 |
-
-## 구조만 있는 흐름을 실제 코드에 끼우면
-
-아래는 아직 완전히 구현된 흐름이 아니라, 현재 구조 위에 자연스럽게 추가할 수 있는 설계 흐름이다. 각 항목은 `구조만 있음`으로 표시한다.
-
-### 1. Intent 판단
-
-상태: 구조만 있음
-
-현재 `/rag/ask`는 모든 입력을 답변 생성 요청으로 본다.
-
-추가된다면 위치는 `ask_repository_rag()`와 `RagAnswerService.answer(db, request)` 사이가 자연스럽다.
-
-```text
-ask_repository_rag()
--> AgentOrPlannerService.plan(request.question)
--> plan.type에 따라 분기
-```
-
-예상 역할:
-
-```text
-사용자 질문인지
-코드 위치 검색인지
-GitHub issue 생성 요청인지
-보드 작업 생성 요청인지
-추가 인덱싱 요청인지 판단
-```
-
-현재 코드에서는 `AnswerUseCase`라는 포트 타입으로 answer service를 주입받는다. 이처럼 인터페이스를 사이에 두는 구조는 나중에 `PlannerUseCase`나 `AgentUseCase`를 끼우기 좋다.
-
-### 2. 검색 계획 세우기
-
-상태: 구조만 있음
-
-현재 `RagAnswerGraph.retrieve_vector()`는 바로 vector 검색을 실행한다.
-
-```python
-search_result = self.vector_repository.search(
-    query=request.question,
-    limit=request.limit,
-    repository_full_name=index_run.repository_full_name,
-    branch=index_run.branch,
-    commit_sha=index_run.commit_sha,
-)
-```
-
-나중에 검색 계획이 들어가면 이런 구조가 될 수 있다.
-
-```text
-question
--> RetrievalPlan
-   - use_vector: true
-   - use_sql: true
-   - keyword: ...
-   - repository_full_name: ...
-   - commit_sha: ...
-   - limit: ...
-```
-
-예상 위치:
-
-```text
-RagAnswerGraph
--> RetrievalPlanner.build_plan(request)
--> 계획에 따라 retrieve_vector / retrieve_sql 노드 실행
-```
-
-### 3. SQL keyword 검색
-
-상태: 일부 구현됨, ask evidence 결합에는 미연결
-
-SQL 저장소는 이미 RAG 인덱스 실행 결과와 chunk를 저장/조회하는 책임을 가진다.
-
-현재 ask 흐름은 `RagSqlRepository.find_latest_run()`으로 질문 기준이 될 인덱싱 run을 찾는다. 다만 keyword 기반 SQL evidence 검색은 아직 LLM 근거 결합 흐름에 연결되지 않았다.
-
-추가된다면 흐름은 이렇게 될 수 있다.
-
-```text
-RagAnswerGraph
--> retrieve_sql
--> retrieve_vector
--> merge_evidence
-```
-
-SQL 검색이 유리한 경우:
-
-```text
-정확한 함수명 검색
-정확한 파일 경로 검색
-특정 chunk_type 검색
-특정 run_id 안의 chunk 확인
-```
-
-### 4. SQL / Vector 결과 결합
-
-상태: 구조만 있음
-
-현재는 `parse_vector_result()`로 vector 검색 결과만 `VectorResultRow` 목록으로 만든다.
-
-```text
-Chroma result dict
--> list[VectorResultRow]
-```
-
-나중에 SQL 결과까지 섞으려면 공통 결과 타입이 필요하다.
-
-예상 구조:
-
-```text
-VectorResultRow
-SqlResultRow
--> EvidenceCandidate
--> 중복 제거
--> 점수 계산
--> 상위 N개 선택
-```
-
-이 단계가 들어가면 LLM은 SQL 결과와 vector 결과가 합쳐진 evidence만 받게 된다.
-
-### 5. LLM 결과 구조화
-
-상태: 구조만 있음
-
-현재 LLM 응답은 단순 문자열이다.
-
-```python
-return response.output_text.strip()
-```
-
-나중에 agent workflow로 가려면 LLM 결과를 구조화해야 한다.
-
-예상 응답:
-
-```json
-{
-  "type": "answer",
-  "answer": "...",
-  "sources": []
-}
-```
-
-또는:
-
-```json
-{
-  "type": "action",
-  "action": "create_github_issue",
-  "payload": {
-    "title": "...",
-    "body": "..."
-  }
-}
-```
-
-이 구조가 생기면 `LLM 결과 해석` 단계가 단순 텍스트 반환에서 `결과 타입 판별`로 바뀐다.
-
-### 6. 다음 로직 실행
-
-상태: 구조만 있음
-
-현재 `/rag/ask`는 항상 사용자에게 답변을 반환한다.
-
-```text
-RagAskResponseDTO
--> Client
-```
-
-나중에 action 실행이 들어가면 아래처럼 갈라진다.
-
-```text
-LLM result type == answer
--> 사용자에게 답변
-
-LLM result type == action
--> ActionExecutor 실행
--> GitHub / Board / DB 작업
--> 실행 결과를 사용자에게 반환
-```
-
-이 단계는 MCP나 agent와 연결될 수 있다. 예를 들어 LLM이 `create_issue` action을 선택하면, GitHub 관련 도구나 service를 호출하는 식이다.
-
-## 현재 구현의 핵심 흐름
-
-현재 `/rag/ask`를 한 줄로 말하면 아래와 같다.
-
-```text
-질문을 받는다.
-Answer Service가 LangGraph 실행기로 넘긴다.
-Graph가 질문을 embedding한다.
-Graph가 vector DB에서 비슷한 chunk를 찾는다.
-Graph가 찾은 chunk를 citation과 함께 LLM에게 준다.
-Graph가 LLM 답변과 source 목록을 응답 DTO로 포장한다.
-```
-
-코드 흐름은 아래처럼 기억하면 된다.
-
-```text
-ask_repository_rag(request)
--> answer_service.answer(db, request)
--> SQL에서 repository_full_name, branch, commit_sha에 맞는 index_run 조회
--> answer_graph.run(request, index_run)
--> retrieve_vector
--> vector_repository.search(question, limit, repository_full_name, branch, commit_sha)
--> embedding_service.embed_text(question)
--> Chroma collection.query(...)
--> parse_vector_result(...)
--> generate_answer
--> llm_client.answer_with_evidence(question, documents, metadatas)
--> PromptBuilder + EvidenceFormatter
--> OpenAIGenerator.generate(messages)
--> build_response
--> RagAskResponseDTO(answer, repository_full_name, branch, commit_sha, run_id, sources)
-```
-
-## 앞으로 확장할 수 있는 지점
-
-네가 말한 완성형 사이클에는 아직 현재 코드에 없는 단계들이 있다.
-
-### 1. 어떤 작업인지 판단
-
-현재는 `/rag/ask`로 들어오면 무조건 답변 생성이다.
-
-나중에는 사용자의 프롬프트를 보고 아래처럼 나눌 수 있다.
-
-```text
-질문 답변
-코드 위치 찾기
-보드 작업 생성
-GitHub issue 생성
-PR comment 작성
-추가 인덱싱 요청
-```
-
-이 단계가 생기면 `IntentDetector`, `Planner`, `AgentService` 같은 객체가 들어올 수 있다.
-
-### 2. SQL keyword 검색 추가
-
-현재 `/rag/ask`는 SQL에서 기준 인덱싱 run을 찾은 뒤, 그 run의 레포/브랜치/커밋 기준으로 vector 검색을 한다.
-
-하지만 SQL에는 chunk 원문, 경로, run 기록, skipped file 등이 구조적으로 저장되어 있다.
-
-추가할 수 있는 검색:
-
-```text
-keyword 기반 chunk_text ilike 검색
-path 기반 검색
-chunk_type 기반 검색
-run_id 기반 상세 검색
-```
-
-이것은 `RagSqlRepository`나 별도의 `SqlRetriever`로 분리할 수 있다.
-
-### 3. SQL / Vector 결과 결합
-
-Vector 검색은 의미적으로 비슷한 chunk를 찾는 데 좋다.
-
-SQL 검색은 정확한 키워드, 경로, 타입 조건에 강하다.
-
-둘을 합치려면 중간에 result fusion 단계가 필요하다.
-
-```text
-VectorResultRow
-SqlResultRow
--> 공통 EvidenceCandidate
--> 중복 제거
--> 점수 계산
--> 상위 N개 선택
-```
-
-현재 `VectorResultRow`는 그 확장의 출발점이 될 수 있다.
-
-### 4. LLM 결과 해석
-
-현재 LLM 결과는 단순 텍스트다.
-
-agent로 확장하려면 LLM이 구조화된 결과를 반환하게 할 수 있다.
-
-```json
-{
-  "type": "answer",
-  "answer": "...",
-  "needs_action": false,
-  "sources": []
-}
-```
-
-또는:
-
-```json
-{
-  "type": "action",
-  "action": "create_issue",
-  "payload": {
-    "title": "...",
-    "body": "..."
-  }
-}
-```
-
-### 5. 사용자에게 답변하거나 다음 로직 실행
-
-현재는 항상 사용자에게 `RagAskResponseDTO`를 반환한다.
-
-나중에는 아래처럼 갈라질 수 있다.
-
-```text
-LLM 결과가 최종 답변이면
-  -> 사용자에게 반환
-
-LLM 결과가 action 요청이면
-  -> action executor 실행
-  -> 실행 결과를 사용자에게 반환
-```
-
-이 지점부터는 단순 RAG가 아니라 agent workflow가 된다.
-
-## 요약
-
-현재 `/rag/ask`는 완성형 agent 사이클의 첫 버전이다.
-
-구현된 흐름:
-
-```text
-사용자 질문
--> DTO 검증
--> 인증 확인
--> LangGraph 실행
--> vector 검색
--> 검색 결과 row 변환
--> LLM에게 질문 + 근거 전달
--> 답변 + 출처 반환
-```
-
-아직 확장 전인 흐름:
-
-```text
-의도 판단
-SQL 검색
-SQL/Vector 결과 결합
-LLM 결과 구조화
-후속 action 실행
-```
-
-따라서 공부할 때는 먼저 현재 구현된 `/rag/ask` 흐름을 손으로 따라가고, 그 다음에 SQL 검색과 agent action을 어디에 끼울지 생각하면 된다.

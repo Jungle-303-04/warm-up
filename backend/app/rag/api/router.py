@@ -134,7 +134,7 @@ def ask_repository_rag(
     auth_context: AuthRequestContext = Depends(resolve_auth_context),
     answer_service: AnswerUseCase = Depends(Provide[AppContainer.rag_answer_service]),
 ) -> RagAskResponseDTO:
-    """저장된 RAG 근거를 검색하고 LLM 답변과 출처를 함께 반환한다."""
+    """저장된 RAG 근거를 검색하고 출처와 원문 청크를 반환한다."""
 
     try:
         auth_context.github_account()

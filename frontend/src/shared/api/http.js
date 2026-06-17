@@ -55,6 +55,14 @@ export function toKoreanErrorMessage(message) {
     return 'JWT 비밀키가 설정되지 않았습니다.'
   }
 
+  if (message.includes('authorization token is required')) {
+    return '로그인이 필요합니다. 깃허브 로그인 버튼을 눌러주세요.'
+  }
+
+  if (message.includes('chat session not found')) {
+    return '채팅 연결이 만료되었습니다. 새 대화로 다시 연결한 뒤 시도해 주세요.'
+  }
+
   return message
 }
 

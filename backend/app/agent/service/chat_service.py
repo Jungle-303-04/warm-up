@@ -1,5 +1,6 @@
 from app.agent.api.schema import (
     AgentInferredRepositoryRefDTO,
+    AgentRepositoryRefRequestDTO,
     ChatMessageDTO,
     ChatSendMessageRequestDTO,
     ChatSendMessageResponseDTO,
@@ -67,6 +68,7 @@ class AgentChatService:
                 session_id=session.id,
                 user_message_id=user_message.id,
                 user_input=user_message.content,
+                repository_refs=to_domain_repository_refs(request.repository_refs),
             )
         )
         processed_turns, turn_result = self.run_queue(db, session, queue)
@@ -75,6 +77,9 @@ class AgentChatService:
             session=to_session_dto(session),
             messages=to_message_dtos(self.store.list_messages(session.id)),
             processed_turns=processed_turns,
+            repository_basis_changed=(
+                turn_result.repository_basis_changed if turn_result else False
+            ),
             inferred_repository_refs=to_inferred_repository_ref_dtos(
                 turn_result.inferred_repository_refs if turn_result else None
             ),
@@ -154,11 +159,11 @@ def to_message_dtos(messages: list) -> list[ChatMessageDTO]:
 
 def to_inferred_repository_ref_dtos(
     refs: list[InferredRepositoryRef] | None,
-) -> list[AgentInferredRepositoryRefDTO] | None:
-    """이번 turn에서 추론한 답변 대상이 없으면 JSON null로 내려준다."""
+) -> list[AgentInferredRepositoryRefDTO]:
+    """이번 turn에서 선택된 답변 대상 목록을 응답 DTO로 바꾼다."""
 
     if not refs:
-        return None
+        return []
 
     return [
         AgentInferredRepositoryRefDTO(
@@ -169,3 +174,19 @@ def to_inferred_repository_ref_dtos(
         )
         for ref in refs
     ]
+
+
+def to_domain_repository_refs(
+    refs: list[AgentRepositoryRefRequestDTO],
+) -> tuple[InferredRepositoryRef, ...]:
+    """프론트가 명시 선택한 답변 기준을 agent 내부 기준 구조로 바꾼다."""
+
+    return tuple(
+        InferredRepositoryRef(
+            run_id=ref.run_id,
+            repository_full_name=ref.repository_full_name,
+            branch=ref.branch,
+            commit_sha=ref.commit_sha,
+        )
+        for ref in refs
+    )

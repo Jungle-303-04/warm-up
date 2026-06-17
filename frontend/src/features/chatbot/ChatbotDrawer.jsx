@@ -24,6 +24,7 @@ export function ChatbotDrawer({
   const [sessions, setSessions] = useState(() => [
     createChatSession(INITIAL_SESSION_ID, '새 대화'),
   ])
+  const [agentBasisRuns, setAgentBasisRuns] = useState([])
   const chatBasisOptions = useMemo(
     () => buildChatBasisOptions(repositoryRuns, indexResult),
     [repositoryRuns, indexResult],
@@ -32,10 +33,12 @@ export function ChatbotDrawer({
     () => chatBasisOptions.filter((run) => selectedRunIds.includes(run.id)),
     [chatBasisOptions, selectedRunIds],
   )
+  const effectiveSelectedRuns = selectedRuns.length ? selectedRuns : agentBasisRuns
+  const isAgentInferredBasis = !selectedRuns.length && agentBasisRuns.length > 0
 
   const chatContext = useMemo(
-    () => buildChatContext(selectedRuns, isIndexing),
-    [selectedRuns, isIndexing],
+    () => buildChatContext(effectiveSelectedRuns, isIndexing, isAgentInferredBasis),
+    [effectiveSelectedRuns, isIndexing, isAgentInferredBasis],
   )
   const activeSession = sessions.find((session) => session.id === activeSessionId)
     || sessions[0]
@@ -117,6 +120,7 @@ export function ChatbotDrawer({
 
   function selectConversationBasis() {
     onSelectedRunIdsChange([])
+    setAgentBasisRuns([])
     setDraftError('')
   }
 
@@ -147,6 +151,7 @@ export function ChatbotDrawer({
   }
 
   function toggleSelectedRun(runId) {
+    setAgentBasisRuns([])
     onSelectedRunIdsChange(
       selectedRunIds.includes(runId)
         ? selectedRunIds.filter((currentRunId) => currentRunId !== runId)
@@ -166,32 +171,22 @@ export function ChatbotDrawer({
       return
     }
 
-    // Backend: POST /rag/ask
-    // Request DTO:
-    // {
-    //   question: string,
-    //   repository_refs: Array<{
-    //     repository_full_name: string,
-    //     branch?: string | null,
-    //     commit_sha?: string | null
-    //   }>,
-    //   limit: number
-    // }
-    // TODO(backend): 대화 맥락 기반 레포 추론과 서버 저장 채팅 세션을 붙이면
-    // 프론트가 질문 문장에서 레포명을 직접 추론하지 않아도 된다.
     const userMessage = {
       id: messageIdRef.current,
       sender: 'user',
       text: nextQuestion,
     }
     messageIdRef.current += 1
-    const basisResolution = resolveQuestionBasis(nextQuestion, selectedRuns, chatBasisOptions)
-    const targetRuns = basisResolution.runs
     const sessionId = activeSession.id
+    const nextTitle = resolveSessionTitle(activeSession, nextQuestion)
+    const requestRepositoryRefs = effectiveSelectedRuns.map(buildAgentRepositoryRef)
+    let agentSessionId
 
-    if (basisResolution.shouldPersist) {
-      // 대화에서 레포/브랜치 기준을 알아냈다면 상단 체크 상태도 같은 기준으로 고정한다.
-      onSelectedRunIdsChange(targetRuns.map((run) => run.id))
+    try {
+      agentSessionId = await ensureAgentSession(sessionId, nextTitle)
+    } catch (error) {
+      setDraftError(toKoreanErrorMessage(error.message))
+      return
     }
 
     setSessions((currentSessions) =>
@@ -203,7 +198,7 @@ export function ChatbotDrawer({
         return {
           ...session,
           isGenerating: true,
-          title: resolveSessionTitle(session, nextQuestion),
+          title: nextTitle,
           updatedAt: new Date().toISOString(),
           messages: [
             ...session.messages,
@@ -216,13 +211,91 @@ export function ChatbotDrawer({
     setDraftError('')
 
     try {
-      const assistantText = targetRuns.length
-        ? await buildRagAssistantText(nextQuestion, targetRuns)
-        : buildMissingBasisMessage()
-      appendAssistantMessage(sessionId, assistantText)
+      const response = await sendAgentChatMessageWithRecovery(
+        sessionId,
+        agentSessionId,
+        nextTitle,
+        nextQuestion,
+        requestRepositoryRefs,
+      )
+      if (response.repository_basis_changed) {
+        const nextBasisRuns = buildRunsFromAgentRefs(
+          response.inferred_repository_refs || [],
+          chatBasisOptions,
+        )
+        setAgentBasisRuns(nextBasisRuns)
+
+        const inferredRunIds = nextBasisRuns
+          .map((run) => run.id)
+          .filter((runId) => typeof runId === 'number')
+        onSelectedRunIdsChange(inferredRunIds)
+      }
+
+      replaceSessionWithAgentResponse(sessionId, response, nextTitle)
     } catch (error) {
       appendAssistantMessage(sessionId, toKoreanErrorMessage(error.message))
     }
+  }
+
+  async function sendAgentChatMessageWithRecovery(
+    sessionId,
+    agentSessionId,
+    title,
+    question,
+    repositoryRefs,
+  ) {
+    try {
+      return await sendAgentChatMessage(agentSessionId, question, repositoryRefs)
+    } catch (error) {
+      if (!isChatSessionNotFoundError(error)) {
+        throw error
+      }
+
+      // 개발 서버 reload 후에는 백엔드 InMemoryChatStore의 세션만 사라질 수 있다.
+      // 로컬 대화 UI는 유지하되, 새 백엔드 세션을 같은 채팅방에 다시 연결해 재전송한다.
+      const recoveredAgentSessionId = await recreateAgentSession(sessionId, title)
+      return sendAgentChatMessage(recoveredAgentSessionId, question, repositoryRefs)
+    }
+  }
+
+  async function recreateAgentSession(sessionId, title) {
+    const response = await createAgentChatSession(title)
+    const agentSessionId = response.session.id
+
+    setSessions((currentSessions) =>
+      currentSessions.map((session) => (
+        session.id === sessionId
+          ? {
+            ...session,
+            agentSessionId,
+            title: session.title === '새 대화' ? title : session.title,
+          }
+          : session
+      )),
+    )
+    return agentSessionId
+  }
+
+  async function ensureAgentSession(sessionId, title) {
+    const currentSession = sessions.find((session) => session.id === sessionId)
+    if (currentSession?.agentSessionId) {
+      return currentSession.agentSessionId
+    }
+
+    const response = await createAgentChatSession(title)
+    const agentSessionId = response.session.id
+    setSessions((currentSessions) =>
+      currentSessions.map((session) => (
+        session.id === sessionId
+          ? {
+            ...session,
+            agentSessionId,
+            title: session.title === '새 대화' ? title : session.title,
+          }
+          : session
+      )),
+    )
+    return agentSessionId
   }
 
   function submitOnEnter(event) {
@@ -256,6 +329,26 @@ export function ChatbotDrawer({
             ...session.messages,
             assistantMessage,
           ],
+        }
+      }),
+    )
+  }
+
+  function replaceSessionWithAgentResponse(sessionId, response, title) {
+    const responseMessages = (response.messages || []).map(toLocalChatMessage)
+    setSessions((currentSessions) =>
+      currentSessions.map((session) => {
+        if (session.id !== sessionId) {
+          return session
+        }
+
+        return {
+          ...session,
+          agentSessionId: response.session.id,
+          title,
+          isGenerating: false,
+          updatedAt: new Date().toISOString(),
+          messages: responseMessages,
         }
       }),
     )
@@ -475,6 +568,7 @@ export function ChatbotDrawer({
 function createChatSession(id, title) {
   return {
     id,
+    agentSessionId: null,
     title,
     isGenerating: false,
     updatedAt: new Date().toISOString(),
@@ -486,6 +580,91 @@ function createChatSession(id, title) {
       },
     ],
   }
+}
+
+async function createAgentChatSession(title) {
+  return postJson(`${API_BASE_URL}/agent/chat/sessions`, { title })
+}
+
+async function sendAgentChatMessage(sessionId, content, repositoryRefs) {
+  return postJson(`${API_BASE_URL}/agent/chat/sessions/${sessionId}/messages`, {
+    content,
+    repository_refs: repositoryRefs,
+  })
+}
+
+function isChatSessionNotFoundError(error) {
+  return String(error?.message || '').includes('chat session not found')
+}
+
+function buildAgentRepositoryRef(run) {
+  return {
+    run_id: Number.isInteger(run.id) ? run.id : null,
+    repository_full_name: run.repository_full_name,
+    branch: run.branch || null,
+    commit_sha: run.commit_sha || null,
+  }
+}
+
+function toLocalChatMessage(message) {
+  return {
+    id: message.id,
+    sender: toLocalMessageSender(message.role),
+    text: message.content,
+  }
+}
+
+function toLocalMessageSender(role) {
+  if (role === 'user') {
+    return 'user'
+  }
+
+  if (role === 'assistant') {
+    return 'assistant'
+  }
+
+  return 'system'
+}
+
+function buildRunsFromAgentRefs(refs, chatBasisOptions) {
+  return refs
+    .map((ref) => findRunForAgentRef(ref, chatBasisOptions))
+    .filter(Boolean)
+}
+
+function findRunForAgentRef(ref, chatBasisOptions) {
+  const runId = ref.run_id
+  const matchedByRunId = runId
+    ? chatBasisOptions.find((run) => run.id === runId)
+    : null
+  if (matchedByRunId) {
+    return matchedByRunId
+  }
+
+  const matchedByRepositoryRef = chatBasisOptions.find((run) => (
+    run.repository_full_name === ref.repository_full_name
+    && normalizeOptionalText(run.branch) === normalizeOptionalText(ref.branch)
+    && normalizeOptionalText(run.commit_sha) === normalizeOptionalText(ref.commit_sha)
+  ))
+  if (matchedByRepositoryRef) {
+    return matchedByRepositoryRef
+  }
+
+  if (!ref.repository_full_name) {
+    return null
+  }
+
+  return {
+    id: runId || `${ref.repository_full_name}:${ref.branch || ''}:${ref.commit_sha || ''}`,
+    repository_full_name: ref.repository_full_name,
+    branch: ref.branch,
+    commit_sha: ref.commit_sha,
+    indexed_at: '',
+  }
+}
+
+function normalizeOptionalText(value) {
+  return String(value || '').trim()
 }
 
 function createRunIdsSignature(runIds) {
@@ -530,7 +709,7 @@ function formatSessionTime(value) {
   }).format(new Date(value))
 }
 
-function buildChatContext(selectedRuns, isIndexing) {
+function buildChatContext(selectedRuns, isIndexing, isAgentInferredBasis = false) {
   if (!selectedRuns.length) {
     return {
       title: '답변 대상: 질문에서 찾기',
@@ -549,8 +728,10 @@ function buildChatContext(selectedRuns, isIndexing) {
     const run = selectedRuns[0]
 
     return {
-      title: '답변 대상: 선택한 분석 결과',
-      modeLabel: '선택한 레포',
+      title: isAgentInferredBasis
+        ? '답변 대상: agent가 찾은 분석 결과'
+        : '답변 대상: 선택한 분석 결과',
+      modeLabel: isAgentInferredBasis ? 'agent 추론' : '선택한 레포',
       hasSelectedRuns: true,
       selectedRuns,
       detail: `${run.repository_full_name} · ${run.branch || '기본 브랜치'}`,
@@ -562,8 +743,10 @@ function buildChatContext(selectedRuns, isIndexing) {
   }
 
   return {
-    title: `답변 대상: 선택한 분석 결과 ${selectedRuns.length}개`,
-    modeLabel: '여러 레포 선택',
+    title: isAgentInferredBasis
+      ? `답변 대상: agent가 찾은 분석 결과 ${selectedRuns.length}개`
+      : `답변 대상: 선택한 분석 결과 ${selectedRuns.length}개`,
+    modeLabel: isAgentInferredBasis ? 'agent 추론' : '여러 레포 선택',
     hasSelectedRuns: true,
     selectedRuns,
     detail: selectedRuns.map((run) => formatRunReferenceLabel(run)).join(', '),
@@ -572,200 +755,6 @@ function buildChatContext(selectedRuns, isIndexing) {
       ? '새 분석 중입니다. 완료되기 전까지는 지금 선택된 마지막 분석 결과로 답변합니다.'
       : '',
   }
-}
-
-function resolveQuestionBasis(question, selectedRuns, chatBasisOptions) {
-  const inferredRuns = inferRunsFromQuestion(question, chatBasisOptions)
-  if (inferredRuns.length) {
-    return {
-      runs: inferredRuns,
-      shouldPersist: true,
-    }
-  }
-
-  if (selectedRuns.length) {
-    return {
-      runs: selectedRuns,
-      shouldPersist: false,
-    }
-  }
-
-  if (chatBasisOptions.length === 1) {
-    return {
-      runs: [chatBasisOptions[0]],
-      shouldPersist: true,
-    }
-  }
-
-  return {
-    runs: [],
-    shouldPersist: false,
-  }
-}
-
-function inferRunsFromQuestion(question, chatBasisOptions) {
-  const normalizedQuestion = normalizeLookupText(question)
-  const scoredRuns = chatBasisOptions
-    .map((run) => ({
-      run,
-      score: getRunMentionScore(normalizedQuestion, run),
-    }))
-    .filter((candidate) => candidate.score > 0)
-
-  if (!scoredRuns.length) {
-    return []
-  }
-
-  const highestScore = Math.max(...scoredRuns.map((candidate) => candidate.score))
-  const bestRuns = scoredRuns
-    .filter((candidate) => candidate.score === highestScore)
-    .map((candidate) => candidate.run)
-
-  if (highestScore === BRANCH_ONLY_MATCH_SCORE) {
-    const matchedRepositories = new Set(
-      bestRuns.map((run) => normalizeLookupText(run.repository_full_name)),
-    )
-    if (matchedRepositories.size !== 1) {
-      return []
-    }
-  }
-
-  return getLatestMatchingRuns(bestRuns, shouldKeepBranchInBasis(highestScore))
-}
-
-const FULL_REPOSITORY_AND_BRANCH_MATCH_SCORE = 60
-const REPOSITORY_NAME_AND_BRANCH_MATCH_SCORE = 50
-const FULL_REPOSITORY_MATCH_SCORE = 40
-const REPOSITORY_NAME_MATCH_SCORE = 30
-const BRANCH_ONLY_MATCH_SCORE = 20
-
-function getRunMentionScore(normalizedQuestion, run) {
-  const repositoryFullName = normalizeLookupText(run.repository_full_name)
-  const repositoryName = normalizeLookupText(
-    String(run.repository_full_name || '').split('/').at(-1) || '',
-  )
-  const branch = normalizeLookupText(run.branch || '')
-  const hasRepositoryFullName = repositoryFullName && normalizedQuestion.includes(repositoryFullName)
-  const hasRepositoryName = repositoryName && normalizedQuestion.includes(repositoryName)
-  const hasBranch = branch && normalizedQuestion.includes(branch)
-
-  if (hasRepositoryFullName && hasBranch) {
-    return FULL_REPOSITORY_AND_BRANCH_MATCH_SCORE
-  }
-
-  if (hasRepositoryName && hasBranch) {
-    return REPOSITORY_NAME_AND_BRANCH_MATCH_SCORE
-  }
-
-  if (hasRepositoryFullName) {
-    return FULL_REPOSITORY_MATCH_SCORE
-  }
-
-  if (hasRepositoryName) {
-    return REPOSITORY_NAME_MATCH_SCORE
-  }
-
-  if (hasBranch) {
-    return BRANCH_ONLY_MATCH_SCORE
-  }
-
-  return 0
-}
-
-function shouldKeepBranchInBasis(score) {
-  return [
-    FULL_REPOSITORY_AND_BRANCH_MATCH_SCORE,
-    REPOSITORY_NAME_AND_BRANCH_MATCH_SCORE,
-    BRANCH_ONLY_MATCH_SCORE,
-  ].includes(score)
-}
-
-function getLatestMatchingRuns(runs, keepBranch) {
-  const latestRuns = new Map()
-
-  for (const run of runs) {
-    const repositoryFullName = normalizeLookupText(run.repository_full_name)
-    const branch = normalizeLookupText(run.branch || '')
-    const key = keepBranch ? `${repositoryFullName}:${branch}` : repositoryFullName
-    const currentRun = latestRuns.get(key)
-
-    if (
-      !currentRun
-      || new Date(run.indexed_at || 0) > new Date(currentRun.indexed_at || 0)
-    ) {
-      latestRuns.set(key, run)
-    }
-  }
-
-  return Array.from(latestRuns.values())
-}
-
-async function buildRagAssistantText(question, targetRuns) {
-  const response = await postJson(`${API_BASE_URL}/rag/ask`, {
-    question,
-    repository_refs: targetRuns.map(buildAskRepositoryRef),
-    limit: 5,
-  })
-
-  return formatRagAnswer(response)
-}
-
-function buildAskRepositoryRef(run) {
-  return {
-    repository_full_name: run.repository_full_name,
-    branch: run.branch || null,
-    commit_sha: run.commit_sha || null,
-  }
-}
-
-function formatRagAnswer(response) {
-  const basisText = formatRagResponseBasis(response)
-  const sourceText = formatRagSources(response.sources || [])
-  const answerText = basisText
-    ? `답변에 사용한 분석 결과\n${basisText}\n\n${response.answer}`
-    : response.answer
-
-  if (!sourceText) {
-    return answerText
-  }
-
-  return `${answerText}\n\n출처\n${sourceText}`
-}
-
-function formatRagResponseBasis(response) {
-  const responseRefs = response.repository_refs?.length
-    ? response.repository_refs
-    : [response]
-
-  return responseRefs
-    .filter((ref) => ref.repository_full_name)
-    .map((ref) => {
-      const branch = ref.branch || '기본 브랜치'
-      const version = ref.commit_sha ? ` · 코드 버전 ${ref.commit_sha.slice(0, 7)}` : ''
-      return `${ref.repository_full_name} · ${branch}${version}`
-    })
-    .join('\n')
-}
-
-function formatRagSources(sources) {
-  return sources
-    .slice(0, 5)
-    .map((source, index) => {
-      const sourceLabel = source.citation || source.path || '출처 정보 없음'
-      return `${index + 1}. ${sourceLabel}`
-    })
-    .join('\n')
-}
-
-function buildMissingBasisMessage() {
-  return (
-    '어떤 레포지토리 기준으로 답해야 할지 찾지 못했습니다.\n'
-    + '상단의 답변 대상에서 레포지토리를 선택하거나, 질문에 예: Jungle-303-04/warm-up 같은 레포 이름을 포함해 주세요.'
-  )
-}
-
-function normalizeLookupText(value) {
-  return String(value || '').trim().toLowerCase()
 }
 
 function buildChatBasisOptions(repositoryRuns, indexResult) {
