@@ -209,7 +209,7 @@ def test_change_summary_from_code_without_key() -> None:
 
 
 def test_uml_from_python_classes_without_key() -> None:
-    """파이썬 클래스가 있으면 키 없이도 레이어드 UML flowchart를 만든다."""
+    """파이썬 클래스가 있으면 키 없이도 실제 classDiagram을 만든다."""
     gen = DeterministicArtifactGenerator()
     src = "class Base: ...\nclass App(Base):\n    state: int\n    def start(self): ...\n"
 
@@ -217,13 +217,15 @@ def test_uml_from_python_classes_without_key() -> None:
         GenerationRequest(type="uml", contexts=[_ctx("app/application/app.py", src)])
     )
 
-    assert content.startswith("flowchart TB")
+    assert content.startswith("classDiagram")
     assert "LLM 키가 필요합니다" not in content
-    assert 'subgraph layer_application["Application / Service"]' in content
-    assert "c_App" in content
-    assert "actions: start()" in content
-    assert "state: state" in content
-    assert "c_App -->|extends| c_Base" in content  # 내부 클래스 상속 관계
+    assert "direction TB" in content
+    assert "%% 애플리케이션/서비스" in content
+    assert "app/application/app.py" not in content
+    assert "class App" in content
+    assert "+state" in content
+    assert "+start()" in content
+    assert "Base <|-- App : 상속" in content  # 내부 클래스 상속 관계
 
 
 def test_erd_from_orm_models_without_key() -> None:
@@ -284,6 +286,40 @@ def test_erd_sanitizes_sqlalchemy_vector_columns() -> None:
     assert "notebook_chunks" in content
 
 
+def test_erd_sql_table_body_does_not_leak_ddl_keywords_as_columns() -> None:
+    gen = DeterministicArtifactGenerator()
+    src = (
+        "CREATE TABLE notebook_chunks (\n"
+        "    id text primary key,\n"
+        "    notebook_id text references notebooks(id),\n"
+        "    content text\n"
+        ");\n"
+        "CREATE INDEX idx_chunks ON notebook_chunks(id);\n"
+        "ALTER TABLE notebook_chunks ADD COLUMN updated_at timestamp;\n"
+    )
+
+    content = gen.generate(
+        GenerationRequest(
+            type="erd",
+            contexts=[
+                ArtifactContext(
+                    source_id="s1",
+                    source_title="repo",
+                    path="schema.sql",
+                    language="sql",
+                    text=src,
+                )
+            ],
+        )
+    )
+
+    assert "notebook_chunks" in content
+    assert "notebooks" in content
+    assert "string CREATE" not in content
+    assert "string ON" not in content
+    assert "string WHERE" not in content
+
+
 def test_chat_openai_generator_prefers_deterministic_erd() -> None:
     """LLM이 깨진 Mermaid를 반환해도 ERD는 정적 생성 결과를 사용한다."""
 
@@ -302,6 +338,25 @@ def test_chat_openai_generator_prefers_deterministic_erd() -> None:
 
     assert "list<float>" not in content
     assert "users" in content
+
+
+def test_chat_openai_generator_uses_llm_for_change_summary() -> None:
+    class SummaryModel:
+        def invoke(self, prompt: str) -> str:
+            assert "정적 분석" in prompt
+            assert "ApiRouter" in prompt
+            return "## 변경 요약\n\n- 라우터 구조를 정리했습니다.\n"
+
+    gen = ChatOpenAIArtifactGenerator(SummaryModel())
+
+    content = gen.generate(
+        GenerationRequest(
+            type="change_summary",
+            contexts=[_ctx("app/api/router.py", "class ApiRouter:\n    pass\n")],
+        )
+    )
+
+    assert content == "## 변경 요약\n\n- 라우터 구조를 정리했습니다."
 
 
 def test_uml_from_typescript_interfaces_without_key() -> None:
@@ -325,13 +380,15 @@ def test_uml_from_typescript_interfaces_without_key() -> None:
 
     content = gen.generate(GenerationRequest(type="uml", contexts=[ctx]))
 
-    assert content.startswith("flowchart TB")
-    assert 'subgraph layer_domain["Domain / Contract"]' in content
-    assert "c_Source" in content
-    assert "state: id, title" in content
-    assert "c_SourceStore" in content
-    assert "actions: add()" in content
-    assert "c_SourceStore -->|uses| c_Source" in content
+    assert content.startswith("classDiagram")
+    assert "%% 도메인/계약" in content
+    assert "apps/web/src/lib/types.ts" not in content
+    assert "class Source" in content
+    assert "+id" in content
+    assert "+title" in content
+    assert "class SourceStore" in content
+    assert "+add()" in content
+    assert "SourceStore ..> Source : 참조" in content
 
 
 def test_uml_without_extractable_symbols_falls_back_to_skeleton() -> None:

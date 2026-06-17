@@ -97,8 +97,8 @@ class ChatOpenAIArtifactGenerator(LlmArtifactGenerator):
     """LangChain ChatOpenAI 기반 생성기.
 
     타입별 system 프롬프트 + 컨텍스트로 Mermaid/마크다운만 출력하도록 유도한다.
-    UML/ERD/dependency/change_summary는 코드 사실 기반 결정론 생성이 더 안전하므로
-    결정론 경로를 우선 사용한다.
+    UML/ERD/dependency는 코드 사실 기반 결정론 생성이 더 안전하므로 결정론 경로를
+    우선 사용한다. change_summary는 자연어 품질이 중요하므로 LLM을 먼저 시도한다.
     실패 시 결정론 폴백으로 전환한다(에러를 밖으로 던지지 않는다).
     """
 
@@ -109,7 +109,7 @@ class ChatOpenAIArtifactGenerator(LlmArtifactGenerator):
     def generate(self, request: GenerationRequest) -> str:
         # Mermaid/요약은 자유 생성보다 정적 사실 기반 출력이 더 안전하다.
         # 특히 erDiagram은 LLM이 list<float> 같은 비문법 타입을 만들 수 있어 렌더 실패한다.
-        if request.type in {"dependency", "uml", "erd", "change_summary"}:
+        if request.type in {"dependency", "uml", "erd"}:
             return self._fallback.generate(request)
 
         try:
@@ -142,7 +142,9 @@ _SYSTEM_PROMPTS: dict[ArtifactType, str] = {
         "당신은 코드/문서 변경을 요약하는 보조자입니다. "
         "repo 내부 docs/README보다 실제 코드·스키마·설정 파일을 우선 근거로 삼고, "
         "문서는 코드와 일치하는 보조 근거일 때만 참조하세요. "
-        "주어진 컨텍스트의 핵심을 한국어 마크다운으로 간결히 요약하세요."
+        "아래 정적 요약 초안을 참고하되 그대로 복사하지 말고, 변경 의도와 영향 범위를 "
+        "사용자가 읽기 쉬운 한국어 마크다운으로 다시 정리하세요. "
+        "파일 경로 링크가 있으면 유지하고, 확인되지 않은 내용은 추측하지 마세요."
     ),
 }
 
@@ -175,6 +177,8 @@ def _facts_for(request: GenerationRequest) -> str:
         return uml_facts_text(request.contexts)
     if request.type == "erd":
         return erd_facts_text(request.contexts)
+    if request.type == "change_summary":
+        return build_change_summary_markdown(request.contexts)
     return ""
 
 

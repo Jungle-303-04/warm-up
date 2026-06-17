@@ -16,6 +16,37 @@ function isDarkTheme(): boolean {
   return document.documentElement.classList.contains("dark");
 }
 
+function mermaidThemeVariables(): Record<string, string> {
+  if (isDarkTheme()) {
+    return {
+      background: "transparent",
+      primaryColor: "#172033",
+      primaryTextColor: "#f8fafc",
+      primaryBorderColor: "#64748b",
+      secondaryColor: "#111827",
+      tertiaryColor: "#0f172a",
+      lineColor: "#94a3b8",
+      textColor: "#e5e7eb",
+      clusterBkg: "#1f2937",
+      clusterBorder: "#475569",
+      edgeLabelBackground: "#111827",
+    };
+  }
+  return {
+    background: "transparent",
+    primaryColor: "#eef5ff",
+    primaryTextColor: "#111827",
+    primaryBorderColor: "#64748b",
+    secondaryColor: "#f8fafc",
+    tertiaryColor: "#ffffff",
+    lineColor: "#475569",
+    textColor: "#111827",
+    clusterBkg: "#f1f5f9",
+    clusterBorder: "#94a3b8",
+    edgeLabelBackground: "#ffffff",
+  };
+}
+
 // 렌더된 Mermaid SVG에 줌·팬을 입히는 캔버스. svg-pan-zoom을 동적 import 해
 // 클라이언트에서만 적용한다(SSR 안전). svg가 바뀌면 인스턴스를 재생성한다.
 function PanZoomCanvas({ svg }: { svg: string }) {
@@ -200,7 +231,8 @@ export function MermaidRender({
         mermaid.initialize({
           startOnLoad: false,
           securityLevel: "strict",
-          theme: isDarkTheme() ? "dark" : "default",
+          theme: "base",
+          themeVariables: mermaidThemeVariables(),
           fontFamily: "var(--font-sans, Pretendard, sans-serif)",
         });
         // parse 로 문법을 먼저 검증(에러 메시지 품질↑).

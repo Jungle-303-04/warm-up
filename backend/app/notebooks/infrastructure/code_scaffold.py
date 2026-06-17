@@ -161,7 +161,8 @@ def extract_javascript_classes(text: str, *, path: str | None = None) -> list[Cl
             if name not in {"if", "for", "while", "switch"}
         )
         info.attributes.extend(_JS_FIELD_RE.findall(body))
-        info.references.extend(_JS_TYPE_REF_RE.findall(body))
+        ignored = {info.name, *info.bases}
+        info.references.extend(ref for ref in _JS_TYPE_REF_RE.findall(body) if ref not in ignored)
         classes.append(info)
 
     for match in _JS_INTERFACE_RE.finditer(text):
@@ -205,13 +206,7 @@ def uml_facts_text(contexts: list[ArtifactContext]) -> str:
 
 
 def build_uml_mermaid(contexts: list[ArtifactContext]) -> str | None:
-    """추출한 클래스로 레이어드 architecture UML(flowchart)을 만든다.
-
-    Mermaid classDiagram은 큰 저장소에서 클래스 박스를 한 줄로 늘어놓기 쉬워 관계가
-    잘 보이지 않는다. 그래서 실제 UI 산출물은 레이어별 subgraph와 관계 edge를 가진
-    flowchart로 만든다. 이름은 UML 산출물이지만, 목적은 클래스/서비스 책임과 계층 간
-    의존을 읽기 쉽게 보여주는 구조도다.
-    """
+    """추출한 클래스로 Mermaid classDiagram을 만든다."""
     classes = _code_classes(contexts)
     if not classes:
         return None
@@ -226,34 +221,30 @@ def build_uml_mermaid(contexts: list[ArtifactContext]) -> str | None:
     }
 
     lines = [
-        "flowchart TB",
-        "    %% 레이어드 UML: 파일 경로 기반 계층 + 클래스 참조/상속 관계",
+        "classDiagram",
+        "    direction TB",
+        "    %% 선택한 소스에서 추출한 클래스/인터페이스의 속성, 메서드, 상속, 참조 관계입니다.",
     ]
-    groups: dict[str, list[ClassInfo]] = {}
-    for item in classes:
-        groups.setdefault(_layer_for_path(item.path), []).append(item)
 
-    for layer_key, layer_label in _UML_LAYER_ORDER:
-        items = sorted(groups.get(layer_key, []), key=lambda c: (c.path or "", c.name))
-        if not items:
-            continue
-        group_id = "layer_" + _safe_id(layer_key)
-        lines.append(f'    subgraph {group_id}["{layer_label}"]')
-        for item in items:
-            lines.append(f'        {_class_node_id(item.name)}["{_class_label(item)}"]')
-        lines.append("    end")
+    current_layer: str | None = None
+    sorted_classes = sorted(
+        classes,
+        key=lambda item: (_layer_rank(_layer_for_path(item.path)), item.name),
+    )
+    for item in sorted_classes:
+        layer = _layer_for_path(item.path)
+        if layer != current_layer:
+            lines.append(f"    %% {_layer_label(layer)}")
+            current_layer = layer
+        lines.extend(_class_diagram_block(item))
 
     for src, dst, label in sorted(relations):
-        lines.append(
-            f"    {_class_node_id(src)} -->|{_safe_edge_label(label)}| {_class_node_id(dst)}"
-        )
-
-    lines.extend(
-        [
-            "    classDef layer fill:#111827,stroke:#374151,color:#e5e7eb",
-            "    classDef default fill:#172033,stroke:#4b5563,color:#f8fafc",
-        ]
-    )
+        src_id = _safe_id(src)
+        dst_id = _safe_id(dst)
+        if label == "extends":
+            lines.append(f"    {dst_id} <|-- {src_id} : 상속")
+        else:
+            lines.append(f"    {src_id} ..> {dst_id} : 참조")
     return "\n".join(lines) + "\n"
 
 
@@ -300,6 +291,20 @@ def _layer_rank(layer: str) -> int:
     return len(_UML_LAYER_ORDER)
 
 
+def _layer_label(layer: str) -> str:
+    labels = {
+        "entry": "진입점/API/UI",
+        "application": "애플리케이션/서비스",
+        "domain": "도메인/계약",
+        "infrastructure": "인프라/어댑터",
+        "data": "데이터/스키마",
+        "config": "설정/런타임",
+        "tests": "테스트",
+        "other": "기타",
+    }
+    return labels.get(layer, "기타")
+
+
 def _layer_for_path(path: str | None) -> str:
     lowered = (path or "").lower()
     if "/test" in lowered or lowered.startswith("test") or "/tests/" in lowered:
@@ -327,41 +332,19 @@ def _has_path_part(path: str, parts: tuple[str, ...]) -> bool:
     return any(part in tokens for part in parts)
 
 
-def _class_node_id(name: str) -> str:
-    return "c_" + _safe_id(name)
-
-
-def _class_label(item: ClassInfo) -> str:
-    parts = [item.name]
-    if item.path:
-        parts.append(_short_path(item.path))
-    actions = _dedupe(item.methods)[:4]
-    attrs = [attr for attr in _dedupe(item.attributes) if not attr.startswith("_")][:3]
-    if actions:
-        parts.append("actions: " + ", ".join(f"{name}()" for name in actions))
-    if attrs:
-        parts.append("state: " + ", ".join(attrs))
-    return "<br/>".join(_escape_label(part) for part in parts)
-
-
-def _short_path(path: str) -> str:
-    parts = [part for part in path.split("/") if part]
-    if len(parts) <= 3:
-        return path
-    return "/".join(parts[-3:])
-
-
-def _escape_label(text: str) -> str:
-    return (
-        text.replace("\\", "\\\\")
-        .replace('"', "'")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
-
-
-def _safe_edge_label(text: str) -> str:
-    return re.sub(r"[^0-9A-Za-z_가-힣 -]", "", text) or "uses"
+def _class_diagram_block(item: ClassInfo) -> list[str]:
+    ident = _safe_id(item.name)
+    attrs = [attr for attr in _dedupe(item.attributes) if not attr.startswith("_")][:8]
+    methods = [method for method in _dedupe(item.methods) if not method.startswith("_")][:10]
+    if not attrs and not methods:
+        return [f"    class {ident}"]
+    lines = [f"    class {ident} {{"]
+    for attr in attrs:
+        lines.append(f"        +{_safe_member(attr)}")
+    for method in methods:
+        lines.append(f"        +{_safe_member(method)}()")
+    lines.append("    }")
+    return lines
 
 
 # ── ERD: ORM 모델 / SQL 골격 ────────────────────────────────────────
@@ -492,6 +475,19 @@ def _relationship_target(member: ast.stmt) -> str | None:
 _CREATE_TABLE_RE = re.compile(r"create\s+table\s+(?:if\s+not\s+exists\s+)?[\"`']?(\w+)", re.IGNORECASE)
 _SQL_FK_RE = re.compile(r"references\s+[\"`']?(\w+)", re.IGNORECASE)
 _SQL_COLUMN_RE = re.compile(r"^\s*[\"`']?([A-Za-z_]\w*)[\"`']?\s+[A-Za-z]", re.MULTILINE)
+_SQL_NON_COLUMN_WORDS = {
+    "alter",
+    "check",
+    "constraint",
+    "create",
+    "foreign",
+    "key",
+    "on",
+    "primary",
+    "references",
+    "unique",
+    "where",
+}
 
 
 def extract_sql_tables(text: str) -> list[Entity]:
@@ -499,19 +495,31 @@ def extract_sql_tables(text: str) -> list[Entity]:
     entities: list[Entity] = []
     for match in _CREATE_TABLE_RE.finditer(text):
         name = match.group(1)
-        # 이 테이블 블록 이후의 references 들을 대략 수집(다음 create table 전까지).
-        start = match.end()
-        nxt = _CREATE_TABLE_RE.search(text, start)
-        block = text[start : nxt.start()] if nxt else text[start:]
+        block = _create_table_body(text, match.end())
         rels = [(t, "FK") for t in _dedupe(_SQL_FK_RE.findall(block))]
         columns = [
             col
             for col in _dedupe(_SQL_COLUMN_RE.findall(block))
-            if col.lower()
-            not in {"constraint", "primary", "foreign", "unique", "check", "key"}
+            if col.lower() not in _SQL_NON_COLUMN_WORDS
         ]
         entities.append(Entity(name=name, columns=columns, relations=rels))
     return entities
+
+
+def _create_table_body(text: str, start: int) -> str:
+    open_index = text.find("(", start)
+    if open_index < 0:
+        return ""
+    depth = 0
+    for index in range(open_index, len(text)):
+        char = text[index]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return text[open_index + 1 : index]
+    return text[open_index + 1 :]
 
 
 def _all_entities(contexts: list[ArtifactContext]) -> list[Entity]:
