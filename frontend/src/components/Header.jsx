@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { FingerPrintIcon } from "./icons";
 
 function Header({ onLoginClick, user }) {
   const location = useLocation();
@@ -49,10 +50,11 @@ function Header({ onLoginClick, user }) {
 
         <div className="flex items-center gap-5">
           <button
-            className="cursor-pointer text-[10px] font-semibold text-black transition-colors hover:text-[#d4d4d4]"
+            className="flex cursor-pointer items-center gap-1.5 text-[10px] font-semibold text-black transition-colors hover:text-[#d4d4d4]"
             onClick={onLoginClick}
             type="button"
           >
+            {user ? <FingerPrintIcon className="h-4 w-4" /> : null}
             {accountLabel}
           </button>
         </div>

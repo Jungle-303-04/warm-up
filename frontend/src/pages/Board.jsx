@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { MagnifyingGlassIcon, XMarkIcon } from "../components/icons";
 
 const posts = [
   {
@@ -171,20 +172,7 @@ function Board() {
       <div className="flex justify-center pt-10">
         <label className="relative w-full max-w-[360px]">
           <span className="sr-only">게시글 검색</span>
-          <svg
-            aria-hidden="true"
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="m21 21-4.35-4.35m1.35-5.15a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             className="h-10 w-full rounded-md border border-gray-300 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-gray-300 focus:border-black"
             onChange={handleSearchChange}
@@ -199,20 +187,7 @@ function Board() {
               onClick={handleClearSearch}
               type="button"
             >
-              <svg
-                aria-hidden="true"
-                className="h-3 w-3"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                viewBox="0 0 12 12"
-              >
-                <path
-                  d="M3 3l6 6M9 3 3 9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <XMarkIcon className="h-3.5 w-3.5" />
             </button>
           ) : null}
         </label>

@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import FontInfoPopover from "../components/FontInfoPopover";
+import {
+  ArrowLongLeftIcon,
+  ChatBubbleLeftEllipsisIcon,
+  XMarkIcon,
+} from "../components/icons";
 
 const postDetail = {
   author: "font_maker",
@@ -54,11 +59,11 @@ function PostDetail() {
       <section className="mx-auto w-full max-w-[720px] pt-8 pb-12">
         <button
           aria-label="이전으로"
-          className="mb-16 cursor-pointer text-2xl leading-none text-black transition-colors hover:text-[#d4d4d4]"
+          className="mb-16 flex h-6 w-8 cursor-pointer items-center text-black transition-colors hover:text-[#d4d4d4]"
           onClick={() => navigate(-1)}
           type="button"
         >
-          &lt;-
+          <ArrowLongLeftIcon className="h-6 w-8" />
         </button>
 
         <div className="grid min-h-[132px] grid-cols-[1fr_auto] items-start gap-5 overflow-visible pr-2">
@@ -127,14 +132,15 @@ function PostDetail() {
         </article>
 
         <section className="mt-5 border-t border-black pt-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 leading-none">
+            <ChatBubbleLeftEllipsisIcon className="h-4 w-4 translate-y-px text-black" />
             <h2 className="text-sm font-semibold text-black">comment</h2>
             <span className="text-sm text-black">{comments.length}</span>
           </div>
 
           <div className="mt-3 flex items-center gap-3">
             <textarea
-              className="h-20 flex-1 resize-none rounded-md border border-gray-300 px-4 py-3 text-sm leading-relaxed outline-none transition-colors placeholder:text-xs placeholder:text-gray-300 focus:border-black"
+              className="h-20 flex-1 resize-none rounded-md border border-gray-300 px-4 py-3 text-sm leading-relaxed outline-none transition-colors placeholder:text-sm placeholder:text-gray-300 focus:border-black"
               placeholder="댓글을 입력하세요."
             />
             <button
@@ -155,17 +161,22 @@ function PostDetail() {
                   <p className="text-sm font-extrabold text-black">
                     {comment.nickname}
                   </p>
-                  <p className="leading-relaxed text-black">{comment.content}</p>
-                  <time className="text-[#d4d4d4]" dateTime="2026-03-16T10:24">
+                  <p className="text-sm leading-relaxed text-black">
+                    {comment.content}
+                  </p>
+                  <time
+                    className="text-sm text-[#d4d4d4]"
+                    dateTime="2026-03-16T10:24"
+                  >
                     {comment.date} · {comment.time}
                   </time>
                   <button
                     aria-label="댓글 삭제"
-                    className="cursor-pointer text-black transition-opacity hover:opacity-50"
+                    className="flex h-4 w-4 cursor-pointer items-center justify-center text-black transition-opacity hover:opacity-50"
                     onClick={() => handleDeleteComment(comment.id)}
                     type="button"
                   >
-                    x
+                    <XMarkIcon className="h-4 w-4" />
                   </button>
                 </li>
               ))}

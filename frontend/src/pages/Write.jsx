@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import FontInfoPopover from "../components/FontInfoPopover";
+import { ArrowLongLeftIcon } from "../components/icons";
 
 const waitingMessages = [
   [
@@ -111,11 +112,11 @@ function Write() {
         {isEditMode ? (
           <button
             aria-label="이전으로"
-            className="mb-16 w-fit cursor-pointer text-2xl leading-none text-black transition-colors hover:text-[#d4d4d4]"
+            className="mb-16 flex h-6 w-8 cursor-pointer items-center text-black transition-colors hover:text-[#d4d4d4]"
             onClick={() => navigate(-1)}
             type="button"
           >
-            &lt;-
+            <ArrowLongLeftIcon className="h-6 w-8" />
           </button>
         ) : null}
 
@@ -240,9 +241,9 @@ function Write() {
                 ].join(" ")}
               >
                 {recommendation ? (
-                  <div className="pr-2">
+                  <div>
                     <div className="flex h-36 items-end border-b border-black">
-                      <div className="thin-transparent-scrollbar max-h-[calc(9rem-1px)] w-full overflow-y-auto pb-1.5">
+                      <div className="thin-transparent-scrollbar max-h-[calc(9rem-1px)] w-full overflow-y-auto pr-2 pb-1.5">
                         <p className="font-['Zodiak'] text-[28px] font-extrabold italic leading-tight text-black">
                           {previewText}
                         </p>

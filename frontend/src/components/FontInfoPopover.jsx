@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { InformationCircleIcon, XMarkIcon } from "./icons";
 
 function FontInfoPopover({ font }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,20 +18,7 @@ function FontInfoPopover({ font }) {
         onClick={handleToggle}
         type="button"
       >
-        <svg
-          aria-hidden="true"
-          className="h-3 w-3"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          viewBox="0 0 24 24"
-        >
-          <path
-            d="M12 17v-5m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <InformationCircleIcon className="h-3.5 w-3.5" />
         {font.name}
       </button>
 
@@ -53,11 +41,11 @@ function FontInfoPopover({ font }) {
             <p className="text-sm font-semibold text-black">{font.name}</p>
             <button
               aria-label="폰트 정보 닫기"
-              className="cursor-pointer text-xs leading-none text-black transition-opacity hover:opacity-50"
+              className="flex h-5 w-5 cursor-pointer items-center justify-center text-black transition-opacity hover:opacity-50"
               onClick={() => setIsOpen(false)}
               type="button"
             >
-              x
+              <XMarkIcon className="h-4 w-4" />
             </button>
           </div>
 
