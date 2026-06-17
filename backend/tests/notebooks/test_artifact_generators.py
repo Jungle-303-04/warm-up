@@ -209,17 +209,21 @@ def test_change_summary_from_code_without_key() -> None:
 
 
 def test_uml_from_python_classes_without_key() -> None:
-    """파이썬 클래스가 있으면 키 없이도 골격이 아닌 실제 classDiagram을 만든다."""
+    """파이썬 클래스가 있으면 키 없이도 레이어드 UML flowchart를 만든다."""
     gen = DeterministicArtifactGenerator()
     src = "class Base: ...\nclass App(Base):\n    state: int\n    def start(self): ...\n"
 
-    content = gen.generate(GenerationRequest(type="uml", contexts=[_ctx("app/app.py", src)]))
+    content = gen.generate(
+        GenerationRequest(type="uml", contexts=[_ctx("app/application/app.py", src)])
+    )
 
-    assert content.startswith("classDiagram")
+    assert content.startswith("flowchart TB")
     assert "LLM 키가 필요합니다" not in content
-    assert "class App" in content
-    assert "+start()" in content
-    assert "Base <|-- App" in content  # 내부 클래스 상속 관계
+    assert 'subgraph layer_application["Application / Service"]' in content
+    assert "c_App" in content
+    assert "actions: start()" in content
+    assert "state: state" in content
+    assert "c_App -->|extends| c_Base" in content  # 내부 클래스 상속 관계
 
 
 def test_erd_from_orm_models_without_key() -> None:
@@ -237,6 +241,28 @@ def test_erd_from_orm_models_without_key() -> None:
     assert "LLM 키가 필요합니다" not in content
     assert "users" in content and "posts" in content
     assert "}o--||" in content  # FK 관계
+
+
+def test_erd_extracts_sqlalchemy_relationships_without_foreign_key() -> None:
+    gen = DeterministicArtifactGenerator()
+    src = (
+        "class User(Base):\n"
+        '    __tablename__ = "users"\n'
+        "    id = Column(Integer)\n"
+        '    posts = relationship("Post", back_populates="user")\n'
+        "class Post(Base):\n"
+        '    __tablename__ = "posts"\n'
+        "    id = Column(Integer)\n"
+        '    user = relationship("User", back_populates="posts")\n'
+    )
+
+    content = gen.generate(GenerationRequest(type="erd", contexts=[_ctx("app/models.py", src)]))
+
+    assert content.startswith("erDiagram")
+    assert "users" in content
+    assert "posts" in content
+    assert "users }o--|| posts : relationship" in content
+    assert "posts }o--|| users : relationship" in content
 
 
 def test_erd_sanitizes_sqlalchemy_vector_columns() -> None:
@@ -299,10 +325,13 @@ def test_uml_from_typescript_interfaces_without_key() -> None:
 
     content = gen.generate(GenerationRequest(type="uml", contexts=[ctx]))
 
-    assert content.startswith("classDiagram")
-    assert "class Source" in content
-    assert "+title" in content
-    assert "class SourceStore" in content
+    assert content.startswith("flowchart TB")
+    assert 'subgraph layer_domain["Domain / Contract"]' in content
+    assert "c_Source" in content
+    assert "state: id, title" in content
+    assert "c_SourceStore" in content
+    assert "actions: add()" in content
+    assert "c_SourceStore -->|uses| c_Source" in content
 
 
 def test_uml_without_extractable_symbols_falls_back_to_skeleton() -> None:
@@ -336,3 +365,39 @@ def test_change_summary_prefers_recent_commits() -> None:
     assert "### 최근 커밋 기준" in content
     assert "색인 완료 표시 개선" in content
     assert "### 코드 기준 핵심" in content
+
+
+def test_change_summary_includes_changed_file_links_from_recent_commits() -> None:
+    gen = DeterministicArtifactGenerator()
+    contexts = [
+        ArtifactContext(
+            source_id="s1",
+            source_title="repo",
+            path="__recent_commits__.md",
+            language="markdown",
+            source_url="https://github.com/org/repo",
+            branch="main",
+            text=(
+                "# 최근 커밋\n"
+                "- [`abc123`](https://github.com/org/repo/commit/abc123) "
+                "2026-06-18 woonyong: 색인 완료 표시 개선\n"
+                "  - modified [`app/api/router.py`]"
+                "(https://github.com/org/repo/blob/main/app/api/router.py)\n"
+            ),
+        ),
+        ArtifactContext(
+            source_id="s1",
+            source_title="repo",
+            path="app/api/router.py",
+            language="python",
+            source_url="https://github.com/org/repo",
+            branch="main",
+            text="class ApiRouter:\n    def generate(self): ...\n",
+        ),
+    ]
+
+    content = gen.generate(GenerationRequest(type="change_summary", contexts=contexts))
+
+    assert "### 변경 파일 링크" in content
+    assert "`modified` [`app/api/router.py`](https://github.com/org/repo/blob/main/app/api/router.py)" in content
+    assert "[`app/api/router.py`](https://github.com/org/repo/blob/main/app/api/router.py)" in content

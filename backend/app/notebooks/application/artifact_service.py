@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import quote
 from uuid import uuid4
 
 from app.config import Settings, get_settings
@@ -40,6 +41,7 @@ MAX_TOTAL_CONTEXT_CHARS = 20000  # 전체 컨텍스트 예산(상위 관련 파�
 MAX_SELECTED_FILES = 60  # 안전 상한(파일 수)
 # dependency: import 그래프 정확도를 위해 가능한 한 많은 .py를 담는다(상단 import만 파싱).
 MAX_DEPENDENCY_FILES = 250
+MAX_STRUCTURE_FILE_CHARS = 30_000
 # dependency 외 타입에 사용하는 파일 확장자.
 _CODE_EXTS = (
     ".py", ".ts", ".tsx", ".js", ".jsx", ".sql", 
@@ -201,6 +203,8 @@ class ArtifactService:
                         text=_format_recent_commits(source),
                         path="__recent_commits__.md",
                         language="markdown",
+                        source_url=source.repository_url or source.url,
+                        branch=source.branch,
                     )
                 )
             if source.kind == "repo" and source.repo_snapshot:
@@ -212,13 +216,16 @@ class ArtifactService:
                         ArtifactContext(
                             source_id=source.id,
                             source_title=source.title,
-                            text=(
-                        (entry.get("content") or "")[
-                            :self.settings.artifact_max_file_chars
-                        ]
-                    ),
+                            text=_slice_context_text(
+                                artifact_type,
+                                path,
+                                entry.get("content") or "",
+                                self.settings.artifact_max_file_chars,
+                            ),
                             path=path,
                             language=_language_of(path),
+                            source_url=source.repository_url or source.url,
+                            branch=source.branch,
                         )
                     )
             elif source.content:
@@ -229,6 +236,8 @@ class ArtifactService:
                         text=source.content[:self.settings.artifact_max_file_chars],
                         path=None,
                         language=None,
+                        source_url=source.repository_url or source.url,
+                        branch=source.branch,
                     )
                 )
         return _select_contexts(
@@ -261,6 +270,18 @@ def _select_contexts(
     if artifact_type == "dependency":
         py = [c for c in candidates if c.path and c.path.lower().endswith(".py")]
         return py[:max_dependency_files]
+
+    if artifact_type == "erd":
+        schema_contexts = [
+            c
+            for c in sorted(
+                candidates,
+                key=lambda item: _relevance_score(artifact_type, item),
+                reverse=True,
+            )
+            if _relevance_score(artifact_type, c) >= 20
+        ]
+        return schema_contexts[:max_files]
 
     ranked = sorted(
         candidates,
@@ -380,8 +401,61 @@ def _format_recent_commits(source: SourceRecord, limit: int = 8) -> str:
         message = str(commit.get("message") or "(메시지 없음)").strip()
         author = str(commit.get("author_name") or "unknown")
         authored_at = str(commit.get("authored_at") or "date unknown")
-        lines.append(f"- `{short_sha}` {authored_at} {author}: {message}")
+        commit_label = f"`{short_sha}`"
+        if commit.get("html_url"):
+            commit_label = f"[{commit_label}]({commit['html_url']})"
+        lines.append(f"- {commit_label} {authored_at} {author}: {message}")
+        for file in _commit_files(commit)[:8]:
+            path = file["path"]
+            status = file["status"]
+            link = _repo_file_link(source, path)
+            label = f"[`{path}`]({link})" if link else f"`{path}`"
+            lines.append(f"  - {status} {label}")
     return "\n".join(lines)
+
+
+def _commit_files(commit: dict) -> list[dict[str, str]]:
+    raw_files = commit.get("files")
+    if not isinstance(raw_files, list):
+        return []
+    files: list[dict[str, str]] = []
+    for item in raw_files:
+        if not isinstance(item, dict):
+            continue
+        path = item.get("path") or item.get("filename")
+        if not isinstance(path, str) or not path:
+            continue
+        files.append({"path": path, "status": str(item.get("status") or "modified")})
+    return files
+
+
+def _repo_file_link(source: SourceRecord, path: str) -> str | None:
+    if not source.repository_url or "github.com" not in source.repository_url:
+        return None
+    repo_url = source.repository_url.removesuffix(".git").rstrip("/")
+    branch = quote(source.branch or "main", safe="/")
+    quoted_path = "/".join(quote(part, safe="") for part in path.split("/"))
+    return f"{repo_url}/blob/{branch}/{quoted_path}"
+
+
+def _slice_context_text(
+    artifact_type: ArtifactType,
+    path: str,
+    content: str,
+    default_limit: int,
+) -> str:
+    lowered = path.lower()
+    if artifact_type == "erd" and (
+        lowered.endswith(".sql")
+        or _has_any(lowered, ("model", "schema", "entity", "table", "migration", "orm"))
+    ):
+        return content[: max(default_limit, MAX_STRUCTURE_FILE_CHARS)]
+    if artifact_type == "uml" and _has_any(
+        lowered,
+        ("api", "router", "service", "domain", "model", "entity", "schema", "store", "agent"),
+    ):
+        return content[: max(default_limit, MAX_STRUCTURE_FILE_CHARS)]
+    return content[:default_limit]
 
 
 _TITLES: dict[ArtifactType, str] = {

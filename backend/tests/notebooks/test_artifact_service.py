@@ -171,6 +171,47 @@ def test_generate_erd_without_key_returns_skeleton() -> None:
     assert record.content.startswith("erDiagram")
 
 
+def test_generate_erd_keeps_long_model_file_context() -> None:
+    from app.notebooks.domain.records import NotebookRecord
+
+    service, store = _service()
+    store.add_notebook(
+        NotebookRecord(
+            id="nb-1",
+            owner_user_id=0,
+            title="nb",
+            created_at=FIXED_NOW,
+            updated_at=FIXED_NOW,
+        )
+    )
+    long_model = (
+        "class User(Base):\n"
+        '    __tablename__ = "users"\n'
+        "    id = Column(Integer)\n"
+        + "\n# filler\n" * 700
+        + "class Post(Base):\n"
+        '    __tablename__ = "posts"\n'
+        "    id = Column(Integer)\n"
+        '    user = relationship("User")\n'
+    )
+    store.add_source(
+        SourceRecord(
+            id="src-1",
+            notebook_id="nb-1",
+            kind="repo",
+            title="repo",
+            created_at=FIXED_NOW,
+            repo_snapshot=[{"path": "app/models.py", "content": long_model}],
+        )
+    )
+
+    record = service.generate("nb-1", type="erd", source_ids=["src-1"])
+
+    assert "users" in record.content
+    assert "posts" in record.content
+    assert "posts }o--|| users : relationship" in record.content
+
+
 def test_generate_with_empty_explicit_scope_rejects() -> None:
     service, store = _service()
     nb_id = _notebook_with_repo(store)

@@ -1,21 +1,45 @@
----
-config:
-  flowchart:
-    curve: linear
----
-graph TD;
-	__start__([<p>__start__</p>]):::first
-	gather_evidence(gather_evidence)
-	agent(agent)
-	execute_tools(execute_tools)
-	draft(draft)
-	__end__([<p>__end__</p>]):::last
-	__start__ --> gather_evidence;
-	agent -.-> draft;
-	agent -.-> execute_tools;
-	execute_tools --> agent;
-	gather_evidence --> agent;
-	draft --> __end__;
-	classDef default fill:#f2f0ff,line-height:1.2
-	classDef first fill-opacity:0
-	classDef last fill:#bfb6fc
+flowchart TD
+    start([start])
+
+    subgraph input["입력 상태"]
+        references["references: CodeReference[]"]
+        chunks["chunks: RetrievalChunk[]"]
+    end
+
+    gather["gather_evidence<br/>- evidence map 생성<br/>- LLM 메시지 조립<br/>- parser format 주입"]
+    agent["agent<br/>- MCP tool 목록 조회<br/>- bind_tools 가능하면 도구 바인딩<br/>- LLM ainvoke"]
+    should{"tool_calls 있고<br/>step_count <= max_steps?"}
+    execute["execute_tools<br/>- MCP call_tool 실행<br/>- ToolMessage 추가<br/>- 실패 메시지 보존"]
+    draft["draft<br/>- 마지막 AI JSON 파싱<br/>- 실패 시 최종 JSON 재요청<br/>- ProposalDraft 변환"]
+    done([end])
+
+    subgraph state["GraphState 변화"]
+        messages["messages[]"]
+        evidence["evidence: path -> citations"]
+        step_count["step_count"]
+        drafts["drafts: ProposalDraft[]"]
+    end
+
+    start --> references
+    start --> chunks
+    references --> gather
+    chunks --> gather
+    gather --> evidence
+    gather --> messages
+    gather --> agent
+    agent --> step_count
+    agent --> should
+    should -- "예: 도구 필요" --> execute
+    execute --> messages
+    execute --> agent
+    should -- "아니오: 최종 작성" --> draft
+    draft --> drafts --> done
+
+    classDef state fill:#101827,stroke:#334155,color:#e2e8f0
+    classDef action fill:#172554,stroke:#2563eb,color:#dbeafe
+    classDef decision fill:#431407,stroke:#f59e0b,color:#ffedd5
+    classDef terminal fill:#052e16,stroke:#22c55e,color:#dcfce7
+    class references,chunks,messages,evidence,step_count,drafts state
+    class gather,agent,execute,draft action
+    class should decision
+    class start,done terminal

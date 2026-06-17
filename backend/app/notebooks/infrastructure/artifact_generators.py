@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import ast
 import re
+from urllib.parse import quote, urlparse
 
 from app.notebooks.domain.artifact_ports import (
     ArtifactContext,
@@ -257,6 +258,12 @@ def build_change_summary_markdown(contexts: list[ArtifactContext]) -> str:
         if commit_lines == 0:
             lines.append("- 저장된 커밋 메타데이터에서 표시할 항목을 찾지 못했습니다.")
 
+        changed_files = _changed_files_from_commit_contexts(commit_contexts)
+        if changed_files:
+            lines.extend(["", "### 변경 파일 링크"])
+            for status, label in changed_files[:20]:
+                lines.append(f"- `{status}` {label}")
+
     lines.extend(
         [
             "",
@@ -268,7 +275,7 @@ def build_change_summary_markdown(contexts: list[ArtifactContext]) -> str:
         facts = _summarize_context(ctx)
         if not facts:
             continue
-        lines.append(f"- `{_where(ctx)}`: " + "; ".join(facts[:4]))
+        lines.append(f"- {_where_markdown(ctx)}: " + "; ".join(facts[:4]))
         facts_added += 1
     if facts_added == 0:
         lines.append("- 정적으로 요약할 명확한 코드 심볼을 찾지 못했습니다.")
@@ -283,7 +290,7 @@ def build_change_summary_markdown(contexts: list[ArtifactContext]) -> str:
             for ctx in aligned_docs[:4]:
                 summary = _first_meaningful_line(ctx.text)
                 if summary:
-                    lines.append(f"- `{_where(ctx)}`: {summary}")
+                    lines.append(f"- {_where_markdown(ctx)}: {summary}")
         else:
             lines.extend(
                 [
@@ -297,7 +304,7 @@ def build_change_summary_markdown(contexts: list[ArtifactContext]) -> str:
         for ctx in doc_contexts[:4]:
             summary = _first_meaningful_line(ctx.text)
             if summary:
-                lines.append(f"- `{_where(ctx)}`: {summary}")
+                lines.append(f"- {_where_markdown(ctx)}: {summary}")
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -322,13 +329,61 @@ def _where(ctx: ArtifactContext) -> str:
     return ctx.path or ctx.source_title
 
 
+def _where_markdown(ctx: ArtifactContext) -> str:
+    where = _where(ctx)
+    link = _repo_file_link(ctx)
+    return f"[`{where}`]({link})" if link else f"`{where}`"
+
+
 def _commit_summary_lines(text: str) -> list[str]:
     lines: list[str] = []
     for raw in text.splitlines():
         line = raw.strip()
-        if line.startswith("- "):
+        if line.startswith("- ") and not _looks_like_changed_file_line(line):
             lines.append(line[2:])
     return lines[:8]
+
+
+def _changed_files_from_commit_contexts(
+    contexts: list[ArtifactContext],
+) -> list[tuple[str, str]]:
+    seen: set[tuple[str, str]] = set()
+    files: list[tuple[str, str]] = []
+    for ctx in contexts:
+        for raw in ctx.text.splitlines():
+            line = raw.strip()
+            if not line.startswith("- ") or not _looks_like_changed_file_line(line):
+                continue
+            status, label = _split_changed_file_line(line[2:])
+            key = (status, label)
+            if key in seen:
+                continue
+            seen.add(key)
+            files.append(key)
+    return files
+
+
+def _looks_like_changed_file_line(line: str) -> bool:
+    return bool(re.match(r"-\s+(?:added|modified|removed|renamed|A|M|D|R)\b", line))
+
+
+def _split_changed_file_line(line: str) -> tuple[str, str]:
+    parts = line.split(maxsplit=1)
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], parts[1]
+
+
+def _repo_file_link(ctx: ArtifactContext) -> str | None:
+    if not ctx.path or not ctx.source_url:
+        return None
+    parsed = urlparse(ctx.source_url)
+    if parsed.scheme != "https" or parsed.netloc.lower() != "github.com":
+        return None
+    repo_url = ctx.source_url.removesuffix(".git").rstrip("/")
+    branch = quote(ctx.branch or "main", safe="/")
+    quoted_path = "/".join(quote(part, safe="") for part in ctx.path.split("/"))
+    return f"{repo_url}/blob/{branch}/{quoted_path}"
 
 
 def _summarize_context(ctx: ArtifactContext) -> list[str]:

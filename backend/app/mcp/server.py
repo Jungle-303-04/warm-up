@@ -1,14 +1,17 @@
 import base64
 import os
+import subprocess
+from pathlib import Path
 
 import httpx
 from mcp.server.fastmcp import FastMCP
 
 # MCP 서버 초기화
-mcp = FastMCP("SystemMCP")
+mcp = FastMCP("RepoLM")
 
 # GitHub API 응답에서 파일 본문을 자를 상한(프롬프트 토큰 보호).
 _MAX_FILE_CHARS = 4000
+_WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _github_headers() -> dict[str, str]:
@@ -23,22 +26,65 @@ def _github_headers() -> dict[str, str]:
     return headers
 
 
+def _git(*args: str) -> str:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(_WORKSPACE_ROOT), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return result.stdout.strip()
+
+
 @mcp.tool()
-async def get_weather_forecast(city: str) -> str:
-    """주어진 도시의 날씨 예보를 조회한다.
+async def get_repolm_workspace_summary() -> str:
+    """현재 RepoLM 워크스페이스의 브랜치, 최근 커밋, 주요 실행 명령을 요약한다."""
+    branch = _git("rev-parse", "--abbrev-ref", "HEAD") or "unknown"
+    commit = _git("log", "-1", "--pretty=format:%h %s") or "unknown"
+    status = _git("status", "--short") or "(clean)"
+    return "\n".join(
+        [
+            "# RepoLM workspace",
+            f"- root: {_WORKSPACE_ROOT}",
+            f"- branch: {branch}",
+            f"- last_commit: {commit}",
+            "- backend gates: cd backend && uv run pytest -q "
+            "&& uv run pyright && uv run ruff check .",
+            "- frontend gate: pnpm --filter @repolm/web typecheck",
+            "",
+            "## git status",
+            status,
+        ]
+    )
+
+
+@mcp.tool()
+async def read_workspace_file(path: str) -> str:
+    """RepoLM 워크스페이스 안의 텍스트 파일을 안전하게 읽는다.
 
     Args:
-        city: 도시 이름(예: "Seoul", "Tokyo", "London").
+        path: 워크스페이스 기준 상대 경로(예: "backend/app/main.py").
     """
-    city_lower = city.strip().lower()
-    if "seoul" in city_lower:
-        return "Seoul: 24°C, Sunny, Humidity 45%, Wind 5km/h."
-    elif "tokyo" in city_lower:
-        return "Tokyo: 26°C, Partly Cloudy, Humidity 50%, Wind 7km/h."
-    elif "london" in city_lower:
-        return "London: 18°C, Light Rain, Humidity 80%, Wind 12km/h."
-    else:
-        return f"{city}: 20°C, Clear Sky, Humidity 55%, Wind 8km/h. (Mocked)"
+    try:
+        target = (_WORKSPACE_ROOT / path).resolve()
+        target.relative_to(_WORKSPACE_ROOT)
+    except ValueError:
+        return "오류: 워크스페이스 밖의 파일은 읽을 수 없습니다."
+    if not target.is_file():
+        return f"파일을 찾지 못했습니다: {path}"
+    try:
+        text = target.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return f"텍스트 파일이 아닙니다: {path}"
+    except OSError as exc:
+        return f"파일 읽기 중 오류: {exc!s}"
+    if len(text) > _MAX_FILE_CHARS:
+        text = text[:_MAX_FILE_CHARS] + "\n...(생략)"
+    return f"# {path}\n{text}"
 
 
 @mcp.tool()

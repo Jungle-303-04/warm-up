@@ -12,21 +12,21 @@ async def test_mcp_client_list_tools() -> None:
     # FastMCP 서버에 등록된 2개의 도구가 잘 조회되는지 검증
     assert len(tools) >= 2
     tool_names = [tool.name for tool in tools]
-    assert "get_weather_forecast" in tool_names
+    assert "get_repolm_workspace_summary" in tool_names
+    assert "read_workspace_file" in tool_names
     assert "search_github_repositories" in tool_names
 
 
 @pytest.mark.asyncio
-async def test_mcp_client_call_weather_tool() -> None:
+async def test_mcp_client_call_workspace_tools() -> None:
     client = MCPClient()
-    
-    # Seoul 날씨 조회 도구 호출 검증
-    result = await client.call_tool("get_weather_forecast", {"city": "Seoul"})
-    assert "Seoul: 24°C, Sunny" in result
-    
-    # 런던 날씨 조회 도구 호출 검증
-    result_london = await client.call_tool("get_weather_forecast", {"city": "London"})
-    assert "London: 18°C, Light Rain" in result_london
+
+    result = await client.call_tool("get_repolm_workspace_summary", {})
+    assert "RepoLM workspace" in result
+    assert "branch:" in result
+
+    file_result = await client.call_tool("read_workspace_file", {"path": "README.md"})
+    assert "# README.md" in file_result
 
 
 @pytest.mark.asyncio

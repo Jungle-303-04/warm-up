@@ -97,6 +97,8 @@ def test_sync_clones_tracked_text_files_from_repository_url(
     assert snapshot.branch == run_git(source_repo_path, "rev-parse", "--abbrev-ref", "HEAD")
     assert snapshot.commit_sha == run_git(source_repo_path, "rev-parse", "--short=12", "HEAD")
     assert {file.path for file in snapshot.files} == {"README.md", "app.py"}
+    assert snapshot.commits
+    assert {"status": "A", "path": "app.py"} in snapshot.commits[0].files
 
 
 def test_sync_rejects_non_github_repository_url() -> None:

@@ -2,17 +2,29 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.proposals.dependencies import _in_memory_store as _store
+from app.pipeline.service import PipelineService
+from app.proposals.dependencies import (
+    _in_memory_store as _store,
+)
+from app.proposals.dependencies import (
+    get_pipeline_service,
+)
 
 client = TestClient(app)
 
 _FILES = {"files": [{"path": "app.py", "content": "def login():\n    return 1\n"}]}
 
 
+def _test_pipeline_service() -> PipelineService:
+    return PipelineService()
+
+
 @pytest.fixture(autouse=True)
 def _reset_store():
     _store.cache_clear()
+    app.dependency_overrides[get_pipeline_service] = _test_pipeline_service
     yield
+    app.dependency_overrides.pop(get_pipeline_service, None)
     _store.cache_clear()
 
 

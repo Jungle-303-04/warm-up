@@ -27,6 +27,17 @@ _JS_EXTS = (".js", ".jsx", ".ts", ".tsx")
 _MODEL_BASE_HINTS = ("Base", "Model", "DeclarativeBase", "SQLModel")
 # 컬럼 정의 호출 이름.
 _COLUMN_CALLS = ("Column", "mapped_column")
+MAX_UML_NODES = 90
+_UML_LAYER_ORDER = (
+    ("entry", "Entry / API / UI"),
+    ("application", "Application / Service"),
+    ("domain", "Domain / Contract"),
+    ("infrastructure", "Infrastructure / Adapter"),
+    ("data", "Data / Schema / Model"),
+    ("config", "Config / Runtime"),
+    ("tests", "Tests"),
+    ("other", "Other"),
+)
 
 
 # ── UML: 클래스 골격 ────────────────────────────────────────────────
@@ -35,9 +46,11 @@ _COLUMN_CALLS = ("Column", "mapped_column")
 @dataclass(slots=True)
 class ClassInfo:
     name: str
+    path: str | None = None
     bases: list[str] = field(default_factory=list)
     methods: list[str] = field(default_factory=list)
     attributes: list[str] = field(default_factory=list)
+    references: list[str] = field(default_factory=list)
 
 
 def _name_of(node: ast.AST) -> str:
@@ -52,7 +65,32 @@ def _name_of(node: ast.AST) -> str:
         return ""
 
 
-def extract_python_classes(text: str) -> list[ClassInfo]:
+def _python_class_references(node: ast.ClassDef, bases: list[str]) -> list[str]:
+    refs: list[str] = []
+    for child in ast.walk(node):
+        if isinstance(child, ast.Name):
+            refs.append(child.id)
+        elif isinstance(child, ast.Attribute):
+            refs.append(child.attr)
+        elif isinstance(child, (ast.arg, ast.AnnAssign)) and child.annotation is not None:
+            refs.extend(_annotation_names(child.annotation))
+        elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) and child.returns is not None:
+            refs.extend(_annotation_names(child.returns))
+    ignored = {node.name, *bases}
+    return [ref for ref in _dedupe(refs) if ref not in ignored]
+
+
+def _annotation_names(node: ast.AST) -> list[str]:
+    names: list[str] = []
+    for child in ast.walk(node):
+        if isinstance(child, ast.Name):
+            names.append(child.id)
+        elif isinstance(child, ast.Attribute):
+            names.append(child.attr)
+    return names
+
+
+def extract_python_classes(text: str, *, path: str | None = None) -> list[ClassInfo]:
     """파이썬 소스에서 클래스(상속/공개 메서드/속성)를 추출한다.
 
     문법 오류 파일은 빈 목록으로 흡수한다(에러를 던지지 않는다).
@@ -66,7 +104,7 @@ def extract_python_classes(text: str) -> list[ClassInfo]:
     for node in ast.walk(tree):
         if not isinstance(node, ast.ClassDef):
             continue
-        info = ClassInfo(name=node.name)
+        info = ClassInfo(name=node.name, path=path)
         for base in node.bases:
             name = _name_of(base)
             if name:
@@ -82,6 +120,7 @@ def extract_python_classes(text: str) -> list[ClassInfo]:
                 for target in member.targets:
                     if isinstance(target, ast.Name) and not target.id.startswith("__"):
                         info.attributes.append(target.id)
+        info.references.extend(_python_class_references(node, info.bases))
         classes.append(info)
     return classes
 
@@ -90,7 +129,7 @@ def _python_classes(contexts: list[ArtifactContext]) -> list[ClassInfo]:
     out: list[ClassInfo] = []
     for ctx in contexts:
         if ctx.path and ctx.path.lower().endswith(_PY_EXTS):
-            out.extend(extract_python_classes(ctx.text))
+            out.extend(extract_python_classes(ctx.text, path=ctx.path))
     return out
 
 
@@ -105,14 +144,15 @@ _JS_INTERFACE_RE = re.compile(
 )
 _JS_METHOD_RE = re.compile(r"^\s*(?:async\s+)?([A-Za-z_]\w*)\s*\(", re.MULTILINE)
 _JS_FIELD_RE = re.compile(r"^\s*(?:readonly\s+)?([A-Za-z_]\w*)\??\s*[:=]", re.MULTILINE)
+_JS_TYPE_REF_RE = re.compile(r"\b[A-Z][A-Za-z0-9_]+\b")
 
 
-def extract_javascript_classes(text: str) -> list[ClassInfo]:
+def extract_javascript_classes(text: str, *, path: str | None = None) -> list[ClassInfo]:
     """TS/JS 소스에서 클래스/인터페이스 골격을 간단히 추출한다."""
     classes: list[ClassInfo] = []
     for match in _JS_CLASS_RE.finditer(text):
         body = match.group("body")
-        info = ClassInfo(name=match.group(1))
+        info = ClassInfo(name=match.group(1), path=path)
         if match.group(2):
             info.bases.append(match.group(2).split(".")[-1])
         info.methods.extend(
@@ -121,13 +161,21 @@ def extract_javascript_classes(text: str) -> list[ClassInfo]:
             if name not in {"if", "for", "while", "switch"}
         )
         info.attributes.extend(_JS_FIELD_RE.findall(body))
+        info.references.extend(_JS_TYPE_REF_RE.findall(body))
         classes.append(info)
 
     for match in _JS_INTERFACE_RE.finditer(text):
         body = match.group("body")
         fields = _JS_FIELD_RE.findall(body)
         if fields:
-            classes.append(ClassInfo(name=match.group(1), attributes=fields))
+            classes.append(
+                ClassInfo(
+                    name=match.group(1),
+                    path=path,
+                    attributes=fields,
+                    references=_JS_TYPE_REF_RE.findall(body),
+                )
+            )
     return classes
 
 
@@ -136,9 +184,9 @@ def _code_classes(contexts: list[ArtifactContext]) -> list[ClassInfo]:
     for ctx in contexts:
         path = (ctx.path or "").lower()
         if path.endswith(_PY_EXTS):
-            out.extend(extract_python_classes(ctx.text))
+            out.extend(extract_python_classes(ctx.text, path=ctx.path))
         elif path.endswith(_JS_EXTS):
-            out.extend(extract_javascript_classes(ctx.text))
+            out.extend(extract_javascript_classes(ctx.text, path=ctx.path))
     return _merge_classes(out)
 
 
@@ -157,31 +205,163 @@ def uml_facts_text(contexts: list[ArtifactContext]) -> str:
 
 
 def build_uml_mermaid(contexts: list[ArtifactContext]) -> str | None:
-    """추출한 클래스로 결정론 classDiagram을 만든다(클래스가 없으면 None)."""
+    """추출한 클래스로 레이어드 architecture UML(flowchart)을 만든다.
+
+    Mermaid classDiagram은 큰 저장소에서 클래스 박스를 한 줄로 늘어놓기 쉬워 관계가
+    잘 보이지 않는다. 그래서 실제 UI 산출물은 레이어별 subgraph와 관계 edge를 가진
+    flowchart로 만든다. 이름은 UML 산출물이지만, 목적은 클래스/서비스 책임과 계층 간
+    의존을 읽기 쉽게 보여주는 구조도다.
+    """
     classes = _code_classes(contexts)
     if not classes:
         return None
     names = {c.name for c in classes}
-    lines = ["classDiagram"]
-    for c in classes:
-        ident = _safe_id(c.name)
-        attrs = _dedupe(c.attributes)
-        methods = _dedupe(c.methods)
-        if not attrs and not methods:
-            lines.append(f"    class {ident}")
+    relations = _class_relations(classes, names)
+    classes = _select_uml_classes(classes, relations)
+    visible = {c.name for c in classes}
+    relations = {
+        (src, dst, label)
+        for src, dst, label in relations
+        if src in visible and dst in visible and src != dst
+    }
+
+    lines = [
+        "flowchart TB",
+        "    %% 레이어드 UML: 파일 경로 기반 계층 + 클래스 참조/상속 관계",
+    ]
+    groups: dict[str, list[ClassInfo]] = {}
+    for item in classes:
+        groups.setdefault(_layer_for_path(item.path), []).append(item)
+
+    for layer_key, layer_label in _UML_LAYER_ORDER:
+        items = sorted(groups.get(layer_key, []), key=lambda c: (c.path or "", c.name))
+        if not items:
             continue
-        lines.append(f"    class {ident} {{")
-        for attr in attrs:
-            lines.append(f"        +{_safe_member(attr)}")
-        for method in methods:
-            lines.append(f"        +{_safe_member(method)}()")
-        lines.append("    }")
-    # 상속(그래프 내부 클래스 사이만).
-    for c in classes:
-        for base in c.bases:
-            if base in names:
-                lines.append(f"    {_safe_id(base)} <|-- {_safe_id(c.name)}")
+        group_id = "layer_" + _safe_id(layer_key)
+        lines.append(f'    subgraph {group_id}["{layer_label}"]')
+        for item in items:
+            lines.append(f'        {_class_node_id(item.name)}["{_class_label(item)}"]')
+        lines.append("    end")
+
+    for src, dst, label in sorted(relations):
+        lines.append(
+            f"    {_class_node_id(src)} -->|{_safe_edge_label(label)}| {_class_node_id(dst)}"
+        )
+
+    lines.extend(
+        [
+            "    classDef layer fill:#111827,stroke:#374151,color:#e5e7eb",
+            "    classDef default fill:#172033,stroke:#4b5563,color:#f8fafc",
+        ]
+    )
     return "\n".join(lines) + "\n"
+
+
+def _class_relations(
+    classes: list[ClassInfo],
+    names: set[str],
+) -> set[tuple[str, str, str]]:
+    relations: set[tuple[str, str, str]] = set()
+    for item in classes:
+        for base in item.bases:
+            normalized = base.split(".")[-1]
+            if normalized in names and normalized != item.name:
+                relations.add((item.name, normalized, "extends"))
+        for ref in item.references:
+            normalized = ref.split(".")[-1]
+            if normalized in names and normalized != item.name:
+                relations.add((item.name, normalized, "uses"))
+    return relations
+
+
+def _select_uml_classes(
+    classes: list[ClassInfo],
+    relations: set[tuple[str, str, str]],
+) -> list[ClassInfo]:
+    if len(classes) <= MAX_UML_NODES:
+        return classes
+    connected = {src for src, _, _ in relations} | {dst for _, dst, _ in relations}
+    ranked = sorted(
+        classes,
+        key=lambda item: (
+            item.name not in connected,
+            _layer_rank(_layer_for_path(item.path)),
+            item.path or "",
+            item.name,
+        ),
+    )
+    return ranked[:MAX_UML_NODES]
+
+
+def _layer_rank(layer: str) -> int:
+    for index, (key, _label) in enumerate(_UML_LAYER_ORDER):
+        if key == layer:
+            return index
+    return len(_UML_LAYER_ORDER)
+
+
+def _layer_for_path(path: str | None) -> str:
+    lowered = (path or "").lower()
+    if "/test" in lowered or lowered.startswith("test") or "/tests/" in lowered:
+        return "tests"
+    if _has_path_part(lowered, ("api", "router", "routes", "endpoint", "controller")):
+        return "entry"
+    if _has_path_part(lowered, ("application", "service", "usecase", "use_case", "agent")):
+        return "application"
+    if _has_path_part(
+        lowered,
+        ("domain", "ports", "contract", "record", "records", "type", "types"),
+    ):
+        return "domain"
+    if _has_path_part(lowered, ("infrastructure", "adapter", "client", "store", "repository")):
+        return "infrastructure"
+    if _has_path_part(lowered, ("model", "models", "schema", "schemas", "migration", "db")):
+        return "data"
+    if _has_path_part(lowered, ("config", "settings", "dependency", "dependencies", "assembly")):
+        return "config"
+    return "other"
+
+
+def _has_path_part(path: str, parts: tuple[str, ...]) -> bool:
+    tokens = set(re.split(r"[/_.-]+", path))
+    return any(part in tokens for part in parts)
+
+
+def _class_node_id(name: str) -> str:
+    return "c_" + _safe_id(name)
+
+
+def _class_label(item: ClassInfo) -> str:
+    parts = [item.name]
+    if item.path:
+        parts.append(_short_path(item.path))
+    actions = _dedupe(item.methods)[:4]
+    attrs = [attr for attr in _dedupe(item.attributes) if not attr.startswith("_")][:3]
+    if actions:
+        parts.append("actions: " + ", ".join(f"{name}()" for name in actions))
+    if attrs:
+        parts.append("state: " + ", ".join(attrs))
+    return "<br/>".join(_escape_label(part) for part in parts)
+
+
+def _short_path(path: str) -> str:
+    parts = [part for part in path.split("/") if part]
+    if len(parts) <= 3:
+        return path
+    return "/".join(parts[-3:])
+
+
+def _escape_label(text: str) -> str:
+    return (
+        text.replace("\\", "\\\\")
+        .replace('"', "'")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def _safe_edge_label(text: str) -> str:
+    return re.sub(r"[^0-9A-Za-z_가-힣 -]", "", text) or "uses"
 
 
 # ── ERD: ORM 모델 / SQL 골격 ────────────────────────────────────────
@@ -190,6 +370,7 @@ def build_uml_mermaid(contexts: list[ArtifactContext]) -> str | None:
 @dataclass(slots=True)
 class Entity:
     name: str
+    class_name: str | None = None
     columns: list[str] = field(default_factory=list)
     # (대상 엔티티, 라벨) 관계. FK 기반.
     relations: list[tuple[str, str]] = field(default_factory=list)
@@ -243,13 +424,12 @@ def extract_models(text: str) -> list[Entity]:
     except SyntaxError:
         return []
 
-    entities: list[Entity] = []
+    model_nodes: list[tuple[ast.ClassDef, str | None]] = []
+    class_to_table: dict[str, str] = {}
     for node in ast.walk(tree):
         if not isinstance(node, ast.ClassDef):
             continue
         tablename: str | None = None
-        columns: list[str] = []
-        fks: list[str] = []
         is_model = _looks_like_model(node)
         for member in node.body:
             if isinstance(member, ast.Assign):
@@ -260,23 +440,58 @@ def extract_models(text: str) -> list[Entity]:
                         and isinstance(member.value, ast.Constant)
                     ):
                         tablename = str(member.value.value)
+        if is_model or tablename:
+            model_nodes.append((node, tablename))
+            class_to_table[node.name] = tablename or node.name
+
+    entities: list[Entity] = []
+    for node, tablename in model_nodes:
+        columns: list[str] = []
+        fks: list[str] = []
+        relationships: list[str] = []
+        is_model = True
+        for member in node.body:
             column = _column_from(member)
             if column is not None:
                 is_model = True
                 columns.append(column[0])
                 if column[1]:
                     fks.append(column[1])
+            rel_target = _relationship_target(member)
+            if rel_target:
+                relationships.append(class_to_table.get(rel_target, rel_target))
         if not is_model:
             continue
-        entity = Entity(name=tablename or node.name, columns=columns)
+        entity = Entity(name=tablename or node.name, class_name=node.name, columns=columns)
         for target in _dedupe(fks):
             entity.relations.append((target, "FK"))
+        for target in _dedupe(relationships):
+            entity.relations.append((target, "relationship"))
         entities.append(entity)
     return entities
 
 
+def _relationship_target(member: ast.stmt) -> str | None:
+    value: ast.expr | None = None
+    if (isinstance(member, ast.Assign) and len(member.targets) == 1) or isinstance(
+        member,
+        ast.AnnAssign,
+    ):
+        value = member.value
+    if not isinstance(value, ast.Call) or _name_of(value.func) != "relationship":
+        return None
+    for arg in value.args:
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            return arg.value
+        name = _name_of(arg)
+        if name:
+            return name
+    return None
+
+
 _CREATE_TABLE_RE = re.compile(r"create\s+table\s+(?:if\s+not\s+exists\s+)?[\"`']?(\w+)", re.IGNORECASE)
 _SQL_FK_RE = re.compile(r"references\s+[\"`']?(\w+)", re.IGNORECASE)
+_SQL_COLUMN_RE = re.compile(r"^\s*[\"`']?([A-Za-z_]\w*)[\"`']?\s+[A-Za-z]", re.MULTILINE)
 
 
 def extract_sql_tables(text: str) -> list[Entity]:
@@ -289,7 +504,13 @@ def extract_sql_tables(text: str) -> list[Entity]:
         nxt = _CREATE_TABLE_RE.search(text, start)
         block = text[start : nxt.start()] if nxt else text[start:]
         rels = [(t, "FK") for t in _dedupe(_SQL_FK_RE.findall(block))]
-        entities.append(Entity(name=name, columns=[], relations=rels))
+        columns = [
+            col
+            for col in _dedupe(_SQL_COLUMN_RE.findall(block))
+            if col.lower()
+            not in {"constraint", "primary", "foreign", "unique", "check", "key"}
+        ]
+        entities.append(Entity(name=name, columns=columns, relations=rels))
     return entities
 
 
@@ -323,6 +544,7 @@ def build_erd_mermaid(contexts: list[ArtifactContext]) -> str | None:
     entities = _all_entities(contexts)
     if not entities:
         return None
+    entities = _with_relation_placeholders(entities)
     names = {e.name for e in entities}
     lines = ["erDiagram"]
     for e in entities:
@@ -345,6 +567,17 @@ def build_erd_mermaid(contexts: list[ArtifactContext]) -> str | None:
     return "\n".join(lines) + "\n"
 
 
+def _with_relation_placeholders(entities: list[Entity]) -> list[Entity]:
+    names = {entity.name for entity in entities}
+    additions: list[Entity] = []
+    for entity in entities:
+        for target, _label in entity.relations:
+            if target and target not in names:
+                additions.append(Entity(name=target, columns=["id"]))
+                names.add(target)
+    return [*entities, *additions]
+
+
 # ── 공통 헬퍼 ───────────────────────────────────────────────────────
 
 
@@ -357,15 +590,19 @@ def _merge_classes(classes: list[ClassInfo]) -> list[ClassInfo]:
     merged: dict[str, ClassInfo] = {}
     for item in classes:
         if item.name not in merged:
-            merged[item.name] = ClassInfo(name=item.name)
+            merged[item.name] = ClassInfo(name=item.name, path=item.path)
         target = merged[item.name]
+        if target.path is None and item.path:
+            target.path = item.path
         target.bases.extend(item.bases)
         target.methods.extend(item.methods)
         target.attributes.extend(item.attributes)
+        target.references.extend(item.references)
     for item in merged.values():
         item.bases = _dedupe(item.bases)
         item.methods = _dedupe(item.methods)
         item.attributes = _dedupe(item.attributes)
+        item.references = _dedupe(item.references)
     return list(merged.values())
 
 
@@ -373,8 +610,10 @@ def _merge_entities(entities: list[Entity]) -> list[Entity]:
     merged: dict[str, Entity] = {}
     for item in entities:
         if item.name not in merged:
-            merged[item.name] = Entity(name=item.name)
+            merged[item.name] = Entity(name=item.name, class_name=item.class_name)
         target = merged[item.name]
+        if target.class_name is None and item.class_name:
+            target.class_name = item.class_name
         target.columns.extend(item.columns)
         target.relations.extend(item.relations)
     for item in merged.values():

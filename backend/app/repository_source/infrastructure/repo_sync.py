@@ -119,9 +119,25 @@ class RepoSyncService:
                     author_email=parts[3] or None,
                     authored_at=parts[4] or None,
                     message=parts[5],
+                    files=self._read_commit_files(root, parts[0]),
                 )
             )
         return commits
+
+    def _read_commit_files(self, root: Path, sha: str) -> list[dict[str, str]]:
+        raw = self._git_or_none(root, "show", "--name-status", "--format=", sha)
+        if not raw:
+            return []
+        files: list[dict[str, str]] = []
+        for line in raw.splitlines():
+            parts = line.strip().split("\t")
+            if len(parts) < 2:
+                continue
+            status = parts[0]
+            path = parts[-1]
+            if path:
+                files.append({"status": status, "path": path})
+        return files[:20]
 
     def _read_tracked_text_files(self, root: Path) -> list[RepoFile]:
         files: list[RepoFile] = []

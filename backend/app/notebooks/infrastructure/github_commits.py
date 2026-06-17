@@ -67,6 +67,7 @@ class GitHubCommitFetcher:
                     "author_email": author.get("email"),
                     "authored_at": author.get("date"),
                     "html_url": item.get("html_url"),
+                    "files": _commit_files(item.get("url"), headers),
                 }
             )
         return commits
@@ -82,3 +83,34 @@ def _parse_github_repo(url: str | None) -> tuple[str, str] | None:
     if len(parts) < 2:
         return None
     return parts[0], parts[1].removesuffix(".git")
+
+
+def _commit_files(url: object, headers: dict[str, str]) -> list[dict[str, str]]:
+    if not isinstance(url, str) or not url:
+        return []
+    try:
+        response = httpx.get(url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
+        response.raise_for_status()
+    except httpx.HTTPError:
+        return []
+    payload = response.json()
+    if not isinstance(payload, dict):
+        return []
+    files = payload.get("files")
+    if not isinstance(files, list):
+        return []
+    out: list[dict[str, str]] = []
+    for item in files[:20]:
+        if not isinstance(item, dict):
+            continue
+        filename = item.get("filename")
+        if not isinstance(filename, str) or not filename:
+            continue
+        status = item.get("status")
+        out.append(
+            {
+                "path": filename,
+                "status": str(status or "modified"),
+            }
+        )
+    return out

@@ -35,6 +35,8 @@ class ArtifactContext:
     text: str
     path: str | None = None
     language: str | None = None
+    source_url: str | None = None
+    branch: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

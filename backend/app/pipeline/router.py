@@ -47,6 +47,8 @@ class RepoCommit(BaseModel):
     author_name: str | None = None
     author_email: str | None = None
     authored_at: str | None = None
+    html_url: str | None = None
+    files: list[dict[str, str]] = Field(default_factory=list)
 
 
 class PipelineRequest(BaseModel):
