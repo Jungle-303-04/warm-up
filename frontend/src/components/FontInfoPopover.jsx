@@ -29,11 +29,16 @@ function createAllowedUsageText(font) {
   return font.usage;
 }
 
+function hasText(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
 function FontInfoPopover({ font }) {
   const [isOpen, setIsOpen] = useState(false);
   const popoverId = useId();
   const allowedUsageText = createAllowedUsageText(font);
-  const priceText = font.isPaid ? "유료" : "무료";
+  const downloadUrl = hasText(font.downloadUrl) ? font.downloadUrl : "";
+  const priceText = typeof font.isPaid === "boolean" ? (font.isPaid ? "유료" : "무료") : "";
 
   const handleToggle = () => {
     setIsOpen((currentValue) => !currentValue);
@@ -76,35 +81,45 @@ function FontInfoPopover({ font }) {
           </div>
 
           <dl className="mt-4 space-y-3 text-xs leading-relaxed text-black">
-            <div>
-              <dt className="font-semibold">출처</dt>
-              <dd className="mt-1 text-[#6b7280]">{font.source}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">라이선스</dt>
-              <dd className="mt-1 text-[#6b7280]">{font.license}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">가격</dt>
-              <dd className="mt-1 text-[#6b7280]">{priceText}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Download URL</dt>
-              <dd className="mt-1">
-                <a
-                  className="text-[#6b7280] underline-offset-2 transition-colors hover:text-black hover:underline"
-                  href={font.downloadUrl}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  {font.downloadUrl}
-                </a>
-              </dd>
-            </div>
-            <div>
-              <dt className="font-semibold">사용 가능</dt>
-              <dd className="mt-1 text-[#6b7280]">{allowedUsageText}</dd>
-            </div>
+            {hasText(font.source) ? (
+              <div>
+                <dt className="font-semibold">출처</dt>
+                <dd className="mt-1 text-[#6b7280]">{font.source}</dd>
+              </div>
+            ) : null}
+            {hasText(font.license) ? (
+              <div>
+                <dt className="font-semibold">라이선스</dt>
+                <dd className="mt-1 text-[#6b7280]">{font.license}</dd>
+              </div>
+            ) : null}
+            {hasText(priceText) ? (
+              <div>
+                <dt className="font-semibold">가격</dt>
+                <dd className="mt-1 text-[#6b7280]">{priceText}</dd>
+              </div>
+            ) : null}
+            {hasText(downloadUrl) ? (
+              <div>
+                <dt className="font-semibold">Download URL</dt>
+                <dd className="mt-1">
+                  <a
+                    className="text-[#6b7280] underline-offset-2 transition-colors hover:text-black hover:underline"
+                    href={downloadUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {downloadUrl}
+                  </a>
+                </dd>
+              </div>
+            ) : null}
+            {hasText(allowedUsageText) ? (
+              <div>
+                <dt className="font-semibold">사용 가능</dt>
+                <dd className="mt-1 text-[#6b7280]">{allowedUsageText}</dd>
+              </div>
+            ) : null}
           </dl>
         </div>
       ) : null}

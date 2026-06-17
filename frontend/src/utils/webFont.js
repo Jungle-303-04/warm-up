@@ -7,11 +7,25 @@ function createWebFontFamilyName(font) {
   return `fboard-${fontId}-${fontName}`.replace(/[^a-zA-Z0-9_-]/g, "-");
 }
 
-function getWebFontUrl(font) {
+function hasValidWebFontUrl(webfont) {
+  return typeof webfont.url === "string" && webfont.url.trim() !== "";
+}
+
+function getRegularWebFont(font) {
   const webfonts = Array.isArray(font?.webfonts) ? font.webfonts : [];
-  const firstWebFont = webfonts.find((webfont) => {
-    return typeof webfont.url === "string" && webfont.url.trim() !== "";
+  const regularWebFont = webfonts.find((webfont) => {
+    return hasValidWebFontUrl(webfont) && Number(webfont.weight) === 400;
   });
+
+  if (regularWebFont) {
+    return regularWebFont;
+  }
+
+  return webfonts.find((webfont) => hasValidWebFontUrl(webfont));
+}
+
+function getWebFontUrl(font) {
+  const firstWebFont = getRegularWebFont(font);
 
   return firstWebFont?.url.trim() ?? null;
 }
@@ -21,10 +35,7 @@ export function hasWebFontUrl(font) {
 }
 
 function getWebFontWeight(font) {
-  const webfonts = Array.isArray(font?.webfonts) ? font.webfonts : [];
-  const firstWebFont = webfonts.find((webfont) => {
-    return typeof webfont.url === "string" && webfont.url.trim() !== "";
-  });
+  const firstWebFont = getRegularWebFont(font);
 
   return firstWebFont?.weight ?? 400;
 }
@@ -69,5 +80,6 @@ export function createWebFontStyle(font) {
 
   return {
     fontFamily: `"${fontFamily}", "Pretendard", sans-serif`,
+    fontWeight: 400,
   };
 }
