@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import {
+  ChatBubbleOvalLeftIcon,
   MagnifyingGlassIcon,
   ShareIcon,
   XMarkIcon,
@@ -37,6 +38,7 @@ function createBoardPostCardData(post) {
     fontName,
     title: post.title,
     nickname: post.user?.nickname ?? post.nickname ?? "작성자",
+    commentCount: post.comment_count ?? post.commentCount ?? 0,
     previewText: post.content,
     previewFontStyle: createWebFontStyle(post.font),
     hasWebFont: hasWebFontUrl(post.font),
@@ -294,9 +296,15 @@ function Board() {
                     />
                   </div>
 
-                  <p className="mt-3 text-xs font-semibold text-black">
-                    {post.nickname}
-                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-3 text-xs text-black">
+                    <p className="min-w-0 truncate font-semibold">
+                      {post.nickname}
+                    </p>
+                    <span className="flex shrink-0 items-center gap-1 text-[#6b7280]">
+                      <ChatBubbleOvalLeftIcon className="h-4 w-4" />
+                      {post.commentCount}
+                    </span>
+                  </div>
                 </Link>
               </article>
             ))}

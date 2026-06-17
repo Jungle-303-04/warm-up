@@ -6,6 +6,7 @@ from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from database import engine
+from models.comment import Comment
 from models.post import Post, PostCreate
 from models.font import Font
 from models.user import User
@@ -115,6 +116,9 @@ def get_posts(
 
             font = session.get(Font, post.font_id)
             user = session.get(User, post.user_id)
+            comment_count = session.exec(
+                select(func.count(Comment.id)).where(Comment.post_id == post.id)
+            ).one()
 
             result.append(
                 {
@@ -126,6 +130,7 @@ def get_posts(
                     "user": {
                         "nickname": user.nickname
                     },
+                    "comment_count": comment_count,
                     "font": build_font_response(font) 
                 }
             )
