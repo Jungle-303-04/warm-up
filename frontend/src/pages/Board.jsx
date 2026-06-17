@@ -251,7 +251,7 @@ function Board() {
         </section>
       ) : hasVisiblePosts ? (
         <>
-          <section className="mt-20 grid grid-cols-3 gap-x-6 gap-y-10">
+          <section className="mt-20 grid min-h-[700px] grid-cols-3 content-start gap-x-6 gap-y-10">
             {posts.map((post) => (
               <article
                 key={post.id}
@@ -261,21 +261,21 @@ function Board() {
                   className="block cursor-pointer p-4"
                   to={`/posts/${post.id}`}
                 >
-                  <div className="flex items-center gap-2 text-xs text-[#d4d4d4]">
+                  <div className="flex items-center gap-2 text-[13px] text-[#d4d4d4]">
                     <time dateTime="2026-03-16">{post.date}</time>
                     <span aria-hidden="true">•</span>
-                    <span className="rounded-full border border-gray-200 bg-[#F8F9FA] px-2 py-0.5 text-[10px] font-medium text-black">
+                    <span className="rounded-full border border-gray-200 bg-[#F8F9FA] px-2 py-0.5 text-xs font-medium text-black">
                       {post.fontName}
                     </span>
                   </div>
 
-                  <h2 className="mt-3 text-sm font-bold leading-tight text-black">
+                  <h2 className="mt-3 text-base font-bold leading-tight text-black">
                     {post.title}
                   </h2>
 
                   <div className="mt-3 h-24 overflow-hidden rounded-md border border-gray-200 px-4 py-3">
                     <p
-                      className="whitespace-pre-wrap break-words text-[22px] leading-tight text-black"
+                      className="whitespace-pre-wrap break-words text-[20px] leading-tight text-black"
                       style={post.previewFontStyle}
                     >
                       {post.previewText}
