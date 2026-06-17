@@ -1,0 +1,12 @@
+backend
+docs
+docker
+.venv
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+**/__pycache__
+**/*.pyc
+**/.next
+**/node_modules
+backend/data/git_cache

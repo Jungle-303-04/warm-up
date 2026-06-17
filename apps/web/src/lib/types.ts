@@ -33,7 +33,6 @@ export interface Artifact {
 export interface Notebook {
   id: string;
   title: string;
-  summary: string | null;
   source_count: number;
   created_at: string;
   updated_at: string;
@@ -48,6 +47,9 @@ export interface Source {
   url: string | null;
   repository_url: string | null;
   branch: string | null;
+  content_hash: string | null;
+  derived_from_artifact_id: string | null;
+  lineage_source_ids: string[] | null;
   created_at: string;
 }
 
@@ -55,7 +57,7 @@ export interface Source {
 // GET /notebooks/{nid}/sources/{sid}/index (1회) 및 .../index/stream(SSE) 응답.
 export type IndexStatus = "queued" | "running" | "done" | "failed";
 export type IndexFileStatus = "queued" | "indexing" | "done" | "skipped" | "failed";
-export type IndexLanguage = "python" | "markdown" | "text" | null;
+export type IndexLanguage = "python" | "markdown" | "code" | "sql" | "config" | "text" | "pdf" | null;
 
 // 파일 단위 인덱싱 상태. supported=false면 인덱싱 대상에서 제외된다.
 export interface IndexFile {
@@ -79,6 +81,7 @@ export interface IndexProgress {
   percent: number; // 0~100
   files: IndexFile[];
   error: string | null;
+  content_hash: string | null;
   updated_at: string;
   // 최신화(클론/인덱싱) 완료 시각. done일 때만 채워지며 그 외엔 null.
   last_synced_at: string | null;
@@ -117,6 +120,8 @@ export interface SourceCreate {
   url?: string;
   repository_url?: string;
   branch?: string;
+  derived_from_artifact_id?: string;
+  lineage_source_ids?: string[];
 }
 
 // 근거 인용(UI 모델). 답변이 참조한 소스 위치를 가리킨다.

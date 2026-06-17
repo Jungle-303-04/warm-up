@@ -7,6 +7,7 @@ import {
   fetchGitHubRepoInfo,
   getLinkMetadata,
   parseGitHubRepo,
+  resolveGitHubBranchFromPath,
   type GitHubRepoInfo,
 } from "../lib/api";
 import { cn } from "../lib/cn";
@@ -181,7 +182,7 @@ function inferTitleFromUrl(raw: string): string {
 type GhState =
   | { kind: "none" } // GitHub URL 아님 → 일반 URL
   | { kind: "loading" } // 브랜치 인식 중
-  | { kind: "ready"; info: GitHubRepoInfo } // 인식 성공
+  | { kind: "ready"; info: GitHubRepoInfo; warning?: string } // 인식 성공
   | { kind: "error"; message: string }; // 비공개·레이트리밋·실패 → 수동 입력 폴백
 
 function LinkForm({
@@ -196,6 +197,7 @@ function LinkForm({
   // 사용자가 제목을 직접 수정했는지(수정했다면 자동 채움을 멈춘다).
   const [titleEdited, setTitleEdited] = useState(false);
   const [branch, setBranch] = useState(""); // 선택/수동 입력 브랜치
+  const [branchEdited, setBranchEdited] = useState(false);
   const [gh, setGh] = useState<GhState>({ kind: "none" });
   // 비-GitHub URL의 링크 메타데이터(실제 제목/아이콘). 로딩/결과 표시용.
   const [meta, setMeta] = useState<LinkMetadata | null>(null);
@@ -211,6 +213,10 @@ function LinkForm({
   const metaDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const metaAbortRef = useRef<AbortController | null>(null);
 
+  useEffect(() => {
+    setBranchEdited(false);
+  }, [url]);
+
   // URL 변경 → 제목 자동 채움(사용자가 직접 수정 전까지) + github 형태이면 브랜치 인식.
   useEffect(() => {
     // 제목 임시 자동 채움: URL 기반(즉시 피드백). 비-GitHub URL은 아래 메타 효과가
@@ -223,6 +229,7 @@ function LinkForm({
     const parsed = parseGitHubRepo(url);
     if (!parsed) {
       setGh({ kind: "none" });
+      setBranch("");
       return;
     }
 
@@ -233,16 +240,33 @@ function LinkForm({
       try {
         const info = await fetchGitHubRepoInfo(parsed.owner, parsed.repo, controller.signal);
         setGh({ kind: "ready", info });
-        // 기본 브랜치를 미리 선택(사용자가 아직 손대지 않았으면).
-        setBranch((prev) => prev || info.defaultBranch);
+        const branchFromUrl = resolveGitHubBranchFromPath(parsed.branch, info.branches);
+        const nextBranch = branchFromUrl ?? parsed.branch ?? info.defaultBranch;
+        // URL 안의 브랜치 또는 기본 브랜치를 미리 선택(사용자가 아직 손대지 않았으면).
+        setBranch((prev) => (branchEdited ? prev : nextBranch));
       } catch (e) {
         if (controller.signal.aborted) return; // 입력이 더 들어와 취소된 경우는 무시.
+        if (parsed.branch) {
+          setGh({
+            kind: "ready",
+            info: {
+              owner: parsed.owner,
+              repo: parsed.repo,
+              defaultBranch: parsed.branch,
+              branches: [parsed.branch],
+            },
+            warning:
+              "브랜치 목록은 가져오지 못했지만, URL에 포함된 브랜치를 사용합니다.",
+          });
+          setBranch((prev) => (branchEdited ? prev : parsed.branch ?? prev));
+          return;
+        }
         setGh({
           kind: "error",
           message:
             e instanceof Error
-              ? `브랜치 자동 인식 실패(${e.message}). 비공개이거나 한도 초과일 수 있어요. 브랜치를 직접 입력하세요.`
-              : "브랜치 자동 인식 실패. 브랜치를 직접 입력하세요.",
+              ? `브랜치 목록을 가져오지 못했습니다(${e.message}). 브랜치를 직접 입력하면 등록할 수 있어요.`
+              : "브랜치 목록을 가져오지 못했습니다. 브랜치를 직접 입력하면 등록할 수 있어요.",
         });
       }
     }, 450);
@@ -251,7 +275,7 @@ function LinkForm({
       if (debounceRef.current) clearTimeout(debounceRef.current);
       controller.abort();
     };
-  }, [url, titleEdited]);
+  }, [branchEdited, url, titleEdited]);
 
   // 비-GitHub URL → 디바운스로 링크 메타데이터 조회(실제 HTML 제목/아이콘).
   // 성공하고 사용자가 제목을 직접 수정하지 않았으면 실제 제목으로 덮어쓴다.
@@ -314,12 +338,20 @@ function LinkForm({
     try {
       let body: SourceCreate;
       if (isGitHub) {
-        const b = branch.trim() || (gh.kind === "ready" ? gh.info.defaultBranch : "main");
+        const parsed = parseGitHubRepo(trimmed);
+        const branchFromUrl =
+          parsed && gh.kind === "ready"
+            ? resolveGitHubBranchFromPath(parsed.branch, gh.info.branches)
+            : parsed?.branch;
+        const b =
+          branch.trim() ||
+          branchFromUrl ||
+          (gh.kind === "ready" ? gh.info.defaultBranch : "main");
         body = {
           kind: "repo",
           title: title.trim() || inferTitleFromUrl(trimmed),
-          repository_url: trimmed,
-          branch: b,
+          repository_url: parsed?.repositoryUrl ?? trimmed,
+          branch: b || branchFromUrl || "main",
         };
       } else {
         // 제목 우선순위: 사용자/메타 제목 → URL 도출 → 원문 URL.
@@ -397,17 +429,31 @@ function LinkForm({
                 branches={gh.info.branches}
                 defaultBranch={gh.info.defaultBranch}
                 value={branch || gh.info.defaultBranch}
-                onChange={setBranch}
+                onChange={(next) => {
+                  setBranch(next);
+                  setBranchEdited(true);
+                }}
               />
-              <p className="text-[11.5px] text-muted-foreground">
-                {gh.info.branches.length}개 브랜치를 인식했어요. 선택한 브랜치를 인덱싱합니다.
+              <p
+                className={cn(
+                  "text-[11.5px]",
+                  gh.warning
+                    ? "text-amber-600 dark:text-amber-500"
+                    : "text-muted-foreground",
+                )}
+              >
+                {gh.warning ??
+                  `${gh.info.branches.length}개 브랜치를 인식했어요. 선택한 브랜치를 인덱싱합니다.`}
               </p>
             </Field>
           ) : gh.kind === "error" ? (
             <Field label="브랜치">
               <input
                 value={branch}
-                onChange={(e) => setBranch(e.target.value)}
+                onChange={(e) => {
+                  setBranch(e.target.value);
+                  setBranchEdited(true);
+                }}
                 placeholder="main"
                 className={inputCls}
               />
@@ -492,9 +538,8 @@ function BranchDropdown({
           className="ml-2 shrink-0 text-muted-foreground"
         />
       </button>
-      {/* 입력란 바로 아래에서 height/opacity로 부드럽게 펼침. */}
-      <Collapse open={open} className="absolute left-0 right-0 top-full z-20 mt-1">
-        <div className="max-h-52 overflow-y-auto rounded-xl border border-border bg-card py-1 shadow">
+      {open ? (
+        <div className="absolute left-0 right-0 top-full z-[80] mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-card py-1 shadow-lg">
           {branches.map((b) => (
             <button
               key={b}
@@ -518,7 +563,7 @@ function BranchDropdown({
             </button>
           ))}
         </div>
-      </Collapse>
+      ) : null}
     </div>
   );
 }

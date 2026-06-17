@@ -35,7 +35,6 @@ export interface WorkspaceCacheSnapshot {
   selectedSourceIds?: string[];
   viewer?: ViewerTarget | null;
   centerTab?: CenterTab;
-  indexProgress?: Record<string, IndexProgress>;
   // repo 소스별 선택된 파일 경로(답변 범위). 직렬화를 위해 배열로 저장.
   selectedFilePaths?: Record<string, string[]>;
 }
@@ -236,15 +235,6 @@ export const useWorkspace = create<WorkspaceStore>()(
                 ? cachedViewer
                 : state.viewer
             : state.viewer;
-          const indexProgress =
-            snapshot.indexProgress === undefined
-              ? state.indexProgress
-              : Object.fromEntries(
-                  Object.entries(snapshot.indexProgress).filter(
-                    ([id, progress]) => sourceIds.has(id) && progress.source_id === id,
-                  ),
-                );
-
           const selectedFilePaths =
             snapshot.selectedFilePaths === undefined
               ? state.selectedFilePaths
@@ -258,7 +248,6 @@ export const useWorkspace = create<WorkspaceStore>()(
             selectedSourceIds,
             viewer,
             centerTab: snapshot.centerTab ?? state.centerTab,
-            indexProgress,
             selectedFilePaths,
           };
         }),
@@ -300,12 +289,15 @@ export const useWorkspace = create<WorkspaceStore>()(
       generateArtifact: async (type, sourceIds) => {
         const { notebookId } = get();
         if (!notebookId) return null;
+        if (sourceIds.length === 0) {
+          set({ artifactsError: "선택된 소스가 없어 산출물을 생성할 수 없습니다" });
+          return null;
+        }
         set({ generatingType: type, artifactsError: null });
         try {
-          // source_ids 가 비어 있으면 생략해 백엔드 전체 소스 기본값을 쓴다.
           const created = await apiCreateArtifact(notebookId, {
             type,
-            source_ids: sourceIds.length > 0 ? sourceIds : undefined,
+            source_ids: sourceIds,
           });
           set((state) => ({
             artifacts: [created, ...state.artifacts],
@@ -369,6 +361,8 @@ export const useWorkspace = create<WorkspaceStore>()(
             kind,
             title: artifact.title,
             content: artifact.content,
+            derived_from_artifact_id: artifact.id,
+            lineage_source_ids: artifact.source_ids,
           });
           // 좌측 소스 목록에 반영 → 기존 흐름대로 자동 인덱싱이 진행된다.
           get().addSource(source);

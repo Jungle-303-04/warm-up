@@ -83,7 +83,7 @@ export function listNotebooks(): Promise<{ notebooks: Notebook[] }> {
   return request("/notebooks");
 }
 
-export function createNotebook(body: { title: string; summary?: string }): Promise<Notebook> {
+export function createNotebook(body: { title?: string }): Promise<Notebook> {
   return request("/notebooks", { method: "POST", body: JSON.stringify(body) });
 }
 
@@ -115,7 +115,7 @@ export function clearNotebookChatMessages(nid: string): Promise<void> {
 
 export function updateNotebook(
   nid: string,
-  body: { title?: string; summary?: string },
+  body: { title?: string },
 ): Promise<Notebook> {
   return request(`/notebooks/${nid}`, { method: "PATCH", body: JSON.stringify(body) });
 }
@@ -247,19 +247,80 @@ export interface GitHubRepoInfo {
   branches: string[];
 }
 
-// 입력 문자열에서 owner/repo를 파싱. github.com 호스트가 아니면 null.
-export function parseGitHubRepo(input: string): { owner: string; repo: string } | null {
-  const url = input.trim();
-  if (!url) return null;
-  // https://github.com/owner/repo(.git)(/...) · github.com/owner/repo · git@github.com:owner/repo
-  const m = url.match(
-    /(?:^|\/\/|@)github\.com[/:]([^/\s]+)\/([^/\s#?]+?)(?:\.git)?(?:[/#?].*)?$/i,
-  );
-  if (!m) return null;
-  const owner = m[1];
-  const repo = m[2];
+export interface ParsedGitHubRepo {
+  owner: string;
+  repo: string;
+  repositoryUrl: string;
+  branch?: string;
+}
+
+function stripGitSuffix(value: string): string {
+  return value.replace(/\.git$/i, "");
+}
+
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+// 입력 문자열에서 owner/repo와 선택적으로 /tree|blob/{branch}를 파싱한다.
+// 브랜치가 URL에 같이 들어와도 백엔드에는 항상 정규화된 repo URL만 보낸다.
+export function parseGitHubRepo(input: string): ParsedGitHubRepo | null {
+  const raw = input.trim();
+  if (!raw) return null;
+
+  const ssh = raw.match(/^git@github\.com:([^/\s]+)\/([^\s#?]+?)(?:\.git)?$/i);
+  if (ssh) {
+    const owner = ssh[1];
+    const repo = stripGitSuffix(ssh[2]);
+    return {
+      owner,
+      repo,
+      repositoryUrl: `https://github.com/${owner}/${repo}`,
+    };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw.includes("://") ? raw : `https://${raw}`);
+  } catch {
+    return null;
+  }
+
+  if (parsed.hostname.toLowerCase() !== "github.com") return null;
+  const parts = parsed.pathname.split("/").filter(Boolean).map(safeDecode);
+  if (parts.length < 2) return null;
+
+  const owner = parts[0];
+  const repo = stripGitSuffix(parts[1]);
   if (!owner || !repo) return null;
-  return { owner, repo };
+
+  const branch =
+    (parts[2] === "tree" || parts[2] === "blob") && parts.length > 3
+      ? parts.slice(3).join("/")
+      : undefined;
+
+  return {
+    owner,
+    repo,
+    repositoryUrl: `https://github.com/${owner}/${repo}`,
+    branch,
+  };
+}
+
+export function resolveGitHubBranchFromPath(
+  branchPath: string | undefined,
+  branches: string[],
+): string | null {
+  if (!branchPath) return null;
+  if (branches.includes(branchPath)) return branchPath;
+  const candidates = branches
+    .filter((branch) => branchPath === branch || branchPath.startsWith(`${branch}/`))
+    .sort((a, b) => b.length - a.length);
+  return candidates[0] ?? null;
 }
 
 // 공개 저장소의 default_branch + 브랜치 목록을 인식.
@@ -269,21 +330,10 @@ export async function fetchGitHubRepoInfo(
   repo: string,
   signal?: AbortSignal,
 ): Promise<GitHubRepoInfo> {
-  const base = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
-  const headers = { Accept: "application/vnd.github+json" };
-  // 1) default_branch
-  const repoRes = await fetch(base, { headers, signal });
-  if (!repoRes.ok) throw new Error(`GitHub 조회 실패 (${repoRes.status})`);
-  const repoJson = (await repoRes.json()) as { default_branch?: string };
-  const defaultBranch = repoJson.default_branch || "main";
-  // 2) 브랜치 목록(최대 100개)
-  const brRes = await fetch(`${base}/branches?per_page=100`, { headers, signal });
-  if (!brRes.ok) throw new Error(`브랜치 조회 실패 (${brRes.status})`);
-  const brJson = (await brRes.json()) as Array<{ name: string }>;
-  const names = brJson.map((b) => b.name);
-  // default_branch가 목록에 없으면 맨 앞에 보강.
-  const branches = names.includes(defaultBranch) ? names : [defaultBranch, ...names];
-  return { owner, repo, defaultBranch, branches };
+  return request(
+    `/github/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/info`,
+    { signal },
+  );
 }
 
 // SSE 구독. 반환값 close()로 반드시 정리(EventSource 누수 방지).

@@ -29,25 +29,25 @@
 }
 
 :root {
-  --background: 40 18% 97%; /* #FAF8F5 — 눈이 편안한 크림 베이지 */
-  --foreground: 40 4% 16%; /* #2A2A28 — 따뜻하고 짙은 브라운 챠콜 */
-  --card: 0 0% 100%; /* #FFFFFF — 순백색 문서/대화 창 */
-  --card-foreground: 40 4% 16%;
-  --primary: 171 69% 14%; /* #0B3C35 — 시그니처 딥 포레스트 그린 */
-  --primary-foreground: 40 18% 97%;
-  --secondary: 40 10% 93%; /* #F4F0EA — 소스 패널 등 라이트 베이지 */
-  --secondary-foreground: 40 4% 16%;
-  --muted: 40 8% 91%; /* #E8E4DC */
-  --muted-foreground: 40 4% 45%; /* #6B6862 — 차분한 토프 그레이 */
-  --accent: 171 25% 90%; /* #DCECE9 — 투명하고 맑은 민트 파스텔 */
-  --accent-foreground: 171 45% 18%; /* #0E4B43 — 민트 그린 포인트 */
+  --background: 220 18% 97%;
+  --foreground: 224 18% 14%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 18% 14%;
+  --primary: 192 78% 34%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 16% 93%;
+  --secondary-foreground: 224 18% 14%;
+  --muted: 220 13% 90%;
+  --muted-foreground: 222 9% 42%;
+  --accent: 166 48% 88%;
+  --accent-foreground: 176 55% 18%;
   --destructive: 0 75% 45%;
   --destructive-foreground: 0 0% 100%;
-  --border: 38 10% 84%; /* #DDD8CF — 극도로 연하고 부드러운 그레이 클레이 */
-  --input: 38 10% 80%;
-  --ring: 171 69% 14%;
-  --code-bg: 40 4% 16%;
-  --code-fg: 40 18% 97%;
+  --border: 220 13% 82%;
+  --input: 220 13% 78%;
+  --ring: 192 78% 34%;
+  --code-bg: 224 18% 14%;
+  --code-fg: 220 18% 97%;
   color-scheme: light;
 }
 
@@ -147,6 +147,37 @@ body {
     box-shadow 200ms cubic-bezier(0.2, 0, 0, 1),
     color 150ms cubic-bezier(0.2, 0, 0, 1),
     transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ── 스튜디오 카드 색조 ──────────────────────────────────────────────
@@ -312,5 +343,4 @@ body {
 .dark .hljs-deletion {
   color: #ffa198;
 }
-
 

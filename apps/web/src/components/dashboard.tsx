@@ -16,7 +16,6 @@ import { Icon } from "./icon";
 import { ThemeToggle } from "./theme-toggle";
 import { Modal } from "./ui/modal";
 import { ErrorRecoveryView } from "./ui/error-recovery-view";
-import { CreateNotebookModal } from "./create-notebook-modal";
 
 // 대시보드(홈): 노트북 카드 그리드 + 생성/이름변경/삭제(CRUD).
 export function Dashboard() {
@@ -25,7 +24,6 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [renaming, setRenaming] = useState<Notebook | null>(null);
 
   const loadNotebooks = () => {
@@ -41,15 +39,15 @@ export function Dashboard() {
     loadNotebooks();
   }, []);
 
-  const handleCreate = async (title: string, summary: string) => {
+  const handleCreate = async () => {
+    if (creating) return;
     setCreating(true);
     try {
-      const nb = await createNotebook({ title, summary });
+      const nb = await createNotebook({ title: "새 노트북" });
       router.push(`/notebooks/${nb.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "생성 실패");
       setCreating(false);
-      throw e;
     }
   };
 
@@ -89,11 +87,16 @@ export function Dashboard() {
           </div>
           <button
             type="button"
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={handleCreate}
             disabled={creating}
             className="transition-all duration-150 ease-out inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.97] disabled:opacity-50"
           >
-            <Icon name="add" size={17} /> 새 노트북 만들기
+            <Icon
+              name={creating ? "progress_activity" : "add"}
+              size={17}
+              className={creating ? "animate-spin" : ""}
+            />
+            {creating ? "생성 중…" : "새 노트북 만들기"}
           </button>
         </div>
 
@@ -109,7 +112,7 @@ export function Dashboard() {
             />
           </div>
         ) : notebooks.length === 0 ? (
-          <EmptyState onCreate={() => setIsCreateModalOpen(true)} />
+          <EmptyState onCreate={handleCreate} creating={creating} />
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {notebooks.map((nb) => (
@@ -130,12 +133,6 @@ export function Dashboard() {
         onClose={() => setRenaming(null)}
         onRename={handleRename}
       />
-
-      <CreateNotebookModal
-        open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreate={handleCreate}
-      />
     </div>
   );
 }
@@ -152,7 +149,13 @@ function formatDate(iso: string | undefined): string {
   }).format(d);
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState({
+  onCreate,
+  creating,
+}: {
+  onCreate: () => void;
+  creating: boolean;
+}) {
   return (
     <div className="mt-16 grid place-items-center rounded-2xl border border-dashed border-border/60 py-20 text-center">
       <span className="grid h-12 w-12 place-items-center rounded-full bg-primary/10 text-primary">
@@ -165,9 +168,15 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <button
         type="button"
         onClick={onCreate}
+        disabled={creating}
         className="transition-all duration-200 ease-in-out mt-5 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[12.5px] font-medium text-primary-foreground shadow-sm hover:opacity-90 hover:shadow active:scale-[0.98]"
       >
-        <Icon name="add" size={17} /> 새 노트북 만들기
+        <Icon
+          name={creating ? "progress_activity" : "add"}
+          size={17}
+          className={creating ? "animate-spin" : ""}
+        />
+        {creating ? "생성 중…" : "새 노트북 만들기"}
       </button>
     </div>
   );
@@ -199,11 +208,6 @@ function NotebookCard({
         <h3 className="mt-3 line-clamp-2 text-[14.5px] font-semibold leading-snug tracking-tight text-foreground group-hover:text-primary transition-colors duration-150">
           {notebook.title}
         </h3>
-        {notebook.summary ? (
-          <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
-            {notebook.summary}
-          </p>
-        ) : null}
         <span className="mt-auto flex items-center gap-1.5 pt-3 text-[11px] font-medium text-muted-foreground/70">
           <span className="inline-flex items-center gap-1">
             <Icon name="folder_open" size={12} />

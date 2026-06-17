@@ -49,7 +49,6 @@ export function Workspace({ notebookId }: { notebookId: string }) {
   const initNotebook = useWorkspace((s) => s.initNotebook);
   const hydrateCachedState = useWorkspace((s) => s.hydrateCachedState);
   const selectedSourceIds = useWorkspace((s) => s.selectedSourceIds);
-  const indexProgress = useWorkspace((s) => s.indexProgress);
   const selectedFilePaths = useWorkspace((s) => s.selectedFilePaths);
   const viewer = useWorkspace((s) => s.viewer);
   const centerTab = useWorkspace((s) => s.centerTab);
@@ -107,7 +106,6 @@ export function Workspace({ notebookId }: { notebookId: string }) {
       selectedSourceIds: [...selectedSourceIds],
       viewer,
       centerTab,
-      indexProgress,
       // Set은 JSON 직렬화가 안 되므로 배열로 변환해 저장한다.
       selectedFilePaths: Object.fromEntries(
         Object.entries(selectedFilePaths).map(([id, paths]) => [id, [...paths]]),
@@ -117,7 +115,6 @@ export function Workspace({ notebookId }: { notebookId: string }) {
     });
   }, [
     centerTab,
-    indexProgress,
     leftCollapsed,
     notebook,
     rightCollapsed,

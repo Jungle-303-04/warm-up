@@ -14,12 +14,15 @@ import {
 } from "../lib/indexing";
 import { useWorkspace } from "../lib/store";
 import type { IndexFile, IndexProgress, Source, TreeNode } from "../lib/types";
+import { ArtifactLineageBadge } from "./artifact-lineage-badge";
 import { Icon } from "./icon";
+import { IndexingStatusBadge } from "./indexing-status-badge";
 import { SourceIcon } from "./source-icon";
+import { StageTimeline } from "./stage-timeline";
 
-// 정지 의심 판정 임계값(ms). queued/running인데 이 시간 이상 updated_at이
-// 갱신되지 않으면 멈춘 것으로 보고 재분석 버튼을 노출한다(너무 공격적이지 않게).
-const STALL_THRESHOLD_MS = 20_000;
+// 진행 중인데 서버 updated_at 갱신이 잠시 늦는 경우가 있다.
+// 실패로 단정하지 않고, 일정 시간 이후에는 상태 확인 중 안내만 표시한다.
+const STATUS_REFRESH_NOTICE_MS = 60_000;
 
 // last_synced_at(ISO) → "마지막 동기화: YYYY.MM.DD HH:mm" (ko-KR). 파싱 실패 시 null.
 function formatLastSynced(iso: string | null | undefined): string | null {
@@ -358,7 +361,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   const [treeError, setTreeError] = useState<string | null>(null);
   // 재분석 진행 중(중복 클릭 방지).
   const [reindexing, setReindexing] = useState(false);
-  // 정지 의심 판정용 현재시각 틱. 진행 중일 때만 주기적으로 갱신한다.
+  // 상태 확인 안내용 현재시각 틱. 진행 중일 때만 주기적으로 갱신한다.
   const [now, setNow] = useState(() => Date.now());
 
   const cfg = SOURCE_KINDS[source.kind];
@@ -369,7 +372,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   const indexing = progress ? isIndexActive(progress.status) : false;
   const done = progress?.status === "done";
 
-  // 진행 중일 때만 5초 간격 타이머로 now를 갱신해 정지 의심을 재평가한다.
+  // 진행 중일 때만 5초 간격 타이머로 now를 갱신해 상태 확인 안내를 재평가한다.
   // 진행이 끝나면 타이머를 정리(누수 방지).
   useEffect(() => {
     if (!indexing) return;
@@ -377,16 +380,16 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
     return () => clearInterval(t);
   }, [indexing]);
 
-  // 정지 의심: queued/running인데 updated_at이 임계값 이상 갱신되지 않음.
-  const stalled = (() => {
+  // 상태 갱신 지연: queued/running인데 updated_at이 안내 임계값 이상 갱신되지 않음.
+  const waitingForStatusRefresh = (() => {
     if (!indexing || !progress) return false;
     const last = new Date(progress.updated_at).getTime();
     if (Number.isNaN(last)) return false;
-    return now - last >= STALL_THRESHOLD_MS;
+    return now - last >= STATUS_REFRESH_NOTICE_MS;
   })();
 
-  // 재분석 버튼 노출 조건: 실패했거나 정지 의심일 때(재분석 중이면 숨김).
-  const canReindex = !!progress && (failed || stalled) && !reindexing;
+  // 재분석 버튼은 실제 failed 상태일 때만 노출한다. 장시간 작업은 훅의 폴링/SSE로 계속 추적한다.
+  const canReindex = !!progress && failed && !reindexing;
 
   // 마지막 동기화 시각(진행 중이 아닐 때, done이고 값이 있을 때만 표시).
   const lastSynced =
@@ -561,16 +564,23 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
             </span>
             {/* 제목 바로 아래 얇은 인라인 진행바 */}
             {progress ? <InlineIndexBar progress={progress} /> : null}
+            {progress || source.derived_from_artifact_id ? (
+              <span className="mt-1 flex flex-wrap items-center gap-1">
+                <IndexingStatusBadge progress={progress} />
+                <ArtifactLineageBadge source={source} />
+              </span>
+            ) : null}
+            {progress ? <StageTimeline progress={progress} /> : null}
             {/* 실패 시 짧은 에러 한 줄(인라인). */}
             {failed && progress?.error ? (
               <span className="mt-0.5 block truncate text-[10px] text-destructive">
                 {progress.error}
               </span>
             ) : null}
-            {/* 정지 의심 안내(진행 중인데 일정 시간 갱신 없음). */}
-            {stalled && !failed ? (
+            {/* 상태 확인 안내(진행 중인데 일정 시간 갱신 없음). */}
+            {waitingForStatusRefresh && !failed ? (
               <span className="mt-0.5 block truncate text-[10px] text-amber-600 dark:text-amber-500">
-                응답이 없어요. 재분석할 수 있습니다.
+                분석은 계속 확인 중입니다. 잠시 뒤 자동으로 갱신됩니다.
               </span>
             ) : null}
             {/* 완료된 소스의 마지막 동기화 시각(진행 중이 아닐 때만). */}
@@ -598,7 +608,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
           ) : null}
         </button>
 
-        {/* 재분석: 실패/정지 의심이거나 재분석 진행 중일 때 노출. 행동 유도라 항상 보이게. */}
+        {/* 재분석: 실제 실패이거나 재분석 진행 중일 때만 노출. */}
         {canReindex || reindexing ? (
           <button
             type="button"

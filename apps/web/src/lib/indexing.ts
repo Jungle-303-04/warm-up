@@ -2,7 +2,23 @@
 import type { IndexFile, IndexProgress, IndexStatus } from "./types";
 
 // 백엔드가 인덱싱하는 확장자(트리에 SSE files 정보가 없을 때 보조 판정).
-const SUPPORTED_EXTENSIONS = [".py", ".md", ".markdown"];
+const SUPPORTED_EXTENSIONS = [
+  ".py",
+  ".pyi",
+  ".md",
+  ".markdown",
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".sql",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".txt",
+  ".pdf",
+];
 
 export function isSupportedPath(path: string): boolean {
   const lower = path.toLowerCase();

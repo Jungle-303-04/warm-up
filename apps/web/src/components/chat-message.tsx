@@ -2,61 +2,12 @@
 
 import { useState } from "react";
 
-import { fileIconForPath, SOURCE_KINDS } from "../lib/fixtures";
 import { useTypewriter } from "../hooks/use-typewriter";
 import { useWorkspace } from "../lib/store";
-import type { ChatMessage, Citation } from "../lib/types";
-import { CitationChip } from "./citation-chip";
+import type { ChatMessage } from "../lib/types";
+import { CitationList } from "./citation-list";
 import { Icon } from "./icon";
 import { MarkdownView } from "./markdown-view";
-
-// 인용 라벨: 경로의 마지막 세그먼트(파일명) 우선, 없으면 소스명.
-function citationLabel(c: Citation): string {
-  if (c.path) return c.path.split("/").pop() || c.path;
-  return c.sourceName;
-}
-
-// 인용 칩 아이콘: 경로가 있으면 확장자 기반 또렷한 아이콘(공용 fileIconForPath),
-// 없으면 링크(소스 종류 아이콘은 호출부에서 store로 보정).
-function citationIcon(c: Citation): string {
-  if (c.path) return fileIconForPath(c.path);
-  return "link";
-}
-
-function CitationChips({ citations }: { citations: Citation[] }) {
-  const openSource = useWorkspace((s) => s.openSource);
-  const openFile = useWorkspace((s) => s.openFile);
-  const sources = useWorkspace((s) => s.sources);
-  const open = (c: Citation) =>
-    c.path ? openFile(c.sourceId, c.path) : openSource(c.sourceId);
-
-  // 경로 없는 인용은 소스 종류 아이콘을 우선 사용(repo/url/pdf 등).
-  const iconFor = (c: Citation): string => {
-    if (c.path) return citationIcon(c);
-    const src = sources.find((s) => s.id === c.sourceId);
-    return src ? SOURCE_KINDS[src.kind].icon : citationIcon(c);
-  };
-
-  return (
-    <div className="flex flex-wrap gap-1">
-      {citations.map((c, i) => {
-        // 파일 경로가 없는 URL 소스 인용은 favicon을 쓰도록 소스 정보를 넘긴다.
-        const src = sources.find((s) => s.id === c.sourceId);
-        const isUrl = !c.path && src?.kind === "url";
-        return (
-          <CitationChip
-            key={`${c.sourceId}-${i}`}
-            icon={iconFor(c)}
-            label={citationLabel(c)}
-            url={isUrl ? src?.url : null}
-            isUrl={isUrl}
-            onClick={() => open(c)}
-          />
-        );
-      })}
-    </div>
-  );
-}
 
 // 사용자 메시지: 우측 primary 말풍선.
 function UserBubble({ content }: { content: string }) {
@@ -125,7 +76,7 @@ function AssistantBubble({
           {/* 타이핑 끝난 뒤에만 인용칩 노출. */}
           {done && message.citations.length > 0 ? (
             <div className="mt-3 border-t border-border pt-2.5">
-              <CitationChips citations={message.citations} />
+              <CitationList citations={message.citations} />
             </div>
           ) : null}
         </div>

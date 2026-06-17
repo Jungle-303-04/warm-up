@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { useChatScroll } from "../hooks/use-chat-scroll";
 import { askNotebook, listNotebookChatMessages, clearNotebookChatMessages } from "../lib/api";
@@ -18,6 +25,7 @@ import type {
 import { ChatEmpty } from "./chat-empty";
 import { ChatMessageView } from "./chat-message";
 import { Icon } from "./icon";
+import { SourceScopeBar } from "./source-scope-bar";
 import { Button } from "./ui/button";
 
 const makeId = () =>
@@ -89,6 +97,20 @@ function draftKey(notebookId: string) {
   return `repolm.chatDraft.${notebookId}`;
 }
 
+function isImeComposing(
+  event: ReactKeyboardEvent<HTMLTextAreaElement>,
+  compositionActive: boolean,
+) {
+  return (
+    compositionActive ||
+    event.nativeEvent.isComposing ||
+    event.nativeEvent.keyCode === 229
+  );
+}
+
+const DUPLICATE_SUBMIT_WINDOW_MS = 1_500;
+const IME_ENTER_SUPPRESS_MS = 120;
+
 export function ChatView() {
   const scopeCount = useWorkspace(selectScopeCount);
   const sourceCount = useWorkspace((s) => s.sources.length);
@@ -115,6 +137,10 @@ export function ChatView() {
   // 단일 비행(single-flight) 가드: 한 번에 한 질문만 처리되도록 보장한다.
   // sending 상태는 비동기로 갱신돼 효과/직접호출이 겹칠 수 있으므로 ref로 즉시 잠근다.
   const runningRef = useRef(false);
+  const compositionRef = useRef(false);
+  const compositionEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressEnterUntilRef = useRef(0);
+  const lastSubmittedRef = useRef<{ question: string; at: number } | null>(null);
 
   const selectedSourceIdList = useMemo(() => [...selectedSourceIds], [selectedSourceIds]);
   const allSourcesSelected = sourceCount > 0 && scopeCount === sourceCount;
@@ -159,6 +185,15 @@ export function ChatView() {
       active = false;
     };
   }, [notebookId]);
+
+  useEffect(
+    () => () => {
+      if (compositionEndTimerRef.current !== null) {
+        clearTimeout(compositionEndTimerRef.current);
+      }
+    },
+    [],
+  );
 
   // 입력 초안 복원/저장.
   useEffect(() => {
@@ -253,6 +288,18 @@ export function ChatView() {
       const question = text.trim();
       if (!question || scopeCount === 0 || !notebookId) return;
 
+      const now = Date.now();
+      const last = lastSubmittedRef.current;
+      const duplicate =
+        last !== null &&
+        now - last.at < DUPLICATE_SUBMIT_WINDOW_MS &&
+        (last.question === question ||
+          (question.length <= 2 && last.question.endsWith(question)));
+      if (duplicate || pendingQuestion === question || queuedQuestions.includes(question)) {
+        return;
+      }
+      lastSubmittedRef.current = { question, at: now };
+
       setQuery("");
       // 사용자 메시지를 즉시 목록에 추가(낙관적).
       setMessages((prev) => [
@@ -288,7 +335,15 @@ export function ChatView() {
       // 항상 큐에 넣고, 위의 단일 드레인 효과가 순차 처리한다(직접 실행 금지).
       setQueuedQuestions((prev) => [...prev, question]);
     },
-    [generateArtifact, notebookId, query, scopeCount, selectedSourceIdList],
+    [
+      generateArtifact,
+      notebookId,
+      pendingQuestion,
+      query,
+      queuedQuestions,
+      scopeCount,
+      selectedSourceIdList,
+    ],
   );
 
   const stopCurrent = () => {
@@ -397,6 +452,7 @@ export function ChatView() {
 
   return (
     <>
+      <SourceScopeBar />
       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto scroll-smooth">
         <div className="w-full px-6 py-5">
           {/* 헤더 카드 */}
@@ -515,10 +571,30 @@ export function ChatView() {
             rows={1}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onCompositionStart={() => {
+              if (compositionEndTimerRef.current !== null) {
+                clearTimeout(compositionEndTimerRef.current);
+                compositionEndTimerRef.current = null;
+              }
+              compositionRef.current = true;
+            }}
+            onCompositionEnd={(e) => {
+              setQuery(e.currentTarget.value);
+              suppressEnterUntilRef.current = Date.now() + IME_ENTER_SUPPRESS_MS;
+              compositionEndTimerRef.current = setTimeout(() => {
+                compositionRef.current = false;
+                compositionEndTimerRef.current = null;
+              }, IME_ENTER_SUPPRESS_MS);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
+                if (Date.now() < suppressEnterUntilRef.current) {
+                  e.preventDefault();
+                  return;
+                }
+                if (isImeComposing(e, compositionRef.current)) return;
                 e.preventDefault();
-                send();
+                send(e.currentTarget.value);
               }
             }}
             disabled={scopeCount === 0}
