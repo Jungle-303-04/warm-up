@@ -1,7 +1,9 @@
 import { api } from "./client";
 import type {
   PageCreateRequest,
+  PageListResponse,
   PageResponse,
+  PageType,
   PageUpdateRequest,
 } from "../types/page";
 
@@ -22,5 +24,18 @@ export async function getPage(pageId: number) {
 
 export async function updatePage(pageId: number, payload: PageUpdateRequest) {
   const response = await api.patch<PageResponse>(`/pages/${pageId}`, payload);
+  return response.data;
+}
+
+export async function searchPages(params: {
+  keyword?: string;
+  type?: PageType;
+  page?: number;
+  size?: number;
+}) {
+  const response = await api.get<PageListResponse>("/pages/search", {
+    params,
+  });
+
   return response.data;
 }

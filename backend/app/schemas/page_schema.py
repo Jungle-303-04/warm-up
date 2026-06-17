@@ -196,6 +196,8 @@ class PageListItem(BaseModel):
     # 작성자 user id입니다.
     author_id: int
 
+    author: PageAuthorResponse
+
     # 참여자 목록입니다.
     participants: list[str]
 

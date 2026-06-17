@@ -8,6 +8,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 import { api } from "../api/client";
 import { AppLayout } from "../components/layout/AppLayout";
+import type { AppPage } from "../components/layout/AppLayout";
 import { Topbar } from "../components/layout/Topbar";
 import { PageDetailModal } from "../components/modal/PageDetailModal";
 import { PageEditorModal } from "../components/modal/PageEditorModal";
@@ -17,7 +18,7 @@ import type { CalendarPageItem, PageType } from "../types/page";
 type CalendarPageProps = {
   currentUser: UserResponse | null;
   onLogout: () => void;
-  onNavigate: (page: "calendar" | "daily-message") => void;
+  onNavigate: (page: AppPage) => void;
 };
 
 function toDateKey(date: Date) {

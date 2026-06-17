@@ -1,4 +1,4 @@
-import { CalendarDays, MessageSquareText } from "lucide-react";
+import { CalendarDays, MessageSquareText, Search } from "lucide-react";
 
 import type { AppPage } from "./AppLayout";
 
@@ -41,6 +41,16 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
         >
           <MessageSquareText size={18} />
           <span>오늘의 한마디</span>
+        </button>
+        <button
+          className={`sidebar-nav-item ${
+            activePage === "search" ? "active" : ""
+          }`}
+          type="button"
+          onClick={() => onNavigate("search")}
+        >
+          <Search size={18} />
+          <span>검색</span>
         </button>
       </nav>
     </aside>

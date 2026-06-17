@@ -5,6 +5,7 @@ import type { AppPage } from "./components/layout/AppLayout";
 import { AuthPage } from "./pages/AuthPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { DailyMessagePage } from "./pages/DailyMessagePage";
+import { SearchPage } from "./pages/SearchPage";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -98,6 +99,16 @@ function App() {
   }
 
   // 기본 화면은 캘린더다.
+  if (activePage === "search") {
+    return (
+      <SearchPage
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        onNavigate={setActivePage}
+      />
+    );
+  }
+
   return (
     <CalendarPage
       currentUser={currentUser}

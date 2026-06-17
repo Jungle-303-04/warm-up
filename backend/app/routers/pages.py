@@ -132,7 +132,11 @@ def get_pages(
     current_user: User = Depends(get_current_user),
 ):
     # Page 목록을 날짜 최신순, 생성시간 최신순으로 조회한다.
-    stmt = select(Page).order_by(Page.date.desc(), Page.created_at.desc())
+    stmt = (
+        select(Page)
+        .options(selectinload(Page.author))
+        .order_by(Page.date.desc(), Page.created_at.desc())
+    )
 
     # 전체 Page 개수를 센다.
     count_stmt = select(func.count(Page.id))
@@ -147,6 +151,76 @@ def get_pages(
     # 페이지네이션을 적용해서 현재 페이지에 보여줄 데이터만 가져온다.
     items = db.execute(stmt.offset((page - 1) * size).limit(size)).scalars().all()
 
+    return PageListResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+    )
+
+
+@router.get(
+    "/search",
+    response_model=PageListResponse,
+)
+def search_pages(
+    # 검색어입니다. 값이 없으면 검색어 필터 없이 전체 목록을 조회합니다.
+    keyword: str | None = Query(default=None),
+    # 회의/회고 타입 필터입니다.
+    # URL에서는 ?type=MEETING 또는 ?type=RETROSPECTIVE 형태로 받습니다.
+    type_: PageType | None = Query(default=None, alias="type"),
+    # 현재 페이지 번호입니다. 1 이상만 허용합니다.
+    page: int = Query(default=1, ge=1),
+    # 한 페이지에 가져올 개수입니다. 1~100개까지만 허용합니다.
+    size: int = Query(default=10, ge=1, le=100),
+    # DB 작업에 사용할 SQLAlchemy 세션입니다.
+    db: Session = Depends(get_db),
+    # 로그인한 사용자 정보입니다. 토큰 검증도 함께 수행됩니다.
+    current_user: User = Depends(get_current_user),
+):
+    # 실제 Page 목록을 조회할 쿼리입니다.
+    # 작성자 정보(author)도 함께 불러오고, 최신 날짜/최신 생성순으로 정렬합니다.
+    stmt = (
+        select(Page)
+        .options(selectinload(Page.author))
+        .order_by(Page.date.desc(), Page.created_at.desc())
+    )
+
+    # 페이지네이션을 위해 전체 검색 결과 개수를 세는 쿼리입니다.
+    count_stmt = select(func.count(Page.id))
+
+    # keyword가 None일 수 있으므로, 값이 있을 때만 앞뒤 공백을 제거합니다.
+    clean_keyword = keyword.strip() if keyword else ""
+
+    # 검색어가 비어 있지 않으면 제목에 검색어가 포함된 Page만 조회합니다.
+    if clean_keyword:
+        # SQL LIKE 검색에 사용할 패턴입니다.
+        # 예: keyword="회의" -> "%회의%"
+        pattern = f"%{clean_keyword}%"
+
+        # Page.title에 검색어가 포함된 데이터만 조회합니다.
+        # ilike는 대소문자를 구분하지 않는 LIKE 검색입니다.
+        stmt = stmt.where(Page.title.ilike(pattern))
+
+        # 전체 개수 쿼리에도 같은 검색 조건을 적용해야
+        # total 값이 실제 목록과 맞습니다.
+        count_stmt = count_stmt.where(Page.title.ilike(pattern))
+
+    # type 필터가 들어오면 회의 또는 회고만 조회합니다.
+    if type_ is not None:
+        stmt = stmt.where(Page.type == type_)
+
+        # count 쿼리에도 같은 type 조건을 적용합니다.
+        count_stmt = count_stmt.where(Page.type == type_)
+
+    # 조건에 맞는 전체 개수를 조회합니다.
+    total = db.execute(count_stmt).scalar_one()
+
+    # offset/limit으로 현재 페이지에 해당하는 목록만 가져옵니다.
+    # page=1이면 offset 0, page=2이면 size만큼 건너뜁니다.
+    items = db.execute(stmt.offset((page - 1) * size).limit(size)).scalars().all()
+
+    # 목록, 전체 개수, 현재 페이지, 페이지 크기를 응답합니다.
     return PageListResponse(
         items=items,
         total=total,

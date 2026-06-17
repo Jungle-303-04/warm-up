@@ -10,12 +10,13 @@ import {
   updateDailyMessage,
 } from "../api/dailyMessages";
 import { AppLayout } from "../components/layout/AppLayout";
+import type { AppPage } from "../components/layout/AppLayout";
 import type { DailyMessage } from "../types/dailyMessage";
 
 type DailyMessagePageProps = {
   currentUser: UserResponse | null;
   onLogout: () => void;
-  onNavigate: (page: "calendar" | "daily-message") => void;
+  onNavigate: (page: AppPage) => void;
 };
 
 // 백엔드에서 받은 ISO 날짜 문자열을 한국어 날짜/시간 표시로 바꾼다.

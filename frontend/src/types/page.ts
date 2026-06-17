@@ -77,3 +77,25 @@ export type PageResponse = {
   created_at: string;
   updated_at: string;
 };
+
+export type PageListItem = {
+  id: number;
+  type: PageType;
+  title: string;
+  date: string;
+  start_time: string | null;
+  end_time: string | null;
+  author_id: number;
+  author: PageAuthor;
+  participants: string[];
+  ai_summary: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PageListResponse = {
+  items: PageListItem[];
+  total: number;
+  page: number;
+  size: number;
+};

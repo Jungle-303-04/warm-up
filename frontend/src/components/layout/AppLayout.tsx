@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { ChatbotWidget } from "../chatbot/ChatbotWidget";
 import { Sidebar } from "./Sidebar";
 
-export type AppPage = "calendar" | "daily-message";
+export type AppPage = "calendar" | "daily-message" | "search";
 
 type AppLayoutProps = {
   topbar?: ReactNode;
