@@ -107,7 +107,7 @@ class ChatService:
         self.store.get_notebook(notebook_id, owner_user_id=owner_user_id)
         sources = self.store.list_sources(notebook_id)
         selected = select_sources(sources, source_ids)
-        title_by_source = {source.id: source.title for source in sources}
+        title_by_source = _title_by_source_map(sources)
         source_by_id = {source.id: source for source in sources}
 
         # 이전 대화 기록 가져오기
@@ -146,7 +146,9 @@ class ChatService:
                 source_count=len(selected),
             )
 
-            if answer_plan.route == AnswerRoute.DIRECT:
+            if _should_ask_repo_scope(standalone_question, selected):
+                result = _repo_scope_clarification_result(selected)
+            elif answer_plan.route == AnswerRoute.DIRECT:
                 # 인사/대화 또는 (소스 없을 때) 일반 지식 → RAG 생략, 바로 답변.
                 if self.answerer is not None:
                     answer = self._answer(normalized_question, [], chat_history)
@@ -189,6 +191,11 @@ class ChatService:
                     hits,
                     source_ids=search_source_ids,
                     file_paths=file_paths,
+                )
+                hits = _prioritize_source_code_hits(
+                    standalone_question,
+                    hits,
+                    source_by_id,
                 )
                 tools = self._build_tools(notebook_id, search_source_ids, file_paths)
                 result = self._result_from_hits(
@@ -505,6 +512,218 @@ def _dedupe_citations(citations: list[ChatCitation]) -> list[ChatCitation]:
         seen.add(key)
         deduped.append(citation)
     return deduped
+
+
+_MULTI_REPO_SCOPE_KEYWORDS = (
+    "이 레포",
+    "이 저장소",
+    "이 프로젝트",
+    "레포",
+    "저장소",
+    "프로젝트",
+    "코드",
+    "구조",
+    "아키텍처",
+    "architecture",
+    "구현",
+    "기능",
+    "커밋",
+    "변경",
+)
+
+_MULTI_REPO_ALL_KEYWORDS = (
+    "모든",
+    "전체",
+    "여러",
+    "각각",
+    "둘 다",
+    "전부",
+    "비교",
+    "차이",
+    "compare",
+    "all",
+    "each",
+    "both",
+)
+
+_SOURCE_CODE_QUESTION_KEYWORDS = (
+    "소스코드",
+    "소스 코드",
+    "코드",
+    "구현",
+    "로직",
+    "함수",
+    "메서드",
+    "메소드",
+    "클래스",
+    "인터페이스",
+    "타입",
+    "api",
+    "endpoint",
+    "route",
+    "router",
+    "schema",
+    "model",
+    "service",
+    "버그",
+    "오류",
+    "에러",
+    "import",
+    "export",
+    "python",
+    "typescript",
+    "javascript",
+    "fastapi",
+    "next.js",
+)
+
+_CODE_EXTENSIONS = (
+    ".py",
+    ".pyi",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".sql",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".env",
+    "dockerfile",
+)
+
+_DOC_LIKE_LANGUAGES = {"markdown", "text", "pdf", "url", None}
+
+
+def _title_by_source_map(sources: list[SourceRecord]) -> dict[str, str]:
+    repo_key_counts: dict[str, int] = {}
+    for source in sources:
+        if source.kind == "repo" and source.repository_url:
+            key = _repo_identity(source)
+            repo_key_counts[key] = repo_key_counts.get(key, 0) + 1
+
+    titles: dict[str, str] = {}
+    for source in sources:
+        title = source.title
+        if (
+            source.kind == "repo"
+            and source.branch
+            and source.repository_url
+            and repo_key_counts.get(_repo_identity(source), 0) > 1
+        ):
+            title = f"{source.title} ({source.branch})"
+        titles[source.id] = title
+    return titles
+
+
+def _should_ask_repo_scope(question: str, selected: list[SourceRecord]) -> bool:
+    repo_sources = [source for source in selected if source.kind == "repo"]
+    if len(repo_sources) < 2:
+        return False
+    if len({_repo_identity(source) for source in repo_sources}) <= 1:
+        # 같은 저장소의 여러 브랜치는 답변에서 branch별로 나누는 편이 자연스럽다.
+        return False
+
+    normalized = question.strip().lower()
+    if any(keyword in normalized for keyword in _MULTI_REPO_ALL_KEYWORDS):
+        return False
+    if any(_mentions_source(normalized, source) for source in repo_sources):
+        return False
+    return any(keyword in normalized for keyword in _MULTI_REPO_SCOPE_KEYWORDS)
+
+
+def _repo_scope_clarification_result(sources: list[SourceRecord]) -> ChatResult:
+    repo_sources = [source for source in sources if source.kind == "repo"]
+    options = [
+        f"- {source.title}"
+        + (f" / branch `{source.branch}`" if source.branch else "")
+        for source in repo_sources[:6]
+    ]
+    extra = len(repo_sources) - len(options)
+    if extra > 0:
+        options.append(f"- 그 외 {extra}개 저장소")
+    answer = (
+        "여러 저장소가 선택되어 있어요. 어느 저장소를 기준으로 답변할지 알려주세요.\n"
+        "여러 저장소를 함께 보려면 “전체 기준으로 비교해줘”처럼 말해주면 "
+        "같이 묶어서 답하겠습니다.\n"
+        + "\n".join(options)
+    )
+    return ChatResult(answer=answer, citations=[])
+
+
+def _repo_identity(source: SourceRecord) -> str:
+    value = source.repository_url or source.title
+    return value.strip().rstrip("/").removesuffix(".git").lower()
+
+
+def _mentions_source(question: str, source: SourceRecord) -> bool:
+    candidates = {source.title.lower()}
+    if source.repository_url:
+        normalized_url = source.repository_url.rstrip("/").removesuffix(".git")
+        candidates.add(normalized_url.lower())
+        candidates.add(normalized_url.rsplit("/", maxsplit=1)[-1].lower())
+    if source.branch:
+        candidates.add(source.branch.lower())
+    return any(candidate and candidate in question for candidate in candidates)
+
+
+def _prioritize_source_code_hits(
+    question: str,
+    hits: list[ChunkSearchHit],
+    source_by_id: dict[str, SourceRecord],
+) -> list[ChunkSearchHit]:
+    """소스코드 관련 질문에서는 문서보다 실제 repo/code 청크를 먼저 배치한다.
+
+    검색 자체는 기존 RAG 결과를 그대로 사용하되, LLM/폴백 답변에 들어가는
+    evidence 순서를 조정한다. 문서 청크는 제거하지 않고 코드 근거 뒤에 보조로 둔다.
+    """
+    if not _is_source_code_question(question):
+        return hits
+    if not any(_is_code_hit(hit, source_by_id) for hit in hits):
+        return hits
+    return sorted(
+        hits,
+        key=lambda hit: (
+            _code_hit_priority(hit, source_by_id),
+            hit.score,
+        ),
+        reverse=True,
+    )
+
+
+def _is_source_code_question(question: str) -> bool:
+    normalized = question.strip().lower()
+    return any(keyword in normalized for keyword in _SOURCE_CODE_QUESTION_KEYWORDS)
+
+
+def _is_code_hit(
+    hit: ChunkSearchHit,
+    source_by_id: dict[str, SourceRecord],
+) -> bool:
+    return _code_hit_priority(hit, source_by_id) > 0
+
+
+def _code_hit_priority(
+    hit: ChunkSearchHit,
+    source_by_id: dict[str, SourceRecord],
+) -> int:
+    source = source_by_id.get(hit.chunk.source_id)
+    if source is None or source.kind != "repo":
+        return 0
+    path = (hit.chunk.file_path or "").lower()
+    language = hit.chunk.language
+    if path and _is_code_path(path):
+        return 3
+    if language not in _DOC_LIKE_LANGUAGES:
+        return 2
+    if path:
+        return 1
+    return 0
+
+
+def _is_code_path(path: str) -> bool:
+    return any(path.endswith(ext) for ext in _CODE_EXTENSIONS) or path.endswith("/dockerfile")
 
 
 def _fallback_answer(evidence: list[TextChunk]) -> str:

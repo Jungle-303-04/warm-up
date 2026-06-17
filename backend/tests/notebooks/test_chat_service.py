@@ -115,6 +115,149 @@ def test_chat_repo_citation_includes_file_path() -> None:
     assert top.path == "app/auth/session.py"
 
 
+def test_code_question_prefers_source_code_over_docs() -> None:
+    notebook_service, indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+
+    docs = notebook_service.add_source(
+        notebook.id,
+        kind="md",
+        title="feature_request.md",
+        content="# 로그인 구현\n\n로그인 구현은 문서에서 설명합니다.",
+    )
+    repo = SourceRecord(
+        id="repo-code",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(repo)
+
+    question = "로그인 구현 코드는 어디야?"
+    embedding = chat.embedder.embed_query(question)
+    indexing.chunk_store.add_many(
+        [
+            NotebookChunk(
+                id="doc-chunk",
+                notebook_id=notebook.id,
+                source_id=docs.id,
+                chunk_index=0,
+                text="로그인 구현 문서 설명입니다.",
+                language="markdown",
+                embedding=embedding,
+                created_at=FIXED_NOW,
+            ),
+            NotebookChunk(
+                id="code-chunk",
+                notebook_id=notebook.id,
+                source_id=repo.id,
+                chunk_index=0,
+                text="# 로그인 구현 코드\ndef login_user():\n    return issue_session_cookie()\n",
+                file_path="app/auth/session.py",
+                language="python",
+                embedding=embedding,
+                created_at=FIXED_NOW,
+            ),
+        ]
+    )
+
+    result = chat.ask(
+        notebook.id,
+        question=question,
+        source_ids=[docs.id, repo.id],
+    )
+
+    assert result.citations
+    assert result.citations[0].source_id == repo.id
+    assert result.citations[0].path == "app/auth/session.py"
+
+
+def test_chat_asks_for_scope_when_multiple_different_repos_are_ambiguous() -> None:
+    notebook_service, _indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+
+    first = SourceRecord(
+        id="repo-1",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[{"path": "README.md", "content": "# API"}],
+        created_at=FIXED_NOW,
+    )
+    second = SourceRecord(
+        id="repo-2",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/web",
+        repository_url="https://github.com/team/web",
+        branch="main",
+        repo_snapshot=[{"path": "README.md", "content": "# Web"}],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(first)
+    notebook_service.store.add_source(second)
+
+    result = chat.ask(
+        notebook.id,
+        question="이 프로젝트는 어떤 구조야?",
+        source_ids=[first.id, second.id],
+    )
+
+    assert result.citations == []
+    assert "여러 저장소" in result.answer
+    assert "team/api" in result.answer
+    assert "team/web" in result.answer
+
+
+def test_chat_does_not_ask_scope_for_same_repo_multiple_branches() -> None:
+    notebook_service, indexing, chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    from app.notebooks.domain.records import SourceRecord
+
+    main = SourceRecord(
+        id="repo-main",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+        repo_snapshot=[{"path": "README.md", "content": "# API\n\nmain branch"}],
+        created_at=FIXED_NOW,
+    )
+    feature = SourceRecord(
+        id="repo-feature",
+        notebook_id=notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="feature",
+        repo_snapshot=[{"path": "README.md", "content": "# API\n\nfeature branch"}],
+        created_at=FIXED_NOW,
+    )
+    notebook_service.store.add_source(main)
+    notebook_service.store.add_source(feature)
+    indexing.index_source(notebook.id, main.id)
+    indexing.index_source(notebook.id, feature.id)
+
+    result = chat.ask(
+        notebook.id,
+        question="이 프로젝트는 어떤 프로젝트야?",
+        source_ids=[main.id, feature.id],
+    )
+
+    assert "여러 저장소" not in result.answer
+    assert "branch `main`" in result.answer
+    assert "branch `feature`" in result.answer
+
+
 def _build_repo_notebook():
     """repo(파일 경로 있는 청크) + md(파일 경로 없는 본문) 소스를 인덱싱한 노트북."""
     notebook_service, indexing, chat = _build()
