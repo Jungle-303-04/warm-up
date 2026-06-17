@@ -75,6 +75,10 @@ def should_use_secure_cookie() -> bool:
     return cookie_secure.lower() == "true"
 
 
+def get_cookie_samesite() -> str:
+    return os.getenv("COOKIE_SAMESITE", "lax")
+
+
 def hash_password(password: str) -> str:
     password_bytes = password.encode("utf-8")
     hashed_password = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
@@ -176,7 +180,7 @@ def set_auth_cookies(response: Response, user_id: int) -> None:
         value=access_token,
         httponly=True,
         secure=should_use_secure_cookie(),
-        samesite="lax",
+        samesite=get_cookie_samesite(),
         max_age=get_access_token_expire_minutes() * 60,
     )
     response.set_cookie(
@@ -184,14 +188,24 @@ def set_auth_cookies(response: Response, user_id: int) -> None:
         value=refresh_token,
         httponly=True,
         secure=should_use_secure_cookie(),
-        samesite="lax",
+        samesite=get_cookie_samesite(),
         max_age=get_refresh_token_expire_days() * 24 * 60 * 60,
     )
 
 
 def clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie(key=ACCESS_TOKEN_COOKIE_NAME, httponly=True, samesite="lax")
-    response.delete_cookie(key=REFRESH_TOKEN_COOKIE_NAME, httponly=True, samesite="lax")
+    response.delete_cookie(
+        key=ACCESS_TOKEN_COOKIE_NAME,
+        httponly=True,
+        secure=should_use_secure_cookie(),
+        samesite=get_cookie_samesite(),
+    )
+    response.delete_cookie(
+        key=REFRESH_TOKEN_COOKIE_NAME,
+        httponly=True,
+        secure=should_use_secure_cookie(),
+        samesite=get_cookie_samesite(),
+    )
 
 
 @router.post("/signup", response_model=AuthResponse)

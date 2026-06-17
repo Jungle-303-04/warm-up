@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, or_
@@ -20,9 +22,26 @@ app = FastAPI()
 app.include_router(comments_router)
 app.include_router(auth_router)
 
+
+def get_cors_origins() -> list[str]:
+    cors_origins = os.getenv("CORS_ORIGINS")
+
+    if cors_origins is None:
+        return ["http://localhost:5173"]
+
+    origins = []
+    for origin in cors_origins.split(","):
+        stripped_origin = origin.strip()
+
+        if stripped_origin:
+            origins.append(stripped_origin)
+
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
