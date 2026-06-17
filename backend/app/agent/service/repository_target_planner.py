@@ -6,8 +6,8 @@ from app.agent.domain.chat import ChatMessage, InferredRepositoryRef
 from app.rag.service.ports import TextGenerator
 
 
-PLANNER_SYSTEM_PROMPT = (
-    "You are a routing planner for a coding assistant. Your task is to select the appropriate "
+TARGET_PLANNER_SYSTEM_PROMPT = (
+    "You are a repository target planner for a coding assistant. Your task is to select the appropriate "
     "repository analysis runs based on the user's question.\n\n"
     "Rules:\n"
     "- The candidates are SQL metadata for already indexed repository runs. "
@@ -37,14 +37,14 @@ NO_SELECTION_REASON = "no matching repository analysis run"
 
 
 @dataclass(frozen=True) # immutable
-class RepositoryPlan:
-    """LLM planner가 고른 답변 기준 run 목록."""
+class RepositoryTargetPlan:
+    """LLM target planner가 고른 답변 기준 run 목록."""
 
     inferred_repository_refs: list[InferredRepositoryRef] | None
     reason: str | None = None
 
 
-class AgentRepositoryPlanner:
+class AgentRepositoryTargetPlanner:
     """사용자 질문과 SQL run 후보 목록을 보고 LLM으로 답변 기준을 고른다."""
 
     def __init__(self, text_generator: TextGenerator) -> None:
@@ -55,11 +55,11 @@ class AgentRepositoryPlanner:
         user_input: str,
         runs: list[Any],
         messages: list[ChatMessage],
-    ) -> RepositoryPlan:
+    ) -> RepositoryTargetPlan:
         """질문에 필요한 레포/브랜치 기준을 후보 run 중에서 선택한다."""
 
         if not runs:
-            return RepositoryPlan(
+            return RepositoryTargetPlan(
                 inferred_repository_refs=None,
                 reason="no indexed repository runs",
             )
@@ -67,7 +67,7 @@ class AgentRepositoryPlanner:
         try:
             planner_response = self.text_generator.generate(
                 [
-                    {"role": "system", "content": PLANNER_SYSTEM_PROMPT},
+                    {"role": "system", "content": TARGET_PLANNER_SYSTEM_PROMPT},
                     {
                         "role": "user",
                         "content": build_planner_prompt(
@@ -79,25 +79,25 @@ class AgentRepositoryPlanner:
                 ]
             )
         except Exception as exc:
-            return RepositoryPlan(
+            return RepositoryTargetPlan(
                 inferred_repository_refs=None,
-                reason=f"repository planner failed: {exc}",
+                reason=f"repository target planner failed: {exc}",
             )
         selected_run_ids = parse_selected_run_ids(planner_response)
         if not selected_run_ids:
-            return RepositoryPlan(
+            return RepositoryTargetPlan(
                 inferred_repository_refs=None,
                 reason=NO_SELECTION_REASON,
             )
 
         selected_runs = pick_runs_by_id(runs, selected_run_ids)
         if not selected_runs:
-            return RepositoryPlan(
+            return RepositoryTargetPlan(
                 inferred_repository_refs=None,
                 reason=NO_SELECTION_REASON,
             )
 
-        return RepositoryPlan(
+        return RepositoryTargetPlan(
             inferred_repository_refs=[
                 build_inferred_repository_ref(run)
                 for run in selected_runs

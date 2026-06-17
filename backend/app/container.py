@@ -10,7 +10,7 @@ from app.agent.service.agent_graph import AgentGraph
 from app.agent.service.chat_service import AgentChatService
 from app.agent.service.graph_responder import GraphAgentResponder
 from app.agent.service.intent_resolver import AgentIntentResolver
-from app.agent.service.repository_planner import AgentRepositoryPlanner
+from app.agent.service.repository_target_planner import AgentRepositoryTargetPlanner
 from app.external.http import HttpClient, UserAgentFilter
 from app.auth.service.auth_service import AuthService
 from app.auth.domain.jwt_service import JwtService
@@ -174,8 +174,8 @@ class AppContainer(containers.DeclarativeContainer):
     agent_chat_store = providers.Singleton(InMemoryChatStore)
     agent_tool_calling_llm = providers.Singleton(LangChainToolCallingLlm)
     agent_text_generator = providers.Singleton(OpenAITextGenerator)
-    agent_repository_planner = providers.Singleton(
-        AgentRepositoryPlanner,
+    agent_repository_target_planner = providers.Singleton(
+        AgentRepositoryTargetPlanner,
         text_generator=agent_text_generator,
     )
     agent_intent_resolver = providers.Singleton(
@@ -187,7 +187,7 @@ class AppContainer(containers.DeclarativeContainer):
         rag_answer_service=rag_answer_service,
         sql_repository=rag_sql_repository,
         tool_calling_llm=agent_tool_calling_llm,
-        repository_planner=agent_repository_planner,
+        repository_target_planner=agent_repository_target_planner,
         intent_resolver=agent_intent_resolver,
     )
     agent_responder = providers.Singleton(

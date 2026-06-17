@@ -2,6 +2,7 @@ from typing import Literal
 
 INTENT_LIST_REPOSITORIES = "list_repositories"
 INTENT_LIST_BRANCHES = "list_branches"
+INTENT_LIST_FILES = "list_files"
 INTENT_SHOW_BASIS = "show_basis"
 INTENT_CHANGE_BASIS = "change_basis"
 INTENT_RAG_ANSWER = "rag_answer"
@@ -22,10 +23,19 @@ SHORT_REMOVE_REQUESTS = {
     "기준 빼",
     "기준에서 빼",
 }
+KOREAN_SHORTHAND_EXPANSIONS = (
+    ("ㄹㅍㅁㄹ", "레포 목록"),
+    ("ㄿㅁㄹ", "레포 목록"),
+    ("ㄹㅍ", "레포"),
+    ("ㄿ", "레포"),
+    ("ㅂㄹㅊ", "브랜치"),
+    ("ㅁㄹ", "목록"),
+)
 
 AgentIntent = Literal[
     "list_repositories",
     "list_branches",
+    "list_files",
     "show_basis",
     "change_basis",
     "rag_answer",
@@ -57,9 +67,33 @@ def is_branch_list_question(user_input: str) -> bool:
     """특정 레포의 브랜치 메타데이터를 묻는 질문인지 판별한다."""
 
     text = normalize_text(user_input)
-    return "브랜치" in text and any(
+    if "브랜치" not in text:
+        return False
+
+    return has_digit(text) or any(
         keyword in text
         for keyword in ("목록", "리스트", "뭐", "어떤", "있", "없", "보여", "알려")
+    )
+
+
+def is_file_list_question(user_input: str) -> bool:
+    """파일, 폴더, 디렉토리 구조처럼 SQL path 목록으로 답해야 하는 질문인지 본다."""
+
+    text = normalize_text(user_input)
+    return any(
+        keyword in text
+        for keyword in (
+            "파일",
+            "폴더",
+            "디렉토리",
+            "구조",
+            "트리",
+            "domain",
+            "도메인",
+        )
+    ) and any(
+        keyword in text
+        for keyword in ("목록", "뭐", "무엇", "어떤", "있", "보여", "알려", "구성")
     )
 
 
@@ -140,4 +174,11 @@ def detect_basis_mode(user_input: str) -> BasisMode:
 
 
 def normalize_text(value: str) -> str:
-    return value.replace("*", "").replace("`", "").strip().lower()
+    text = value.replace("*", "").replace("`", "").strip().lower()
+    for shorthand, expanded in KOREAN_SHORTHAND_EXPANSIONS:
+        text = text.replace(shorthand, expanded)
+    return text
+
+
+def has_digit(value: str) -> bool:
+    return any(char.isdigit() for char in value)

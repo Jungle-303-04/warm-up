@@ -15,6 +15,7 @@ from app.agent.service.agent_intent import (
 REPOSITORY_ORDINAL_PATTERN = re.compile(r"(?<!\d)(\d+)\s*번\s*(?:레포|레포지토리|저장소)")
 BRANCH_ORDINAL_PATTERN = re.compile(r"(?<!\d)(\d+)\s*번\s*(?:브랜치)?")
 BARE_ORDINAL_PATTERN = re.compile(r"^\s*(\d+)\s*(?:번)?\s*$")
+BRANCH_LIST_REPOSITORY_ORDINAL_PATTERN = re.compile(r"^\s*(\d+)\s*(?:번)?\s*브랜치")
 
 
 def resolve_runs_from_text(
@@ -171,6 +172,11 @@ def build_branch_list_answer(
     if not repository_names and target_runs:
         repository_names = [target_runs[0].repository_full_name]
     if not repository_names:
+        repository_names = find_repository_names_by_branch_list_ordinal(
+            user_input,
+            latest_runs,
+        )
+    if not repository_names:
         repository_names = unique_repository_names_from_refs(current_refs)
     if not repository_names:
         repository_names = find_repository_names_by_ordinal(user_input, latest_runs)
@@ -199,6 +205,46 @@ def build_branch_list_answer(
                 f"{index}. {branch} - 마지막 분석 {format_indexed_at(run)}, "
                 f"코드 버전 {format_commit(run.commit_sha)}"
             )
+    return "\n".join(lines)
+
+
+def build_file_list_answer(
+    user_input: str,
+    target_runs: list[Any],
+    file_snapshots_by_run: dict[int, list[Any]],
+    skipped_files_by_run: dict[int, list[Any]],
+) -> str:
+    """확정된 run의 SQL 파일 스냅샷에서 파일/폴더 구조 질문에 답한다."""
+
+    if not target_runs:
+        return "어떤 레포지토리의 파일 구조를 볼지 찾지 못했습니다. 레포나 브랜치 기준을 먼저 정해 주세요."
+
+    focus = detect_path_focus(user_input)
+    lines: list[str] = []
+    for run in target_runs:
+        snapshots = file_snapshots_by_run.get(run.id, [])
+        skipped_files = skipped_files_by_run.get(run.id, [])
+        paths = [snapshot.path for snapshot in snapshots if snapshot.path]
+        if focus:
+            paths = [path for path in paths if path_matches_focus(path, focus)]
+
+        title = format_run_title(run)
+        if focus:
+            lines.append(f"{title}에서 '{focus}'와 관련된 분석 파일입니다.")
+        else:
+            lines.append(f"{title}의 분석된 파일 목록입니다.")
+
+        if not paths:
+            lines.append("- 조건에 맞는 분석 파일을 찾지 못했습니다.")
+        else:
+            for path in sorted(paths)[:80]:
+                lines.append(f"- {path}")
+            if len(paths) > 80:
+                lines.append(f"- ...외 {len(paths) - 80}개")
+
+        if skipped_files and not focus:
+            lines.append(f"- 참고: 미지원/제외 파일 {len(skipped_files)}개가 따로 기록되어 있습니다.")
+
     return "\n".join(lines)
 
 
@@ -278,6 +324,32 @@ def format_response_ref(ref: InferredRepositoryRef) -> str:
     return f"{ref.repository_full_name} · {branch}{version}"
 
 
+def format_run_title(run: Any) -> str:
+    branch = run.branch or "기본 브랜치"
+    return f"{run.repository_full_name} · {branch} · 코드 버전 {format_commit(run.commit_sha)}"
+
+
+def detect_path_focus(user_input: str) -> str | None:
+    """사용자가 특정 폴더를 말했으면 path 필터 키워드로 바꾼다."""
+
+    text = normalize_text(user_input)
+    if "도메인" in text:
+        return "domain"
+    if "서비스" in text:
+        return "service"
+    if "라우터" in text:
+        return "router"
+    if "스키마" in text:
+        return "schema"
+    return None
+
+
+def path_matches_focus(path: str, focus: str) -> bool:
+    """폴더명과 파일명 모두에서 focus 단어가 포함되는지 확인한다."""
+
+    return focus in normalize_text(path.replace("\\", "/"))
+
+
 def find_repository_names_in_text(user_input: str, latest_runs: list[Any]) -> list[str]:
     text = normalize_text(user_input)
     repository_names: list[str] = []
@@ -305,6 +377,23 @@ def find_repository_names_by_ordinal(user_input: str, latest_runs: list[Any]) ->
         if repository_name not in repository_names:
             repository_names.append(repository_name)
     return repository_names
+
+
+def find_repository_names_by_branch_list_ordinal(
+    user_input: str,
+    latest_runs: list[Any],
+) -> list[str]:
+    """'1 브랜치'처럼 레포 목록의 순번으로 브랜치 목록을 요청한 경우를 해석한다."""
+
+    match = BRANCH_LIST_REPOSITORY_ORDINAL_PATTERN.match(normalize_text(user_input))
+    if not match:
+        return []
+
+    ordinal = int(match.group(1))
+    summaries = get_repository_summaries(latest_runs)
+    if ordinal < 1 or ordinal > len(summaries):
+        return []
+    return [summaries[ordinal - 1]["repository_full_name"]]
 
 
 def find_recent_repository_names(messages: list[Any], latest_runs: list[Any]) -> list[str]:

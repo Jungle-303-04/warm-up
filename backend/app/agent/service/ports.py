@@ -52,14 +52,14 @@ class ToolCallingLlm(Protocol):
     def invoke(self, messages: list[Any], tools: list[Any]) -> Any: ...
 
 
-class RepositoryPlanResult(Protocol):
-    """planner가 고른 답변 기준 후보를 AgentGraph에 돌려주는 최소 계약."""
+class RepositoryTargetPlanResult(Protocol):
+    """target planner가 고른 답변 기준 후보를 AgentGraph에 돌려주는 최소 계약."""
 
     inferred_repository_refs: list[InferredRepositoryRef] | None
     reason: str | None
 
 
-class RepositoryPlanner(Protocol):
+class RepositoryTargetPlanner(Protocol):
     """사용자 질문과 분석 run 후보를 보고 답변 기준 레포/브랜치를 고르는 계약."""
 
     def infer_repository_refs(
@@ -67,7 +67,7 @@ class RepositoryPlanner(Protocol):
         user_input: str,
         runs: list[Any],
         messages: list[ChatMessage],
-    ) -> RepositoryPlanResult: ...
+    ) -> RepositoryTargetPlanResult: ...
 
 
 class IntentResolveResult(Protocol):

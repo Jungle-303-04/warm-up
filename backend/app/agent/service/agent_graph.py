@@ -19,6 +19,7 @@ from app.agent.service.agent_intent import (
     INTENT_CLARIFY,
     INTENT_GENERAL_CHAT,
     INTENT_LIST_BRANCHES,
+    INTENT_LIST_FILES,
     INTENT_LIST_REPOSITORIES,
     INTENT_RAG_ANSWER,
     INTENT_SHOW_BASIS,
@@ -29,12 +30,13 @@ from app.agent.service.agent_intent import (
     is_basis_change_request,
     is_branch_list_question,
     is_current_basis_question,
+    is_file_list_question,
     is_repository_list_question,
     is_short_remove_request,
     normalize_text,
 )
 from app.agent.service.intent_resolver import FALLBACK_REASON_PREFIX
-from app.agent.service.ports import IntentResolver, RepositoryPlanner, ToolCallingLlm
+from app.agent.service.ports import IntentResolver, RepositoryTargetPlanner, ToolCallingLlm
 from app.agent.service.rag_answer_prompt import (
     build_answer_messages,
     build_evidence_fallback_answer,
@@ -46,6 +48,7 @@ from app.agent.service.repository_context import (
     build_branch_list_answer,
     build_clarification_answer,
     build_current_basis_answer,
+    build_file_list_answer,
     build_inferred_repository_ref,
     build_next_basis_refs,
     build_repository_list_answer,
@@ -95,13 +98,13 @@ class AgentGraph:
         rag_answer_service: AnswerUseCase,
         sql_repository: RagStore,
         tool_calling_llm: ToolCallingLlm,
-        repository_planner: RepositoryPlanner | None = None,
+        repository_target_planner: RepositoryTargetPlanner | None = None,
         intent_resolver: IntentResolver | None = None,
     ) -> None:
         self.rag_answer_service = rag_answer_service
         self.sql_repository = sql_repository
         self.tool_calling_llm = tool_calling_llm
-        self.repository_planner = repository_planner
+        self.repository_target_planner = repository_target_planner
         self.intent_resolver = intent_resolver
         self.graph = self.build_graph()
 
@@ -134,6 +137,7 @@ class AgentGraph:
         graph.add_node("collect_repository_context", self.collect_repository_context)
         graph.add_node("classify_intent", self.classify_intent)
         graph.add_node("answer_repository_metadata", self.answer_repository_metadata)
+        graph.add_node("answer_repository_files", self.answer_repository_files)
         graph.add_node("change_repository_basis", self.change_repository_basis)
         graph.add_node("resolve_rag_basis", self.resolve_rag_basis)
         graph.add_node("retrieve_rag", self.retrieve_rag)
@@ -149,6 +153,7 @@ class AgentGraph:
             {
                 INTENT_LIST_REPOSITORIES: "answer_repository_metadata",
                 INTENT_LIST_BRANCHES: "answer_repository_metadata",
+                INTENT_LIST_FILES: "answer_repository_files",
                 INTENT_SHOW_BASIS: "answer_repository_metadata",
                 INTENT_CHANGE_BASIS: "change_repository_basis",
                 INTENT_RAG_ANSWER: "resolve_rag_basis",
@@ -166,6 +171,7 @@ class AgentGraph:
         )
         graph.add_edge("retrieve_rag", "generate_answer")
         graph.add_edge("answer_repository_metadata", END)
+        graph.add_edge("answer_repository_files", END)
         graph.add_edge("change_repository_basis", END)
         graph.add_edge("generate_answer", END)
         graph.add_edge("answer_general_chat", END)
@@ -193,7 +199,7 @@ class AgentGraph:
         intent_plan = self.resolve_intent_plan_with_llm(user_input, messages)
         if not is_intent_resolver_fallback(intent_plan):
             return self.build_intent_state(
-                intent=intent_plan.intent,
+                intent=correct_intent_with_explicit_markers(user_input, intent_plan.intent),
                 basis_mode=intent_plan.basis_mode or BASIS_MODE_REPLACE,
                 user_input=user_input,
                 latest_runs=latest_runs,
@@ -249,6 +255,17 @@ class AgentGraph:
                 ),
             }
 
+        if is_file_list_question(user_input):
+            return {
+                "intent": INTENT_LIST_FILES,
+                "target_runs": self.resolve_runs_for_current_question(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
+                ),
+            }
+
         if is_basis_change_request(user_input):
             basis_mode = detect_basis_mode(user_input)
             return {
@@ -292,6 +309,16 @@ class AgentGraph:
             return {"intent": INTENT_SHOW_BASIS}
         if intent == INTENT_GENERAL_CHAT:
             return {"intent": INTENT_GENERAL_CHAT}
+        if intent == INTENT_LIST_FILES:
+            return {
+                "intent": INTENT_LIST_FILES,
+                "target_runs": self.resolve_runs_for_current_question(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
+                ),
+            }
         if intent == INTENT_CHANGE_BASIS:
             return {
                 "intent": INTENT_CHANGE_BASIS,
@@ -331,6 +358,30 @@ class AgentGraph:
             "final_answer": final_answer,
             "final_refs": current_refs,
             "repository_basis_changed": False,
+        }
+
+    def answer_repository_files(self, state: AgentGraphState) -> AgentGraphState:
+        """폴더/파일 구조 질문은 vector 검색 대신 SQL 파일 스냅샷에서 답한다."""
+
+        target_runs = state.get("target_runs", [])
+        file_snapshots_by_run = {
+            run.id: self.sql_repository.list_file_snapshots(state["db"], run.id)
+            for run in target_runs
+        }
+        skipped_files_by_run = {
+            run.id: self.sql_repository.list_skipped_files(state["db"], run.id)
+            for run in target_runs
+        }
+        final_refs = [build_inferred_repository_ref(run) for run in target_runs]
+        return {
+            "final_answer": build_file_list_answer(
+                user_input=state["turn"].user_input,
+                target_runs=target_runs,
+                file_snapshots_by_run=file_snapshots_by_run,
+                skipped_files_by_run=skipped_files_by_run,
+            ),
+            "final_refs": final_refs or list(state["turn"].repository_refs),
+            "repository_basis_changed": bool(final_refs),
         }
 
     def change_repository_basis(self, state: AgentGraphState) -> AgentGraphState:
@@ -464,6 +515,26 @@ class AgentGraph:
 
         return self.infer_runs_with_planner(user_input, latest_runs, messages)
 
+    def resolve_runs_for_current_question(
+        self,
+        user_input: str,
+        latest_runs: list[Any],
+        current_refs: list[InferredRepositoryRef],
+        messages: list[ChatMessage],
+    ) -> list[Any]:
+        """현재 고정 기준을 우선 쓰고, 없을 때만 질문에서 레포/브랜치를 찾는다."""
+
+        current_runs = resolve_runs_from_refs(current_refs, latest_runs)
+        if current_runs:
+            return current_runs
+
+        return self.resolve_target_runs(
+            user_input=user_input,
+            latest_runs=latest_runs,
+            current_refs=current_refs,
+            messages=messages,
+        )
+
     def resolve_basis_change_target_runs(
         self,
         user_input: str,
@@ -529,10 +600,10 @@ class AgentGraph:
     ) -> list[Any]:
         """LLM resolver 결과를 실제 SQL run 객체 목록으로 되돌린다."""
 
-        if self.repository_planner is None:
+        if self.repository_target_planner is None:
             return []
 
-        plan = self.repository_planner.infer_repository_refs(
+        plan = self.repository_target_planner.infer_repository_refs(
             user_input=user_input,
             runs=latest_runs,
             messages=messages,
@@ -620,6 +691,21 @@ def is_intent_resolver_fallback(intent_plan: Any) -> bool:
 
     reason = getattr(intent_plan, "reason", None)
     return isinstance(reason, str) and reason.startswith(FALLBACK_REASON_PREFIX)
+
+
+def correct_intent_with_explicit_markers(
+    user_input: str,
+    intent: AgentIntent,
+) -> AgentIntent:
+    """LLM intent가 명시적인 파일/브랜치 표현과 충돌하면 안전한 쪽으로 보정한다."""
+
+    if is_branch_list_question(user_input):
+        return INTENT_LIST_BRANCHES
+    if is_file_list_question(user_input):
+        return INTENT_LIST_FILES
+    if is_repository_list_question(user_input):
+        return INTENT_LIST_REPOSITORIES
+    return intent
 
 
 class SimpleIntentPlan:
