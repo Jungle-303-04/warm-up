@@ -6,7 +6,7 @@ import { cn } from "../../lib/cn";
 import { IconButton } from "./icon-button";
 
 // 재사용 접근성 다이얼로그. position:fixed 대신 absolute inset-0 인플로우 오버레이로 동작하므로
-// 부모는 relative(보통 화면을 덮는 앱 루트)여야 한다. Esc·오버레이 클릭으로 닫힌다.
+// 부모는 relative(보통 화면을 덮는 앱 루트)여야 함 Esc·오버레이 클릭으로 닫힌
 export function Modal({
   open,
   onClose,

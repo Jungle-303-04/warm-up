@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 class MCPClient:
     def __init__(self, server_path: str = "app.mcp.server"):
         # stdio 기반으로 python -m app.mcp.server 프로세스를 띄우는 설정
-        # sys.executable을 쓰면 가상환경(venv) 내의 python 바이너리가 정확히 지정됩니다.
+        # sys.executable 사용으로 가상환경(venv) python 바이너리 지정
         self.server_params = StdioServerParameters(
             command=sys.executable,
             args=["-m", server_path],
@@ -58,7 +58,7 @@ class MCPClient:
     def _to_langchain_tool(self, mcp_tool) -> StructuredTool:
         # JSON Schema -> Pydantic Model 동적 변환.
         # inputSchema는 보통 dict(JSON Schema)지만,
-        # 드물게 Pydantic 모델로 올 수 있어 dict로 정규화한다.
+        # 드물게 Pydantic 모델로 올 수 있어 dict로 정규화함
         schema_dict = mcp_tool.inputSchema
         if not isinstance(schema_dict, dict):
             if hasattr(schema_dict, "model_dump"):

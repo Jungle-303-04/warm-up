@@ -15,7 +15,7 @@ const TABS: CenterTab[] = ["대화", "뷰어"];
 export function CenterPanel() {
   const tab = useWorkspace((s) => s.centerTab);
   const setTab = useWorkspace((s) => s.setCenterTab);
-  // 대화 컨트롤(기준 개수/메모저장/초기화)은 스크롤과 무관하게 항상 보이도록 탭 바 우측에 둔다.
+  // 대화 컨트롤(기준 개수/메모저장/초기화)은 스크롤과 무관하게 항상 보이도록 탭 바 우측에 둠
   const scopeCount = useWorkspace(selectScopeCount);
   const chatMessageCount = useWorkspace((s) => s.chatMessageCount);
   const requestResetChat = useWorkspace((s) => s.requestResetChat);

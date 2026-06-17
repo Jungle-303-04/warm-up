@@ -20,8 +20,8 @@ import { IndexingStatusBadge } from "./indexing-status-badge";
 import { SourceIcon } from "./source-icon";
 import { StageTimeline } from "./stage-timeline";
 
-// 진행 중인데 서버 updated_at 갱신이 잠시 늦는 경우가 있다.
-// 실패로 단정하지 않고, 일정 시간 이후에는 상태 확인 중 안내만 표시한다.
+// 진행 중인데 서버 updated_at 갱신이 잠시 늦는 경우가 있음
+// 실패로 단정하지 않고, 일정 시간 이후에는 상태 확인 중 안내만 표시함
 const STATUS_REFRESH_NOTICE_MS = 60_000;
 
 // last_synced_at(ISO) → "마지막 동기화: YYYY.MM.DD HH:mm" (ko-KR). 파싱 실패 시 null.
@@ -103,7 +103,7 @@ function MiniCheckbox({
   );
 }
 
-// 재귀 파일 트리. 디렉터리는 펼침/접힘, 파일 클릭은 뷰어로 연다.
+// 재귀 파일 트리: 디렉터리 펼침/접힘, 파일 클릭 시 뷰어 열기
 function TreeView({
   nodes,
   sourceId,
@@ -247,7 +247,7 @@ function TreeItem({
             title={selected ? "답변 범위에서 제외" : "답변 범위에 포함"}
           />
         ) : (
-          // 미지원 파일은 체크박스를 두지 않고 자리만 맞춘다.
+          // 미지원 파일은 체크박스를 두지 않고 자리만 맞춤
           <span className="w-5 shrink-0" />
         )}
         <button
@@ -282,7 +282,7 @@ function TreeItem({
   );
 }
 
-// 트리 노드(디렉터리 포함) 하위의 supported 파일 경로를 평탄화한다.
+// 트리 노드(디렉터리 포함) 하위의 supported 파일 경로를 평탄화함
 function collectSupportedPaths(node: TreeNode, filesByPath: Map<string, IndexFile>): string[] {
   if (node.type === "file") {
     const indexed = filesByPath.get(node.path);
@@ -306,11 +306,11 @@ function FileStatusBadge({ status }: { status: IndexFile["status"] }) {
 }
 
 // 제목 바로 아래 얇은 인라인 진행바(macOS 파일 복사 느낌).
-// queued/running일 때만 차오르고, done이면 부드럽게 사라진다.
+// queued/running일 때만 차오르고, done이면 부드럽게 숨김
 function InlineIndexBar({ progress }: { progress: IndexProgress }) {
   const failed = progress.status === "failed";
   const active = isIndexActive(progress.status);
-  // 표시 여부: 진행 중이거나 실패면 보이고, 완료면 높이 0으로 접혀 사라진다.
+  // 표시 여부: 진행 중/실패 시 노출, 완료 시 높이 0으로 접힘
   const visible = active || failed;
   const clamped = Math.min(100, Math.max(0, progress.percent));
 
@@ -361,7 +361,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   const [treeError, setTreeError] = useState<string | null>(null);
   // 재분석 진행 중(중복 클릭 방지).
   const [reindexing, setReindexing] = useState(false);
-  // 상태 확인 안내용 현재시각 틱. 진행 중일 때만 주기적으로 갱신한다.
+  // 상태 확인 안내용 현재시각 틱. 진행 중일 때만 주기적으로 갱신함
   const [now, setNow] = useState(() => Date.now());
 
   const cfg = SOURCE_KINDS[source.kind];
@@ -372,7 +372,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   const indexing = progress ? isIndexActive(progress.status) : false;
   const done = progress?.status === "done";
 
-  // 진행 중일 때만 5초 간격 타이머로 now를 갱신해 상태 확인 안내를 재평가한다.
+  // 진행 중일 때만 5초 간격 타이머로 now를 갱신해 상태 확인 안내를 재평가함
   // 진행이 끝나면 타이머를 정리(누수 방지).
   useEffect(() => {
     if (!indexing) return;
@@ -388,7 +388,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
     return now - last >= STATUS_REFRESH_NOTICE_MS;
   })();
 
-  // 재분석 버튼은 실제 failed 상태일 때만 노출한다. 장시간 작업은 훅의 폴링/SSE로 계속 추적한다.
+  // 재분석 버튼은 실제 failed 상태일 때만 노출함 장시간 작업은 훅의 폴링/SSE로 계속 추적함
   const canReindex = !!progress && failed && !reindexing;
 
   // 마지막 동기화 시각(진행 중이 아닐 때, done이고 값이 있을 때만 표시).
@@ -435,7 +435,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   const toggleRepoSelection = () => {
     const next = repoState !== "checked"; // 전체 선택돼 있지 않으면 전체 선택
     if (supported.length > 0) setAllFilePaths(source.id, supported, next);
-    // 소스 자체 선택도 맞춘다(전체 선택→포함, 전체 해제→제외).
+    // 소스 자체 선택도 동기화(전체 선택→포함, 전체 해제→제외)
     if (next && !selected) toggleSelected(source.id);
     else if (!next && selected) toggleSelected(source.id);
   };

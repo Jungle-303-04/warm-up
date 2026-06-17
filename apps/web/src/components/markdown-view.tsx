@@ -7,9 +7,9 @@ import remarkGfm from "remark-gfm";
 
 // react-markdown + GFM + sanitize 렌더 파이프라인.
 // 시각 스타일은 순수 Tailwind로 각 요소를 매핑한다(.markdown-body 전역 CSS 의존 제거).
-// onLinkClick: 본문 링크 클릭을 상위(viewer-panel)가 가로채 해석하도록 위임한다.
+// onLinkClick: 본문 링크 클릭을 상위(viewer-panel)가 가로채 해석하도록 위임함
 //   - 외부 새 탭/내부 열람/무시 처리는 viewer-panel이 담당.
-//   - 콜백이 없으면 기본 a 태그 동작(새 탭)을 유지한다.
+//   - 콜백이 없으면 기본 a 태그 동작(새 탭)을 유지함
 
 // 요소별 Tailwind 타이포그래피. 제목/리스트/인용/코드/표를 또렷한 위계로.
 function buildComponents(onLinkClick?: (href: string) => void): Components {
@@ -90,7 +90,7 @@ function buildComponents(onLinkClick?: (href: string) => void): Components {
         {children}
       </em>
     ),
-    // 인라인 코드: 알약형 배경. 블록(pre 내부) 코드는 아래 pre에서 배경/패딩을 해제한다.
+    // 인라인 코드: 알약형 배경. 블록(pre 내부) 코드는 아래 pre에서 배경/패딩을 해제함
     code: ({ children, ...rest }) => (
       <code
         {...rest}
@@ -99,7 +99,7 @@ function buildComponents(onLinkClick?: (href: string) => void): Components {
         {children}
       </code>
     ),
-    // 코드 블록: 어두운 표면 + 가로 스크롤. 내부 code의 인라인 스타일을 무력화한다.
+    // 코드 블록: 어두운 표면 + 가로 스크롤. 내부 code의 인라인 스타일을 무력화함
     pre: ({ children, ...rest }) => (
       <pre
         {...rest}

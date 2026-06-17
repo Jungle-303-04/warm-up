@@ -3,7 +3,7 @@
 import { extractPdfText } from "./pdf";
 import type { SourceCreate } from "./types";
 
-// 드롭/선택된 File 하나를 SourceCreate 바디로 변환한다.
+// 드롭/선택된 File 하나를 SourceCreate 바디로 변환함
 // - .pdf → pdfjs 로 텍스트 추출(kind:"pdf")
 // - .md/.markdown → file.text()(kind:"md")
 // - 그 외 텍스트(.txt 포함) → file.text()(kind:"text")

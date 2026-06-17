@@ -55,7 +55,7 @@ interface WorkspaceStore {
   indexProgress: Record<string, IndexProgress>;
   // repo 소스별 답변 범위에 포함된 파일 경로 집합. key = sourceId.
   // 기본 "전체 선택"이지만, supported 파일 목록을 알아야 하므로 SSE files 도착 시
-  // initFilePaths로 채운다. 엔트리가 없으면 "아직 초기화 전(=전체 포함)"으로 본다.
+  // initFilePaths로 채움. 엔트리가 없으면 "아직 초기화 전(=전체 포함)"으로 간주
   selectedFilePaths: Record<string, Set<string>>;
 
   initNotebook: (notebookId: string, sources: Source[]) => void;
@@ -77,7 +77,7 @@ interface WorkspaceStore {
   setCenterTab: (tab: CenterTab) => void;
 
   // ── 채팅 컨트롤 신호(센터 바 ↔ 채팅뷰) ──────────────────────────────
-  // 탭 바의 버튼이 채팅뷰의 동작을 트리거하는 1회성 신호(nonce). 영속화하지 않는다.
+  // 탭 바의 버튼이 채팅뷰의 동작을 트리거하는 1회성 신호(nonce). 영속화하지 않음
   resetChatSignal: number; // 대화 초기화 요청
   saveChatSignal: number; // 대화를 메모로 저장 요청
   chatMessageCount: number; // 채팅뷰가 공개하는 현재 메시지 수(버튼 활성/비활성용)
@@ -96,8 +96,8 @@ interface WorkspaceStore {
   // 산출물 수정(PATCH). 성공 시 목록·뷰어 반영.
   updateArtifact: (id: string, patch: { title?: string; content?: string }) => Promise<Artifact | null>;
   removeArtifact: (id: string) => Promise<void>; // 삭제(DELETE)
-  // 산출물 content 로 새 소스를 만든다(소스로 추가). 성공 시 좌측 소스 목록에 반영(addSource)되고
-  // 기존 흐름대로 자동 인덱싱이 진행된다. 생성된 소스를 반환.
+  // 산출물 content 로 새 소스 생성. 성공 시 좌측 소스 목록에 반영(addSource)
+  // 기존 흐름대로 자동 인덱싱 진행 후 생성된 소스를 반환
   addArtifactAsSource: (artifact: Artifact) => Promise<Source | null>;
 }
 
@@ -128,7 +128,7 @@ export const useWorkspace = create<WorkspaceStore>()(
           centerTab: "대화",
           indexProgress: {},
           selectedFilePaths: {},
-          // 산출물은 loadArtifacts(백엔드 GET)로 채운다. 진입 시 초기화.
+          // 산출물은 loadArtifacts(백엔드 GET)로 채움. 진입 시 초기화
           artifacts: [],
           artifactsLoading: false,
           artifactsError: null,
@@ -137,12 +137,12 @@ export const useWorkspace = create<WorkspaceStore>()(
       setSources: (sources) =>
         set((state) => {
           const nextSourceIds = new Set(sources.map((source) => source.id));
-          // 사라진 소스의 진행 상태는 정리한다.
+          // 사라진 소스의 진행 상태는 정리함
           const indexProgress: Record<string, IndexProgress> = {};
           for (const [id, progress] of Object.entries(state.indexProgress)) {
             if (nextSourceIds.has(id)) indexProgress[id] = progress;
           }
-          // 사라진 소스의 파일 선택 상태도 정리한다.
+          // 사라진 소스의 파일 선택 상태도 정리함
           const selectedFilePaths: Record<string, Set<string>> = {};
           for (const [id, paths] of Object.entries(state.selectedFilePaths)) {
             if (nextSourceIds.has(id)) selectedFilePaths[id] = paths;
@@ -364,7 +364,7 @@ export const useWorkspace = create<WorkspaceStore>()(
             derived_from_artifact_id: artifact.id,
             lineage_source_ids: artifact.source_ids,
           });
-          // 좌측 소스 목록에 반영 → 기존 흐름대로 자동 인덱싱이 진행된다.
+          // 좌측 소스 목록에 반영 → 기존 흐름대로 자동 인덱싱이 진행됨
           get().addSource(source);
           set({ artifactsError: null });
           return source;
@@ -379,7 +379,7 @@ export const useWorkspace = create<WorkspaceStore>()(
       removeArtifact: async (id) => {
         const { notebookId } = get();
         if (!notebookId) return;
-        // 낙관적 제거 + 뷰어가 해당 산출물을 보고 있으면 닫는다.
+        // 낙관적 제거 + 뷰어가 해당 산출물을 보고 있으면 닫기
         const prev = get().artifacts;
         set((state) => ({
           artifacts: state.artifacts.filter((a) => a.id !== id),
@@ -399,8 +399,8 @@ export const useWorkspace = create<WorkspaceStore>()(
     {
       name: "repolm-workspace-storage",
       storage: {
-        // 직렬화 시 Set→배열, 역직렬화 시 배열→Set로 변환한다.
-        // PersistStorage의 엄격한 타입과 충돌하지 않도록 직렬화 경계에서만 느슨한 타입을 쓴다.
+        // 직렬화 시 Set→배열, 역직렬화 시 배열→Set로 변환함
+        // PersistStorage의 엄격한 타입과 충돌하지 않도록 직렬화 경계에서만 느슨한 타입을 씀
         getItem: (name) => {
           const str = localStorage.getItem(name);
           if (!str) return null;

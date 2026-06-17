@@ -24,7 +24,7 @@ export interface Me {
   login: string;
 }
 
-// HTTP 상태 코드를 보존하는 API 에러. 호출부가 401(로그인 필요) 등을 분기할 수 있게 한다.
+// HTTP 상태 코드를 보존하는 API 에러. 호출부가 401(로그인 필요) 등을 분기할 수 있게 함
 export class ApiError extends Error {
   readonly status: number;
   constructor(status: number, message?: string) {
@@ -60,7 +60,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         message = payload.detail;
       }
     } catch {
-      // JSON 에러 본문이 아니면 기본 status 메시지를 유지한다.
+      // JSON 에러 본문이 아니면 기본 status 메시지를 유지함
     }
     throw new ApiError(res.status, message);
   }
@@ -235,7 +235,7 @@ export function getIndexProgress(nid: string, sid: string): Promise<IndexProgres
 }
 
 // 인덱싱 재실행(정지/실패 회복용). repo면 재클론→재인덱싱.
-// 즉시 status:"queued"인 IndexProgress를 반환한다.
+// 즉시 status:"queued"인 IndexProgress를 반환함
 export function reindexSource(nid: string, sid: string): Promise<IndexProgress> {
   return request(`/notebooks/${nid}/sources/${sid}/reindex`, { method: "POST" });
 }
@@ -248,8 +248,8 @@ export function getLinkMetadata(url: string, signal?: AbortSignal): Promise<Link
 }
 
 // ── GitHub 공개 API(브랜치 자동 인식) ─────────────────────────────
-// 비인증 fetch. 입력 URL이 github.com/{owner}/{repo} 형태일 때만 호출한다.
-// 실패/비공개/레이트리밋이면 null을 반환해 호출부가 수동 입력으로 폴백하게 한다.
+// 비인증 fetch. 입력 URL이 github.com/{owner}/{repo} 형태일 때만 호출함
+// 실패/비공개/레이트리밋이면 null을 반환해 호출부가 수동 입력으로 폴백하게 함
 
 export interface GitHubRepoInfo {
   owner: string;
@@ -277,8 +277,8 @@ function safeDecode(value: string): string {
   }
 }
 
-// 입력 문자열에서 owner/repo와 선택적으로 /tree|blob/{branch}를 파싱한다.
-// 브랜치가 URL에 같이 들어와도 백엔드에는 항상 정규화된 repo URL만 보낸다.
+// 입력 문자열에서 owner/repo와 선택적으로 /tree|blob/{branch}를 파싱함
+// 브랜치가 URL에 같이 들어와도 백엔드에는 항상 정규화된 repo URL만 전송
 export function parseGitHubRepo(input: string): ParsedGitHubRepo | null {
   const raw = input.trim();
   if (!raw) return null;

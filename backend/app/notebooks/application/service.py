@@ -238,7 +238,7 @@ class NotebookService:
             title=effective_title,
             repository_url=normalized_url,
             branch=effective_branch,
-            # 실제 파일 스냅샷 hash는 백그라운드 인덱싱에서 clone 성공 후 갱신된다.
+            # 실제 파일 스냅샷 hash는 백그라운드 인덱싱에서 clone 성공 후 갱신됨
             content_hash=hash_text(f"{normalized_url}@{effective_branch}"),
             created_at=self.clock(),
         )

@@ -85,8 +85,8 @@ class InMemoryRepoRagStore:
             return None
         job = min(queued, key=lambda job: job.created_at)
         # 선점한 상태를 running_* 등 다음 상태로 업데이트할 수 있도록, 여기서는 직접 바꾸지 않고
-        # 프로세서 호출 전에 start_job_stage에서 바꾸게 하거나 혹은 default running으로 바꿉니다.
-        # 비동기 분산 워커 파이프라인 상 선점을 위해 running_... 상태로 선점 표시를 해 둡니다.
+        # 프로세서 호출 전에 start_job_stage에서 바꾸게 하거나 혹은 default running으로 바꿉니
+        # 비동기 분산 워커 파이프라인 상 선점을 위해 running_... 상태로 선점 표시를 해 둡니
         if status == "queued":
             job.status = "running_sync"
         elif status == "running_sync":

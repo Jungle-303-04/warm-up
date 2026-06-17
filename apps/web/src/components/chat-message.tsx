@@ -43,7 +43,7 @@ function AssistantBubble({
     }
   };
 
-  // 이 답변을 스튜디오 메모(type:note)로 백엔드에 저장. 제목은 본문 첫 줄에서 추린다.
+  // 이 답변을 스튜디오 메모(type:note)로 백엔드에 저장. 제목은 본문 첫 줄에서 추림
   const saveToNote = () => {
     const firstLine = message.content.trim().split("\n")[0]?.trim() ?? "";
     const title = firstLine ? firstLine.slice(0, 40) : "대화 메모";

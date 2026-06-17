@@ -37,11 +37,11 @@ function writeWorkspaceCache(notebookId: string, cache: WorkspaceUiCache) {
   try {
     localStorage.setItem(workspaceCacheKey(notebookId), JSON.stringify(cache));
   } catch {
-    // 캐시 저장 실패는 화면 동작을 막지 않는다.
+    // 캐시 저장 실패는 화면 동작을 막지 않음
   }
 }
 
-// 노트북 워크스페이스. 진입 시 노트북 상세를 불러와 스토어를 초기화한다.
+// 노트북 워크스페이스. 진입 시 노트북 상세를 불러와 스토어를 초기화함
 export function Workspace({ notebookId }: { notebookId: string }) {
   const [notebook, setNotebook] = useState<NotebookDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -106,7 +106,7 @@ export function Workspace({ notebookId }: { notebookId: string }) {
       selectedSourceIds: [...selectedSourceIds],
       viewer,
       centerTab,
-      // Set은 JSON 직렬화가 안 되므로 배열로 변환해 저장한다.
+      // Set은 JSON 직렬화가 안 되므로 배열로 변환해 저장함
       selectedFilePaths: Object.fromEntries(
         Object.entries(selectedFilePaths).map(([id, paths]) => [id, [...paths]]),
       ),

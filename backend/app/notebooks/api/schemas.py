@@ -79,6 +79,8 @@ class ChatCitationView(BaseModel):
     path: str | None = None
     file_path: str | None = None
     snippet: str
+    start_line: int | None = None
+    end_line: int | None = None
 
     @classmethod
     def from_record(cls, record: ChatCitation) -> "ChatCitationView":
@@ -88,6 +90,8 @@ class ChatCitationView(BaseModel):
             path=record.path,
             file_path=record.path,
             snippet=record.snippet,
+            start_line=record.start_line,
+            end_line=record.end_line,
         )
 
     @classmethod
@@ -99,6 +103,8 @@ class ChatCitationView(BaseModel):
             path=path,
             file_path=path,
             snippet=str(payload.get("snippet") or ""),
+            start_line=payload.get("start_line"),
+            end_line=payload.get("end_line"),
         )
 
 

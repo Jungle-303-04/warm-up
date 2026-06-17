@@ -6,8 +6,8 @@ import { getMe, loginUrl, type Me } from "../lib/api";
 import { Icon } from "./icon";
 import { ThemeToggle } from "./theme-toggle";
 
-// 로그인 안내 화면. 미로그인/세션 만료 시 표시한다.
-// 모든 노트북/소스/채팅/산출물 API가 세션을 요구하므로, 진입 전 로그인으로 유도한다.
+// 로그인 안내 화면. 미로그인/세션 만료 시 표시함
+// 모든 노트북/소스/채팅/산출물 API가 세션을 요구하므로, 진입 전 로그인으로 유도함
 export function LoginScreen() {
   return (
     <div className="relative grid min-h-screen place-items-center bg-background px-6 text-foreground">

@@ -76,7 +76,7 @@ class InMemoryChunkStore:
         file_paths: list[str] | None = None,
     ) -> list[ChunkSearchHit]:
         # file_paths가 주어지면 파일 단위 범위 필터: file_path가 없는(비repo 본문)
-        # 청크는 항상 통과시키고, 경로가 있는(repo 파일) 청크는 선택된 경로만 후보로 둔다.
+        # 청크는 항상 통과시키고, 경로가 있는(repo 파일) 청크는 선택된 경로만 후보로 둠
         allowed_paths = set(file_paths) if file_paths is not None else None
         with self._lock:
             candidates = [

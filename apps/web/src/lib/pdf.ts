@@ -1,7 +1,7 @@
 "use client";
 
-// 클라이언트에서 PDF를 텍스트로 추출한다. pdfjs-dist 동적 import + CDN 워커.
-// 추출 실패 시 throw 하므로 호출부에서 사용자에게 에러를 표시한다.
+// 클라이언트에서 PDF를 텍스트로 추출함 pdfjs-dist 동적 import + CDN 워커.
+// 추출 실패 시 throw 하므로 호출부에서 사용자에게 에러를 표시함
 export async function extractPdfText(file: File): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
   // 번들러 워커 설정 대신 버전 일치 CDN 워커를 사용(요구사항).

@@ -33,7 +33,7 @@ export function indexFilesByPath(progress?: IndexProgress): Map<string, IndexFil
 }
 
 // 진행 스냅샷에서 인덱싱 지원(supported) 파일 경로 목록.
-// 파일 선택 기본값(전체 선택)·트라이스테이트 계산의 기준이 된다.
+// 파일 선택 기본값(전체 선택)·트라이스테이트 계산의 기준이 됨
 export function supportedFilePaths(progress?: IndexProgress): string[] {
   if (!progress) return [];
   return progress.files.filter((f) => f.supported).map((f) => f.path);
@@ -44,11 +44,11 @@ export function isIndexActive(status: IndexStatus): boolean {
   return status === "queued" || status === "running";
 }
 
-// 답변 범위로 보낼 file_paths를 계산한다.
+// 답변 범위로 보낼 file_paths를 계산함
 // - 범위 내 repo 소스 중 "부분 선택"(일부 supported 파일을 제외)이 하나도 없으면 null
 //   → 백엔드는 파일 제한 없이 기존처럼 동작.
-// - 부분 선택이 있으면, 범위 내 모든 repo 소스의 선택된 파일 경로 union을 보낸다.
-//   (비repo 소스 청크는 file_path가 None이라 백엔드에서 항상 통과한다.)
+// - 부분 선택이 있으면, 범위 내 모든 repo 소스의 선택된 파일 경로 union을 전송
+//   (비repo 소스 청크는 file_path가 None이라 백엔드에서 항상 통과함)
 export function scopeFilePaths(
   scopeRepoSourceIds: string[],
   indexProgress: Record<string, IndexProgress>,

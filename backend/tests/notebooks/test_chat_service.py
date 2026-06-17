@@ -113,6 +113,8 @@ def test_chat_repo_citation_includes_file_path() -> None:
     top = result.citations[0]
     assert top.source_id == "repo-1"
     assert top.path == "app/auth/session.py"
+    assert top.start_line == 1
+    assert top.end_line == 2
 
 
 def test_code_question_prefers_source_code_over_docs() -> None:
@@ -956,6 +958,33 @@ def test_chat_uses_injected_answerer_for_answer_body() -> None:
     assert result.citations[0].source_id == auth.id
 
 
+def test_chat_strips_inline_numeric_citation_markers_from_answer_body() -> None:
+    notebook_service, indexing, _chat = _build()
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    auth = notebook_service.add_source(
+        notebook.id,
+        kind="md",
+        title="auth.md",
+        content="# 인증\n\nFastAPI 세션 토큰은 만료 시간을 검증한다.",
+    )
+    indexing.index_source(notebook.id, auth.id)
+
+    def answerer(_question, _chunks):
+        return "세션 토큰은 만료 시간을 검증합니다. [출처 1]"
+
+    chat = ChatService(
+        store=notebook_service.store,
+        chunk_store=indexing.chunk_store,
+        embedder=indexing.embedder,
+        answerer=answerer,
+    )
+
+    result = chat.ask(notebook.id, question="세션 토큰 만료 검증", source_ids=[auth.id])
+
+    assert result.answer == "세션 토큰은 만료 시간을 검증합니다."
+    assert result.citations
+
+
 def test_chat_falls_back_to_deterministic_when_no_answerer() -> None:
     """answerer가 None이면 결정론 폴백(검색 근거 나열) 답변을 쓴다."""
     notebook_service, indexing, chat = _build()  # 기본 answerer=None
@@ -1004,7 +1033,7 @@ def test_chat_falls_back_when_answerer_returns_empty() -> None:
 
 
 def test_chat_openai_answerer_formats_context_without_network() -> None:
-    """ChatOpenAIAnswerer가 가짜 chat_model로 [출처 i] 컨텍스트를 구성하는지 검증.
+    """ChatOpenAIAnswerer가 가짜 chat_model로 [근거 i] 컨텍스트를 구성하는지 검증.
 
     네트워크/실제 LLM 호출 없이, invoke에 넘어간 메시지만 캡처해 확인한다.
     """
@@ -1041,7 +1070,7 @@ def test_chat_openai_answerer_formats_context_without_network() -> None:
     roles = [role for role, _ in model.last_messages]
     assert roles == ["system", "human"]
     human_content = model.last_messages[1][1]
-    assert "[출처 1] app/auth/session.py" in human_content
+    assert "[근거 1] app/auth/session.py" in human_content
     assert "만료 검증은 어디서?" in human_content
 
 

@@ -1,15 +1,14 @@
 """산출물 생성/관리 유스케이스.
 
-선택한 소스의 코드/문서 컨텍스트를 모아 타입별 생성기(LlmArtifactGenerator)로
-산출물 content를 만들고 ArtifactStore에 저장한다. 메모(note)는 생성 없이 직접 저장한다.
+흐름:
+- 선택 소스의 코드/문서 컨텍스트 수집
+- 타입별 LlmArtifactGenerator 호출
+- ArtifactStore 저장
+- note는 생성기 없이 직접 저장
 
-외부 키 없이 동작: 생성기는 기본 결정론(Deterministic)이며, dependency/uml/erd는
-정적 파싱 기반 Mermaid를, change_summary는 코드 facts 기반 마크다운을 반환한다.
-
-컨텍스트 수집:
-- repo 소스: repo_snapshot의 .py/.md 파일을 path와 함께 컨텍스트로.
-- md/text/pdf 소스: content를 단일 컨텍스트로.
-토큰 과다 방지를 위해 파일 수/총 길이에 상한을 둔다.
+기본 생성기:
+- dependency/uml/erd: 정적 파싱 기반 Mermaid
+- change_summary: 코드 facts 기반 마크다운
 """
 
 from collections.abc import Callable
@@ -33,16 +32,14 @@ from app.notebooks.domain.records import SourceRecord
 from app.notebooks.domain.source_evidence import is_code_path, is_repo_document_path
 from app.notebooks.domain.source_scope import select_sources
 
-# 컨텍스트 수집 상한의 "기본값". 실제 값은 Settings(.env)로 주입되며, 아래 상수는
-# 설정이 없을 때(직접 호출/단위 테스트)의 폴백 기본값으로만 쓰인다.
+# 컨텍스트 수집 폴백 기본값
 MAX_FILE_CHARS = 4000  # 파일당 본문 상한
-# 비-dependency 타입: 점수 상위 파일을 토큰 예산까지 담는다(파일 수 대신 총량 기준).
-MAX_TOTAL_CONTEXT_CHARS = 20000  # 전체 컨텍스트 예산(상위 관련 파일 우선)
-MAX_SELECTED_FILES = 60  # 안전 상한(파일 수)
-# dependency: import 그래프 정확도를 위해 가능한 한 많은 .py를 담는다(상단 import만 파싱).
+MAX_TOTAL_CONTEXT_CHARS = 20000  # 전체 컨텍스트 예산
+MAX_SELECTED_FILES = 60  # 파일 수 안전 상한
+# dependency: import 그래프용 .py 파일 다수 확보
 MAX_DEPENDENCY_FILES = 250
 MAX_STRUCTURE_FILE_CHARS = 30_000
-# dependency 외 타입에 사용하는 파일 확장자.
+# dependency 외 타입용 파일 확장자
 _CODE_EXTS = (
     ".py", ".ts", ".tsx", ".js", ".jsx", ".sql", 
     ".go", ".rs", ".java", ".json", ".yaml", ".yml", 
@@ -86,6 +83,7 @@ class ArtifactService:
         selected = select_sources(sources, source_ids)
         if source_ids is not None and not selected:
             raise ValueError("선택된 소스가 없어 산출물을 생성할 수 없습니다")
+        _validate_artifact_scope(type, selected)
 
         contexts = self._collect_contexts(selected, type)
         content = self.generator.generate(
@@ -187,11 +185,10 @@ class ArtifactService:
     def _collect_contexts(
         self, sources: list[SourceRecord], artifact_type: ArtifactType
     ) -> list[ArtifactContext]:
-        """선택 소스에서 후보를 모은 뒤 타입에 맞게 선별한다.
+        """선택 소스 후보 수집 후 타입별 선별.
 
-        "처음 N개"가 아니라 타입별 우선순위 점수로 정렬해 토큰 예산까지 담는다.
-        파일 수가 많아도(예: 4000개) 산출물 종류에 관련된 파일이 먼저 들어간다.
-        dependency는 import 그래프 정확도를 위해 가능한 한 많은 .py를 담는다.
+        타입별 우선순위 점수와 토큰 예산 기반.
+        dependency는 import 그래프용 .py 파일 우선.
         """
         candidates: list[ArtifactContext] = []
         for source in sources:
@@ -262,14 +259,26 @@ def _select_contexts(
     max_files: int = MAX_SELECTED_FILES,
     max_dependency_files: int = MAX_DEPENDENCY_FILES,
 ) -> list[ArtifactContext]:
-    """타입별 우선순위로 컨텍스트를 선별한다(한도는 Settings에서 주입, 기본값은 폴백).
+    """타입별 우선순위 기반 컨텍스트 선별.
 
-    - dependency: import 그래프용으로 .py 파일을 가능한 한 많이(max_dependency_files).
-    - 그 외: 타입 점수 내림차순으로 정렬해 토큰 예산(max_total_chars)까지 담는다.
+    - dependency: .py 파일 중심
+    - 그 외: 타입 점수 내림차순과 토큰 예산 기준
     """
     if artifact_type == "dependency":
         py = [c for c in candidates if c.path and c.path.lower().endswith(".py")]
         return py[:max_dependency_files]
+
+    if artifact_type == "uml":
+        structural_contexts = [
+            c
+            for c in sorted(
+                candidates,
+                key=lambda item: _relevance_score(artifact_type, item),
+                reverse=True,
+            )
+            if _relevance_score(artifact_type, c) >= 20
+        ]
+        return structural_contexts[: max(max_files, 240)]
 
     if artifact_type == "erd":
         schema_contexts = [
@@ -281,7 +290,7 @@ def _select_contexts(
             )
             if _relevance_score(artifact_type, c) >= 20
         ]
-        return schema_contexts[:max_files]
+        return schema_contexts[: max(max_files, 240)]
 
     ranked = sorted(
         candidates,
@@ -293,7 +302,7 @@ def _select_contexts(
     for ctx in ranked:
         if len(selected) >= max_files or used >= max_total_chars:
             break
-        # 관련도 0 이하(점수가 음수)인 파일까지 굳이 채우지 않는다.
+        # 관련도 0 이하 파일 제외
         if _relevance_score(artifact_type, ctx) <= 0 and selected:
             break
         selected.append(ctx)
@@ -301,11 +310,37 @@ def _select_contexts(
     return selected
 
 
+def _validate_artifact_scope(artifact_type: ArtifactType, sources: list[SourceRecord]) -> None:
+    """UML/ERD 단일 저장소 scope 검증.
+
+    여러 repo 병합 시 클래스/테이블 이름 충돌 가능.
+    비-repo 문서/SQL만 선택한 경우는 허용.
+    """
+
+    if artifact_type not in {"uml", "erd"}:
+        return
+    repo_sources = [source for source in sources if source.kind == "repo"]
+    if len(repo_sources) <= 1:
+        return
+    labels = ", ".join(_source_scope_label(source) for source in repo_sources[:4])
+    if len(repo_sources) > 4:
+        labels += f" 외 {len(repo_sources) - 4}개"
+    raise ValueError(
+        f"{_default_title(artifact_type)}은 저장소 하나를 기준으로 생성해 주세요. "
+        f"현재 선택된 저장소: {labels}"
+    )
+
+
+def _source_scope_label(source: SourceRecord) -> str:
+    branch = f" / {source.branch}" if source.branch else ""
+    return f"{source.title}{branch}"
+
+
 def _relevance_score(artifact_type: ArtifactType, ctx: ArtifactContext) -> int:
-    """산출물 타입별 파일 관련도 점수(높을수록 먼저 담는다)."""
+    """산출물 타입별 파일 관련도 점수."""
     path = (ctx.path or "").lower()
     text = ctx.text
-    score = 1  # 기본(관련 파일은 최소 1점)
+    score = 1  # 관련 파일 최소 점수
     is_doc_path = is_repo_document_path(path)
     is_code_file = is_code_path(path) and not is_doc_path
 

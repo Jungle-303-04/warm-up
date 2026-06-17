@@ -22,11 +22,11 @@ function isStaleActiveProgress(progress: IndexProgress, now: number): boolean {
   return now - updatedAt >= STALE_AUTORECOVER_MS;
 }
 
-// 한 소스의 RAG 인덱싱 진행을 구독한다.
+// 한 소스의 RAG 인덱싱 진행을 구독함
 // 1) 마운트 시 서버 스냅샷 복원 → 2) SSE 구독 → 3) 5초 폴링으로 헬스체크.
-// SSE가 끊겨도 진행 중인 작업을 실패로 간주하지 않고, 다음 폴링에서 상태를 복구한다.
-// 서버 재시작 등으로 running 상태만 DB에 남아 오래 갱신되지 않으면 조용히 재분석을 예약한다.
-// resubscribeKey가 바뀌면(재분석 트리거 등) 다시 조회·구독한다.
+// SSE가 끊겨도 진행 중인 작업을 실패로 간주하지 않고, 다음 폴링에서 상태를 복구함
+// 서버 재시작 등으로 running 상태만 DB에 남아 오래 갱신되지 않으면 조용히 재분석을 예약함
+// resubscribeKey가 바뀌면(재분석 트리거 등) 다시 조회·구독함
 export function useIndexProgress(
   notebookId: string | null,
   sourceId: string,
@@ -90,7 +90,7 @@ export function useIndexProgress(
         if (!isTerminal(next)) ensureStream();
         return true;
       } catch {
-        // 재분석 예약 실패는 다음 폴링에서 다시 판단한다. 화면에는 raw 에러를 노출하지 않는다.
+        // 재분석 예약 실패는 다음 폴링에서 다시 판단함 화면에는 raw 에러를 노출하지 않음
         return false;
       } finally {
         recovering = false;
@@ -105,7 +105,7 @@ export function useIndexProgress(
         applyProgress(progress);
         if (!isTerminal(progress)) ensureStream();
       } catch {
-        // 추가 직후 레코드 생성 타이밍 차이, SSE 일시 단절, 프록시 지연은 다음 tick에서 복구한다.
+        // 추가 직후 레코드 생성 타이밍 차이, SSE 일시 단절, 프록시 지연은 다음 tick에서 복구함
         if (!active) return;
         ensureStream();
       }

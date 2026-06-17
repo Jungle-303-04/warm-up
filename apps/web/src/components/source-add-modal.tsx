@@ -27,9 +27,9 @@ import { Button } from "./ui/button";
 import { Modal } from "./ui/modal";
 
 // 통합 소스 추가 모달.
-// 한 모달 안에서 (a) 파일 드롭존(드래그앤드롭 + 클릭 선택) + (b) URL/GitHub 입력을 모두 처리한다.
+// 한 모달 안에서 (a) 파일 드롭존(드래그앤드롭 + 클릭 선택) + (b) URL/GitHub 입력을 모두 처리함
 // 입력 URL이 github.com/{owner}/{repo} 형태이면 디바운스로 GitHub 공개 API를 조회해
-// 브랜치 목록을 인식하고, 인식되면 커스텀 브랜치 드롭다운이 입력란 "아래로" 펼쳐진다.
+// 브랜치 목록을 인식하고, 커스텀 브랜치 드롭다운을 입력란 아래에 표시
 // 제출 시 GitHub면 kind="repo"(repository_url+branch), 아니면 kind="url".
 export function SourceAddModal({
   open,
@@ -79,7 +79,7 @@ export function SourceAddModal({
   );
 }
 
-// 파일 드롭존: 드래그앤드롭 + 클릭하여 선택. 처리 성공 시 모달을 닫는다.
+// 파일 드롭존: 드래그앤드롭 + 클릭 선택. 처리 성공 시 모달 닫기
 function FileDropzone({
   processFiles,
   busy,
@@ -93,7 +93,7 @@ function FileDropzone({
   const dragDepth = useRef(0);
   const [dragActive, setDragActive] = useState(false);
 
-  // 파일을 처리하고 끝나면 모달을 닫는다.
+  // 파일 처리 후 모달 닫기
   const handle = (files: FileList | File[]) => {
     if (!files || (files as FileList).length === 0) return;
     onDone();
@@ -167,7 +167,7 @@ function FileDropzone({
 }
 
 // GitHub면 owner/repo, 일반 URL이면 호스트+마지막 경로 세그먼트로 제목을 자동 도출.
-// 주의: 실제 HTML <title>은 CORS로 브라우저에서 직접 fetch할 수 없으므로 URL 기반으로만 채운다.
+// 주의: 실제 HTML <title>은 CORS로 브라우저에서 직접 fetch할 수 없으므로 URL 기반으로만 채움
 function inferTitleFromUrl(raw: string): string {
   const url = raw.trim();
   if (!url) return "";
@@ -227,7 +227,7 @@ function LinkForm({
   // URL 변경 → 제목 자동 채움(사용자가 직접 수정 전까지) + github 형태이면 브랜치 인식.
   useEffect(() => {
     // 제목 임시 자동 채움: URL 기반(즉시 피드백). 비-GitHub URL은 아래 메타 효과가
-    // 실제 HTML 제목으로 덮어쓴다(사용자가 직접 수정하지 않은 경우에 한함).
+    // 실제 HTML 제목으로 덮어씀(사용자가 직접 수정하지 않은 경우)
     if (!titleEdited) setTitle(inferTitleFromUrl(url));
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -282,14 +282,14 @@ function LinkForm({
   }, [branchEdited, url, titleEdited]);
 
   // 비-GitHub URL → 디바운스로 링크 메타데이터 조회(실제 HTML 제목/아이콘).
-  // 성공하고 사용자가 제목을 직접 수정하지 않았으면 실제 제목으로 덮어쓴다.
+  // 성공하고 사용자가 제목을 직접 수정하지 않았으면 실제 제목으로 덮어씀
   useEffect(() => {
     if (metaDebounceRef.current) clearTimeout(metaDebounceRef.current);
     metaAbortRef.current?.abort();
 
     const trimmed = url.trim();
     const parsed = parseGitHubRepo(trimmed);
-    // GitHub는 브랜치 인식 경로가 처리하므로 메타 조회 대상이 아니다.
+    // GitHub는 브랜치 인식 경로가 처리하므로 메타 조회 대상이 아님
     if (!trimmed || parsed) {
       setMeta(null);
       setMetaLoading(false);
@@ -502,7 +502,7 @@ function LinkForm({
 }
 
 // 커스텀 브랜치 드롭다운. 트리거 클릭 시 옵션 목록이 입력란 바로 아래로 Collapse 애니메이션과
-// 함께 펼쳐진다. 바깥 클릭으로 닫힌다(네이티브 select의 화면 중앙 팝업 문제 해결).
+// 함께 펼쳐짐. 바깥 클릭으로 닫힘(네이티브 select의 화면 중앙 팝업 문제 해결)
 function BranchDropdown({
   branches,
   defaultBranch,
@@ -634,7 +634,7 @@ function BranchDropdown({
 }
 
 // 입력 텍스트는 공용 입력 규격(h-8 px-3 text-[12px])과 일관되게 통일.
-// BranchDropdown 트리거도 이 클래스를 공유하므로 flex 정렬은 호출부에서 덧붙인다.
+// BranchDropdown 트리거도 이 클래스를 공유하므로 flex 정렬은 호출부에서 추가
 const inputCls =
   "transition-all duration-200 ease-in-out h-8 w-full rounded-lg border border-border bg-background px-3 text-[12px] font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15";
 

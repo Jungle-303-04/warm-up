@@ -1,5 +1,5 @@
-// Google Material Symbols는 기본적으로 lowercase 스네이크 케이스 이름을 사용합니다.
-// 기존 lucide 매핑용 이름 중 머티리얼 심볼과 호환되지 않는 항목들을 오버라이드합니다.
+// Google Material Symbols는 기본적으로 lowercase 스네이크 케이스 이름을 사용함
+// 기존 lucide 매핑용 이름 중 머티리얼 심볼과 호환되지 않는 항목들을 오버라이드함
 const SYMBOL_NAME_OVERRIDES: Record<string, string> = {
   hub: "widgets", // Boxes 대신 위젯
   theme_system: "settings_brightness",

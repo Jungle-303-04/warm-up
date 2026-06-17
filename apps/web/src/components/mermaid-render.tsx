@@ -5,12 +5,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "./ui/button";
 
 // svg-pan-zoom은 `export = svgPanZoom`(Instance 타입의 const)이라 기본 import 값의
-// 타입이 곧 인스턴스 타입이다. 런타임에선 이 값이 팩토리 함수로도 동작하므로
-// 호출 시 팩토리 시그니처로 캐스팅해 사용한다.
+// 타입이 곧 인스턴스 타입. 런타임에선 이 값이 팩토리 함수로도 동작하므로
+// 호출 시 팩토리 시그니처로 캐스팅해 사용함
 type PanZoomInstance = typeof import("svg-pan-zoom");
 type PanZoomFactory = (svg: SVGElement, options?: Record<string, unknown>) => PanZoomInstance;
 
-// 현재 문서 테마(.dark 클래스)에 따라 mermaid 테마를 고른다.
+// 현재 문서 테마(.dark 클래스)에 따라 mermaid 테마를 선택
 function isDarkTheme(): boolean {
   if (typeof document === "undefined") return false;
   return document.documentElement.classList.contains("dark");
@@ -48,7 +48,7 @@ function mermaidThemeVariables(): Record<string, string> {
 }
 
 // 렌더된 Mermaid SVG에 줌·팬을 입히는 캔버스. svg-pan-zoom을 동적 import 해
-// 클라이언트에서만 적용한다(SSR 안전). svg가 바뀌면 인스턴스를 재생성한다.
+// 클라이언트에서만 적용(SSR 안전). svg가 바뀌면 인스턴스 재생성
 function PanZoomCanvas({ svg }: { svg: string }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<PanZoomInstance | null>(null);
@@ -59,9 +59,9 @@ function PanZoomCanvas({ svg }: { svg: string }) {
     let disposed = false;
     let resizeObs: ResizeObserver | null = null;
 
-    // 주입된 SVG 요소를 찾아 pan-zoom을 적용한다.
+    // 주입된 SVG 요소를 찾아 pan-zoom을 적용함
     (async () => {
-      // mermaid SVG는 보통 max-width 인라인 스타일을 갖는데, 이는 캔버스 채움을 막는다.
+      // mermaid SVG는 보통 max-width 인라인 스타일을 갖는데, 이는 캔버스 채움을 방지
       const svgEl = host.querySelector("svg");
       if (!svgEl) return;
       // 컨테이너를 가득 채우도록 크기/스타일 보정.
@@ -95,9 +95,7 @@ function PanZoomCanvas({ svg }: { svg: string }) {
         instanceRef.current = null;
       }
 
-      // 컨테이너 크기는 flex 레이아웃이 늦게 확정될 수 있다. 초기 fit이 작은
-      // 박스 기준으로 굳지 않도록, 크기 변화 때마다 resize→fit→center로 다시 맞춘다
-      // (세로로 꽉 차게 보이지 않던 문제 해결).
+      // flex 레이아웃 지연 대응: 크기 변화 때마다 resize→fit→center 재적용
       const refit = () => {
         const inst = instanceRef.current;
         if (!inst) return;
@@ -109,7 +107,7 @@ function PanZoomCanvas({ svg }: { svg: string }) {
           // 레이아웃 전환 중 일시적 실패는 무시.
         }
       };
-      // 다음 프레임에 한 번(초기 레이아웃 확정 후) + 이후 크기 변화마다.
+      // 다음 프레임 1회 + 이후 크기 변화마다 재맞춤
       requestAnimationFrame(refit);
       if (typeof ResizeObserver !== "undefined") {
         resizeObs = new ResizeObserver(refit);
@@ -141,8 +139,8 @@ function PanZoomCanvas({ svg }: { svg: string }) {
   };
 
   return (
-    // 카드/테두리 없이 부모(relative) 영역을 absolute로 가로·세로 꽉 채운다.
-    // h-full 백분율 높이가 flex 체인에서 흔들리는 문제를 inset-0로 확실히 회피한다.
+    // 카드/테두리 없이 부모(relative) 영역을 absolute로 가로·세로 꽉 채움
+    // h-full 백분율 높이가 flex 체인에서 흔들리는 문제를 inset-0로 확실히 회피함
     <div className="absolute inset-0 overflow-hidden">
       {/* 줌·팬 대상 SVG 호스트. svg는 신뢰된 mermaid 출력. */}
       <div
@@ -189,7 +187,7 @@ function PanZoomCanvas({ svg }: { svg: string }) {
 
 // Mermaid 다이어그램을 동적 import 로 렌더한다(SSR 안전).
 // 렌더 성공 시 줌·팬 캔버스로 보여주고, 실패 시 onError 로 에러를 위임해
-// 호출부가 원본 소스를 노출하게 한다.
+// 호출부가 원본 소스를 노출하게 함
 export function MermaidRender({
   source,
   onError,
@@ -199,14 +197,14 @@ export function MermaidRender({
   onError?: (message: string | null) => void;
 }) {
   const reactId = useId();
-  // mermaid id 는 CSS 식별자라야 하므로 콜론을 제거한다.
+  // mermaid id 는 CSS 식별자라야 하므로 콜론을 제거함
   const renderId = `mmd-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const [svg, setSvg] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  // 테마가 바뀌면 재렌더하도록 토글 카운터를 둔다.
+  // 테마가 바뀌면 재렌더하도록 토글 카운터를 둠
   const [themeTick, setThemeTick] = useState(0);
 
-  // .dark 클래스 변동을 관찰해 테마 전환 시 다이어그램을 다시 그린다.
+  // .dark 클래스 변동 감지 후 테마 전환 시 다이어그램 재렌더
   useEffect(() => {
     const el = document.documentElement;
     const observer = new MutationObserver(() => setThemeTick((n) => n + 1));
@@ -226,7 +224,7 @@ export function MermaidRender({
 
     (async () => {
       try {
-        // 동적 import: 클라이언트에서만 mermaid 를 로드한다.
+        // 동적 import: 클라이언트에서만 mermaid 를 로드함
         const mermaid = (await import("mermaid")).default;
         mermaid.initialize({
           startOnLoad: false,

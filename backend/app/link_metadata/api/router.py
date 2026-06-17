@@ -17,6 +17,6 @@ def get_link_metadata(
     url: str = Query(..., description="제목/설명/아이콘을 조회할 대상 URL"),
     service: LinkMetadataService = Depends(get_link_metadata_service),
 ) -> LinkMetadataResponse:
-    # 실패/타임아웃/비HTML이어도 에러 대신 가능한 필드만 채워서 반환한다.
+    # 실패/타임아웃/비HTML이어도 에러 대신 가능한 필드만 채워서 반환함
     metadata = service.fetch_metadata(url)
     return LinkMetadataResponse.from_metadata(metadata)

@@ -139,7 +139,7 @@ class SqlChunkStore:
         if source_ids is not None:
             filters.append(NotebookChunkModel.source_id.in_(source_ids))
         # file_paths가 주어지면 파일 단위 범위 필터: file_path가 NULL(비repo 본문)인
-        # 청크는 항상 통과시키고, 경로가 있는 청크는 선택된 경로만 후보로 둔다.
+        # 청크는 항상 통과시키고, 경로가 있는 청크는 선택된 경로만 후보로 둠
         if file_paths is not None:
             filters.append(
                 or_(

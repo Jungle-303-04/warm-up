@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
 
     # LLM 제안 (에이전트). 기본 openai — OPENAI_API_KEY가 있으면 UML/ERD/변경요약을
-    # LLM으로 생성하고, 키가 없으면 자동으로 결정론(휴리스틱) 폴백으로 동작한다.
+    # LLM으로 생성하고, 키가 없으면 자동으로 결정론(휴리스틱) 폴백으로 동작함
     llm_provider: str = "openai"  # "none" | "openai"
     llm_model: str = "gpt-4o-mini"
 
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     artifact_max_selected_files: int = 60  # 비-dependency 선별 파일 수 상한
     artifact_max_dependency_files: int = 250  # dependency 그래프용 .py 상한
 
-    # 채팅 RAG 검색 top_k(.env로 오버라이드 가능). 의도별 검색 계획에서 상한으로 쓰인다.
+    # 채팅 RAG 검색 top_k(.env로 오버라이드 가능). 의도별 검색 계획에서 상한으로 사용
     chat_default_top_k: int = 5  # 일반/코드/버그 질문 기본 top_k
     chat_architecture_top_k: int = 8  # 아키텍처 질문은 더 넓게 검색
     # 채팅 답변기가 인프로세스 도구(노트북 소스 파일 읽기·인덱스 코드 검색·심볼 찾기)를
@@ -78,8 +78,8 @@ class Settings(BaseSettings):
     @property
     def session_cookie_samesite(self) -> Literal["lax", "none"]:
         # Vercel(frontend) -> public API tunnel/backend처럼 프론트와 API가 서로 다른
-        # 사이트인 배포에서는 브라우저가 Lax 쿠키를 fetch credentials에 싣지 않는다.
-        # HTTPS에서만 SameSite=None을 쓸 수 있으므로 로컬 HTTP 개발은 Lax를 유지한다.
+        # 사이트인 배포에서는 브라우저가 Lax 쿠키를 fetch credentials에 싣지 않음
+        # HTTPS에서만 SameSite=None을 쓸 수 있으므로 로컬 HTTP 개발은 Lax를 유지함
         return "none" if self.secure_cookies and self.web_app_url.startswith("https://") else "lax"
 
     @property

@@ -14,9 +14,9 @@ import { createSource } from "./api";
 import { fileToSourceCreate } from "./file-source";
 import { useWorkspace } from "./store";
 
-// 소스 추가 흐름(파일·URL·GitHub)을 한 곳에서 소유한다.
+// 소스 추가 흐름(파일·URL·GitHub)을 한 곳에서 소유함
 // 좌측 소스 패널과 가운데 온보딩 히어로가 동일한 흐름을 호출할 수 있도록
-// context로 노출한다(기능 계약 유지: createSource → addSource).
+// context로 노출(기능 계약 유지: createSource → addSource)
 // 파일/URL/GitHub 레포는 단일 "소스 추가" 모달로 통합됐다(진입점 일원화).
 
 interface SourceActions {
@@ -46,8 +46,8 @@ export function SourceActionsProvider({
   const [modalOpen, setModalOpen] = useState(false);
 
   // 파일 목록 순차 처리 → createSource → 스토어 반영.
-  // 실패한 개별 파일명은 화면에 오래 노출하지 않는다. 성공한 소스는 곧바로
-  // 소스 행에 나타나고, 인덱싱 상태는 SourceRow의 progress가 맡는다.
+  // 실패한 개별 파일명은 화면에 오래 노출하지 않음 성공한 소스는 곧바로
+  // 소스 행에 나타나고, 인덱싱 상태는 SourceRow의 progress가 담당
   const processFiles = useCallback(
     async (files: FileList | File[]) => {
       const list = Array.from(files);
@@ -59,8 +59,8 @@ export function SourceActionsProvider({
           const source = await createSource(notebookId, body);
           addSource(source);
         } catch {
-          // 내부 실패는 조용히 넘긴다. 사용자는 소스 행에 나타난 항목의 진행 상태로
-          // 성공 여부를 확인하고, 실패한 파일은 다시 선택할 수 있다.
+          // 내부 실패는 조용히 넘김. 사용자는 소스 행에 나타난 항목의 진행 상태로
+          // 성공 여부를 확인하고, 실패한 파일은 다시 선택할 수 있음
         }
       }
       setBusy(false);
@@ -80,7 +80,7 @@ export function SourceActionsProvider({
   return (
     <Ctx.Provider value={value}>
       {children}
-      {/* 통합 소스 추가 모달(파일 드롭존 + URL/GitHub)은 흐름의 단일 소유자인 Provider가 렌더한다. */}
+      {/* 통합 소스 추가 모달(파일 드롭존 + URL/GitHub)은 Provider가 렌더 */}
       <SourceAddModal
         open={modalOpen}
         notebookId={notebookId}

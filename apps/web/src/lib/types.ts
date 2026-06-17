@@ -69,7 +69,7 @@ export type IndexLanguage =
   | "url"
   | null;
 
-// 파일 단위 인덱싱 상태. supported=false면 인덱싱 대상에서 제외된다.
+// 파일 단위 인덱싱 상태. supported=false면 인덱싱 대상에서 제외됨
 export interface IndexFile {
   path: string;
   language: IndexLanguage;
@@ -134,12 +134,14 @@ export interface SourceCreate {
   lineage_source_ids?: string[];
 }
 
-// 근거 인용(UI 모델). 답변이 참조한 소스 위치를 가리킨다.
+// 근거 인용(UI 모델). 답변이 참조한 소스 위치를 지칭
 export interface Citation {
   sourceId: string; // Source.id
   sourceName: string; // 표시용 소스 이름
   path?: string; // 파일 경로(있으면)
   snippet?: string; // 인용 미리보기
+  startLine?: number | null; // 파일 내부 시작 라인(있으면)
+  endLine?: number | null; // 파일 내부 끝 라인(있으면)
 }
 
 export interface NotebookChatCitation {
@@ -147,6 +149,8 @@ export interface NotebookChatCitation {
   source_title: string;
   path: string | null;
   snippet: string;
+  start_line: number | null;
+  end_line: number | null;
 }
 
 export interface NotebookChatResponse {

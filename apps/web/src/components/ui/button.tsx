@@ -5,10 +5,10 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "../../lib/cn";
 import { Icon } from "../icon";
 
-// 공용 알약 버튼 프리미티브. 전 영역의 버튼 크기/톤을 강제로 통일한다.
+// 공용 알약 버튼 프리미티브. 전 영역의 버튼 크기/톤을 강제로 통일함
 // - variant: primary(채움) | outline(테두리) | ghost(투명) | danger(파괴적)
 // - size: sm(기본, h-7) | xs(더 작게, h-6)
-// 아이콘 동반 시 gap이 적용되며, 로딩/아이콘은 props로 선언적으로 붙인다.
+// 아이콘 동반 시 gap이 적용되며, 로딩/아이콘은 props로 선언적으로 부여
 export type ButtonVariant = "primary" | "outline" | "ghost" | "danger";
 export type ButtonSize = "sm" | "xs";
 
@@ -33,9 +33,9 @@ const SIZE: Record<ButtonSize, string> = {
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  // 왼쪽 아이콘 이름(Icon name). loading=true면 회전 스피너로 대체된다.
+  // 왼쪽 아이콘 이름(Icon name). loading=true면 회전 스피너로 대체됨
   icon?: string;
-  // 진행 중 표시(아이콘을 스피너로, disabled 처리). label은 그대로 둔다.
+  // 진행 중 표시(아이콘을 스피너로, disabled 처리). label은 그대로 둠
   loading?: boolean;
   // 아이콘만 두는 버튼은 false로(원형 hit area). 기본은 알약.
   pill?: boolean;

@@ -28,8 +28,8 @@ export function SourcesPanel({
   const sources = useWorkspace((s) => s.sources);
   const selectedCount = useWorkspace((s) => s.selectedSourceIds.size);
   const setAllSourcesSelected = useWorkspace((s) => s.setAllSourcesSelected);
-  // 소스 추가 흐름은 공용 컨텍스트에서 가져온다(온보딩 히어로와 공유).
-  // 파일/URL/GitHub는 단일 "소스 추가" 모달로 일원화됐다.
+  // 소스 추가 흐름은 공용 컨텍스트에서 가져옴(온보딩 히어로와 공유)
+  // 파일/URL/GitHub는 단일 "소스 추가" 모달로 일원화
   const { openAddSource, busy, processFiles } = useSourceActions();
 
   // 드래그 깜빡임 방지용 enter/leave 카운터.

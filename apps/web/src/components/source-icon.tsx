@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { Icon } from "./icon";
 
-// URL에서 호스트명을 추출한다. 파싱 실패 시 null.
+// URL에서 호스트명을 추출함 파싱 실패 시 null.
 function hostFromUrl(url?: string | null): string | null {
   if (!url) return null;
   try {
@@ -17,7 +17,7 @@ function hostFromUrl(url?: string | null): string | null {
 // 소스 종류 아이콘을 공유하는 재사용 컴포넌트.
 // - URL 소스: 사이트 favicon(google s2)을 <img>로 표시, 로드 실패 시 link 아이콘 폴백.
 // - 그 외(md/pdf/text/repo, 파일 확장자): 정적 lucide 아이콘.
-// 소스행·인용칩·뷰어헤더가 모두 이 컴포넌트를 공유한다.
+// 소스행·인용칩·뷰어헤더가 모두 이 컴포넌트를 공유함
 export function SourceIcon({
   iconName,
   url,
@@ -38,7 +38,7 @@ export function SourceIcon({
   // favicon 로드 실패 시 link 아이콘으로 폴백.
   const [faviconFailed, setFaviconFailed] = useState(false);
 
-  // host가 바뀌면 실패 상태를 초기화해 새 사이트의 favicon을 다시 시도한다.
+  // host가 바뀌면 실패 상태를 초기화해 새 사이트의 favicon을 다시 시도함
   useEffect(() => {
     setFaviconFailed(false);
   }, [host]);
@@ -58,7 +58,7 @@ export function SourceIcon({
         referrerPolicy="no-referrer"
         onError={() => setFaviconFailed(true)}
         className={className}
-        // 인라인 블록 + contain으로 작은 박스 안에 또렷하게 맞춘다.
+        // 인라인 블록 + contain으로 작은 박스 안에 또렷하게 맞춤
         style={{
           width: size,
           height: size,

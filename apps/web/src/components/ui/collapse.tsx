@@ -6,7 +6,7 @@ import { cn } from "../../lib/cn";
 
 // 재사용 여닫기 래퍼. grid-rows-[0fr→1fr] 트랜지션으로 콘텐츠 높이를 측정 없이
 // 부드럽게 열고 닫는다(자식의 자연 높이를 그대로 사용). overflow-hidden으로
-// 접힌 동안 콘텐츠가 새어나오지 않게 한다.
+// 접힌 동안 콘텐츠가 새어나오지 않게 함
 export function Collapse({
   open,
   children,

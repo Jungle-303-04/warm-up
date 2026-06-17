@@ -13,6 +13,7 @@ import { useChatScroll } from "../hooks/use-chat-scroll";
 import { askNotebook, listNotebookChatMessages, clearNotebookChatMessages } from "../lib/api";
 import { SUGGESTIONS } from "../lib/fixtures";
 import { scopeFilePaths } from "../lib/indexing";
+import { artifactScopeWarning, selectedSources } from "../lib/source-scope";
 import { selectScopeCount, useWorkspace } from "../lib/store";
 import type {
   ChatMessage,
@@ -33,9 +34,8 @@ const makeId = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-// 채팅에서 "레포를 UML/ERD/의존성 그래프로 그려줘" 류 요청을 감지해, 텍스트 답변
-// 대신 스튜디오 산출물(다이어그램)을 생성하고 뷰어에서 열도록 라우팅한다.
-// 정의/개념 질문("UML이 뭐야")은 제외한다(시각화 의도가 아님).
+// 채팅의 명시적 다이어그램 생성 요청을 스튜디오 산출물 생성으로 라우팅
+// 정의/개념 질문("UML이 뭐야")은 시각화 의도가 아니므로 제외
 const DIAGRAM_LABELS: Record<"uml" | "erd" | "dependency", string> = {
   uml: "UML 클래스 다이어그램",
   erd: "ERD",
@@ -45,12 +45,12 @@ const DIAGRAM_LABELS: Record<"uml" | "erd" | "dependency", string> = {
 const VISUALIZE_CUE =
   /(그려|그림|만들어|생성|시각화|보여|작성|도식|그래프로|diagram|draw|generate|create|visuali[sz]e|render)/i;
 const DEFINITIONAL_CUE = /(뭐야|뭔가요|무엇|이란|개념|차이|장단점|what\s+is|difference)/i;
-const DIAGRAM_WORD = /(다이어그램|diagram|그래프|graph)/i;
 
 function detectDiagramIntent(question: string): "uml" | "erd" | "dependency" | null {
   if (DEFINITIONAL_CUE.test(question)) return null;
-  // "시각화/그려/생성" 같은 동사 단서나 "다이어그램/그래프" 명사가 있어야 한다.
-  if (!VISUALIZE_CUE.test(question) && !DIAGRAM_WORD.test(question)) return null;
+  // "다이어그램을 보면?", "이 UML은 무슨 서비스야?" 같은 해석 질문은 채팅 답변 경로
+  // "그려/생성/만들어/시각화" 같은 명시적 생성 동사가 있을 때만 산출물 생성
+  if (!VISUALIZE_CUE.test(question)) return null;
   if (/\berd\b|엔티티\s*관계|entity[\s-]*relationship|테이블\s*관계|스키마\s*다이어그램/i.test(question))
     return "erd";
   if (/uml|클래스\s*다이어그램|class\s*diagram|클래스\s*관계|클래스도/i.test(question)) return "uml";
@@ -65,10 +65,12 @@ function toCitations(citations: NotebookChatCitation[]): Citation[] {
     sourceName: c.source_title,
     path: c.path ?? undefined,
     snippet: c.snippet,
+    startLine: c.start_line,
+    endLine: c.end_line,
   }));
 }
 
-// 백엔드 응답 → 어시스턴트 메시지. 인용이 없으면 보류(notice)로 본다.
+// 백엔드 응답 → 어시스턴트 메시지. 인용이 없으면 notice 처리
 function toAssistantMessage(response: NotebookChatResponse, animate: boolean): ChatMessage {
   return {
     id: makeId(),
@@ -115,6 +117,7 @@ interface QueuedQuestion {
   id: string;
   question: string;
   messageId: string;
+  diagram: "uml" | "erd" | "dependency" | null;
 }
 
 export function ChatView() {
@@ -127,7 +130,7 @@ export function ChatView() {
   const selectedFilePaths = useWorkspace((s) => s.selectedFilePaths);
   const generateArtifact = useWorkspace((s) => s.generateArtifact);
   const addNote = useWorkspace((s) => s.addNote);
-  // 센터 바(탭 줄)의 초기화/메모저장 버튼이 보내는 1회성 명령 신호.
+  // 센터 바(탭 줄)의 초기화/메모저장 버튼이 보내는 1회성 명령 신호
   const resetChatSignal = useWorkspace((s) => s.resetChatSignal);
   const saveChatSignal = useWorkspace((s) => s.saveChatSignal);
   const setChatMessageCount = useWorkspace((s) => s.setChatMessageCount);
@@ -140,8 +143,8 @@ export function ChatView() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  // 단일 비행(single-flight) 가드: 한 번에 한 질문만 처리되도록 보장한다.
-  // sending 상태는 비동기로 갱신돼 효과/직접호출이 겹칠 수 있으므로 ref로 즉시 잠근다.
+  // 단일 비행(single-flight) 가드: 한 번에 한 질문만 처리
+  // sending 상태 갱신 지연으로 인한 효과/직접호출 중복 방지
   const runningRef = useRef(false);
   const compositionRef = useRef(false);
   const compositionEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -149,8 +152,12 @@ export function ChatView() {
   const lastSubmittedRef = useRef<{ question: string; at: number } | null>(null);
 
   const selectedSourceIdList = useMemo(() => [...selectedSourceIds], [selectedSourceIds]);
+  const selectedSourceList = useMemo(
+    () => selectedSources(sources, selectedSourceIds),
+    [sources, selectedSourceIds],
+  );
   const allSourcesSelected = sourceCount > 0 && scopeCount === sourceCount;
-  // 답변 범위 안의 repo 소스 id(파일 단위 범위 계산용).
+  // 답변 범위 안의 repo 소스 id(파일 단위 범위 계산용)
   const scopeRepoSourceIds = useMemo(
     () =>
       sources
@@ -160,21 +167,21 @@ export function ChatView() {
   );
   const canSend = query.trim().length > 0 && scopeCount > 0 && !!notebookId;
 
-  // 메시지 변화/타이핑 진행/대기 상태에 맞춰 하단 고정 스크롤.
+  // 메시지 변화/타이핑 진행/대기 상태에 맞춘 하단 고정 스크롤
   const { scrollRef, onScroll, scrollToBottom } = useChatScroll([
     messages,
     pendingQuestion,
     queuedQuestions.length,
   ]);
 
-  // 클라이언트 로캘 기준의 세션 날짜.
+  // 클라이언트 로캘 기준 세션 날짜
   const today = new Date().toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
 
-  // 대화 기록 로드.
+  // 대화 기록 로드
   useEffect(() => {
     if (!notebookId) return;
     let active = true;
@@ -205,7 +212,7 @@ export function ChatView() {
     [],
   );
 
-  // 입력 초안 복원/저장.
+  // 입력 초안 복원/저장
   useEffect(() => {
     if (!notebookId) return;
     try {
@@ -220,33 +227,67 @@ export function ChatView() {
     try {
       localStorage.setItem(draftKey(notebookId), query);
     } catch {
-      // 캐시 저장 실패는 대화 기능을 막지 않는다.
+      // 캐시 저장 실패는 대화 기능에 영향 없음
     }
   }, [notebookId, query]);
 
   const runQuestion = useCallback(
-    async (question: string) => {
+    async (item: QueuedQuestion) => {
+      const question = item.question;
       if (!question || scopeCount === 0 || !notebookId) return;
-      // 이미 처리 중이면 중복 실행 금지(직접 호출/큐 효과 중복 방지).
+      // 이미 처리 중이면 중복 실행 금지
       if (runningRef.current) return;
       runningRef.current = true;
 
       const sourceIds = allSourcesSelected ? null : selectedSourceIdList;
-      // repo 파일 부분 선택이 있을 때만 file_paths를 보내 답변 범위를 좁힌다.
+      // repo 파일 부분 선택이 있을 때만 file_paths로 답변 범위 축소
       const filePaths = scopeFilePaths(scopeRepoSourceIds, indexProgress, selectedFilePaths);
       const controller = new AbortController();
       abortRef.current = controller;
       setPendingQuestion(question);
       setSending(true);
       try {
-        const response = await askNotebook(
-          notebookId,
-          question,
-          sourceIds,
-          filePaths,
-          controller.signal,
-        );
-        setMessages((prev) => [...prev, toAssistantMessage(response, true)]);
+        if (item.diagram) {
+          const warning = artifactScopeWarning(item.diagram, selectedSourceList);
+          if (warning) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: makeId(),
+                role: "assistant",
+                kind: "notice",
+                citations: [],
+                animate: false,
+                content: warning,
+              },
+            ]);
+          } else {
+            const created = await generateArtifact(item.diagram, selectedSourceIdList);
+            const label = DIAGRAM_LABELS[item.diagram] ?? "산출물";
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: makeId(),
+                role: "assistant",
+                kind: created ? "notice" : "notice",
+                citations: [],
+                animate: false,
+                content: created
+                  ? `${label}을 생성했습니다. 가운데 뷰어에서 확인할 수 있습니다.`
+                  : `${label} 생성에 실패했습니다. 잠시 후 다시 시도하거나 오른쪽 스튜디오에서 직접 생성해 주세요.`,
+              },
+            ]);
+          }
+        } else {
+          const response = await askNotebook(
+            notebookId,
+            question,
+            sourceIds,
+            filePaths,
+            controller.signal,
+          );
+          setMessages((prev) => [...prev, toAssistantMessage(response, true)]);
+        }
       } catch (error) {
         const wasAborted = controller.signal.aborted;
         const message = error instanceof Error ? error.message : "답변 요청 실패";
@@ -267,30 +308,32 @@ export function ChatView() {
         if (abortRef.current === controller) abortRef.current = null;
         setPendingQuestion(null);
         setSending(false);
-        runningRef.current = false; // 잠금 해제 → 큐의 다음 질문 처리 가능.
+            runningRef.current = false; // 잠금 해제 → 큐의 다음 질문 처리 가능
       }
     },
     [
       allSourcesSelected,
+      generateArtifact,
       indexProgress,
       notebookId,
       scopeCount,
       scopeRepoSourceIds,
       selectedFilePaths,
+      selectedSourceList,
       selectedSourceIdList,
     ],
   );
 
-  // 큐 단일 드레인: 모든 질문은 큐에 쌓이고 여기서 한 번에 하나씩만 꺼내 처리한다.
-  // - sending=false(앞 질문 완료)일 때만 다음 질문을 시작 → 완료 후 자동으로 다음 항목 처리.
-  // - runningRef는 sending 상태 갱신 지연/효과 중복으로 인한 동시 실행을 막는 하드 가드.
-  // 직접 호출 경로를 없애 "한 질문당 답변 1개"를 보장한다.
+  // 큐 단일 드레인: 모든 질문은 큐에 쌓이고 여기서 한 번에 하나씩 처리
+  // - sending=false(앞 질문 완료)일 때만 다음 질문 시작
+  // - runningRef는 sending 상태 갱신 지연/효과 중복에 대한 하드 가드
+  // 직접 호출 경로 제거로 "한 질문당 답변 1개" 보장
   useEffect(() => {
     if (sending || runningRef.current || queuedQuestions.length === 0) return;
     const next = queuedQuestions[0];
     // 먼저 큐에서 제거한 뒤 실행(같은 질문 재진입 방지).
     setQueuedQuestions((prev) => prev.slice(1));
-    void runQuestion(next.question);
+    void runQuestion(next);
   }, [queuedQuestions, runQuestion, sending]);
 
   const removeQueuedQuestion = useCallback(
@@ -334,45 +377,22 @@ export function ChatView() {
 
       setQuery("");
       const userMessageId = makeId();
-      // 사용자 메시지를 즉시 목록에 추가(낙관적).
+      // 사용자 메시지 즉시 목록 추가(낙관적)
       setMessages((prev) => [
         ...prev,
         { id: userMessageId, role: "user", kind: "answer", citations: [], content: question },
       ]);
 
-      // 다이어그램(UML/ERD/의존성) 요청이면 텍스트 답변 대신 스튜디오 산출물로
-      // 생성하고 가운데 "뷰어" 탭에서 열어 정식 다이어그램으로 보여준다.
+      // 다이어그램(UML/ERD/의존성) 요청도 같은 큐에 저장
+      // 답변 생성 중 산출물 병렬 실행 없이 앞 작업 이후 순차 처리
       const diagram = detectDiagramIntent(question);
-      if (diagram) {
-        const label = DIAGRAM_LABELS[diagram];
-        void generateArtifact(diagram, selectedSourceIdList).then((created) => {
-          // 성공 시 store가 뷰어 탭으로 전환하므로 별도 안내가 필요 없다.
-          // 실패 시에는 채팅에 안내 메시지를 남긴다(이 경로에선 탭 전환이 없다).
-          if (!created) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: makeId(),
-                role: "assistant",
-                kind: "notice",
-                citations: [],
-                animate: false,
-                content: `${label} 생성에 실패했습니다. 잠시 후 다시 시도하거나 오른쪽 스튜디오에서 직접 생성해 주세요.`,
-              },
-            ]);
-          }
-        });
-        return;
-      }
-
-      // 항상 큐에 넣고, 위의 단일 드레인 효과가 순차 처리한다(직접 실행 금지).
+      // 항상 큐에 넣고 단일 드레인 효과에서 순차 처리
       setQueuedQuestions((prev) => [
         ...prev,
-        { id: makeId(), question, messageId: userMessageId },
+        { id: makeId(), question, messageId: userMessageId, diagram },
       ]);
     },
     [
-      generateArtifact,
       notebookId,
       pendingQuestion,
       query,
@@ -387,8 +407,7 @@ export function ChatView() {
     clearQueuedQuestions();
   };
 
-  // 대화 초기화: 백엔드 API를 통해 메시지 영속 삭제
-  // 진행 중 요청 중단 + 화면 메시지/대기열/입력 초안(localStorage) 클리어.
+  // 대화 초기화: 백엔드 메시지 영속 삭제 + 화면 상태 정리
   const resetConversation = () => {
     abortRef.current?.abort();
     clearQueuedQuestions();
@@ -402,13 +421,13 @@ export function ChatView() {
       try {
         localStorage.removeItem(draftKey(notebookId));
       } catch {
-        // 초안 삭제 실패는 초기화를 막지 않는다.
+        // 초안 삭제 실패는 초기화에 영향 없음
       }
     }
   };
 
-  // 지금까지의 대화를 마크다운 메모로 정리해 스튜디오에 저장한다.
-  // 저장된 메모는 "소스로 추가"로 임베딩되어 이후 답변의 근거(RAG)로도 쓸 수 있다.
+  // 지금까지의 대화를 마크다운 메모로 정리해 스튜디오에 저장
+  // 저장된 메모는 "소스로 추가" 후 이후 답변의 RAG 근거로 사용 가능
   const saveConversationAsNote = () => {
     const real = messages.filter((m) => m.kind !== "notice");
     if (real.length === 0) return;
@@ -444,8 +463,8 @@ export function ChatView() {
     });
   };
 
-  // 센터 바의 초기화/메모저장 버튼은 store 신호(nonce)로 전달된다.
-  // 마운트 직후(초기 0값) 오작동을 막기 위해 첫 실행은 건너뛴다.
+  // 센터 바의 초기화/메모저장 버튼은 store 신호(nonce)로 전달
+  // 마운트 직후 초기 0값 오작동 방지를 위해 첫 실행 건너뜀
   const resetSignalInit = useRef(true);
   useEffect(() => {
     if (resetSignalInit.current) {
@@ -466,12 +485,12 @@ export function ChatView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveChatSignal]);
 
-  // 센터 바 버튼의 활성/비활성 판단용으로 메시지 개수를 store에 공개한다.
+  // 센터 바 버튼 활성/비활성 판단용 메시지 개수 공개
   useEffect(() => {
     setChatMessageCount(messages.length);
   }, [messages.length, setChatMessageCount]);
 
-  // 마지막 사용자 질문으로 재생성.
+  // 마지막 사용자 질문으로 재생성
   const regenerate = () => {
     if (sending) return;
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
@@ -483,7 +502,7 @@ export function ChatView() {
     [messages],
   );
 
-  // 소스 0개: 빈 채팅 대신 온보딩 히어로를 보여준다.
+  // 소스 0개: 빈 채팅 대신 온보딩 히어로 표시
   if (sourceCount === 0 && messages.length === 0 && !loadingHistory) return <ChatEmpty />;
 
   return (
@@ -503,7 +522,7 @@ export function ChatView() {
                   소스 {sourceCount}개 연결됨 · {today}
                 </p>
               </div>
-              {/* 기준/초기화/메모저장 컨트롤은 상단 탭 바(center-panel)로 이동했다. */}
+              {/* 기준/초기화/메모저장 컨트롤은 상단 탭 바(center-panel)로 이동 */}
             </div>
             <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
               연결된 저장소·문서를 근거로 질문에 답하고, 코드와 문서가 어긋난 부분을 찾습니다.
@@ -601,6 +620,7 @@ export function ChatView() {
                           >
                             <span className="min-w-0 flex-1 truncate">
                               {index + 1}. {item.question}
+                              {item.diagram ? ` · ${DIAGRAM_LABELS[item.diagram]}` : ""}
                             </span>
                             <button
                               type="button"

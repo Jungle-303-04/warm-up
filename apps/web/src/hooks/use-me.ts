@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { getMe, type Me } from "../lib/api";
 
-// 현재 로그인한 GitHub 사용자. 데모 곳곳에서 "나/작성자" 식별에 쓴다.
+// 현재 로그인한 GitHub 사용자. 데모 곳곳에서 "나/작성자" 식별에 씀
 export function useMe(): Me | null {
   const [me, setMe] = useState<Me | null>(null);
   useEffect(() => {

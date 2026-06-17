@@ -157,7 +157,7 @@ async def read_repo_file(repo: str, path: str, ref: str = "") -> str:
 
             data = response.json()
             if isinstance(data, list):
-                # 디렉터리인 경우 항목 목록을 돌려준다.
+                # 디렉터리인 경우 항목 목록을 돌려줌
                 names = [entry.get("path", "") for entry in data]
                 return "디렉터리 항목:\n" + "\n".join(names)
 
@@ -181,7 +181,7 @@ async def search_repo_code(repo: str, query: str) -> str:
         repo: "owner/name" 형식의 저장소(예: "fastapi/fastapi").
         query: 검색할 코드 조각·심볼명(예: "class ChatService", "parse_config").
     """
-    # 코드 검색은 인증이 필요하다. q에 repo 한정자를 붙인다.
+    # 코드 검색은 인증이 필요 q에 repo 한정자를 부여
     url = f"https://api.github.com/search/code?q={query}+repo:{repo}&per_page=5"
 
     try:

@@ -13,7 +13,7 @@ function countLines(text: string): number {
 }
 
 // GitHub풍 코드 뷰어: 좌측 줄 번호 거터 + highlight.js 구문 강조.
-// 하이라이트는 동적 import로 분리해 초기 번들 영향을 최소화한다.
+// 하이라이트는 동적 import로 분리해 초기 번들 영향을 최소화함
 // 거터와 코드는 동일한 line-height를 가진 별도 컬럼으로, 줄 단위 HTML 분할 없이
 // 강조 결과 전체를 하나의 <pre>로 렌더한다(다줄 토큰의 HTML 깨짐 방지).
 export function CodeView({ content, filePath }: { content: string; filePath?: string }) {

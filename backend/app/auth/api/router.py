@@ -68,8 +68,8 @@ def github_callback(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout() -> Response:
-    # 세션 쿠키만 지우면 되므로 인증은 불필요하다.
-    # rp_session 쿠키를 만료시키고(204) 빈 본문을 반환한다.
+    # 세션 쿠키만 지우면 되므로 인증은 불필요
+    # rp_session 쿠키를 만료시키고(204) 빈 본문을 반환함
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     settings = get_settings()
     response.delete_cookie(

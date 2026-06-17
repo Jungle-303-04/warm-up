@@ -147,7 +147,7 @@ def build_notebook_tools(
         return "정의 위치:\n" + "\n".join(results)
 
     # 도구 이름은 ASCII만 허용된다(OpenAI 함수콜 규칙: ^[a-zA-Z0-9_-]{1,64}$).
-    # 따라서 name은 영문, 설명(description)만 한국어로 둔다.
+    # 따라서 name은 영문, 설명(description)만 한국어로 둠
     tools = [
         StructuredTool.from_function(
             func=read_source_file,

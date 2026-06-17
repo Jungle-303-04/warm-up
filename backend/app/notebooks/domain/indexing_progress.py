@@ -53,7 +53,7 @@ class IndexProgress:
     updated_at: datetime = field(default_factory=_utcnow)
     content_hash: str | None = None
     # 마지막으로 SQL/벡터DB를 최신화(인덱싱 done 또는 repo 재풀링 완료)한 순간.
-    # updated_at(진행 갱신 시각)과 별개로, "최신화 완료 시각"만 기록한다.
+    # updated_at(진행 갱신 시각)과 별개로, "최신화 완료 시각"만 기록함
     last_synced_at: datetime | None = None
 
     @property
@@ -95,7 +95,7 @@ class IndexProgressRegistry:
 
     def register(self, source_id: str, notebook_id: str) -> None:
         with self._lock:
-            # 재등록(reindex)일 때도 이전 "마지막 동기화 시각"은 유지한다.
+            # 재등록(reindex)일 때도 이전 "마지막 동기화 시각"은 유지함
             # queued로 리셋되는 것은 진행 상태일 뿐, 마지막 최신화 순간은 보존.
             previous = self._entries.get(source_id)
             last_synced_at = previous.last_synced_at if previous is not None else None

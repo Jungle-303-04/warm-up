@@ -15,7 +15,7 @@ export function ResizeHandle({
   className,
 }: {
   ariaLabel: string;
-  // 드래그 시작 시점에 기준 너비를 스냅샷하도록 호출부에 알린다.
+  // 드래그 시작 시점에 기준 너비를 스냅샷하도록 호출부에 알린
   onResizeStart?: () => void;
   // delta(px): 시작점 대비 양수=오른쪽 이동. 호출부에서 어느 패널에 적용할지 결정.
   onResize: (deltaPx: number) => void;

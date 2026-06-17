@@ -10,14 +10,14 @@ from dataclasses import dataclass
 from enum import Enum
 
 # ---- 코드 식별자 추출 패턴 ---- #
-# CamelCase, snake_case, 점(.)으로 구분된 식별자 등을 잡는다.
-# 한국어가 바로 뒤에 올 수 있으므로 \b 대신 명시적 ASCII 경계를 사용한다.
+# CamelCase, snake_case, 점(.)으로 구분된 식별자 등을 잡는
+# 한국어가 바로 뒤에 올 수 있으므로 \b 대신 명시적 ASCII 경계를 사용함
 _CAMEL_RE = re.compile(r"(?<![A-Za-z])([A-Z][a-z]+(?:[A-Z][a-z]+)+)(?![A-Za-z])")
 _SNAKE_RE = re.compile(r"(?<![A-Za-z0-9_])([a-z][a-z0-9]*(?:_[a-z0-9]+)+)(?![A-Za-z0-9_])")
 _DOT_PATH_RE = re.compile(r"(?<![A-Za-z0-9_.])([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)(?![A-Za-z0-9_.])")
 _FUNC_CALL_RE = re.compile(r"(?<![A-Za-z0-9_])([a-zA-Z_][a-zA-Z0-9_]*)\s*\(")
 
-# 에러 키워드 추출 패턴 — 한국어 접미사가 붙어도 인식한다.
+# 에러 키워드 추출 패턴 — 한국어 접미사가 붙어도 인식함
 _ERROR_KW_RE = re.compile(
     r"(?<![A-Za-z])(Error|Exception|Traceback|FAIL|FAILED|TypeError|ValueError|KeyError"
     r"|AttributeError|ImportError|RuntimeError|IndexError|FileNotFoundError"
@@ -104,9 +104,9 @@ def _plan_code_search(question: str, source_count: int, top_k_cap: int) -> Searc
         if sub and sub not in queries:
             queries.append(sub)
 
-    # source_count는 "선택된 소스 개수"이지 repo 내부 파일/청크 개수가 아니다.
+    # source_count는 "선택된 소스 개수"이지 repo 내부 파일/청크 개수가 아님
     # repo 하나에도 수백 개 파일이 있을 수 있으므로 코드 질문은 설정된 후보 수를
-    # 유지해 문서 청크 하나가 코드 청크를 가리는 상황을 피한다.
+    # 유지해 문서 청크 하나가 코드 청크를 가리는 상황을 피함
     top_k = max(top_k_cap, 1)
     return SearchPlan(
         strategy=SearchStrategy.HYBRID,

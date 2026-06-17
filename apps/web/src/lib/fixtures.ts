@@ -2,7 +2,7 @@
 import type { GeneratableArtifactType, SourceKind, SourceKindConfig } from "./types";
 export { fileIconForPath } from "./file-kind";
 
-// 새 소스 종류는 여기에 한 줄만 추가하면 UI 전체에 반영된다.
+// 새 소스 종류는 여기에 한 줄만 추가하면 UI 전체에 반영됨
 export const SOURCE_KINDS: Record<SourceKind, SourceKindConfig> = {
   repo: { icon: "github", label: "GitHub 저장소", chipBg: "#E1F5EE", chipFg: "#0F6E56" },
   md: { icon: "description", label: "Markdown", chipBg: "#E6F1FB", chipFg: "#185FA5" },
@@ -13,12 +13,14 @@ export const SOURCE_KINDS: Record<SourceKind, SourceKindConfig> = {
 
 // 채팅 추천 질문(목업).
 export const SUGGESTIONS = [
-  "이 소스들의 인증 흐름을 요약해줘",
-  "최근 브랜치에서 바뀐 핵심 로직은?",
-  "문서와 코드가 어긋난 부분을 찾아줘",
+  "이 레포의 핵심 실행 흐름을 소스코드 기준으로 설명해줘",
+  "최근 커밋에서 실제로 바뀐 파일과 영향도를 요약해줘",
+  "문서와 소스코드가 어긋난 부분을 찾아줘",
+  "주요 API 라우트와 데이터 모델 관계를 정리해줘",
+  "오류가 날 만한 구현 지점과 개선 우선순위를 알려줘",
 ];
 
-// 스튜디오(우측 패널) 타일. RepoLM 산출물만 남긴다.
+// 스튜디오(우측 패널) 타일. RepoLM 산출물만 유지
 // hint = 카드 보조 설명, tint = 카드별 고유 색조(아이콘 박스 배경/글자에 사용).
 export interface StudioTile {
   // 생성할 백엔드 산출물 종류(POST /artifacts {type}). note 제외.

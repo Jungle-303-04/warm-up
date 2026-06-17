@@ -35,7 +35,7 @@ function EmptyState() {
 }
 
 // URL 소스 미리보기. 상단에 URL/호스트/제목 카드 + "새 탭에서 열기", 본문은 iframe 임베드 시도.
-// 다수 사이트가 X-Frame-Options/CSP로 임베드를 막으므로 onError/타임아웃으로 폴백 안내를 띄운다.
+// 다수 사이트가 X-Frame-Options/CSP로 임베드를 막으므로 onError/타임아웃으로 폴백 안내를 표시
 function UrlPreview({ source }: { source: Source }) {
   const url = source.url ?? "";
   const [blocked, setBlocked] = useState(false);
@@ -195,13 +195,13 @@ export function ViewerPanel() {
   // 본문 링크 클릭을 해석해 뷰어 내부 열람으로 치환한다(외부 앱 이동 금지).
   // - external: 새 탭(noreferrer), 내부 네비게이션은 막음.
   // - anchor: 페이지 이동 없이 해당 위치로 스크롤(없으면 무시).
-  // - repo-file: 현재 repo 소스이면 해석된 경로의 파일을 viewer로 연다. 그 외 무시.
+  // - repo-file: 현재 repo 소스이면 해석된 경로의 파일을 viewer로 열기 그 외 무시.
   const handleLinkClick = useCallback(
     (href: string) => {
       const resolved = classifyLink(href, filePath);
       if (resolved.type === "external") {
         // 외부 절대 URL(http/https, github blob 등) → 새 탭으로 실제 링크 열기.
-        // noopener,noreferrer로 opener 탈취 방지. 앱 네비게이션은 발생하지 않는다.
+        // noopener,noreferrer로 opener 탈취 방지. 앱 네비게이션은 발생하지 않음
         window.open(resolved.href, "_blank", "noopener,noreferrer");
         return;
       }
@@ -230,7 +230,7 @@ export function ViewerPanel() {
 
   // viewer 대상이 바뀌면 내용을 로드한다(소스/파일 뷰어 전용).
   useEffect(() => {
-    // 산출물 뷰어이거나 소스 식별자가 없으면 소스 로딩을 하지 않는다.
+    // 산출물 뷰어이거나 소스 식별자가 없으면 소스 로딩을 하지 않음
     if (!notebookId || artifactId || !sourceId) return;
     let active = true;
     setLoading(true);
@@ -260,8 +260,8 @@ export function ViewerPanel() {
   const headerSub = filePath ? source.title : cfg.label;
   const externalUrl = source.url ?? source.repository_url ?? null;
 
-  // 코드 뷰어/URL 프리뷰는 본문이 패널 폭을 직접 채우도록 좌우 패딩을 최소화한다.
-  // 그 외(마크다운/텍스트/PDF)는 가독성을 위해 좌우 패딩만 둔다.
+  // 코드 뷰어/URL 프리뷰는 본문이 패널 폭을 직접 채우도록 좌우 패딩을 최소화함
+  // 그 외(마크다운/텍스트/PDF)는 가독성을 위해 좌우 패딩만 둠
   const isCodeBody = isCodePath(filePath);
   const isUrlBody = source.kind === "url" && !filePath;
   const bodyPadding = isCodeBody ? "px-0 py-3" : isUrlBody ? "px-3 py-3" : "px-5 py-4";
@@ -326,7 +326,7 @@ export function ViewerPanel() {
 }
 
 // ── 산출물(아티팩트/메모) 뷰어 ──────────────────────────────────────
-// 가운데 패널에 산출물을 열어 보여주고 편집한다.
+// 가운데 패널에 산출물을 열어 보여주고 편집함
 // - uml/erd/dependency: Mermaid 렌더 + 소스 편집(재렌더/저장)
 // - change_summary/note: 마크다운 렌더 + 편집(저장)
 function ArtifactViewer({ artifactId }: { artifactId: string }) {
@@ -456,7 +456,7 @@ function ArtifactViewer({ artifactId }: { artifactId: string }) {
     draft !== artifact.content ||
     (titleDraft.trim() !== "" && titleDraft.trim() !== artifact.title);
 
-  // 편집 패널(제목/본문 + 재렌더/저장). 다이어그램·마크다운 분기에서 공용으로 쓴다.
+  // 편집 패널(제목/본문 + 재렌더/저장). 다이어그램·마크다운 분기에서 공용으로 씀
   const editorPanel = showEditor ? (
     <div className="border-t border-border px-4 py-3">
       {/* 제목 편집(모든 산출물 공통). */}

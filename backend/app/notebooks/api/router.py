@@ -469,7 +469,7 @@ def generate_artifact(
     claims: SessionClaims = Depends(get_current_claims),
     service: ArtifactService = Depends(get_artifact_service),
 ) -> ArtifactRecord:
-    # 동기 처리. LLM 호출은 짧게 유지하며, 키가 없으면 결정론/골격으로 즉시 반환한다.
+    # 동기 처리. LLM 호출은 짧게 유지하며, 키가 없으면 결정론/골격으로 즉시 반환함
     return service.generate(
         notebook_id,
         type=request.type,

@@ -189,7 +189,7 @@ class SqlRepoRagStore:
             self._add_event(session, job.id, "lock_acquired", job.lock_key)
 
     def release_job_lock(self, job_id: str) -> None:
-        # running 상태 전이가 곧 잠금이므로 별도 해제 작업은 필요 없다.
+        # running 상태 전이가 곧 잠금이므로 별도 해제 작업은 필요 없
         return None
 
     def attach_job_repository(self, job_id: str, repository_id: str) -> None:

@@ -11,7 +11,7 @@ function isAbsoluteHttp(href: string): boolean {
   return /^https?:\/\//i.test(href);
 }
 
-// repo 루트 기준으로 상대 경로를 정규화한다.
+// repo 루트 기준으로 상대 경로를 정규화함
 // baseFilePath: 현재 보고 있는 파일 경로(예: "docs/guide/intro.md"). 없으면 루트 기준.
 // target: 링크의 상대/루트 경로(예: "./api.md", "../x.md", "/docs/y.md").
 // 반환: repo 루트 기준 정규화 경로(앞에 "/" 없음). 범위를 벗어나면 null.
@@ -44,7 +44,7 @@ export function resolveRepoPath(baseFilePath: string | undefined, target: string
   return stack.join("/");
 }
 
-// 본문 링크 href를 분류한다.
+// 본문 링크 href를 분류함
 // baseFilePath: 현재 뷰어가 보고 있는 파일 경로(상대 링크 기준점).
 export function classifyLink(href: string, baseFilePath: string | undefined): ResolvedLink {
   const trimmed = href.trim();

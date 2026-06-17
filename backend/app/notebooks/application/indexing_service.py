@@ -71,10 +71,10 @@ class IndexingService:
     registry: IndexingProgressStore
     clock: Any = field(default_factory=get_clock)
     id_factory: Any = field(default_factory=get_id_factory)
-    # repo 재풀링(재클론)용. None이면 재풀링 없이 기존 스냅샷으로 인덱싱한다.
-    # 헥사고날 경계: NotebookService와 동일한 RepoSyncService 포트를 주입받는다.
+    # repo 재풀링(재클론)용. None이면 재풀링 없이 기존 스냅샷으로 인덱싱함
+    # 헥사고날 경계: NotebookService와 동일한 RepoSyncService 포트를 주입수신
     repo_sync: Any | None = field(default_factory=RepoSyncService)
-    # URL 소스 본문 수집용. None이면 네트워크 호출 없이 URL 색인을 건너뛴다.
+    # URL 소스 본문 수집용. None이면 네트워크 호출 없이 URL 색인을 건너뛴
     url_fetcher: "LinkFetcher | None" = None
 
     def register(self, source: SourceRecord) -> None:
@@ -138,7 +138,7 @@ class IndexingService:
             self.registry.update(source_id, _mark_file_done(file.path, len(chunks)))
 
         self.registry.update(source_id, _finish(self.clock()))
-        # 재풀링은 실패해도 기존 스냅샷으로 인덱싱은 완료(done)시키되, 사유는 남긴다.
+        # 재풀링 실패 시 기존 스냅샷으로 인덱싱 완료(done), 사유 기록
         if resync_error is not None:
             self.registry.update(source_id, _set_error(resync_error))
 

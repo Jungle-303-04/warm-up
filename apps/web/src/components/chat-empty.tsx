@@ -4,7 +4,7 @@ import { useSourceActions } from "../lib/source-actions";
 import { Icon } from "./icon";
 
 // 소스 0개일 때 가운데 채팅 자리를 채우는 온보딩 히어로.
-// 빠른 시작 카드 3개는 공용 소스 추가 흐름(컨텍스트)을 그대로 호출한다.
+// 빠른 시작 카드 3개는 공용 소스 추가 흐름(컨텍스트)을 그대로 호출함
 interface QuickCard {
   icon: string;
   tintCls: string; // Tailwind bg & text 클래스

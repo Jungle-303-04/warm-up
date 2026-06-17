@@ -40,8 +40,8 @@ export function AuthMenu() {
   );
 }
 
-// 로그인 상태에서 아바타+이름을 버튼으로 만들고, 클릭 시 팝업 메뉴를 띄운다.
-// 메뉴에는 (상단) 프로필 요약 + GitHub 프로필 링크, (하단) 로그아웃 항목이 있다.
+// 로그인 상태에서 아바타+이름을 버튼으로 만들고, 클릭 시 팝업 메뉴를 표시
+// 메뉴에는 (상단) 프로필 요약 + GitHub 프로필 링크, (하단) 로그아웃 항목이 있음
 function ProfileMenu({ me }: { me: Me }) {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);

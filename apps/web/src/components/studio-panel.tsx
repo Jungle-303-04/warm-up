@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ARTIFACT_META } from "../lib/api";
 import { cn } from "../lib/cn";
 import { STUDIO_TILES, type StudioTile } from "../lib/fixtures";
+import { artifactScopeWarning, selectedSources } from "../lib/source-scope";
 import { selectScopeCount, useWorkspace } from "../lib/store";
 import type { Artifact } from "../lib/types";
 import { Icon } from "./icon";
@@ -28,7 +29,7 @@ function getTintCls(tint: string) {
 }
 
 // 산출물 메타(레이블/아이콘/색조)의 tint → studio-tint 키 매핑.
-// ARTIFACT_META.tint 는 "grey" 를 포함하므로 그대로 studio-tint-* 와 맞춘다.
+// ARTIFACT_META.tint 는 "grey" 포함, studio-tint-* 와 직접 매핑
 function artifactMeta(artifact: Artifact) {
   return ARTIFACT_META[artifact.type];
 }
@@ -41,7 +42,7 @@ function artifactDetail(artifact: Artifact): string {
 }
 
 // 우 패널. 너비는 workspace 에서 style 로 주입(동적 리사이즈).
-// 소스 0개면 생성 버튼만 비활성화하고 메모는 계속 만들 수 있게 둔다.
+// 소스 0개면 생성 버튼만 비활성화, 메모 작성은 유지
 export function StudioPanel({
   style,
   onCollapse,
@@ -52,6 +53,7 @@ export function StudioPanel({
   const sourceCount = useWorkspace((s) => s.sources.length);
   const scopeCount = useWorkspace(selectScopeCount);
   const selectedSourceIds = useWorkspace((s) => s.selectedSourceIds);
+  const sources = useWorkspace((s) => s.sources);
   const artifacts = useWorkspace((s) => s.artifacts);
   const artifactsLoading = useWorkspace((s) => s.artifactsLoading);
   const artifactsError = useWorkspace((s) => s.artifactsError);
@@ -60,12 +62,20 @@ export function StudioPanel({
   const addNote = useWorkspace((s) => s.addNote);
   // 생성 진입점을 하나로 통합한 메뉴 열림 상태.
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scopeNotice, setScopeNotice] = useState<string | null>(null);
   const canCreate = sourceCount > 0 && scopeCount > 0;
   const busy = generatingType !== null;
+  const scopedSources = selectedSources(sources, selectedSourceIds);
 
   // 기능 카드 클릭 → 백엔드에 다이어그램/요약 생성. 선택 소스만 범위로 전달.
   const create = (tile: StudioTile) => {
     if (!canCreate || busy || tile.disabledReason) return;
+    const warning = artifactScopeWarning(tile.type, scopedSources);
+    if (warning) {
+      setScopeNotice(warning);
+      return;
+    }
+    setScopeNotice(null);
     void generateArtifact(tile.type, [...selectedSourceIds]);
   };
 
@@ -157,9 +167,9 @@ export function StudioPanel({
             })}
           </div>
 
-          {artifactsError ? (
-            <p className="mt-2.5 rounded-lg bg-destructive/10 px-3 py-1.5 text-[11.5px] font-medium text-destructive">
-              {artifactsError}
+          {artifactsError || scopeNotice ? (
+            <p className="mt-2.5 whitespace-pre-line rounded-lg bg-destructive/10 px-3 py-1.5 text-[11.5px] font-medium text-destructive">
+              {artifactsError ?? scopeNotice}
             </p>
           ) : null}
 
@@ -192,7 +202,7 @@ export function StudioPanel({
   );
 }
 
-// 생성 진입점 통합 메뉴. 헤더의 "+ 추가" 클릭 시 메모 생성을 연다.
+// 생성 진입점 통합 메뉴. 헤더의 "+ 추가" 클릭 시 메모 생성 열기
 function CreateMenu({
   open,
   setOpen,

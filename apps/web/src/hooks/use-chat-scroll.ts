@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // 채팅 자동 스크롤. 하단 근처면 새 메시지/타이핑마다 바닥으로 고정하고,
-// 사용자가 위로 스크롤하면 고정을 멈춘다.
+// 사용자가 위로 스크롤하면 고정을 중지
 // - deps(메시지 수/대기 상태) 변화에 반응.
 // - 타이핑으로 콘텐츠 높이가 늘어나는 동안에도 하단으로 따라가도록
-//   스크롤 영역 자체의 크기 변화를 ResizeObserver + MutationObserver로 감지한다.
+//   스크롤 영역 자체의 크기 변화를 ResizeObserver + MutationObserver로 감지함
 const STICK_THRESHOLD_PX = 120; // 이 거리 이내면 "하단 고정" 상태로 본다.
 
 export function useChatScroll(deps: unknown[]) {

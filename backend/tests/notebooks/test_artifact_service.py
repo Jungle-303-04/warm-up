@@ -212,6 +212,37 @@ def test_generate_erd_keeps_long_model_file_context() -> None:
     assert "posts }o--|| users : relationship" in record.content
 
 
+def test_generate_uml_rejects_multiple_repo_sources() -> None:
+    from app.notebooks.domain.records import NotebookRecord
+
+    service, store = _service()
+    store.add_notebook(
+        NotebookRecord(
+            id="nb-1",
+            owner_user_id=0,
+            title="nb",
+            created_at=FIXED_NOW,
+            updated_at=FIXED_NOW,
+        )
+    )
+    for source_id, title in (("repo-1", "team/api"), ("repo-2", "team/web")):
+        store.add_source(
+            SourceRecord(
+                id=source_id,
+                notebook_id="nb-1",
+                kind="repo",
+                title=title,
+                repository_url=f"https://github.com/{title}",
+                branch="main",
+                created_at=FIXED_NOW,
+                repo_snapshot=[{"path": "app/main.py", "content": "class App: ...\n"}],
+            )
+        )
+
+    with pytest.raises(ValueError, match="저장소 하나"):
+        service.generate("nb-1", type="uml", source_ids=["repo-1", "repo-2"])
+
+
 def test_generate_with_empty_explicit_scope_rejects() -> None:
     service, store = _service()
     nb_id = _notebook_with_repo(store)

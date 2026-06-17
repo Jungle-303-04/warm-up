@@ -1,11 +1,15 @@
 """노트북 채팅 서비스(임베딩 검색 기반).
 
-질문을 임베딩해 ChunkStore에서 근거 청크를 검색하고, 그 위에서 답변을
-생성한다(LLM answerer가 주입되면 LLM, 없으면 결정론적 요약). 인덱싱은 소스
-생성 시 백그라운드로 미리 수행되므로, 채팅 시점에는 질의 임베딩 + 검색만 한다.
+흐름:
+- 질문 임베딩
+- ChunkStore 근거 검색
+- LLM answerer 또는 결정론 요약
+- 근거 부족 응답
 
-외부 키 없이 동작: 임베딩은 기본 deterministic, answerer는 기본 None.
-근거(소스/청크)가 없으면 에러 대신 "근거 부족" 응답을 돌려준다.
+전제:
+- 인덱싱은 소스 생성 시 백그라운드 처리
+- 채팅 시점 작업은 질의 임베딩과 검색 중심
+- 외부 키 없이 deterministic 임베딩과 answerer None 구성 가능
 """
 
 import contextlib
@@ -50,6 +54,8 @@ class TextChunk:
     source_title: str
     text: str
     path: str | None = None
+    start_line: int | None = None
+    end_line: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +64,8 @@ class ChatCitation:
     source_title: str
     path: str | None
     snippet: str
+    start_line: int | None = None
+    end_line: int | None = None
 
     @property
     def file_path(self) -> str | None:
@@ -114,7 +122,7 @@ class ChatService:
         title_by_source = _title_by_source_map(sources)
         source_by_id = {source.id: source for source in sources}
 
-        # 이전 대화 기록 가져오기
+        # 이전 대화 기록
         chat_history = self.store.list_chat_messages(notebook_id)
 
         if not sources:
@@ -135,7 +143,7 @@ class ChatService:
                 [source.id for source in selected] if source_ids is not None else None
             )
 
-            # 1) 질문 재구성 (Query Reformulation)
+            # 1) 질문 재구성(Query Reformulation)
             standalone_question = normalized_question
             if chat_history and self.answerer and hasattr(self.answerer, "reformulate"):
                 with contextlib.suppress(Exception):
@@ -153,7 +161,7 @@ class ChatService:
             if _should_ask_repo_scope(standalone_question, selected):
                 result = _repo_scope_clarification_result(selected)
             elif answer_plan.route == AnswerRoute.DIRECT:
-                # 인사/대화 또는 (소스 없을 때) 일반 지식 → RAG 생략, 바로 답변.
+                # 인사/대화 또는 일반 지식 경로
                 if self.answerer is not None:
                     answer = self._answer(normalized_question, [], chat_history)
                 else:
@@ -174,7 +182,7 @@ class ChatService:
             else:
                 plan = answer_plan.search_plan
 
-                # 4) 계획된 쿼리들로 다중 검색 (단일/다중 모두 동일 경로)
+                # 4) 계획 쿼리 기반 다중 검색
                 results_per_query = [
                     self.chunk_store.search(
                         notebook_id,
@@ -187,9 +195,9 @@ class ChatService:
                     for query in plan.queries
                 ]
 
-                # 5) RRF로 다중 쿼리 결과를 병합·재랭킹.
+                # 5) RRF 기반 결과 병합과 재랭킹
                 hits = combine_search_results(results_per_query, top_k=plan.top_k)
-                # 6) 에이전트 도구(우리 인덱스에 묶인 인프로세스 도구) 준비 후 답변.
+                # 6) 인덱스 scope에 묶인 인프로세스 도구 준비
                 hits = self._context_expander().expand(
                     notebook_id,
                     hits,
@@ -256,6 +264,8 @@ class ChatService:
                 source_title=title_by_source.get(hit.chunk.source_id, hit.chunk.source_id),
                 text=hit.chunk.text,
                 path=hit.chunk.file_path,
+                start_line=hit.chunk.start_line,
+                end_line=hit.chunk.end_line,
             )
             for hit in hits
         ]
@@ -284,6 +294,8 @@ class ChatService:
                 source_title=title_by_source.get(hit.chunk.source_id, hit.chunk.source_id),
                 text=hit.chunk.text,
                 path=hit.chunk.file_path,
+                start_line=hit.chunk.start_line,
+                end_line=hit.chunk.end_line,
             )
             for hit in hits
         ]
@@ -302,7 +314,7 @@ class ChatService:
         *,
         preferred_tool_names: tuple[str, ...] = (),
     ) -> list | None:
-        """채팅 에이전트용 인프로세스 도구(우리 인덱스에 묶임). 설정이 꺼져 있으면 None."""
+        """채팅 에이전트용 인프로세스 도구 목록."""
         if not getattr(self.settings, "chat_use_tools", False):
             return None
         if not preferred_tool_names:
@@ -451,14 +463,14 @@ class ChatService:
         if self.answerer is not None:
             try:
                 if hasattr(self.answerer, "answer"):
-                    # 도구가 있으면 에이전트 루프로 답변(answerer가 지원). 없으면 단발.
+                    # 도구 지원 answerer 경로
                     answer = self.answerer.answer(
                         question, evidence, history, tools=tools
                     ).strip()
                 else:
                     answer = self.answerer(question, evidence).strip()
                 if answer:
-                    return answer
+                    return _strip_inline_citation_markers(answer)
             except Exception:
                 pass
         return _fallback_answer(evidence)
@@ -509,6 +521,8 @@ def _citation_from_chunk(chunk: TextChunk, question: str) -> ChatCitation:
         source_title=chunk.source_title,
         path=chunk.path,
         snippet=_snippet(chunk.text, _tokens(question)),
+        start_line=chunk.start_line,
+        end_line=chunk.end_line,
     )
 
 
@@ -518,6 +532,8 @@ def _citation_to_payload(citation: ChatCitation) -> dict:
         "source_title": citation.source_title,
         "path": citation.path,
         "snippet": citation.snippet,
+        "start_line": citation.start_line,
+        "end_line": citation.end_line,
     }
 
 
@@ -540,10 +556,14 @@ def _snippet(text: str, tokens: set[str]) -> str:
 
 
 def _dedupe_citations(citations: list[ChatCitation]) -> list[ChatCitation]:
-    seen: set[tuple[str, str | None, str]] = set()
+    seen: set[tuple[str, str, str]] = set()
     deduped: list[ChatCitation] = []
     for citation in citations:
-        key = (citation.source_id, citation.path, citation.snippet)
+        key = (
+            citation.source_id,
+            citation.path or "__source__",
+            "" if citation.path else citation.snippet,
+        )
         if key in seen:
             continue
         seen.add(key)
@@ -552,7 +572,7 @@ def _dedupe_citations(citations: list[ChatCitation]) -> list[ChatCitation]:
 
 
 def _dedupe_hits_for_context(hits: list[ChunkSearchHit]) -> list[ChunkSearchHit]:
-    """LLM context precision을 위해 같은 청크/같은 본문 근거를 한 번만 유지한다."""
+    """LLM context precision용 청크/본문 단위 중복 제거."""
     seen: set[tuple[str, str | None, str]] = set()
     deduped: list[ChunkSearchHit] = []
     for hit in hits:
@@ -684,7 +704,7 @@ def _should_ask_repo_scope(question: str, selected: list[SourceRecord]) -> bool:
     if len(repo_sources) < 2:
         return False
     if len({_repo_identity(source) for source in repo_sources}) <= 1:
-        # 같은 저장소의 여러 브랜치는 답변에서 branch별로 나누는 편이 자연스럽다.
+        # 같은 저장소 여러 브랜치: branch별 답변 경로
         return False
 
     normalized = question.strip().lower()
@@ -735,10 +755,10 @@ def _prioritize_source_code_hits(
     hits: list[ChunkSearchHit],
     source_by_id: dict[str, SourceRecord],
 ) -> list[ChunkSearchHit]:
-    """소스코드 관련 질문에서는 문서보다 실제 repo/code 청크를 먼저 배치한다.
+    """소스코드 질문용 코드 근거 우선 정렬.
 
-    검색 자체는 기존 RAG 결과를 그대로 사용하되, LLM/폴백 답변에 들어가는
-    evidence 순서를 조정한다. 문서 청크는 제거하지 않고 코드 근거 뒤에 보조로 둔다.
+    기존 RAG 결과 유지, LLM/폴백 답변 evidence 순서만 조정.
+    문서 청크는 코드 근거 뒤 보조 근거 위치.
     """
     if not _is_source_code_question(question):
         return hits
@@ -748,6 +768,7 @@ def _prioritize_source_code_hits(
         hits,
         key=lambda hit: (
             _code_hit_priority(hit, source_by_id),
+            _code_symbol_density(hit),
             hit.score,
         ),
         reverse=True,
@@ -759,7 +780,7 @@ def _keep_repo_docs_only_when_aligned_with_code(
     hits: list[ChunkSearchHit],
     source_by_id: dict[str, SourceRecord],
 ) -> list[ChunkSearchHit]:
-    """코드 질문에서는 repo docs/README를 코드와 맞물릴 때만 보조 근거로 둔다."""
+    """코드 질문용 repo docs/README 보조 근거 필터."""
     if not _is_source_code_question(question):
         return hits
 
@@ -836,10 +857,25 @@ def _code_hit_priority(
         return 0
     path = (hit.chunk.file_path or "").lower()
     if is_repo_code_source(source, path=path, language=hit.chunk.language):
-        return 3
+        return 100
+    if _is_repo_doc_hit(hit, source_by_id):
+        return -50
     if source.kind == "repo" and path:
-        return 1
+        return 20
     return 0
+
+
+def _code_symbol_density(hit: ChunkSearchHit) -> int:
+    text = hit.chunk.text
+    return (
+        text.count("class ")
+        + text.count("def ")
+        + text.count("function ")
+        + text.count("export ")
+        + text.count("interface ")
+        + text.count("@router")
+        + text.count("APIRouter")
+    )
 
 
 def _fallback_answer(evidence: list[TextChunk]) -> str:
@@ -847,8 +883,22 @@ def _fallback_answer(evidence: list[TextChunk]) -> str:
     for index, chunk in enumerate(evidence[:3], start=1):
         where = chunk.path or chunk.source_title
         lines.append(f"{index}. {where}: {_snippet(chunk.text, set())}")
-    lines.append("자세한 근거는 아래 출처를 확인하세요.")
+    lines.append("자세한 위치는 아래 근거 칩에서 파일과 라인을 확인하세요.")
     return "\n".join(lines)
+
+
+INLINE_CITATION_MARKER_RE = re.compile(r"\s*\[(?:출처|근거)\s*\d+\]", re.IGNORECASE)
+
+
+def _strip_inline_citation_markers(answer: str) -> str:
+    """LLM 본문 내 번호형 출처 표기 제거.
+
+    출처는 구조화된 citations 필드로 별도 전달.
+    본문은 문장 내용 유지, 표식만 제거.
+    """
+
+    cleaned = INLINE_CITATION_MARKER_RE.sub("", answer)
+    return re.sub(r"[ \t]+(\n|$)", r"\1", cleaned).strip()
 
 
 def _readme_entry(snapshot: list[dict] | None) -> tuple[str, str] | None:
