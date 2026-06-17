@@ -111,6 +111,12 @@ function isImeComposing(
 const DUPLICATE_SUBMIT_WINDOW_MS = 1_500;
 const IME_ENTER_SUPPRESS_MS = 120;
 
+interface QueuedQuestion {
+  id: string;
+  question: string;
+  messageId: string;
+}
+
 export function ChatView() {
   const scopeCount = useWorkspace(selectScopeCount);
   const sourceCount = useWorkspace((s) => s.sources.length);
@@ -130,7 +136,7 @@ export function ChatView() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
-  const [queuedQuestions, setQueuedQuestions] = useState<string[]>([]);
+  const [queuedQuestions, setQueuedQuestions] = useState<QueuedQuestion[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -155,7 +161,11 @@ export function ChatView() {
   const canSend = query.trim().length > 0 && scopeCount > 0 && !!notebookId;
 
   // 메시지 변화/타이핑 진행/대기 상태에 맞춰 하단 고정 스크롤.
-  const { scrollRef, onScroll, scrollToBottom } = useChatScroll([messages, pendingQuestion]);
+  const { scrollRef, onScroll, scrollToBottom } = useChatScroll([
+    messages,
+    pendingQuestion,
+    queuedQuestions.length,
+  ]);
 
   // 클라이언트 로캘 기준의 세션 날짜.
   const today = new Date().toLocaleDateString("ko-KR", {
@@ -280,8 +290,26 @@ export function ChatView() {
     const next = queuedQuestions[0];
     // 먼저 큐에서 제거한 뒤 실행(같은 질문 재진입 방지).
     setQueuedQuestions((prev) => prev.slice(1));
-    void runQuestion(next);
+    void runQuestion(next.question);
   }, [queuedQuestions, runQuestion, sending]);
+
+  const removeQueuedQuestion = useCallback(
+    (queueId: string) => {
+      const target = queuedQuestions.find((item) => item.id === queueId);
+      setQueuedQuestions((prev) => prev.filter((item) => item.id !== queueId));
+      if (target) {
+        setMessages((prev) => prev.filter((message) => message.id !== target.messageId));
+      }
+    },
+    [queuedQuestions],
+  );
+
+  const clearQueuedQuestions = useCallback(() => {
+    if (queuedQuestions.length === 0) return;
+    const queuedMessageIds = new Set(queuedQuestions.map((item) => item.messageId));
+    setQueuedQuestions([]);
+    setMessages((prev) => prev.filter((message) => !queuedMessageIds.has(message.id)));
+  }, [queuedQuestions]);
 
   const send = useCallback(
     (text = query) => {
@@ -295,16 +323,21 @@ export function ChatView() {
         now - last.at < DUPLICATE_SUBMIT_WINDOW_MS &&
         (last.question === question ||
           (question.length <= 2 && last.question.endsWith(question)));
-      if (duplicate || pendingQuestion === question || queuedQuestions.includes(question)) {
+      if (
+        duplicate ||
+        pendingQuestion === question ||
+        queuedQuestions.some((item) => item.question === question)
+      ) {
         return;
       }
       lastSubmittedRef.current = { question, at: now };
 
       setQuery("");
+      const userMessageId = makeId();
       // 사용자 메시지를 즉시 목록에 추가(낙관적).
       setMessages((prev) => [
         ...prev,
-        { id: makeId(), role: "user", kind: "answer", citations: [], content: question },
+        { id: userMessageId, role: "user", kind: "answer", citations: [], content: question },
       ]);
 
       // 다이어그램(UML/ERD/의존성) 요청이면 텍스트 답변 대신 스튜디오 산출물로
@@ -333,7 +366,10 @@ export function ChatView() {
       }
 
       // 항상 큐에 넣고, 위의 단일 드레인 효과가 순차 처리한다(직접 실행 금지).
-      setQueuedQuestions((prev) => [...prev, question]);
+      setQueuedQuestions((prev) => [
+        ...prev,
+        { id: makeId(), question, messageId: userMessageId },
+      ]);
     },
     [
       generateArtifact,
@@ -348,14 +384,14 @@ export function ChatView() {
 
   const stopCurrent = () => {
     abortRef.current?.abort();
-    setQueuedQuestions([]);
+    clearQueuedQuestions();
   };
 
   // 대화 초기화: 백엔드 API를 통해 메시지 영속 삭제
   // 진행 중 요청 중단 + 화면 메시지/대기열/입력 초안(localStorage) 클리어.
   const resetConversation = () => {
     abortRef.current?.abort();
-    setQueuedQuestions([]);
+    clearQueuedQuestions();
     setMessages([]);
     setQuery("");
     setHistoryError(null);
@@ -553,9 +589,31 @@ export function ChatView() {
                     </Button>
                   </div>
                   {queuedQuestions.length > 0 ? (
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      다음 질문 {queuedQuestions.length}개 대기 중
-                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      <p className="text-[11px] text-muted-foreground">
+                        다음 질문 {queuedQuestions.length}개 대기 중
+                      </p>
+                      <div className="space-y-1">
+                        {queuedQuestions.map((item, index) => (
+                          <div
+                            key={item.id}
+                            className="flex max-w-[420px] items-center gap-2 rounded-lg bg-secondary/70 px-2.5 py-1.5 text-[11.5px]"
+                          >
+                            <span className="min-w-0 flex-1 truncate">
+                              {index + 1}. {item.question}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeQueuedQuestion(item.id)}
+                              aria-label="대기 질문 삭제"
+                              className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-card hover:text-foreground"
+                            >
+                              <Icon name="close" size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   ) : null}
                 </div>
               </div>
