@@ -19,6 +19,18 @@ from app.agent.service.agent_intent import (
     BasisMode,
     normalize_text,
 )
+from app.agent.service.agent_tool_registry import (
+    TOOL_CHANGE_BASIS,
+    TOOL_CLARIFY,
+    TOOL_COMPARE_SNAPSHOTS,
+    TOOL_GENERAL_CHAT,
+    TOOL_LIST_BRANCHES,
+    TOOL_LIST_FILES,
+    TOOL_LIST_REPOSITORIES,
+    TOOL_RETRIEVE_RAG,
+    TOOL_SEARCH_REPOSITORY_TARGETS,
+    TOOL_SHOW_BASIS,
+)
 from app.rag.service.ports import TextGenerator
 
 
@@ -38,12 +50,25 @@ VALID_BASIS_MODES = {
     BASIS_MODE_REMOVE,
     BASIS_MODE_CLEAR,
 }
+VALID_TOOL_NAMES = {
+    TOOL_LIST_REPOSITORIES,
+    TOOL_LIST_BRANCHES,
+    TOOL_SEARCH_REPOSITORY_TARGETS,
+    TOOL_LIST_FILES,
+    TOOL_SHOW_BASIS,
+    TOOL_CHANGE_BASIS,
+    TOOL_RETRIEVE_RAG,
+    TOOL_COMPARE_SNAPSHOTS,
+    TOOL_GENERAL_CHAT,
+    TOOL_CLARIFY,
+}
 DEFAULT_INTENT = INTENT_RAG_ANSWER
 DEFAULT_BASIS_MODE = BASIS_MODE_REPLACE
 FALLBACK_REASON_PREFIX = "intent resolver failed"
 
 INTENT_RESOLVER_SYSTEM_PROMPT = (
-    "You classify a Korean coding assistant chat message into one intent. "
+    "You are the planner for a Korean code-analysis agent. "
+    "Classify the user message and choose the next tool. "
     "Return JSON only. Do not answer the user.\n\n"
     "Intents:\n"
     "- list_repositories: user asks what repositories are registered/indexed/analyzed. "
@@ -70,10 +95,39 @@ INTENT_RESOLVER_SYSTEM_PROMPT = (
     "selecting the replacement target only.\n"
     "- general_chat: greeting or casual talk not asking repository/code facts.\n"
     "- rag_answer: code, plan, implementation, document, or repository content question.\n\n"
+    "Tool choices:\n"
+    "- list_repositories: show analyzed repository list from SQL metadata.\n"
+    "- list_branches: show analyzed branch list from SQL metadata.\n"
+    "- search_repository_targets: search repository/branch names from SQL metadata.\n"
+    "- list_files: show file/folder snapshot list from SQL metadata.\n"
+    "- show_basis: show current answer basis.\n"
+    "- change_basis: update current answer basis.\n"
+    "- retrieve_rag: search indexed code/doc evidence and answer content questions.\n"
+    "- compare_snapshots: compare SQL file snapshots across two or more selected branches/repositories.\n"
+    "- general_chat: casual conversation.\n"
+    "- clarify: ask for missing repository basis.\n\n"
+    "Important planning rules:\n"
+    "- If the user asks differences, comparison, functional differences, implementation differences, "
+    "세부 차이, 기능 차이, 구현 차이, or 'what is different' between selected/current branches "
+    "or repositories, choose compare_snapshots. This includes questions where target names are "
+    "omitted but the current answer basis already contains multiple targets. Do not choose "
+    "list_branches just because the word branch appears.\n"
+    "- If the user asks bugs, implementation details, missing work, TODOs, unimplemented parts, "
+    "priorities, or what to work on next, choose retrieve_rag.\n"
+    "- For a content question, rewrite rag_query as a search-friendly Korean query that keeps "
+    "the user's real goal. Include words like TODO, placeholder, 미구현, 구현, 우선순위, "
+    "차이, 위험, 테스트 only when they match the user's request.\n"
+    "- For pure metadata questions such as branch list or repository list, rag_query must be null.\n\n"
     "For change_basis, set basis_mode to replace/add/remove/clear. "
     "For other intents, basis_mode must be null.\n\n"
     "Output shape:\n"
-    '{"intent":"list_repositories","basis_mode":null,"reason":"short reason"}'
+    "{"
+    '"intent":"rag_answer",'
+    '"basis_mode":null,'
+    '"tool_name":"retrieve_rag",'
+    '"rag_query":"search-friendly query or null",'
+    '"reason":"short reason"'
+    "}"
 )
 
 
@@ -83,6 +137,8 @@ class AgentIntentPlan:
 
     intent: AgentIntent
     basis_mode: BasisMode | None = None
+    tool_name: str | None = None
+    rag_query: str | None = None
     reason: str | None = None
 
 
@@ -113,6 +169,8 @@ class AgentIntentResolver:
             return AgentIntentPlan(
                 intent=DEFAULT_INTENT,
                 basis_mode=None,
+                tool_name=TOOL_RETRIEVE_RAG,
+                rag_query=user_input.strip(),
                 reason=f"{FALLBACK_REASON_PREFIX}: {exc}",
             )
 
@@ -150,12 +208,37 @@ def parse_intent_response(response: str) -> AgentIntentPlan:
     elif basis_mode not in VALID_BASIS_MODES:
         basis_mode = DEFAULT_BASIS_MODE
 
+    tool_name = payload.get("tool_name")
+    if tool_name not in VALID_TOOL_NAMES:
+        tool_name = infer_default_tool_name(intent)
+
+    rag_query = payload.get("rag_query")
+    if not isinstance(rag_query, str) or not rag_query.strip():
+        rag_query = None
+
     reason = payload.get("reason") if isinstance(payload.get("reason"), str) else None
     return AgentIntentPlan(
         intent=intent,
         basis_mode=basis_mode,
+        tool_name=tool_name,
+        rag_query=rag_query,
         reason=reason,
     )
+
+
+def infer_default_tool_name(intent: AgentIntent) -> str:
+    """모델이 tool_name을 빠뜨렸을 때 intent에 맞는 기본 tool을 고른다."""
+
+    return {
+        INTENT_LIST_REPOSITORIES: TOOL_LIST_REPOSITORIES,
+        INTENT_LIST_BRANCHES: TOOL_LIST_BRANCHES,
+        INTENT_SEARCH_REPOSITORY_TARGETS: TOOL_SEARCH_REPOSITORY_TARGETS,
+        INTENT_LIST_FILES: TOOL_LIST_FILES,
+        INTENT_SHOW_BASIS: TOOL_SHOW_BASIS,
+        INTENT_CHANGE_BASIS: TOOL_CHANGE_BASIS,
+        INTENT_RAG_ANSWER: TOOL_RETRIEVE_RAG,
+        INTENT_GENERAL_CHAT: TOOL_GENERAL_CHAT,
+    }.get(intent, TOOL_CLARIFY)
 
 
 def extract_json_object(value: str) -> str:

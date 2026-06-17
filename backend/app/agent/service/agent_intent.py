@@ -100,6 +100,16 @@ TARGET_SELECTION_BLOCKERS = (
     "해제",
     "초기화",
 )
+BRANCH_LIST_QUESTION_KEYWORDS = (
+    "목록",
+    "리스트",
+    "명단",
+    "뭐 있어",
+    "뭐가 있어",
+    "어떤 브랜치",
+    "보여",
+    "알려",
+)
 MIN_BARE_TARGET_TOKENS = 2
 MAX_BARE_TARGET_TOKENS = 5
 
@@ -149,7 +159,7 @@ def is_branch_list_question(user_input: str) -> bool:
 
     return has_digit(text) or any(
         keyword in text
-        for keyword in ("목록", "리스트", "뭐", "어떤", "있", "없", "보여", "알려")
+        for keyword in BRANCH_LIST_QUESTION_KEYWORDS
     )
 
 

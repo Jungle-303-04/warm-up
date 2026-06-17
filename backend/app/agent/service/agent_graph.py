@@ -1,3 +1,4 @@
+import re
 from typing import Any, TypedDict
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -65,6 +66,7 @@ from app.agent.service.ports import (
 )
 from app.agent.service.rag_answer_prompt import (
     build_answer_messages,
+    build_comparison_answer_messages,
     build_evidence_fallback_answer,
     build_no_evidence_answer,
     get_message_content,
@@ -74,15 +76,16 @@ from app.agent.service.repository_context import (
     build_branch_list_answer,
     build_available_path_prefixes,
     build_clarification_answer,
+    build_comparison_evidence_paths_by_run,
     build_current_basis_answer,
     build_file_snapshot_comparison_answer,
+    build_snapshot_comparison_items,
     build_file_list_answer,
     build_inferred_repository_ref,
     build_next_basis_refs,
     build_repository_list_answer,
     build_repository_target_search_answer,
     get_latest_unique_runs_by_repository_branch,
-    is_snapshot_comparison_question,
     resolve_runs_from_refs,
     resolve_runs_from_recent_list_ordinal,
     resolve_runs_from_text,
@@ -92,6 +95,7 @@ from app.rag.api.schema import (
     RagAskRepositoryRefDTO,
     RagAskRequestDTO,
     RagAskResponseDTO,
+    RagAskSourceDTO,
 )
 from app.rag.service.ports import AnswerUseCase, RagStore
 
@@ -101,6 +105,38 @@ GENERAL_CHAT_SYSTEM_PROMPT = (
     "Respond naturally and briefly. Do not invent repository facts. "
     "If the user seems to need repository/code analysis, suggest asking for the repository list "
     "or naming a repository."
+)
+MAX_COMPARISON_CHUNKS_PER_RUN = 12
+MAX_COMPARISON_CHUNKS_PER_PATH = 2
+MAX_SQL_EVIDENCE_SOURCES = 5
+MIN_QUERY_TOKEN_LENGTH = 2
+IMPLEMENTATION_GAP_QUERY_TERMS = {
+    "todo",
+    "fixme",
+    "placeholder",
+    "unfinished",
+    "unimplemented",
+    "missing",
+    "priority",
+    "prioritize",
+    "implement",
+    "미구현",
+    "구현",
+    "빈구현",
+    "우선",
+    "우선순위",
+    "작업",
+    "해야",
+}
+IMPLEMENTATION_GAP_CHUNK_MARKERS = (
+    "todo",
+    "fixme",
+    "notimplemented",
+    "notimplementederror",
+    "pass",
+    "returnnone",
+    "placeholder",
+    "미구현",
 )
 
 
@@ -115,6 +151,9 @@ class AgentGraphState(TypedDict, total=False):
     basis_mode: BasisMode
     tool_queue: list[str]
     last_tool_name: str
+    planned_tool_name: str
+    planned_rag_tool_name: str
+    rag_query: str
     target_runs: list[Any]
     final_refs: list[InferredRepositoryRef]
     rag_response: RagAskResponseDTO
@@ -267,7 +306,12 @@ class AgentGraph:
     def select_agent_tool(self, state: AgentGraphState) -> AgentGraphState:
         """분류된 intent를 실행 가능한 tool 이름으로 바꾼다."""
 
-        return {"tool_queue": [select_tool_name(state.get("intent", INTENT_CLARIFY))]}
+        return {
+            "tool_queue": [
+                state.get("planned_tool_name")
+                or select_tool_name(state.get("intent", INTENT_CLARIFY))
+            ]
+        }
 
     def run_agent_tool(self, state: AgentGraphState) -> AgentGraphState:
         """tool queue에서 하나를 꺼내 실행하고 남은 queue를 다음 노드에 넘긴다."""
@@ -296,8 +340,10 @@ class AgentGraph:
         intent_plan = self.resolve_intent_plan_with_llm(user_input, messages)
         if not is_intent_resolver_fallback(intent_plan):
             return self.build_intent_state(
-                intent=correct_intent_with_explicit_markers(user_input, intent_plan.intent),
+                intent=intent_plan.intent,
                 basis_mode=intent_plan.basis_mode or BASIS_MODE_REPLACE,
+                planned_tool_name=getattr(intent_plan, "tool_name", None),
+                rag_query=getattr(intent_plan, "rag_query", None),
                 user_input=user_input,
                 latest_runs=latest_runs,
                 current_refs=current_refs,
@@ -423,6 +469,8 @@ class AgentGraph:
         self,
         intent: AgentIntent,
         basis_mode: BasisMode,
+        planned_tool_name: str | None,
+        rag_query: str | None,
         user_input: str,
         latest_runs: list[Any],
         current_refs: list[InferredRepositoryRef],
@@ -431,21 +479,29 @@ class AgentGraph:
         """분류된 intent를 LangGraph state로 바꾼다."""
 
         if intent == INTENT_LIST_REPOSITORIES:
-            return {"intent": INTENT_LIST_REPOSITORIES}
+            return build_planned_intent_state(
+                INTENT_LIST_REPOSITORIES,
+                planned_tool_name,
+                rag_query,
+            )
         if intent == INTENT_LIST_BRANCHES:
-            return {
-                "intent": INTENT_LIST_BRANCHES,
-                "target_runs": self.resolve_target_runs(
+            return build_planned_intent_state(
+                INTENT_LIST_BRANCHES,
+                planned_tool_name,
+                rag_query,
+                target_runs=self.resolve_target_runs(
                     user_input=user_input,
                     latest_runs=latest_runs,
                     current_refs=current_refs,
                     messages=messages,
                 ),
-            }
+            )
         if intent == INTENT_SEARCH_REPOSITORY_TARGETS:
-            return {
-                "intent": INTENT_SEARCH_REPOSITORY_TARGETS,
-                "target_runs": self.resolve_target_runs(
+            return build_planned_intent_state(
+                INTENT_SEARCH_REPOSITORY_TARGETS,
+                planned_tool_name,
+                rag_query,
+                target_runs=self.resolve_target_runs(
                     user_input=user_input,
                     latest_runs=latest_runs,
                     current_refs=current_refs,
@@ -453,40 +509,44 @@ class AgentGraph:
                     prefer_planner=True,
                     allow_repository_default=False,
                 ),
-            }
+            )
         if intent == INTENT_SHOW_BASIS:
-            return {"intent": INTENT_SHOW_BASIS}
+            return build_planned_intent_state(INTENT_SHOW_BASIS, planned_tool_name, rag_query)
         if intent == INTENT_GENERAL_CHAT:
-            return {"intent": INTENT_GENERAL_CHAT}
+            return build_planned_intent_state(INTENT_GENERAL_CHAT, planned_tool_name, rag_query)
         if intent == INTENT_LIST_FILES:
-            return {
-                "intent": INTENT_LIST_FILES,
-                "target_runs": self.resolve_runs_for_current_question(
+            return build_planned_intent_state(
+                INTENT_LIST_FILES,
+                planned_tool_name,
+                rag_query,
+                target_runs=self.resolve_runs_for_current_question(
                     user_input=user_input,
                     latest_runs=latest_runs,
                     current_refs=current_refs,
                     messages=messages,
                 ),
-            }
+            )
         if intent == INTENT_CHANGE_BASIS:
             basis_mode = resolve_basis_mode(
                 user_input=user_input,
                 current_refs=current_refs,
                 fallback_mode=basis_mode,
             )
-            return {
-                "intent": INTENT_CHANGE_BASIS,
-                "basis_mode": basis_mode,
-                "target_runs": self.resolve_basis_change_target_runs(
+            return build_planned_intent_state(
+                INTENT_CHANGE_BASIS,
+                planned_tool_name,
+                rag_query,
+                basis_mode=basis_mode,
+                target_runs=self.resolve_basis_change_target_runs(
                     user_input=user_input,
                     latest_runs=latest_runs,
                     current_refs=current_refs,
                     messages=messages,
                     basis_mode=basis_mode,
                 ),
-            }
+            )
 
-        return {"intent": INTENT_RAG_ANSWER}
+        return build_planned_intent_state(INTENT_RAG_ANSWER, planned_tool_name, rag_query)
 
     def list_repositories_tool(self, state: AgentGraphState) -> AgentGraphState:
         """SQL run 메타데이터를 레포지토리 단위 목록으로 답한다."""
@@ -584,14 +644,87 @@ class AgentGraph:
             for run in target_runs
         }
         final_refs = [build_inferred_repository_ref(run) for run in target_runs]
+        snapshot_summary = build_file_snapshot_comparison_answer(
+            user_input=state["turn"].user_input,
+            target_runs=target_runs,
+            file_snapshots_by_run=file_snapshots_by_run,
+        )
+        if len(target_runs) < 2:
+            return {
+                "final_answer": snapshot_summary,
+                "final_refs": final_refs,
+                "repository_basis_changed": bool(final_refs),
+            }
+
+        comparison_items = build_snapshot_comparison_items(
+            target_runs=target_runs,
+            file_snapshots_by_run=file_snapshots_by_run,
+        )
+        chunks_by_run = self.collect_comparison_chunks(
+            db=state["db"],
+            target_runs=target_runs,
+            evidence_paths_by_run=build_comparison_evidence_paths_by_run(
+                user_input=state["turn"].user_input,
+                comparison_items=comparison_items,
+            ),
+        )
         return {
-            "final_answer": build_file_snapshot_comparison_answer(
-                target_runs=target_runs,
-                file_snapshots_by_run=file_snapshots_by_run,
+            "final_answer": self.generate_snapshot_comparison_answer(
+                question=state["turn"].user_input,
+                snapshot_summary=snapshot_summary,
+                chunks_by_run=chunks_by_run,
             ),
             "final_refs": final_refs,
             "repository_basis_changed": bool(final_refs),
         }
+
+    def collect_comparison_chunks(
+        self,
+        db: Session,
+        target_runs: list[Any],
+        evidence_paths_by_run: dict[int, list[str]],
+    ) -> list[tuple[Any, list[Any]]]:
+        """스냅샷 차이가 난 대표 파일들의 SQL 청크를 run별로 모은다."""
+
+        chunks_by_run: list[tuple[Any, list[Any]]] = []
+        for run in target_runs:
+            evidence_paths = set(evidence_paths_by_run.get(run.id, []))
+            if not evidence_paths:
+                continue
+
+            selected_chunks = select_chunks_for_paths(
+                chunks=self.sql_repository.list_chunks(db, run.id),
+                evidence_paths=evidence_paths,
+            )
+            if selected_chunks:
+                chunks_by_run.append((run, selected_chunks))
+        return chunks_by_run
+
+    def generate_snapshot_comparison_answer(
+        self,
+        question: str,
+        snapshot_summary: str,
+        chunks_by_run: list[tuple[Any, list[Any]]],
+    ) -> str:
+        """파일 스냅샷 비교와 SQL 코드 청크를 LLM에게 넘겨 기능 차이를 설명한다."""
+
+        if not chunks_by_run:
+            return snapshot_summary
+
+        try:
+            ai_message = self.tool_calling_llm.invoke(
+                build_comparison_answer_messages(
+                    question=question,
+                    snapshot_summary=snapshot_summary,
+                    chunks_by_run=chunks_by_run,
+                ),
+                tools=[],
+            )
+            final_answer = get_message_content(ai_message)
+        except Exception:
+            return snapshot_summary
+
+        return final_answer or snapshot_summary
 
     def change_basis_tool(self, state: AgentGraphState) -> AgentGraphState:
         """사용자가 지정한 레포 이름을 SQL run에 매핑해 다음 답변 기준으로 저장한다."""
@@ -700,12 +833,54 @@ class AgentGraph:
         rag_response = self.rag_answer_service.answer(
             state["db"],
             RagAskRequestDTO(
-                question=state["turn"].user_input,
+                question=state.get("rag_query") or state["turn"].user_input,
                 repository_refs=refs,
                 limit=5,
             ),
         )
-        return {"rag_response": rag_response}
+        return {
+            "rag_response": append_sql_chunk_sources(
+                rag_response=rag_response,
+                sql_sources=self.collect_sql_sources_for_question(
+                    db=state["db"],
+                    target_runs=state.get("target_runs", []),
+                    question=state.get("rag_query") or state["turn"].user_input,
+                ),
+            )
+        }
+
+    def collect_sql_sources_for_question(
+        self,
+        db: Session,
+        target_runs: list[Any],
+        question: str,
+    ) -> list[RagAskSourceDTO]:
+        """vector 검색이 놓친 코드 근거를 보완하기 위해 SQL 청크도 질문 단어로 찾는다."""
+
+        query_tokens = build_query_tokens(question)
+        if not query_tokens:
+            return []
+
+        implementation_gap_query = is_implementation_gap_query(query_tokens)
+        scored_chunks: list[tuple[int, Any]] = []
+        for run in target_runs:
+            for chunk in self.sql_repository.list_chunks(db, run.id):
+                score = score_chunk_for_query(
+                    chunk=chunk,
+                    query_tokens=query_tokens,
+                    implementation_gap_query=implementation_gap_query,
+                )
+                if score <= 0:
+                    continue
+                scored_chunks.append((score, chunk))
+
+        return [
+            build_sql_source_from_chunk(chunk)
+            for _, chunk in sorted(
+                scored_chunks,
+                key=lambda item: (-item[0], getattr(item[1], "id", 0)),
+            )[:MAX_SQL_EVIDENCE_SOURCES]
+        ]
 
     def resolve_target_runs(
         self,
@@ -963,6 +1138,169 @@ def select_tool_name(intent: AgentIntent) -> str:
     }.get(intent, TOOL_CLARIFY)
 
 
+def select_chunks_for_paths(
+    chunks: list[Any],
+    evidence_paths: set[str],
+) -> list[Any]:
+    """대표 변경 파일별로 너무 많은 chunk가 들어가지 않게 LLM 입력을 제한한다."""
+
+    selected_chunks = []
+    selected_count_by_path: dict[str, int] = {}
+    for chunk in chunks:
+        path = getattr(chunk, "path", None)
+        if path not in evidence_paths:
+            continue
+        path_count = selected_count_by_path.get(path, 0)
+        if path_count >= MAX_COMPARISON_CHUNKS_PER_PATH:
+            continue
+
+        selected_chunks.append(chunk)
+        selected_count_by_path[path] = path_count + 1
+        if len(selected_chunks) >= MAX_COMPARISON_CHUNKS_PER_RUN:
+            break
+    return selected_chunks
+
+
+def append_sql_chunk_sources(
+    rag_response: RagAskResponseDTO,
+    sql_sources: list[RagAskSourceDTO],
+) -> RagAskResponseDTO:
+    """vector 근거 뒤에 SQL 청크 근거를 중복 없이 붙인다."""
+
+    if not sql_sources:
+        return rag_response
+
+    merged_sources = []
+    seen_keys = set()
+    for source in [*rag_response.sources, *sql_sources]:
+        key = (source.citation, source.path, source.chunk_type)
+        if key in seen_keys:
+            continue
+        merged_sources.append(source)
+        seen_keys.add(key)
+    return rag_response.model_copy(update={"sources": merged_sources})
+
+
+def build_query_tokens(question: str) -> list[str]:
+    """질문 문장에서 SQL 청크 점수화에 쓸 의미 단어만 추린다."""
+
+    tokens = []
+    for token in re.findall(r"[0-9a-zA-Z가-힣_./-]+", normalize_text(question)):
+        if len(token) < MIN_QUERY_TOKEN_LENGTH:
+            continue
+        if token in {"the", "and", "for", "with", "these", "selected", "branches"}:
+            continue
+        tokens.append(token)
+    return dedupe_texts(tokens)
+
+
+def score_chunk_for_query(
+    chunk: Any,
+    query_tokens: list[str],
+    implementation_gap_query: bool = False,
+) -> int:
+    """질문 단어가 path, symbol, chunk text에 얼마나 직접 등장하는지 점수화한다."""
+
+    path_text = normalize_text(getattr(chunk, "path", "") or "")
+    symbol_text = normalize_text(getattr(chunk, "symbol_name", "") or "")
+    body_text = normalize_text(getattr(chunk, "chunk_text", "") or "")
+    chunk_type_text = normalize_text(getattr(chunk, "chunk_type", "") or "")
+
+    score = 0
+    if implementation_gap_query and has_implementation_gap_signal(
+        chunk_type_text,
+        body_text,
+    ):
+        score += 30
+
+    for token in query_tokens:
+        if token in path_text:
+            score += 4
+        if token in symbol_text:
+            score += 3
+        if token in chunk_type_text:
+            score += 2
+        if token in body_text:
+            score += 1
+    return score
+
+
+def is_implementation_gap_query(query_tokens: list[str]) -> bool:
+    """사용자가 TODO, 미구현, 우선 작업처럼 구현 공백을 찾는 질문인지 본다."""
+
+    return any(token in IMPLEMENTATION_GAP_QUERY_TERMS for token in query_tokens)
+
+
+def has_implementation_gap_signal(chunk_type_text: str, body_text: str) -> bool:
+    """청크 자체에 빈 구현이나 TODO 계열 신호가 있는지 확인한다."""
+
+    if "placeholder" in chunk_type_text:
+        return True
+    compact_body = body_text.replace("_", "").replace(" ", "")
+    return any(marker in compact_body for marker in IMPLEMENTATION_GAP_CHUNK_MARKERS)
+
+
+def build_sql_source_from_chunk(chunk: Any) -> RagAskSourceDTO:
+    """SQL chunk record를 RAG 답변 LLM이 읽는 source DTO로 맞춘다."""
+
+    return RagAskSourceDTO(
+        citation=getattr(chunk, "citation", "") or getattr(chunk, "path", ""),
+        path=getattr(chunk, "path", ""),
+        chunk_type=getattr(chunk, "chunk_type", ""),
+        content=getattr(chunk, "chunk_text", ""),
+    )
+
+
+def dedupe_texts(values: list[str]) -> list[str]:
+    """순서를 유지하면서 중복 단어를 제거한다."""
+
+    deduped = []
+    seen = set()
+    for value in values:
+        if value in seen:
+            continue
+        deduped.append(value)
+        seen.add(value)
+    return deduped
+
+
+def build_planned_intent_state(
+    intent: AgentIntent,
+    planned_tool_name: str | None,
+    rag_query: str | None,
+    basis_mode: BasisMode | None = None,
+    target_runs: list[Any] | None = None,
+) -> AgentGraphState:
+    """LLM planner가 고른 intent/tool/search query를 graph state에 보존한다."""
+
+    state: AgentGraphState = {
+        "intent": intent,
+    }
+    if basis_mode is not None:
+        state["basis_mode"] = basis_mode
+    if planned_tool_name:
+        normalized_tool = normalize_planned_tool_name(intent, planned_tool_name)
+        state["planned_tool_name"] = normalized_tool
+        if normalized_tool != planned_tool_name:
+            state["planned_rag_tool_name"] = planned_tool_name
+    if rag_query:
+        state["rag_query"] = rag_query
+    if target_runs is not None:
+        state["target_runs"] = target_runs
+    return state
+
+
+def normalize_planned_tool_name(intent: AgentIntent, tool_name: str) -> str:
+    """RAG 검색 tool은 기준 확정 tool을 먼저 거치도록 agent 내부 순서를 맞춘다."""
+
+    if intent == INTENT_RAG_ANSWER and tool_name in {
+        TOOL_RETRIEVE_RAG,
+        TOOL_COMPARE_SNAPSHOTS,
+    }:
+        return TOOL_RESOLVE_RAG_BASIS
+    return tool_name
+
+
 def route_after_tool(state: AgentGraphState) -> str:
     """tool 실행 후 다음 tool, LLM 답변 생성, 종료 중 하나로 그래프를 이동한다."""
 
@@ -974,14 +1312,9 @@ def route_after_tool(state: AgentGraphState) -> str:
 
 
 def build_rag_next_tool_queue(state: AgentGraphState, target_runs: list[Any]) -> list[str]:
-    """RAG 기준 확정 뒤 비교 tool과 vector 검색 tool 중 다음 행동을 고른다."""
+    """RAG 질문은 먼저 코드 근거 검색으로 보내고, tool 선택 판단은 LLM planner에 맡긴다."""
 
-    if (
-        len(target_runs) >= 2
-        and is_snapshot_comparison_question(state["turn"].user_input)
-    ):
-        return [TOOL_COMPARE_SNAPSHOTS]
-    return [TOOL_RETRIEVE_RAG]
+    return [state.get("planned_rag_tool_name") or TOOL_RETRIEVE_RAG]
 
 
 def is_short_follow_up_selection(user_input: str) -> bool:
@@ -997,27 +1330,6 @@ def is_intent_resolver_fallback(intent_plan: Any) -> bool:
 
     reason = getattr(intent_plan, "reason", None)
     return isinstance(reason, str) and reason.startswith(FALLBACK_REASON_PREFIX)
-
-
-def correct_intent_with_explicit_markers(
-    user_input: str,
-    intent: AgentIntent,
-) -> AgentIntent:
-    """LLM intent가 명시적인 파일/브랜치 표현과 충돌하면 안전한 쪽으로 보정한다."""
-
-    if is_bare_target_selection(user_input) or is_branch_target_selection(user_input):
-        return INTENT_CHANGE_BASIS
-    if is_basis_change_request(user_input):
-        return INTENT_CHANGE_BASIS
-    if is_repository_target_search_question(user_input):
-        return INTENT_SEARCH_REPOSITORY_TARGETS
-    if is_file_list_question(user_input):
-        return INTENT_LIST_FILES
-    if is_branch_list_question(user_input):
-        return INTENT_LIST_BRANCHES
-    if is_repository_list_question(user_input):
-        return INTENT_LIST_REPOSITORIES
-    return intent
 
 
 def resolve_basis_mode(

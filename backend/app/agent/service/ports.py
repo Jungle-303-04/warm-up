@@ -75,6 +75,8 @@ class IntentResolveResult(Protocol):
 
     intent: str
     basis_mode: str | None
+    tool_name: str | None
+    rag_query: str | None
     reason: str | None
 
 

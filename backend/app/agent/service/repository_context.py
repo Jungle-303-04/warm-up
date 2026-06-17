@@ -1,4 +1,5 @@
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from app.agent.domain.chat import InferredRepositoryRef
@@ -26,6 +27,18 @@ KOREAN_PATH_SEGMENTS = {
     "어스": "auth",
     "인증": "auth",
 }
+MAX_COMPARISON_EVIDENCE_PATHS_PER_RUN = 16
+
+
+@dataclass(frozen=True)
+class SnapshotComparisonItem:
+    """두 분석 run 사이의 파일 스냅샷 차이를 재사용 가능한 구조로 담는다."""
+
+    base_run: Any
+    compare_run: Any
+    added_paths: list[str]
+    removed_paths: list[str]
+    changed_paths: list[str]
 
 
 def resolve_runs_from_text(
@@ -300,6 +313,7 @@ def is_snapshot_comparison_question(user_input: str) -> bool:
 
 
 def build_file_snapshot_comparison_answer(
+    user_input: str,
     target_runs: list[Any],
     file_snapshots_by_run: dict[int, list[Any]],
 ) -> str:
@@ -308,38 +322,216 @@ def build_file_snapshot_comparison_answer(
     if len(target_runs) < 2:
         return "비교하려면 최소 두 개의 레포지토리/브랜치 기준이 필요합니다."
 
-    base_run = target_runs[0]
     lines = [
         "SQL 파일 스냅샷 기준 차이입니다.",
         "아직 코드 라인 diff가 아니라 파일 경로와 content_hash 기준의 MVP 비교입니다.",
     ]
-    for compare_run in target_runs[1:]:
-        base_files = build_snapshot_map(file_snapshots_by_run.get(base_run.id, []))
-        compare_files = build_snapshot_map(file_snapshots_by_run.get(compare_run.id, []))
-        base_paths = set(base_files)
-        compare_paths = set(compare_files)
+    for item in build_snapshot_comparison_items(target_runs, file_snapshots_by_run):
+        lines.append("")
+        lines.append(f"기준 A: {format_run_title(item.base_run)}")
+        lines.append(f"기준 B: {format_run_title(item.compare_run)}")
+        lines.append(f"- B에만 있는 파일: {len(item.added_paths)}개")
+        lines.append(f"- A에만 있는 파일: {len(item.removed_paths)}개")
+        lines.append(f"- 경로는 같지만 내용 hash가 다른 파일: {len(item.changed_paths)}개")
 
-        added_paths = sorted(compare_paths - base_paths)
-        removed_paths = sorted(base_paths - compare_paths)
+        append_functional_difference_summary(
+            lines=lines,
+            user_input=user_input,
+            base_run=item.base_run,
+            compare_run=item.compare_run,
+            added_paths=item.added_paths,
+            removed_paths=item.removed_paths,
+            changed_paths=item.changed_paths,
+        )
+        append_limited_paths(lines, "B에만 있음", item.added_paths)
+        append_limited_paths(lines, "A에만 있음", item.removed_paths)
+        append_limited_paths(lines, "내용 변경", item.changed_paths)
+
+    return "\n".join(lines)
+
+
+def build_snapshot_comparison_items(
+    target_runs: list[Any],
+    file_snapshots_by_run: dict[int, list[Any]],
+) -> list[SnapshotComparisonItem]:
+    """첫 번째 run을 기준으로 나머지 run과 파일 추가, 삭제, 변경을 계산한다."""
+
+    if len(target_runs) < 2:
+        return []
+
+    base_run = target_runs[0]
+    base_files = build_snapshot_map(file_snapshots_by_run.get(base_run.id, []))
+    base_paths = set(base_files)
+    items: list[SnapshotComparisonItem] = []
+
+    for compare_run in target_runs[1:]:
+        compare_files = build_snapshot_map(file_snapshots_by_run.get(compare_run.id, []))
+        compare_paths = set(compare_files)
         changed_paths = sorted(
             path
             for path in base_paths & compare_paths
             if getattr(base_files[path], "content_hash", None)
             != getattr(compare_files[path], "content_hash", None)
         )
+        items.append(
+            SnapshotComparisonItem(
+                base_run=base_run,
+                compare_run=compare_run,
+                added_paths=sorted(compare_paths - base_paths),
+                removed_paths=sorted(base_paths - compare_paths),
+                changed_paths=changed_paths,
+            )
+        )
+    return items
 
-        lines.append("")
-        lines.append(f"기준 A: {format_run_title(base_run)}")
-        lines.append(f"기준 B: {format_run_title(compare_run)}")
-        lines.append(f"- B에만 있는 파일: {len(added_paths)}개")
-        lines.append(f"- A에만 있는 파일: {len(removed_paths)}개")
-        lines.append(f"- 경로는 같지만 내용 hash가 다른 파일: {len(changed_paths)}개")
 
-        append_limited_paths(lines, "B에만 있음", added_paths)
-        append_limited_paths(lines, "A에만 있음", removed_paths)
-        append_limited_paths(lines, "내용 변경", changed_paths)
+def build_comparison_evidence_paths_by_run(
+    user_input: str,
+    comparison_items: list[SnapshotComparisonItem],
+) -> dict[int, list[str]]:
+    """스냅샷 차이 중 LLM에게 넘길 대표 파일 경로를 run별로 고른다."""
 
-    return "\n".join(lines)
+    exclude_frontend = asks_to_exclude_frontend(user_input)
+    paths_by_run: dict[int, list[str]] = {}
+
+    for item in comparison_items:
+        for path in prioritize_comparison_paths(item.changed_paths):
+            add_evidence_path(paths_by_run, item.base_run.id, path, exclude_frontend)
+            add_evidence_path(paths_by_run, item.compare_run.id, path, exclude_frontend)
+        for path in prioritize_comparison_paths(item.added_paths):
+            add_evidence_path(paths_by_run, item.compare_run.id, path, exclude_frontend)
+        for path in prioritize_comparison_paths(item.removed_paths):
+            add_evidence_path(paths_by_run, item.base_run.id, path, exclude_frontend)
+
+    return paths_by_run
+
+
+def prioritize_comparison_paths(paths: list[str]) -> list[str]:
+    """기능 차이 설명에 쓸 경로는 backend/app 쪽을 먼저 보게 한다."""
+
+    return sorted(paths, key=build_comparison_path_priority)
+
+
+def build_comparison_path_priority(path: str) -> tuple[int, str]:
+    """백엔드 기능 코드, 문서, 프론트 순서로 대표 근거 경로를 정렬한다."""
+
+    normalized = normalize_path(path)
+    if normalized.startswith("backend/app/"):
+        return (0, normalized)
+    if normalized.startswith("backend/"):
+        return (1, normalized)
+    if normalized.startswith("docs/"):
+        return (2, normalized)
+    if normalized.startswith("frontend/"):
+        return (4, normalized)
+    return (3, normalized)
+
+
+def add_evidence_path(
+    paths_by_run: dict[int, list[str]],
+    run_id: int,
+    path: str,
+    exclude_frontend: bool,
+) -> None:
+    """중복 없이 run별 대표 근거 경로 목록에 path를 추가한다."""
+
+    normalized = normalize_path(path)
+    if exclude_frontend and normalized.startswith("frontend/"):
+        return
+
+    paths = paths_by_run.setdefault(run_id, [])
+    if len(paths) >= MAX_COMPARISON_EVIDENCE_PATHS_PER_RUN or path in paths:
+        return
+    paths.append(path)
+
+
+def append_functional_difference_summary(
+    lines: list[str],
+    user_input: str,
+    base_run: Any,
+    compare_run: Any,
+    added_paths: list[str],
+    removed_paths: list[str],
+    changed_paths: list[str],
+) -> None:
+    """파일 경로 diff를 기능 모듈 단위로 압축해 브랜치 간 차이를 읽기 쉽게 만든다."""
+
+    exclude_frontend = asks_to_exclude_frontend(user_input)
+    compare_only = summarize_functional_path_groups(added_paths, exclude_frontend)
+    base_only = summarize_functional_path_groups(removed_paths, exclude_frontend)
+    changed = summarize_functional_path_groups(changed_paths, exclude_frontend)
+
+    if not compare_only and not base_only and not changed:
+        return
+
+    lines.append("")
+    lines.append("기능 관점 요약:")
+    if exclude_frontend:
+        lines.append("- 사용자가 프론트 차이를 제외해 달라고 했으므로 frontend 경로는 요약에서 제외했습니다.")
+    if compare_only:
+        lines.append(
+            f"- {format_run_title(compare_run)}에만 보이는 기능 영역: "
+            f"{format_functional_group_summary(compare_only)}"
+        )
+    if base_only:
+        lines.append(
+            f"- {format_run_title(base_run)}에만 보이는 기능 영역: "
+            f"{format_functional_group_summary(base_only)}"
+        )
+    if changed:
+        lines.append(
+            f"- 양쪽에 있지만 내용이 달라진 기능 영역: "
+            f"{format_functional_group_summary(changed)}"
+        )
+
+
+def asks_to_exclude_frontend(user_input: str) -> bool:
+    """사용자가 프론트/UI 차이가 아니라 기능 차이를 원한다고 말했는지 본다."""
+
+    text = normalize_text(user_input)
+    return any(keyword in text for keyword in ("프론트 말고", "프론트적인 차이 말고", "ui 말고"))
+
+
+def summarize_functional_path_groups(
+    paths: list[str],
+    exclude_frontend: bool,
+) -> dict[str, int]:
+    """파일 path 목록을 backend/app 기능 폴더 중심의 count summary로 줄인다."""
+
+    summary: dict[str, int] = {}
+    for path in paths:
+        group = detect_functional_path_group(path, exclude_frontend)
+        if group is None:
+            continue
+        summary[group] = summary.get(group, 0) + 1
+    return dict(sorted(summary.items(), key=lambda item: (-item[1], item[0])))
+
+
+def detect_functional_path_group(path: str, exclude_frontend: bool) -> str | None:
+    """경로를 기능 차이를 설명하기 좋은 단위로 접는다."""
+
+    normalized = normalize_path(path)
+    if exclude_frontend and normalized.startswith("frontend/"):
+        return None
+
+    parts = normalized.split("/")
+    if len(parts) >= 3 and parts[0] == "backend" and parts[1] == "app":
+        return "/".join(parts[:3])
+    if len(parts) >= 2 and parts[0] == "backend":
+        return "/".join(parts[:2])
+    if parts[0] in {"docs", "frontend"}:
+        return parts[0]
+    return parts[0] if parts else None
+
+
+def format_functional_group_summary(summary: dict[str, int], limit: int = 8) -> str:
+    """기능 그룹 count를 한 줄 요약으로 만든다."""
+
+    items = list(summary.items())
+    labels = [f"{name}({count}개)" for name, count in items[:limit]]
+    if len(items) > limit:
+        labels.append(f"외 {len(items) - limit}개 영역")
+    return ", ".join(labels)
 
 
 def build_snapshot_map(snapshots: list[Any]) -> dict[str, Any]:
