@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { ArchiveBoxIcon } from "../components/icons";
 
 const myPosts = [
@@ -44,8 +45,22 @@ const usedFonts = [
   },
 ];
 
-function MyPage({ user }) {
+function MyPage({ onLogout, user }) {
   const nickname = user?.nickname ?? "guest";
+  const [logoutMessage, setLogoutMessage] = useState("");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogoutClick = async () => {
+    setLogoutMessage("");
+    setIsLoggingOut(true);
+
+    try {
+      await onLogout();
+    } catch (error) {
+      setLogoutMessage(error.message);
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <main className="flex min-h-[calc(100vh-96px)] flex-col p-6">
@@ -59,13 +74,18 @@ function MyPage({ user }) {
         </p>
 
         <button
-          className="mt-2 cursor-pointer !text-sm leading-none text-[#d4d4d4] transition-colors hover:text-black"
+          className="mt-2 cursor-pointer !text-sm leading-none text-[#d4d4d4] transition-colors hover:text-black disabled:cursor-not-allowed disabled:hover:text-[#d4d4d4]"
+          disabled={isLoggingOut}
+          onClick={handleLogoutClick}
           type="button"
         >
-          로그아웃
+          {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
         </button>
+        <p className="mt-2 min-h-5 text-center text-sm text-neutral-600">
+          {logoutMessage}
+        </p>
 
-        <div className="mt-10 w-full overflow-hidden rounded-md border border-gray-300">
+        <div className="mt-5 w-full overflow-hidden rounded-md border border-gray-300">
           <details className="group border-b border-gray-300">
             <summary className="flex h-10 cursor-pointer list-none items-center justify-between px-4 text-sm text-black transition-colors hover:bg-[#F8F9FA]">
               <span className="flex items-center gap-2">
@@ -135,7 +155,6 @@ function MyPage({ user }) {
           </details>
         </div>
       </section>
-
     </main>
   );
 }
