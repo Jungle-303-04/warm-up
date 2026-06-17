@@ -7,7 +7,6 @@ from models.recommend import (RecommendRequest, AnalysisResult, FontSelection, R
 )
 
 from rag.search import search_guides
-# from font_mcp.font_tools import list_fonts, build_candidate_fonts, get_font_by_id
 from font_mcp.font_client import (list_candidate_fonts_from_mcp, get_font_detail_by_id_from_mcp,
 )
 
@@ -19,8 +18,6 @@ def run_recommend_agent(request: RecommendRequest):
     rag_guides = search_rag_guides(text, analysis_result, preferred_tone)
     rag_context = build_rag_context(rag_guides)
     selection_result = select_font(text, analysis_result, rag_context, candidate_fonts)
-    # selected_font = find_selected_font(fonts, selection_result)
-    # selected_font_data = build_selected_font_data(selected_font)
     selected_font_data = get_font_detail_by_id_from_mcp(selection_result.font_id)
 
     if selected_font_data is None:
