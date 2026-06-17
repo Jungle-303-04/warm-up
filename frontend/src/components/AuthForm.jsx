@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { EyeIcon, EyeSlashIcon } from "./icons";
 
 function TypingText({ text }) {
   const [typedText, setTypedText] = useState("");
@@ -36,6 +37,7 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [errorField, setErrorField] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const validateAuthForm = () => {
     const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,20}$/;
@@ -82,6 +84,10 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
     setPassword(event.target.value);
     setErrorMessage("");
     setErrorField("");
+  };
+
+  const handleTogglePasswordVisible = () => {
+    setIsPasswordVisible((currentValue) => !currentValue);
   };
 
   const handleSubmit = async (event) => {
@@ -134,18 +140,34 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
               type="text"
               value={nickname}
             />
-            <input
-              className={[
-                "h-10 w-full border-b px-4 text-base outline-none transition-colors placeholder:text-base placeholder:text-gray-300 focus:border-black",
-                errorField === "password"
-                  ? "border-neutral-500"
-                  : "border-transparent",
-              ].join(" ")}
-              onChange={handlePasswordChange}
-              placeholder="영문 대소문자 구분 + 숫자 비밀번호"
-              type="password"
-              value={password}
-            />
+            <div className="relative">
+              <input
+                className={[
+                  "h-10 w-full border-b px-4 pr-12 text-base outline-none transition-colors placeholder:text-base placeholder:text-gray-300 focus:border-black",
+                  errorField === "password"
+                    ? "border-neutral-500"
+                    : "border-transparent",
+                ].join(" ")}
+                onChange={handlePasswordChange}
+                placeholder="영문 대소문자 구분 + 숫자 비밀번호"
+                type={isPasswordVisible ? "text" : "password"}
+                value={password}
+              />
+              <button
+                aria-label={
+                  isPasswordVisible ? "비밀번호 숨기기" : "비밀번호 보기"
+                }
+                className="absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 cursor-pointer items-center justify-center text-black transition-colors hover:text-[#d4d4d4]"
+                onClick={handleTogglePasswordVisible}
+                type="button"
+              >
+                {isPasswordVisible ? (
+                  <EyeIcon className="h-4 w-4" />
+                ) : (
+                  <EyeSlashIcon className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           <p className="mt-3 min-h-5 text-right text-sm text-neutral-600">
