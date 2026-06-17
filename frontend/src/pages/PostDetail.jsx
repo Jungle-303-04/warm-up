@@ -110,6 +110,7 @@ function transformComment(comment) {
     id: comment.id,
     nickname: comment.nickname,
     time: formattedDate.time,
+    userId: comment.user_id,
   };
 }
 
@@ -357,6 +358,10 @@ function PostDetail({ user }) {
                   className="grid grid-cols-[120px_1fr_auto_auto] items-start gap-4 text-xs"
                   key={comment.id}
                 >
+                  {/*
+                    댓글 삭제 권한은 서버에서 최종 검증하고,
+                    화면에서는 작성자 본인에게만 삭제 버튼을 보여준다.
+                  */}
                   <p className="text-sm font-extrabold text-black">
                     {comment.nickname}
                   </p>
@@ -369,14 +374,18 @@ function PostDetail({ user }) {
                   >
                     {comment.date} · {comment.time}
                   </time>
-                  <button
-                    aria-label="댓글 삭제"
-                    className="flex h-4 w-4 cursor-pointer items-center justify-center text-black transition-opacity hover:opacity-50"
-                    onClick={() => handleDeleteComment(comment.id)}
-                    type="button"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
+                  {user?.id === comment.userId ? (
+                    <button
+                      aria-label="댓글 삭제"
+                      className="flex h-4 w-4 cursor-pointer items-center justify-center text-black transition-opacity hover:opacity-50"
+                      onClick={() => handleDeleteComment(comment.id)}
+                      type="button"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <span aria-hidden="true" className="h-4 w-4" />
+                  )}
                 </li>
               ))}
             </ul>

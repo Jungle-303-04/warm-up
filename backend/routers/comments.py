@@ -104,7 +104,9 @@ def create_comment(post_id: int, comment_data: CommentCreate, request: Request):
 
 
 @router.delete("/comments/{comment_id}")
-def delete_comment(comment_id: int):
+def delete_comment(comment_id: int, request: Request):
+    current_user = get_current_user_from_access_token(request)
+
     with Session(engine) as session:
         comment = session.get(Comment, comment_id)
 
@@ -112,6 +114,12 @@ def delete_comment(comment_id: int):
             raise HTTPException(
                 status_code=404,
                 detail="댓글을 찾을 수 없습니다.",
+            )
+        
+        if comment.user_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="댓글 삭제 권한이 없습니다.",
             )
 
         session.delete(comment)
