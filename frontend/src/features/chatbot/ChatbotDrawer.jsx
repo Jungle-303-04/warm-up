@@ -185,8 +185,14 @@ export function ChatbotDrawer({
       text: nextQuestion,
     }
     messageIdRef.current += 1
-    const targetRuns = resolveQuestionRuns(nextQuestion, selectedRuns, chatBasisOptions)
+    const basisResolution = resolveQuestionBasis(nextQuestion, selectedRuns, chatBasisOptions)
+    const targetRuns = basisResolution.runs
     const sessionId = activeSession.id
+
+    if (basisResolution.shouldPersist) {
+      // 대화에서 레포/브랜치 기준을 알아냈다면 상단 체크 상태도 같은 기준으로 고정한다.
+      onSelectedRunIdsChange(targetRuns.map((run) => run.id))
+    }
 
     setSessions((currentSessions) =>
       currentSessions.map((session) => {
@@ -275,11 +281,11 @@ export function ChatbotDrawer({
         <aside
           id="rag-chatbot-drawer"
           className="chatbot-drawer open"
-          aria-label="RAG 챗봇"
+          aria-label="레포지토리 질문 도우미"
         >
           <header className="chatbot-header">
             <div>
-              <p className="eyebrow">RAG Chat</p>
+              <p className="eyebrow">AI 질문</p>
               <h2>레포지토리 질문</h2>
             </div>
             <div className="chatbot-header-actions">
@@ -301,7 +307,7 @@ export function ChatbotDrawer({
             </div>
           </header>
 
-          <section className="chatbot-context" aria-label="현재 질문 기준">
+          <section className="chatbot-context" aria-label="현재 답변 대상">
             <div className="chatbot-context-main">
               <div>
                 <strong>
@@ -312,13 +318,13 @@ export function ChatbotDrawer({
                   <span>{chatContext.technicalDetail}</span>
                 ) : null}
               </div>
-              <span className="chatbot-dev-badge">LLM 연결됨</span>
+              <span className="chatbot-dev-badge">실제 답변</span>
             </div>
             {chatContext.warning ? (
               <p className="chatbot-context-warning">{chatContext.warning}</p>
             ) : null}
             <div className="chatbot-basis-summary">
-              <div className="chatbot-basis-chips" aria-label="선택된 답변 기준">
+              <div className="chatbot-basis-chips" aria-label="선택된 답변 대상">
                 {chatContext.selectedRuns.length ? (
                   <>
                     {chatContext.selectedRuns.slice(0, 2).map((run) => (
@@ -333,26 +339,26 @@ export function ChatbotDrawer({
                     ) : null}
                   </>
                 ) : (
-                  <span className="chatbot-basis-chip">대화로 선택</span>
+                  <span className="chatbot-basis-chip">질문에서 찾기</span>
                 )}
               </div>
               <button
                 type="button"
                 onClick={toggleBasisPicker}
               >
-                {isBasisPickerOpen ? '닫기' : '기준 변경'}
+                {isBasisPickerOpen ? '닫기' : '대상 변경'}
               </button>
             </div>
             {isBasisPickerOpen ? (
               <fieldset className="chatbot-basis-picker">
-                <legend>답변 기준 선택</legend>
+                <legend>답변에 사용할 레포지토리</legend>
                 <label>
                   <input
                     type="checkbox"
                     checked={selectedRunIds.length === 0}
                     onChange={selectConversationBasis}
                   />
-                  <span>대화로 선택</span>
+                  <span>질문에서 자동으로 찾기</span>
                 </label>
                 {chatBasisOptions.map((run) => (
                   <label key={run.id}>
@@ -438,8 +444,8 @@ export function ChatbotDrawer({
               }}
               onKeyDown={submitOnEnter}
               placeholder={chatContext.hasSelectedRuns
-                ? '이 레포 기준으로 다음 구현 계획을 제안해줘'
-                : '어떤 레포를 읽고 답변할지 물어보세요'}
+                ? '이 레포지토리로 다음 구현 계획을 제안해줘'
+                : '레포지토리 이름이나 브랜치를 포함해서 질문해 보세요'}
               rows="4"
               disabled={isChatInputDisabled}
               aria-invalid={Boolean(draftError)}
@@ -476,7 +482,7 @@ function createChatSession(id, title) {
       {
         id: `intro-${id}`,
         sender: 'assistant',
-        text: '레포지토리 분석 결과를 기준으로 질문을 도와드릴게요. 기준을 선택하거나 질문에 레포 이름을 넣어 주세요.',
+        text: '분석된 레포지토리를 기준으로 답변합니다. 위에서 레포지토리를 고르거나 질문에 레포 이름과 브랜치를 써 주세요.',
       },
     ],
   }
@@ -488,13 +494,13 @@ function createRunIdsSignature(runIds) {
 
 function buildBasisChangedMessage(selectedRuns) {
   if (!selectedRuns.length) {
-    return '답변 기준이 대화로 선택으로 변경됨'
+    return '앞으로 질문 내용에서 답변할 레포지토리를 찾습니다.'
   }
 
   const basisLabel = selectedRuns
     .map((run) => formatRunChipLabel(run))
     .join(', ')
-  return `답변 기준이 ${basisLabel}으로 변경됨`
+  return `앞으로 ${basisLabel} 분석 결과로 답변합니다.`
 }
 
 function getMessageSenderLabel(sender) {
@@ -503,10 +509,10 @@ function getMessageSenderLabel(sender) {
   }
 
   if (sender === 'system') {
-    return '기준'
+    return '안내'
   }
 
-  return 'LLM'
+  return 'AI'
 }
 
 function resolveSessionTitle(session, question) {
@@ -527,13 +533,13 @@ function formatSessionTime(value) {
 function buildChatContext(selectedRuns, isIndexing) {
   if (!selectedRuns.length) {
     return {
-      title: '답변 기준: 대화로 선택',
-      modeLabel: '대화로 선택',
+      title: '답변 대상: 질문에서 찾기',
+      modeLabel: '질문에서 찾기',
       hasSelectedRuns: false,
       selectedRuns: [],
       detail: isIndexing
-        ? '새 분석이 진행 중입니다. 질문은 가능하고, 완료되면 답변 기준이 자동으로 잡힙니다.'
-        : '질문과 대화 맥락에서 필요한 레포를 찾습니다.',
+        ? '새 분석이 진행 중입니다. 질문은 가능하고, 완료되면 새 분석 결과를 선택할 수 있습니다.'
+        : '질문에 적힌 레포지토리 이름이나 브랜치를 보고 답변 대상을 찾습니다.',
       technicalDetail: '',
       warning: '',
     }
@@ -543,75 +549,144 @@ function buildChatContext(selectedRuns, isIndexing) {
     const run = selectedRuns[0]
 
     return {
-      title: '답변 기준: 마지막 완료 분석본',
+      title: '답변 대상: 선택한 분석 결과',
       modeLabel: '선택한 레포',
       hasSelectedRuns: true,
       selectedRuns,
-      detail: `${run.repository_full_name} · ${run.branch || '기본'}`,
+      detail: `${run.repository_full_name} · ${run.branch || '기본 브랜치'}`,
       technicalDetail: formatRunDetailLabel(run),
       warning: isIndexing
-        ? '새 분석이 진행 중입니다. 완료 전까지는 선택한 완료 답변 기준으로 답변합니다.'
+        ? '새 분석 중입니다. 완료되기 전까지는 지금 선택된 마지막 분석 결과로 답변합니다.'
         : '',
     }
   }
 
   return {
-    title: `답변 기준: 마지막 완료 분석본 ${selectedRuns.length}개`,
+    title: `답변 대상: 선택한 분석 결과 ${selectedRuns.length}개`,
     modeLabel: '여러 레포 선택',
     hasSelectedRuns: true,
     selectedRuns,
     detail: selectedRuns.map((run) => formatRunReferenceLabel(run)).join(', '),
-    technicalDetail: '내부 검색은 각 분석본의 repository_full_name, branch, commit_sha로 고정됩니다.',
+    technicalDetail: '선택된 각 레포지토리의 저장된 코드 버전을 기준으로 검색합니다.',
     warning: isIndexing
-      ? '새 분석이 진행 중입니다. 완료 전까지는 선택한 완료 답변 기준으로 답변합니다.'
+      ? '새 분석 중입니다. 완료되기 전까지는 지금 선택된 마지막 분석 결과로 답변합니다.'
       : '',
   }
 }
 
-function resolveQuestionRuns(question, selectedRuns, chatBasisOptions) {
-  if (selectedRuns.length) {
-    return selectedRuns
-  }
-
+function resolveQuestionBasis(question, selectedRuns, chatBasisOptions) {
   const inferredRuns = inferRunsFromQuestion(question, chatBasisOptions)
   if (inferredRuns.length) {
-    return inferredRuns
+    return {
+      runs: inferredRuns,
+      shouldPersist: true,
+    }
+  }
+
+  if (selectedRuns.length) {
+    return {
+      runs: selectedRuns,
+      shouldPersist: false,
+    }
   }
 
   if (chatBasisOptions.length === 1) {
-    return [chatBasisOptions[0]]
+    return {
+      runs: [chatBasisOptions[0]],
+      shouldPersist: true,
+    }
   }
 
-  return []
+  return {
+    runs: [],
+    shouldPersist: false,
+  }
 }
 
 function inferRunsFromQuestion(question, chatBasisOptions) {
   const normalizedQuestion = normalizeLookupText(question)
-  const matchedRuns = chatBasisOptions.filter((run) => {
-    const repositoryFullName = normalizeLookupText(run.repository_full_name)
-    const repositoryName = normalizeLookupText(
-      String(run.repository_full_name || '').split('/').at(-1) || '',
-    )
-    const branch = normalizeLookupText(run.branch || '')
+  const scoredRuns = chatBasisOptions
+    .map((run) => ({
+      run,
+      score: getRunMentionScore(normalizedQuestion, run),
+    }))
+    .filter((candidate) => candidate.score > 0)
 
-    return (
-      repositoryFullName
-      && (
-        normalizedQuestion.includes(repositoryFullName)
-        || (repositoryName && normalizedQuestion.includes(repositoryName))
-        || (branch && normalizedQuestion.includes(`${repositoryName} ${branch}`))
-      )
-    )
-  })
+  if (!scoredRuns.length) {
+    return []
+  }
 
-  return getLatestRunPerRepository(matchedRuns)
+  const highestScore = Math.max(...scoredRuns.map((candidate) => candidate.score))
+  const bestRuns = scoredRuns
+    .filter((candidate) => candidate.score === highestScore)
+    .map((candidate) => candidate.run)
+
+  if (highestScore === BRANCH_ONLY_MATCH_SCORE) {
+    const matchedRepositories = new Set(
+      bestRuns.map((run) => normalizeLookupText(run.repository_full_name)),
+    )
+    if (matchedRepositories.size !== 1) {
+      return []
+    }
+  }
+
+  return getLatestMatchingRuns(bestRuns, shouldKeepBranchInBasis(highestScore))
 }
 
-function getLatestRunPerRepository(runs) {
+const FULL_REPOSITORY_AND_BRANCH_MATCH_SCORE = 60
+const REPOSITORY_NAME_AND_BRANCH_MATCH_SCORE = 50
+const FULL_REPOSITORY_MATCH_SCORE = 40
+const REPOSITORY_NAME_MATCH_SCORE = 30
+const BRANCH_ONLY_MATCH_SCORE = 20
+
+function getRunMentionScore(normalizedQuestion, run) {
+  const repositoryFullName = normalizeLookupText(run.repository_full_name)
+  const repositoryName = normalizeLookupText(
+    String(run.repository_full_name || '').split('/').at(-1) || '',
+  )
+  const branch = normalizeLookupText(run.branch || '')
+  const hasRepositoryFullName = repositoryFullName && normalizedQuestion.includes(repositoryFullName)
+  const hasRepositoryName = repositoryName && normalizedQuestion.includes(repositoryName)
+  const hasBranch = branch && normalizedQuestion.includes(branch)
+
+  if (hasRepositoryFullName && hasBranch) {
+    return FULL_REPOSITORY_AND_BRANCH_MATCH_SCORE
+  }
+
+  if (hasRepositoryName && hasBranch) {
+    return REPOSITORY_NAME_AND_BRANCH_MATCH_SCORE
+  }
+
+  if (hasRepositoryFullName) {
+    return FULL_REPOSITORY_MATCH_SCORE
+  }
+
+  if (hasRepositoryName) {
+    return REPOSITORY_NAME_MATCH_SCORE
+  }
+
+  if (hasBranch) {
+    return BRANCH_ONLY_MATCH_SCORE
+  }
+
+  return 0
+}
+
+function shouldKeepBranchInBasis(score) {
+  return [
+    FULL_REPOSITORY_AND_BRANCH_MATCH_SCORE,
+    REPOSITORY_NAME_AND_BRANCH_MATCH_SCORE,
+    BRANCH_ONLY_MATCH_SCORE,
+  ].includes(score)
+}
+
+function getLatestMatchingRuns(runs, keepBranch) {
   const latestRuns = new Map()
 
   for (const run of runs) {
-    const key = run.repository_full_name
+    const repositoryFullName = normalizeLookupText(run.repository_full_name)
+    const branch = normalizeLookupText(run.branch || '')
+    const key = keepBranch ? `${repositoryFullName}:${branch}` : repositoryFullName
     const currentRun = latestRuns.get(key)
 
     if (
@@ -647,7 +722,7 @@ function formatRagAnswer(response) {
   const basisText = formatRagResponseBasis(response)
   const sourceText = formatRagSources(response.sources || [])
   const answerText = basisText
-    ? `답변 기준\n${basisText}\n\n${response.answer}`
+    ? `답변에 사용한 분석 결과\n${basisText}\n\n${response.answer}`
     : response.answer
 
   if (!sourceText) {
@@ -665,7 +740,7 @@ function formatRagResponseBasis(response) {
   return responseRefs
     .filter((ref) => ref.repository_full_name)
     .map((ref) => {
-      const branch = ref.branch || '기본'
+      const branch = ref.branch || '기본 브랜치'
       const version = ref.commit_sha ? ` · 코드 버전 ${ref.commit_sha.slice(0, 7)}` : ''
       return `${ref.repository_full_name} · ${branch}${version}`
     })
@@ -677,10 +752,7 @@ function formatRagSources(sources) {
     .slice(0, 5)
     .map((source, index) => {
       const sourceLabel = source.citation || source.path || '출처 정보 없음'
-      const distanceLabel = Number.isFinite(source.distance)
-        ? ` · 거리 ${source.distance.toFixed(3)}`
-        : ''
-      return `${index + 1}. ${sourceLabel}${distanceLabel}`
+      return `${index + 1}. ${sourceLabel}`
     })
     .join('\n')
 }
@@ -688,7 +760,7 @@ function formatRagSources(sources) {
 function buildMissingBasisMessage() {
   return (
     '어떤 레포지토리 기준으로 답해야 할지 찾지 못했습니다.\n'
-    + '기준 변경에서 등록된 레포지토리를 선택하거나, 질문에 owner/repo 형식의 레포 이름을 포함해 주세요.'
+    + '상단의 답변 대상에서 레포지토리를 선택하거나, 질문에 예: Jungle-303-04/warm-up 같은 레포 이름을 포함해 주세요.'
   )
 }
 
@@ -729,7 +801,7 @@ function formatRunChipLabel(run) {
 }
 
 function formatRunReferenceLabel(run) {
-  const branch = run.branch || '기본'
+  const branch = run.branch || '기본 브랜치'
   const indexedAt = formatIndexedAt(run.indexed_at)
   const analysis = indexedAt ? ` · 마지막 분석 ${indexedAt}` : ' · 마지막 분석 시각 없음'
   return `${run.repository_full_name} · ${branch}${analysis}`
@@ -740,7 +812,7 @@ function formatRunTechnicalLabel(run) {
     return `코드 버전 ${run.commit_sha.slice(0, 7)}`
   }
 
-  return `run #${run.id}`
+  return '코드 버전 확인 전'
 }
 
 function formatRunDetailLabel(run) {

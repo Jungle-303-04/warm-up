@@ -19,7 +19,7 @@ export function RepositoryWorkspace({
     <section className="workspace-panel" aria-labelledby="workspace-title">
       <div className="workspace-header">
         <div>
-          <p className="eyebrow">RAG index</p>
+          <p className="eyebrow">레포지토리 분석</p>
           <h2 id="workspace-title">레포지토리 등록</h2>
         </div>
       </div>
@@ -91,7 +91,7 @@ export function RepositoryRunsPage({
     <section className="workspace-panel" aria-labelledby="repository-runs-title">
       <div className="workspace-header">
         <div>
-          <p className="eyebrow">RAG index</p>
+          <p className="eyebrow">레포지토리 분석</p>
           <h2 id="repository-runs-title">등록된 레포지토리</h2>
         </div>
         <span>{repositoryRuns.length}개</span>
@@ -204,7 +204,7 @@ function RepositoryIndexForm({
               type="text"
               value={branch}
               onChange={(event) => onBranchChange(event.target.value)}
-              placeholder={isLoadingBranches ? '브랜치 목록 확인 중' : '비워두면 기본 브랜치 전체 분석'}
+              placeholder={isLoadingBranches ? '브랜치 목록 확인 중' : '비워두면 기본 브랜치로 분석'}
               autoComplete="off"
               disabled={isLoading}
             />
@@ -294,7 +294,7 @@ function RunSummary({ indexResult }) {
 
   return (
     <section className="run-summary-panel" aria-labelledby="run-summary-title">
-      <h3 id="run-summary-title">마지막 완료 분석 기준</h3>
+      <h3 id="run-summary-title">마지막 분석 결과</h3>
       <dl className="run-summary">
         <div>
           <dt>레포지토리</dt>
