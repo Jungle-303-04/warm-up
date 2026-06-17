@@ -4,6 +4,7 @@ import { createPost, getPost, updatePost } from "../api/posts";
 import { recommendFont } from "../api/recommendations";
 import FontInfoPopover from "../components/FontInfoPopover";
 import { ArrowLongLeftIcon } from "../components/icons";
+import { createWebFontStyle, hasWebFontUrl } from "../utils/webFont";
 
 const waitingMessages = [
   [
@@ -27,12 +28,22 @@ const recommendedFont = {
 };
 
 function createRecommendationFromPost(post) {
+  const font = post.font ?? {};
+
   return {
     ...recommendedFont,
-    id: post.font?.id ?? recommendedFont.id,
-    name: post.font?.name ?? recommendedFont.name,
+    downloadUrl: font.download_url ?? font.downloadUrl ?? recommendedFont.downloadUrl,
+    id: font.id ?? recommendedFont.id,
+    isDefaultFontApplied: !hasWebFontUrl(font),
+    license: font.license ?? recommendedFont.license,
+    name: font.name ?? recommendedFont.name,
+    previewFontStyle: createWebFontStyle(font),
     reason: post.recommend_reason ?? recommendedFont.reason,
-    tags: post.font?.tags ?? recommendedFont.tags,
+    source: font.source ?? recommendedFont.source,
+    sourceUrl: font.source_url ?? font.sourceUrl,
+    tags: font.tags ?? recommendedFont.tags,
+    usage: font.category ?? recommendedFont.usage,
+    webfonts: font.webfonts ?? [],
   };
 }
 
@@ -44,16 +55,20 @@ function createRecommendationFromResponse(recommendationResponse) {
     ...recommendedFont,
     downloadUrl: selectedFont.download_url ?? recommendedFont.downloadUrl,
     id: selectedFont.id ?? selection.font_id,
+    isDefaultFontApplied: !hasWebFontUrl(selectedFont),
     license: selectedFont.license ?? recommendedFont.license,
     name: selectedFont.name ?? recommendedFont.name,
+    previewFontStyle: createWebFontStyle(selectedFont),
     reason:
       selection.display_reason ??
       selection.reason ??
       selectedFont.description ??
       recommendedFont.reason,
     source: selectedFont.source ?? recommendedFont.source,
+    sourceUrl: selectedFont.source_url ?? selectedFont.sourceUrl,
     tags: selectedFont.tags ?? recommendedFont.tags,
     usage: selectedFont.category ?? recommendedFont.usage,
+    webfonts: selectedFont.webfonts ?? [],
   };
 }
 
@@ -108,6 +123,8 @@ function Write() {
   const waitingMessage = waitingMessages[0];
   const isPreviewTab = activeTab === "preview";
   const hasRecommendation = isPreviewTab && recommendation;
+  const defaultFontMessage =
+    "웹폰트가 없어 기본 폰트로 표시돼요. 폰트명을 눌러 URL을 확인해주세요.";
   const previewText = content;
 
   useEffect(() => {
@@ -437,7 +454,10 @@ function Write() {
                   <div>
                     <div className="flex h-36 items-end border-b border-black">
                       <div className="thin-transparent-scrollbar max-h-[calc(9rem-1px)] w-full overflow-y-auto pr-2 pb-1.5">
-                        <p className="font-['Zodiak'] text-[28px] font-extrabold italic leading-tight text-black">
+                        <p
+                          className="text-[28px] leading-tight text-black"
+                          style={recommendation.previewFontStyle}
+                        >
                           {previewText}
                         </p>
                       </div>
@@ -472,8 +492,16 @@ function Write() {
                   </div>
                 </div>
               ) : null}
-              <p className="mt-2 min-h-4 text-right text-xs text-black">
-                {postErrorMessage}
+              <p
+                className={[
+                  "mt-2 min-h-4 text-right text-xs",
+                  postErrorMessage ? "text-black" : "text-[#9ca3af]",
+                ].join(" ")}
+              >
+                {postErrorMessage ||
+                  (recommendation?.isDefaultFontApplied
+                    ? defaultFontMessage
+                    : "")}
               </p>
             </div>
           )}

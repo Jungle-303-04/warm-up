@@ -12,6 +12,7 @@ import {
   ChatBubbleLeftEllipsisIcon,
   XMarkIcon,
 } from "../components/icons";
+import { createWebFontStyle } from "../utils/webFont";
 
 const fallbackFontReason =
   "이 글에 어울리는 폰트 정보를 확인하고 있어요. 추천 이유는 AI 연결 후 더 자세히 보여줄 예정이에요.";
@@ -66,14 +67,6 @@ function formatCommentDate(createdAt) {
   };
 }
 
-function getContentFontClass(fontName) {
-  if (fontName.toLowerCase() === "zodiak") {
-    return "font-['Zodiak'] font-extrabold italic";
-  }
-
-  return "font-['Pretendard'] font-normal";
-}
-
 function transformPostDetail(post) {
   const formattedDate = formatPostDate(post.created_at);
   const fontName = post.font?.name ?? "Unknown";
@@ -101,7 +94,7 @@ function transformPostDetail(post) {
     },
     time: formattedDate.time,
     title: post.title,
-    contentFontClass: getContentFontClass(fontName),
+    contentFontStyle: createWebFontStyle(post.font),
   };
 }
 
@@ -300,7 +293,8 @@ function PostDetail({ user }) {
             {postDetail.title}
           </h1>
           <p
-            className={`mt-7 ${postDetail.contentFontClass} text-[28px] leading-snug text-black`}
+            className="mt-7 text-[28px] leading-snug text-black"
+            style={postDetail.contentFontStyle}
           >
             {postDetail.content}
           </p>
