@@ -64,7 +64,8 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
     if (!passwordPattern.test(password)) {
       return {
         field: "password",
-        message: "비밀번호는 영문과 숫자를 포함해 8~20자로 입력해주세요.",
+        message:
+          "비밀번호는 영문 대소문자를 구분하며, 숫자를 포함해 8~20자로 입력해주세요.",
       };
     }
 
@@ -141,7 +142,7 @@ function AuthForm({ buttonLabel, description, linkLabel, linkTo, onSubmit }) {
                   : "border-transparent",
               ].join(" ")}
               onChange={handlePasswordChange}
-              placeholder="영문+숫자 비밀번호를 입력하세요"
+              placeholder="영문 대소문자 구분 + 숫자 비밀번호"
               type="password"
               value={password}
             />
