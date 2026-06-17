@@ -17,6 +17,7 @@ from app.notebooks.infrastructure.artifact_generators import (
 )
 from app.notebooks.infrastructure.in_memory_artifact_store import InMemoryArtifactStore
 from app.notebooks.infrastructure.in_memory_store import InMemoryNotebookStore
+from app.api.errors import EntityNotFoundError
 
 FIXED_NOW = datetime(2026, 6, 17, 12, 0, tzinfo=UTC)
 
@@ -115,7 +116,7 @@ def test_generate_erd_without_key_returns_skeleton() -> None:
 
 def test_generate_unknown_notebook_raises_keyerror() -> None:
     service, _ = _service()
-    with pytest.raises(KeyError):
+    with pytest.raises(EntityNotFoundError):
         service.generate("missing", type="dependency")
 
 
@@ -143,7 +144,7 @@ def test_note_crud() -> None:
 
     service.delete_artifact(nb_id, created.id)
     assert service.list_artifacts(nb_id) == []
-    with pytest.raises(KeyError):
+    with pytest.raises(EntityNotFoundError):
         service.get_artifact(nb_id, created.id)
 
 

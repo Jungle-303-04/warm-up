@@ -26,6 +26,8 @@ from app.notebooks.domain.artifact_ports import (
 from app.notebooks.domain.artifact_records import ArtifactRecord, ArtifactType
 from app.notebooks.domain.ports import NotebookStore
 from app.notebooks.domain.records import SourceRecord
+from fastapi import Depends
+from app.notebooks.dependencies import get_notebook_store, get_artifact_store, get_artifact_generator
 
 # 컨텍스트 수집 상한.
 MAX_FILE_CHARS = 4000  # 파일당 본문 상한
@@ -43,21 +45,28 @@ _CODE_EXTS = (
 _DOC_EXTS = (".md", ".markdown")
 
 
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
+def get_clock() -> Callable[[], datetime]:
+    return lambda: datetime.now(UTC)
 
 
-def _new_id() -> str:
-    return uuid4().hex
+def get_id_factory() -> Callable[[], str]:
+    return lambda: uuid4().hex
 
 
 @dataclass
 class ArtifactService:
-    store: NotebookStore
-    artifact_store: ArtifactStore
-    generator: LlmArtifactGenerator
-    clock: Callable[[], datetime] = _utcnow
-    id_factory: Callable[[], str] = _new_id
+    store: NotebookStore = Depends(get_notebook_store)
+    artifact_store: ArtifactStore = Depends(get_artifact_store)
+    generator: LlmArtifactGenerator = Depends(get_artifact_generator)
+    clock: Callable[[], datetime] = Depends(get_clock)
+    id_factory: Callable[[], str] = Depends(get_id_factory)
+
+    def __post_init__(self) -> None:
+        from fastapi.params import Depends as DependsClass
+        if isinstance(self.clock, DependsClass):
+            self.clock = self.clock.dependency()
+        if isinstance(self.id_factory, DependsClass):
+            self.id_factory = self.id_factory.dependency()
 
     def generate(
         self,
