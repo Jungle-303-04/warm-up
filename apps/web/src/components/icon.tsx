@@ -23,6 +23,7 @@ const SYMBOL_NAME_OVERRIDES: Record<string, string> = {
   keep: "push_pin",
   delete: "delete",
   edit: "edit",
+  copy: "content_copy", // Material Symbols에 'copy' 글리프가 없어 글자가 노출되던 문제 수정
 };
 
 export function Icon({

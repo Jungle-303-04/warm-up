@@ -155,7 +155,7 @@ export function StudioPanel({
           ) : null}
 
           <div className="mt-5 flex items-center justify-between border-t border-border pt-3.5">
-            <p className="t-section">아티팩트 및 메모</p>
+            <p className="text-xs font-semibold leading-tight">아티팩트 및 메모</p>
             {/* 생성 진입점을 하나로 통합한 메뉴(+ 추가). */}
             <CreateMenu open={menuOpen} setOpen={setMenuOpen} onAddNote={createNote} />
           </div>

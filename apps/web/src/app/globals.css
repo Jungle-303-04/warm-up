@@ -54,21 +54,21 @@
 .dark {
   --background: 240 6% 7%; /* #131314 — 매우 어두운 검정 회색 */
   --foreground: 220 5% 90%; /* #E3E3E3 — 부드러운 흰색 */
-  --card: 220 5% 12%; /* #1E1F22 — 조금 덜 어두운 패널/카드 회색 */
+  --card: 220 5% 11%; /* #1B1C1E — 미세하게 밝은 카드 배경 */
   --card-foreground: 220 5% 90%;
-  --primary: 214 90% 80%; /* #A8C7FA — 구글 특유의 부드러운 블루 */
-  --primary-foreground: 220 5% 12%;
-  --secondary: 220 5% 16%; /* #242528 — 소스 패널/칩 2차 어두운 회색 */
+  --primary: 214 90% 68%; /* #7AADFA — 채도 높은 구글 블루 */
+  --primary-foreground: 220 10% 8%; /* 진한 텍스트 on blue */
+  --secondary: 220 5% 14%; /* #222326 — 패널 배경 */
   --secondary-foreground: 220 5% 90%;
-  --muted: 220 5% 18%; /* #2B2C30 */
-  --muted-foreground: 220 5% 65%; /* #A5A6A9 — 차분한 회색 */
-  --accent: 214 30% 20%; /* #243242 — 소프트 블루 반투명 액센트 */
-  --accent-foreground: 214 90% 85%; /* #C2E7FF */
+  --muted: 220 5% 17%; /* #2A2B2E */
+  --muted-foreground: 220 5% 60%; /* #999BA0 — 차분한 회색 */
+  --accent: 214 25% 18%; /* #1E2F42 — 깊은 블루 톤 */
+  --accent-foreground: 214 90% 82%; /* #B8D8FF */
   --destructive: 0 85% 60%;
   --destructive-foreground: 0 0% 100%;
-  --border: 220 5% 18%; /* #2C2D31 — 아주 연하고 세련된 어두운 보더 */
-  --input: 220 5% 20%;
-  --ring: 214 90% 80%;
+  --border: 220 5% 16%; /* #272829 — 미세한 보더 */
+  --input: 220 5% 19%;
+  --ring: 214 90% 68%;
   --code-bg: 240 6% 5%;
   --code-fg: 220 5% 90%;
   color-scheme: dark;
@@ -110,6 +110,207 @@ body {
   font-feature-settings: 'liga';
   /* 얇고 세련된 디자인을 위한 variation 세팅: wght 300 (얇게), opsz 20, fill 0 */
   font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+}
+
+/* ── 전역 스크롤바: NotebookLM처럼 얇고, 트랙(배경) 없이 은은하게 ─────────
+   순수 Tailwind로는 ::-webkit-scrollbar 의사요소를 다룰 수 없어 최소 CSS만 둔다.
+   트랙은 transparent로 두어 스크롤 시 보이던 회색 배경을 제거한다. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ── 공통 상호작용 전환: 색/그림자/transform을 부드럽게 ─────────────── */
+.interactive {
+  transition:
+    background-color 150ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 150ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 200ms cubic-bezier(0.2, 0, 0, 1),
+    color 150ms cubic-bezier(0.2, 0, 0, 1),
+    transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ── 스튜디오 카드 색조 ──────────────────────────────────────────────
+   타입별 아이콘 박스 색. 동적 클래스명(studio-tint-${tint})이라 Tailwind로
+   안전 생성이 어려워 최소 CSS로 둔다. --st-bg/--st-fg 두 변수로 대비 유지. */
+.studio-tint {
+  background-color: var(--st-bg);
+  color: var(--st-fg);
+}
+.studio-tint-blue {
+  --st-bg: #d4e6fb;
+  --st-fg: #11539e;
+}
+.studio-tint-violet {
+  --st-bg: #e4dafb;
+  --st-fg: #5f31a0;
+}
+.studio-tint-teal {
+  --st-bg: #c9f0e2;
+  --st-fg: #0a6650;
+}
+.studio-tint-amber {
+  --st-bg: #fae3c2;
+  --st-fg: #8a560c;
+}
+.studio-tint-rose {
+  --st-bg: #fbdce5;
+  --st-fg: #9e2746;
+}
+.studio-tint-indigo {
+  --st-bg: #dcdffb;
+  --st-fg: #353fa8;
+}
+.studio-tint-green {
+  --st-bg: #d5edd6;
+  --st-fg: #25702e;
+}
+.studio-tint-cyan {
+  --st-bg: #cdeef1;
+  --st-fg: #08636d;
+}
+.dark .studio-tint-blue {
+  --st-bg: #1d3654;
+  --st-fg: #aacdf8;
+}
+.dark .studio-tint-violet {
+  --st-bg: #342a52;
+  --st-fg: #d0bbf5;
+}
+.dark .studio-tint-teal {
+  --st-bg: #163e33;
+  --st-fg: #99dcc5;
+}
+.dark .studio-tint-amber {
+  --st-bg: #43331a;
+  --st-fg: #ecbe74;
+}
+.dark .studio-tint-rose {
+  --st-bg: #45242f;
+  --st-fg: #f4adbe;
+}
+.dark .studio-tint-indigo {
+  --st-bg: #292c52;
+  --st-fg: #b6bdf4;
+}
+.dark .studio-tint-green {
+  --st-bg: #1d3d25;
+  --st-fg: #9bd9a1;
+}
+.dark .studio-tint-cyan {
+  --st-bg: #143b40;
+  --st-fg: #87d6de;
+}
+
+/* ── GitHub풍 코드 뷰어(highlight.js) 토큰 색 ────────────────────────
+   .hljs 배경은 비워 카드 표면을 쓰고 토큰 색만 입힌다(라이트/다크 별도). */
+.hljs-comment,
+.hljs-quote {
+  color: #6a737d;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-name,
+.hljs-tag {
+  color: #d73a49;
+}
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp,
+.hljs-addition {
+  color: #032f62;
+}
+.hljs-title,
+.hljs-section,
+.hljs-title.class_,
+.hljs-title.function_ {
+  color: #6f42c1;
+}
+.hljs-number,
+.hljs-literal,
+.hljs-meta,
+.hljs-link {
+  color: #005cc5;
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-type,
+.hljs-symbol,
+.hljs-bullet {
+  color: #e36209;
+}
+.hljs-deletion {
+  color: #b31d28;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 700;
+}
+.dark .hljs-comment,
+.dark .hljs-quote {
+  color: #8b949e;
+}
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-built_in,
+.dark .hljs-name,
+.dark .hljs-tag {
+  color: #ff7b72;
+}
+.dark .hljs-string,
+.dark .hljs-doctag,
+.dark .hljs-regexp,
+.dark .hljs-addition {
+  color: #a5d6ff;
+}
+.dark .hljs-title,
+.dark .hljs-section,
+.dark .hljs-title.class_,
+.dark .hljs-title.function_ {
+  color: #d2a8ff;
+}
+.dark .hljs-number,
+.dark .hljs-literal,
+.dark .hljs-meta,
+.dark .hljs-link {
+  color: #79c0ff;
+}
+.dark .hljs-attr,
+.dark .hljs-attribute,
+.dark .hljs-variable,
+.dark .hljs-template-variable,
+.dark .hljs-type,
+.dark .hljs-symbol,
+.dark .hljs-bullet {
+  color: #ffa657;
+}
+.dark .hljs-deletion {
+  color: #ffa198;
 }
 
 
