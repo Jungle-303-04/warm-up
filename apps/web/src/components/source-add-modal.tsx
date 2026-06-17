@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 
 import {
   createSource,
@@ -13,7 +21,6 @@ import {
 import { cn } from "../lib/cn";
 import { useWorkspace } from "../lib/store";
 import type { LinkMetadata, Source, SourceCreate } from "../lib/types";
-import { Collapse } from "./ui/collapse";
 import { Icon } from "./icon";
 import { SourceIcon } from "./source-icon";
 import { Button } from "./ui/button";
@@ -87,10 +94,10 @@ function FileDropzone({
   const [dragActive, setDragActive] = useState(false);
 
   // 파일을 처리하고 끝나면 모달을 닫는다.
-  const handle = async (files: FileList | File[]) => {
+  const handle = (files: FileList | File[]) => {
     if (!files || (files as FileList).length === 0) return;
-    await processFiles(files);
     onDone();
+    void processFiles(files);
   };
 
   const onDragEnter = (e: React.DragEvent) => {
@@ -116,7 +123,7 @@ function FileDropzone({
     e.preventDefault();
     dragDepth.current = 0;
     setDragActive(false);
-    if (e.dataTransfer.files?.length) await handle(e.dataTransfer.files);
+    if (e.dataTransfer.files?.length) handle(e.dataTransfer.files);
   };
 
   return (
@@ -151,7 +158,7 @@ function FileDropzone({
         accept=".pdf,.md,.markdown,.txt,text/plain,text/markdown,application/pdf"
         className="hidden"
         onChange={async (e) => {
-          if (e.target.files) await handle(e.target.files);
+          if (e.target.files) handle(e.target.files);
           e.target.value = ""; // 같은 파일 재선택 허용
         }}
       />
@@ -263,10 +270,7 @@ function LinkForm({
         }
         setGh({
           kind: "error",
-          message:
-            e instanceof Error
-              ? `브랜치 목록을 가져오지 못했습니다(${e.message}). 브랜치를 직접 입력하면 등록할 수 있어요.`
-              : "브랜치 목록을 가져오지 못했습니다. 브랜치를 직접 입력하면 등록할 수 있어요.",
+          message: "브랜치 목록을 자동으로 확인하지 못했습니다. 브랜치를 직접 입력하면 등록할 수 있어요.",
         });
       }
     }, 450);
@@ -419,12 +423,12 @@ function LinkForm({
         </div>
       </Field>
 
-      {/* GitHub로 인식되면 애니메이션으로 늘어나며 브랜치 선택 영역이 입력란 바로 아래에 나타난다. */}
-      <Collapse open={branchOpen}>
+      {/* GitHub로 인식되면 브랜치 선택 영역을 보여준다.
+          목록 자체는 absolute popover라 overflow-hidden Collapse 안에 넣으면 잘리므로 일반 블록으로 둔다. */}
+      {branchOpen ? (
         <div className="space-y-3 pt-0.5">
           {gh.kind === "ready" ? (
             <Field label="브랜치">
-              {/* 커스텀 드롭다운: 입력란 바로 "아래로" 펼쳐진다(네이티브 select 중앙팝업 회피). */}
               <BranchDropdown
                 branches={gh.info.branches}
                 defaultBranch={gh.info.defaultBranch}
@@ -457,17 +461,16 @@ function LinkForm({
                 placeholder="main"
                 className={inputCls}
               />
-              <p className="text-[11.5px] text-destructive">{gh.message}</p>
+              <p className="text-[11.5px] text-amber-600 dark:text-amber-500">{gh.message}</p>
             </Field>
           ) : (
-            // loading: 영역만 열어두고 안내.
             <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
               <Icon name="progress_activity" size={13} className="animate-spin" />
               GitHub 저장소 브랜치를 인식하는 중…
             </p>
           )}
         </div>
-      </Collapse>
+      ) : null}
 
       <Field label="제목 (선택)">
         <input
@@ -485,7 +488,11 @@ function LinkForm({
         ) : null}
       </Field>
 
-      {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
+      {error ? (
+        <p className="text-[12px] text-muted-foreground">
+          등록을 완료하지 못했습니다. 주소나 접근 권한을 확인해 주세요.
+        </p>
+      ) : null}
 
       <SubmitButton disabled={!url.trim() || busy || gh.kind === "loading"}>
         {submitLabel}
@@ -508,15 +515,57 @@ function BranchDropdown({
   onChange: (b: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState<CSSProperties | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const updatePosition = () => {
+    const anchor = ref.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const viewportMargin = 12;
+    const availableBelow = window.innerHeight - rect.bottom - viewportMargin;
+    const availableAbove = rect.top - viewportMargin;
+    const openAbove = availableBelow < 180 && availableAbove > availableBelow;
+    const maxHeight = Math.max(
+      140,
+      Math.min(240, openAbove ? availableAbove - 6 : availableBelow - 6),
+    );
+    setPopoverStyle({
+      left: rect.left,
+      top: openAbove ? undefined : rect.bottom + 6,
+      bottom: openAbove ? window.innerHeight - rect.top + 6 : undefined,
+      width: rect.width,
+      maxHeight,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+  }, [open, branches.length, value]);
 
   useEffect(() => {
     if (!open) return;
     const onDocClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (
+        ref.current?.contains(target) ||
+        popoverRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setOpen(false);
     };
+    const onReposition = () => updatePosition();
     document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
+    };
   }, [open]);
 
   return (
@@ -538,32 +587,48 @@ function BranchDropdown({
           className="ml-2 shrink-0 text-muted-foreground"
         />
       </button>
-      {open ? (
-        <div className="absolute left-0 right-0 top-full z-[80] mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-card py-1 shadow-lg">
-          {branches.map((b) => (
-            <button
-              key={b}
-              type="button"
-              role="option"
-              aria-selected={b === value}
-              onClick={() => {
-                onChange(b);
-                setOpen(false);
-              }}
-              className={cn(
-                "transition-all duration-200 ease-in-out flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[12px] hover:bg-secondary",
-                b === value ? "font-semibold text-foreground" : "text-muted-foreground",
-              )}
+      {open && popoverStyle
+        ? createPortal(
+            <div
+              ref={popoverRef}
+              role="listbox"
+              style={popoverStyle}
+              className="fixed z-[1000] overflow-y-auto rounded-xl border border-border bg-card py-1 shadow-2xl ring-1 ring-black/10"
             >
-              <span className="truncate">
-                {b}
-                {b === defaultBranch ? " (기본)" : ""}
-              </span>
-              {b === value ? <Icon name="check" size={14} className="shrink-0 text-primary" /> : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
+              {branches.map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  role="option"
+                  aria-selected={b === value}
+                  onClick={() => {
+                    onChange(b);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    "transition-all duration-200 ease-in-out flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[12px] hover:bg-secondary",
+                    b === value
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <span className="truncate">
+                    {b}
+                    {b === defaultBranch ? " (기본)" : ""}
+                  </span>
+                  {b === value ? (
+                    <Icon
+                      name="check"
+                      size={14}
+                      className="shrink-0 text-primary"
+                    />
+                  ) : null}
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

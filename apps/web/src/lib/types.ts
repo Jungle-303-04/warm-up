@@ -57,7 +57,17 @@ export interface Source {
 // GET /notebooks/{nid}/sources/{sid}/index (1회) 및 .../index/stream(SSE) 응답.
 export type IndexStatus = "queued" | "running" | "done" | "failed";
 export type IndexFileStatus = "queued" | "indexing" | "done" | "skipped" | "failed";
-export type IndexLanguage = "python" | "markdown" | "code" | "sql" | "config" | "text" | "pdf" | null;
+export type IndexLanguage =
+  | "git"
+  | "python"
+  | "markdown"
+  | "code"
+  | "sql"
+  | "config"
+  | "text"
+  | "pdf"
+  | "url"
+  | null;
 
 // 파일 단위 인덱싱 상태. supported=false면 인덱싱 대상에서 제외된다.
 export interface IndexFile {

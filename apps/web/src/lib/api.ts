@@ -52,7 +52,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: init?.body ? { "Content-Type": "application/json" } : undefined,
     ...init,
   });
-  if (!res.ok) throw new ApiError(res.status);
+  if (!res.ok) {
+    let message = `요청 실패 (${res.status})`;
+    try {
+      const payload = (await res.json()) as { detail?: unknown };
+      if (typeof payload.detail === "string" && payload.detail.trim()) {
+        message = payload.detail;
+      }
+    } catch {
+      // JSON 에러 본문이 아니면 기본 status 메시지를 유지한다.
+    }
+    throw new ApiError(res.status, message);
+  }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }

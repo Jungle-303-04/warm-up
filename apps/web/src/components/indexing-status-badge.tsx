@@ -20,7 +20,7 @@ export function IndexingStatusBadge({ progress }: { progress?: IndexProgress }) 
     progress.status === "done"
       ? `${progress.indexed_chunks} chunks`
       : failed
-        ? "실패"
+        ? "확인 필요"
         : `${progress.percent}%`;
 
   return (
@@ -28,7 +28,7 @@ export function IndexingStatusBadge({ progress }: { progress?: IndexProgress }) 
       className={cn(
         "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
         failed
-          ? "bg-destructive/10 text-destructive"
+          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
           : active
             ? "bg-primary/10 text-primary"
             : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
@@ -36,7 +36,7 @@ export function IndexingStatusBadge({ progress }: { progress?: IndexProgress }) 
       title={progress.content_hash ? `content hash: ${progress.content_hash.slice(0, 12)}` : undefined}
     >
       <Icon
-        name={failed ? "report" : active ? "progress_activity" : "database"}
+        name={failed ? "refresh" : active ? "progress_activity" : "database"}
         size={11}
         className={active ? "animate-spin" : ""}
       />

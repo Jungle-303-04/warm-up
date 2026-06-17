@@ -97,8 +97,15 @@ class IndexingService:
             return
 
         resync_error: str | None = None
-        if resync_repo and source.kind == "repo":
+        should_sync_repo = source.kind == "repo" and (
+            resync_repo or source.repo_snapshot is None
+        )
+        if should_sync_repo:
+            self.registry.update(source_id, _mark_repo_syncing(source))
             source, resync_error = self._resync_repo(source)
+            if source.repo_snapshot is None and resync_error is not None:
+                self.registry.update(source_id, _fail(resync_error))
+                return
 
         # 재인덱싱 대비: 기존 청크 정리.
         self.chunk_store.delete_by_source(source_id)
@@ -142,8 +149,10 @@ class IndexingService:
         실패: 기존 SourceRecord와 에러 메시지를 돌려준다(폴백).
         repo_sync가 주입되지 않았거나 repository_url이 없으면 재풀링을 건너뛴다.
         """
-        if self.repo_sync is None or not source.repository_url:
-            return source, None
+        if not source.repository_url:
+            return source, "저장소 URL이 없어 분석을 시작할 수 없습니다."
+        if self.repo_sync is None:
+            return source, "저장소 분석기가 설정되지 않았습니다."
 
         # 무거운 의존성은 함수 내 지연 import.
         from subprocess import CalledProcessError
@@ -167,6 +176,12 @@ class IndexingService:
         ]
         source.repo_commits = [commit.model_dump() for commit in snapshot.commits]
         source.branch = snapshot.branch or source.branch
+        source.content_hash = hash_text(
+            "\n".join(
+                f"{file.path}:{hash_text(file.content)}"
+                for file in snapshot.files
+            )
+        )
         # 최신 스냅샷을 저장소에 영속(merge upsert).
         self.store.add_source(source)
         return source, None
@@ -398,6 +413,27 @@ def _start(files: list[_FileChunks]):
                 status="queued",
             )
             for file in files
+        ]
+
+    return mutate
+
+
+def _mark_repo_syncing(source: SourceRecord):
+    def mutate(progress: IndexProgress) -> None:
+        progress.status = "running"
+        progress.total_files = 1
+        progress.processed_files = 0
+        progress.skipped_files = 0
+        progress.total_chunks = 0
+        progress.indexed_chunks = 0
+        progress.error = None
+        progress.files = [
+            FileProgress(
+                path=source.repository_url or source.title,
+                language="git",
+                supported=True,
+                status="indexing",
+            )
         ]
 
     return mutate

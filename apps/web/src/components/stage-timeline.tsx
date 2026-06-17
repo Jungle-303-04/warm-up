@@ -21,7 +21,7 @@ export function StageTimeline({ progress }: { progress?: IndexProgress }) {
     <div
       className="mt-1.5"
       aria-label={`색인 단계: ${
-        progress.status === "failed" ? "실패" : STAGE_LABELS[STAGES[activeIndex]]
+        progress.status === "failed" ? "확인 필요" : STAGE_LABELS[STAGES[activeIndex]]
       }`}
     >
       <div className="grid grid-cols-3 gap-1">
@@ -32,13 +32,13 @@ export function StageTimeline({ progress }: { progress?: IndexProgress }) {
           return (
             <span
               key={stage}
-              title={failed ? "실패" : STAGE_LABELS[stage]}
+              title={failed ? "확인 필요" : STAGE_LABELS[stage]}
               className={cn(
                 "h-1 rounded-full transition-all duration-300",
                 complete && "bg-primary",
                 active && "bg-primary/60 motion-safe:animate-pulse",
                 !complete && !active && "bg-secondary",
-                failed && "bg-destructive",
+                failed && "bg-amber-500",
               )}
             />
           );
@@ -51,10 +51,10 @@ export function StageTimeline({ progress }: { progress?: IndexProgress }) {
             className={cn(
               "truncate",
               progress.status !== "failed" && index === activeIndex && "text-foreground/80",
-              progress.status === "failed" && index === activeIndex && "text-destructive",
+              progress.status === "failed" && index === activeIndex && "text-amber-600 dark:text-amber-500",
             )}
           >
-            {progress.status === "failed" && index === activeIndex ? "실패" : STAGE_LABELS[stage]}
+            {progress.status === "failed" && index === activeIndex ? "확인" : STAGE_LABELS[stage]}
           </span>
         ))}
       </div>

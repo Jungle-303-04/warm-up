@@ -306,7 +306,7 @@ function FileStatusBadge({ status }: { status: IndexFile["status"] }) {
 }
 
 // 제목 바로 아래 얇은 인라인 진행바(macOS 파일 복사 느낌).
-// queued/running일 때만 차오르고, done이면 부드럽게 사라진다. failed면 빨간 톤.
+// queued/running일 때만 차오르고, done이면 부드럽게 사라진다.
 function InlineIndexBar({ progress }: { progress: IndexProgress }) {
   const failed = progress.status === "failed";
   const active = isIndexActive(progress.status);
@@ -326,7 +326,7 @@ function InlineIndexBar({ progress }: { progress: IndexProgress }) {
         <div
           className={cn(
             "h-full rounded-full transition-[width] duration-300 ease-out",
-            failed ? "bg-destructive/85" : "bg-primary",
+            failed ? "bg-amber-500/85" : "bg-primary",
           )}
           style={{ width: `${failed ? 100 : clamped}%` }}
         />
@@ -470,7 +470,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
   // 인덱싱 요약 툴팁(완료 후 영구 블록 대신 hover로만 노출).
   const rowTitle = progress
     ? failed
-      ? `인덱싱 실패${progress.error ? ` · ${progress.error}` : ""}`
+      ? "분석을 완료하지 못했습니다. 재분석할 수 있습니다."
       : indexing
         ? `인덱싱 중 ${progress.processed_files}/${progress.total_files}`
         : `청크 ${progress.indexed_chunks}개 인덱싱 · 미지원 ${progress.skipped_files}개 제외`
@@ -571,10 +571,13 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
               </span>
             ) : null}
             {progress ? <StageTimeline progress={progress} /> : null}
-            {/* 실패 시 짧은 에러 한 줄(인라인). */}
-            {failed && progress?.error ? (
-              <span className="mt-0.5 block truncate text-[10px] text-destructive">
-                {progress.error}
+            {/* 실패 시 내부 에러를 노출하지 않고 재시도 가능한 상태로만 표현한다. */}
+            {failed ? (
+              <span
+                className="mt-0.5 block truncate text-[10px] text-amber-600 dark:text-amber-500"
+                title={progress?.error ?? undefined}
+              >
+                분석을 완료하지 못했습니다. 재분석할 수 있습니다.
               </span>
             ) : null}
             {/* 상태 확인 안내(진행 중인데 일정 시간 갱신 없음). */}
@@ -618,7 +621,7 @@ export function SourceRow({ source, notebookId }: { source: Source; notebookId: 
             title={reindexing ? "재분석 중…" : "재분석"}
             className={cn(
               "transition-all duration-200 ease-in-out grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed",
-              failed ? "text-destructive hover:bg-destructive/10" : "",
+              failed ? "text-amber-600 hover:bg-amber-500/10" : "",
             )}
           >
             <Icon

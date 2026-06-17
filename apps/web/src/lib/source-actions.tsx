@@ -22,7 +22,6 @@ import { useWorkspace } from "./store";
 interface SourceActions {
   openAddSource: () => void; // 통합 소스 추가 모달(파일 드롭존 + URL/GitHub 입력)
   busy: boolean; // 파일 처리 중
-  error: string | null;
   // 드래그앤드롭에서 파일 일괄 처리(소스 패널 전역 드롭존이 직접 호출).
   processFiles: (files: FileList | File[]) => Promise<void>;
 }
@@ -44,28 +43,27 @@ export function SourceActionsProvider({
 }) {
   const addSource = useWorkspace((s) => s.addSource);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // 파일 목록 순차 처리 → createSource → 스토어 반영. 실패는 모아서 표시.
+  // 파일 목록 순차 처리 → createSource → 스토어 반영.
+  // 실패한 개별 파일명은 화면에 오래 노출하지 않는다. 성공한 소스는 곧바로
+  // 소스 행에 나타나고, 인덱싱 상태는 SourceRow의 progress가 맡는다.
   const processFiles = useCallback(
     async (files: FileList | File[]) => {
       const list = Array.from(files);
       if (list.length === 0) return;
       setBusy(true);
-      setError(null);
-      const failed: string[] = [];
       for (const file of list) {
         try {
           const body = await fileToSourceCreate(file);
           const source = await createSource(notebookId, body);
           addSource(source);
         } catch {
-          failed.push(file.name);
+          // 내부 실패는 조용히 넘긴다. 사용자는 소스 행에 나타난 항목의 진행 상태로
+          // 성공 여부를 확인하고, 실패한 파일은 다시 선택할 수 있다.
         }
       }
       setBusy(false);
-      if (failed.length > 0) setError(`추가 실패: ${failed.join(", ")}`);
     },
     [notebookId, addSource],
   );
@@ -74,10 +72,9 @@ export function SourceActionsProvider({
     () => ({
       openAddSource: () => setModalOpen(true),
       busy,
-      error,
       processFiles,
     }),
-    [busy, error, processFiles],
+    [busy, processFiles],
   );
 
   return (

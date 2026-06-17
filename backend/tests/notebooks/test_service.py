@@ -116,29 +116,8 @@ def test_add_url_source_requires_url() -> None:
         service.add_source(notebook.id, kind="url", title="link")
 
 
-def test_add_repo_source_uses_injected_sync() -> None:
-    # 실제 git clone 없이 RepoSyncService를 가짜로 주입
-    class FakeSync:
-        def sync(self, request):
-            from app.pipeline.router import RepoFile, RepoSnapshot
-
-            return RepoSnapshot(
-                repository=request.repository,
-                branch=request.branch,
-                commit_sha="abc123",
-                files=[
-                    RepoFile(path="src/app.py", content="print('x')"),
-                    RepoFile(path="README.md", content="# readme"),
-                ],
-            )
-
-    counter = count(1)
-    service = NotebookService(
-        store=InMemoryNotebookStore(),
-        repo_sync=FakeSync(),  # type: ignore
-        clock=lambda: FIXED_NOW,
-        id_factory=lambda: f"id-{next(counter)}",
-    )
+def test_add_repo_source_persists_metadata_without_syncing() -> None:
+    service = _service()
     notebook = service.create_notebook(title="nb")
 
     source = service.add_source(
@@ -150,11 +129,10 @@ def test_add_repo_source_uses_injected_sync() -> None:
     assert source.kind == "repo"
     assert source.title == "myrepo"  # title 비면 URL 마지막 경로명
     assert source.branch == "main"
-    assert source.repo_snapshot is not None
-    assert {entry["path"] for entry in source.repo_snapshot} == {
-        "src/app.py",
-        "README.md",
-    }
+    assert source.repository_url == "https://github.com/owner/myrepo"
+    assert source.repo_snapshot is None
+    assert source.repo_commits is None
+    assert source.content_hash is not None
 
 
 def test_repo_source_tree_and_file_lookup() -> None:

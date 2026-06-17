@@ -1,14 +1,14 @@
 """노트북 유스케이스.
 
-노트북 CRUD와 소스 추가/조회/삭제를 담당한다. repo 소스는 RepoSyncService로
-실제 저장소를 clone 해 repo_snapshot 캐시를 만든다. 트리/파일 조회는 캐시만
+노트북 CRUD와 소스 추가/조회/삭제를 담당한다. repo 소스 추가는 사용자 입력을
+검증해 메타데이터만 즉시 저장하고, 실제 clone 및 repo_snapshot 갱신은
+IndexingService가 백그라운드 진행 상태로 처리한다. 트리/파일 조회는 캐시만
 사용해 git 재호출 없이 처리한다. 저장은 NotebookStore 포트에만 의존한다.
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from subprocess import CalledProcessError
 from typing import Any
 from uuid import uuid4
 
@@ -19,9 +19,8 @@ from app.notebooks.domain.records import (
     SourceKind,
     SourceRecord,
 )
-from app.pipeline.router import DEFAULT_BRANCH, PipelineRequest
+from app.pipeline.router import DEFAULT_BRANCH
 from app.repo_rag.domain.identity import hash_text
-from app.repository_source.infrastructure.repo_sync import RepoSyncService
 
 
 def get_clock() -> Callable[[], datetime]:
@@ -41,7 +40,6 @@ DEFAULT_NOTEBOOK_TITLE = "새 노트북"
 @dataclass
 class NotebookService:
     store: NotebookStore
-    repo_sync: RepoSyncService = field(default_factory=RepoSyncService)
     clock: Any = field(default_factory=get_clock)
     id_factory: Any = field(default_factory=get_id_factory)
 
@@ -232,35 +230,16 @@ class NotebookService:
         effective_branch = (branch or "").strip() or DEFAULT_BRANCH
         effective_title = (title or "").strip() or _repo_name_from_url(repository_url)
 
-        try:
-            snapshot = self.repo_sync.sync(
-                PipelineRequest(
-                    repository=effective_title,
-                    repository_url=repository_url,
-                    branch=effective_branch,
-                )
-            )
-        except (ValueError, CalledProcessError) as exc:
-            # clone/검증 실패는 400으로 변환되도록 DomainValidationError로 통일
-            raise DomainValidationError(f"저장소 동기화에 실패했습니다: {exc}") from exc
-
-        repo_snapshot = [
-            {"path": file.path, "content": file.content} for file in snapshot.files
-        ]
-        repo_commits = [commit.model_dump() for commit in snapshot.commits]
-        repo_hash = hash_text(
-            "\n".join(f"{file.path}:{hash_text(file.content)}" for file in snapshot.files)
-        )
+        normalized_url = repository_url.strip()
         return SourceRecord(
             id=self.id_factory(),
             notebook_id=notebook_id,
             kind="repo",
             title=effective_title,
-            repository_url=repository_url,
-            branch=snapshot.branch or effective_branch,
-            content_hash=repo_hash,
-            repo_commits=repo_commits,
-            repo_snapshot=repo_snapshot,
+            repository_url=normalized_url,
+            branch=effective_branch,
+            # 실제 파일 스냅샷 hash는 백그라운드 인덱싱에서 clone 성공 후 갱신된다.
+            content_hash=hash_text(f"{normalized_url}@{effective_branch}"),
             created_at=self.clock(),
         )
 
@@ -274,8 +253,10 @@ class NotebookService:
         owner_user_id: int = DEFAULT_OWNER_USER_ID,
     ) -> list[dict]:
         source = self.get_source(notebook_id, source_id, owner_user_id=owner_user_id)
-        if source.kind != "repo" or source.repo_snapshot is None:
+        if source.kind != "repo":
             raise DomainValidationError("repo 소스에서만 트리를 조회할 수 있습니다")
+        if source.repo_snapshot is None:
+            raise DomainValidationError("저장소 분석이 아직 완료되지 않았습니다")
         paths = [entry["path"] for entry in source.repo_snapshot]
         return build_tree(paths)
 
@@ -288,8 +269,10 @@ class NotebookService:
         owner_user_id: int = DEFAULT_OWNER_USER_ID,
     ) -> dict:
         source = self.get_source(notebook_id, source_id, owner_user_id=owner_user_id)
-        if source.kind != "repo" or source.repo_snapshot is None:
+        if source.kind != "repo":
             raise DomainValidationError("repo 소스에서만 파일을 조회할 수 있습니다")
+        if source.repo_snapshot is None:
+            raise DomainValidationError("저장소 분석이 아직 완료되지 않았습니다")
         for entry in source.repo_snapshot:
             if entry["path"] == path:
                 return {"path": path, "content": entry["content"]}

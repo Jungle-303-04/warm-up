@@ -216,6 +216,45 @@ def _make_snapshot(files: list[tuple[str, str]], branch: str = "main"):
     )
 
 
+def test_initial_repo_indexing_pulls_snapshot_when_missing() -> None:
+    notebook_service, _indexing, chunk_store, registry = _build()
+    store = notebook_service.store
+    notebook = notebook_service.create_notebook(title="RepoLM")
+    repo = notebook_service.add_source(
+        notebook.id,
+        kind="repo",
+        title="team/api",
+        repository_url="https://github.com/team/api",
+        branch="main",
+    )
+    assert repo.repo_snapshot is None
+
+    fake_sync = _FakeRepoSync(
+        snapshot=_make_snapshot([("app/main.py", "def f():\n    return 1\n")])
+    )
+    indexing = IndexingService(
+        store=store,
+        chunk_store=chunk_store,
+        embedder=DeterministicEmbeddingClient(dimension=64),
+        registry=registry,
+        clock=lambda: FIXED_NOW,
+        id_factory=lambda: "chunk-initial",
+        repo_sync=fake_sync,
+    )
+
+    indexing.register(repo)
+    indexing.index_source(notebook.id, repo.id)
+
+    assert fake_sync.calls == 1
+    updated = store.get_source(notebook.id, repo.id)
+    assert updated.repo_snapshot is not None
+    assert {entry["path"] for entry in updated.repo_snapshot} == {"app/main.py"}
+    view = registry.get(repo.id)
+    assert view is not None
+    assert view["status"] == "done"
+    assert chunk_store.count_by_source(repo.id) > 0
+
+
 def test_reindex_repo_repulls_and_updates_snapshot() -> None:
     notebook_service, _indexing, chunk_store, registry = _build()
     store = notebook_service.store
