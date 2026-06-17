@@ -1,3 +1,4 @@
+import re
 from typing import Literal
 
 INTENT_LIST_REPOSITORIES = "list_repositories"
@@ -31,6 +32,66 @@ KOREAN_SHORTHAND_EXPANSIONS = (
     ("ㅂㄹㅊ", "브랜치"),
     ("ㅁㄹ", "목록"),
 )
+KOREAN_PATH_HINTS = (
+    "백엔드",
+    "프론트엔드",
+    "프론트",
+    "앱",
+    "어스",
+    "인증",
+)
+PATH_REQUEST_KEYWORDS = (
+    "안에",
+    "아래",
+    "있는",
+    "전부",
+    "전체",
+    "달라",
+    "줘",
+    "꺼",
+    "것",
+)
+ASCII_PATH_TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9_.-]+")
+TARGET_SELECTION_BLOCKERS = (
+    "?",
+    "뭐",
+    "무엇",
+    "무슨",
+    "어떤",
+    "어디",
+    "어떻게",
+    "왜",
+    "누구",
+    "목록",
+    "리스트",
+    "브랜치",
+    "레포",
+    "레포지토리",
+    "저장소",
+    "파일",
+    "폴더",
+    "디렉토리",
+    "구조",
+    "트리",
+    "버그",
+    "오류",
+    "문제",
+    "설명",
+    "보여",
+    "알려",
+    "달라",
+    "줘",
+    "있는",
+    "안에",
+    "아래",
+    "야",
+    "안녕",
+    "하이",
+    "ㅎㅇ",
+    "욜",
+)
+MIN_BARE_TARGET_TOKENS = 2
+MAX_BARE_TARGET_TOKENS = 5
 
 AgentIntent = Literal[
     "list_repositories",
@@ -80,6 +141,11 @@ def is_file_list_question(user_input: str) -> bool:
     """파일, 폴더, 디렉토리 구조처럼 SQL path 목록으로 답해야 하는 질문인지 본다."""
 
     text = normalize_text(user_input)
+    if has_path_expression(text) and any(
+        keyword in text for keyword in PATH_REQUEST_KEYWORDS
+    ):
+        return True
+
     return any(
         keyword in text
         for keyword in (
@@ -129,6 +195,7 @@ def is_basis_change_request(user_input: str) -> bool:
             "기준으로 답",
             "기준으로 해",
             "추가해",
+            "빼",
             "빼줘",
             "제외해",
             "제거해",
@@ -160,6 +227,17 @@ def is_general_chat(user_input: str) -> bool:
     }
 
 
+def is_bare_target_selection(user_input: str) -> bool:
+    """짧은 레포/브랜치 이름 나열처럼 질문이 아니라 기준 선택에 가까운 입력인지 본다."""
+
+    text = normalize_text(user_input)
+    if not text or any(keyword in text for keyword in TARGET_SELECTION_BLOCKERS):
+        return False
+
+    tokens = [token for token in text.replace("/", " ").replace("\\", " ").split() if token]
+    return MIN_BARE_TARGET_TOKENS <= len(tokens) <= MAX_BARE_TARGET_TOKENS
+
+
 def detect_basis_mode(user_input: str) -> BasisMode:
     """기준 변경 요청이 교체, 추가, 제거, 초기화 중 무엇인지 결정한다."""
 
@@ -182,3 +260,24 @@ def normalize_text(value: str) -> str:
 
 def has_digit(value: str) -> bool:
     return any(char.isdigit() for char in value)
+
+
+def has_path_expression(text: str) -> bool:
+    if "/" in text or "\\" in text:
+        return True
+
+    hint_count = sum(1 for hint in KOREAN_PATH_HINTS if hint in text)
+    return hint_count >= 2
+
+
+def has_path_focus_hint(user_input: str) -> bool:
+    """전체 파일/폴더 목록이 아니라 특정 경로를 좁혀 말한 요청인지 본다."""
+
+    text = normalize_text(user_input)
+    if "/" in text or "\\" in text:
+        return True
+    if any(hint in text for hint in KOREAN_PATH_HINTS):
+        return True
+    return bool(ASCII_PATH_TOKEN_PATTERN.search(text)) and any(
+        keyword in text for keyword in PATH_REQUEST_KEYWORDS
+    )

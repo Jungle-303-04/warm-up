@@ -88,6 +88,24 @@ class IntentResolver(Protocol):
     ) -> IntentResolveResult: ...
 
 
+class PathTargetPlanResult(Protocol):
+    """LLM이 사용자 표현을 실제 SQL path prefix 후보 중 하나로 고른 결과."""
+
+    selected_path: str | None
+    reason: str | None
+
+
+class PathTargetResolver(Protocol):
+    """오타가 섞인 폴더 표현을 실제 저장된 path prefix에 맞추는 계약."""
+
+    def resolve_path_target(
+        self,
+        user_input: str,
+        path_candidates: list[str],
+        messages: list[ChatMessage],
+    ) -> PathTargetPlanResult: ...
+
+
 class AgentChatUseCase(Protocol):
     """HTTP 라우터가 내부 저장소나 에이전트 구현을 몰라도 쓰는 채팅 유스케이스."""
 

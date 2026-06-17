@@ -12,6 +12,7 @@ from app.agent.domain.chat import (
     InferredRepositoryRef,
 )
 from app.agent.service.agent_intent import (
+    BASIS_MODE_ADD,
     BASIS_MODE_CLEAR,
     BASIS_MODE_REMOVE,
     BASIS_MODE_REPLACE,
@@ -26,9 +27,11 @@ from app.agent.service.agent_intent import (
     AgentIntent,
     BasisMode,
     detect_basis_mode,
+    has_path_focus_hint,
     is_general_chat,
     is_basis_change_request,
     is_branch_list_question,
+    is_bare_target_selection,
     is_current_basis_question,
     is_file_list_question,
     is_repository_list_question,
@@ -36,7 +39,12 @@ from app.agent.service.agent_intent import (
     normalize_text,
 )
 from app.agent.service.intent_resolver import FALLBACK_REASON_PREFIX
-from app.agent.service.ports import IntentResolver, RepositoryTargetPlanner, ToolCallingLlm
+from app.agent.service.ports import (
+    IntentResolver,
+    PathTargetResolver,
+    RepositoryTargetPlanner,
+    ToolCallingLlm,
+)
 from app.agent.service.rag_answer_prompt import (
     build_answer_messages,
     build_evidence_fallback_answer,
@@ -46,13 +54,16 @@ from app.agent.service.rag_answer_prompt import (
 from app.agent.service.repository_context import (
     build_basis_changed_answer,
     build_branch_list_answer,
+    build_available_path_prefixes,
     build_clarification_answer,
     build_current_basis_answer,
+    build_file_snapshot_comparison_answer,
     build_file_list_answer,
     build_inferred_repository_ref,
     build_next_basis_refs,
     build_repository_list_answer,
     get_latest_unique_runs_by_repository_branch,
+    is_snapshot_comparison_question,
     resolve_runs_from_refs,
     resolve_runs_from_recent_list_ordinal,
     resolve_runs_from_text,
@@ -100,12 +111,14 @@ class AgentGraph:
         tool_calling_llm: ToolCallingLlm,
         repository_target_planner: RepositoryTargetPlanner | None = None,
         intent_resolver: IntentResolver | None = None,
+        path_target_resolver: PathTargetResolver | None = None,
     ) -> None:
         self.rag_answer_service = rag_answer_service
         self.sql_repository = sql_repository
         self.tool_calling_llm = tool_calling_llm
         self.repository_target_planner = repository_target_planner
         self.intent_resolver = intent_resolver
+        self.path_target_resolver = path_target_resolver
         self.graph = self.build_graph()
 
     def run(
@@ -138,6 +151,7 @@ class AgentGraph:
         graph.add_node("classify_intent", self.classify_intent)
         graph.add_node("answer_repository_metadata", self.answer_repository_metadata)
         graph.add_node("answer_repository_files", self.answer_repository_files)
+        graph.add_node("answer_repository_comparison", self.answer_repository_comparison)
         graph.add_node("change_repository_basis", self.change_repository_basis)
         graph.add_node("resolve_rag_basis", self.resolve_rag_basis)
         graph.add_node("retrieve_rag", self.retrieve_rag)
@@ -166,12 +180,14 @@ class AgentGraph:
             route_resolved_rag_basis,
             {
                 "retrieve": "retrieve_rag",
+                "compare": "answer_repository_comparison",
                 "clarify": "ask_clarification",
             },
         )
         graph.add_edge("retrieve_rag", "generate_answer")
         graph.add_edge("answer_repository_metadata", END)
         graph.add_edge("answer_repository_files", END)
+        graph.add_edge("answer_repository_comparison", END)
         graph.add_edge("change_repository_basis", END)
         graph.add_edge("generate_answer", END)
         graph.add_edge("answer_general_chat", END)
@@ -244,14 +260,17 @@ class AgentGraph:
                 ),
             }
 
-        if is_branch_list_question(user_input):
+        if is_bare_target_selection(user_input):
+            basis_mode = detect_bare_target_basis_mode(current_refs)
             return {
-                "intent": INTENT_LIST_BRANCHES,
-                "target_runs": self.resolve_target_runs(
+                "intent": INTENT_CHANGE_BASIS,
+                "basis_mode": basis_mode,
+                "target_runs": self.resolve_basis_change_target_runs(
                     user_input=user_input,
                     latest_runs=latest_runs,
                     current_refs=current_refs,
                     messages=messages,
+                    basis_mode=basis_mode,
                 ),
             }
 
@@ -259,6 +278,17 @@ class AgentGraph:
             return {
                 "intent": INTENT_LIST_FILES,
                 "target_runs": self.resolve_runs_for_current_question(
+                    user_input=user_input,
+                    latest_runs=latest_runs,
+                    current_refs=current_refs,
+                    messages=messages,
+                ),
+            }
+
+        if is_branch_list_question(user_input):
+            return {
+                "intent": INTENT_LIST_BRANCHES,
+                "target_runs": self.resolve_target_runs(
                     user_input=user_input,
                     latest_runs=latest_runs,
                     current_refs=current_refs,
@@ -292,6 +322,9 @@ class AgentGraph:
         messages: list[ChatMessage],
     ) -> AgentGraphState:
         """분류된 intent를 LangGraph state로 바꾼다."""
+
+        if intent == INTENT_CHANGE_BASIS and is_bare_target_selection(user_input):
+            basis_mode = detect_bare_target_basis_mode(current_refs)
 
         if intent == INTENT_LIST_REPOSITORIES:
             return {"intent": INTENT_LIST_REPOSITORIES}
@@ -372,6 +405,17 @@ class AgentGraph:
             run.id: self.sql_repository.list_skipped_files(state["db"], run.id)
             for run in target_runs
         }
+        available_paths = [
+            snapshot.path
+            for snapshots in file_snapshots_by_run.values()
+            for snapshot in snapshots
+            if snapshot.path
+        ]
+        planned_focus = self.resolve_path_focus_with_planner(
+            user_input=state["turn"].user_input,
+            available_paths=available_paths,
+            messages=state.get("messages", []),
+        )
         final_refs = [build_inferred_repository_ref(run) for run in target_runs]
         return {
             "final_answer": build_file_list_answer(
@@ -379,8 +423,27 @@ class AgentGraph:
                 target_runs=target_runs,
                 file_snapshots_by_run=file_snapshots_by_run,
                 skipped_files_by_run=skipped_files_by_run,
+                planned_focus=planned_focus,
             ),
             "final_refs": final_refs or list(state["turn"].repository_refs),
+            "repository_basis_changed": bool(final_refs),
+        }
+
+    def answer_repository_comparison(self, state: AgentGraphState) -> AgentGraphState:
+        """두 개 이상의 선택 기준은 SQL 파일 스냅샷으로 먼저 구조적 차이를 답한다."""
+
+        target_runs = state.get("target_runs", [])
+        file_snapshots_by_run = {
+            run.id: self.sql_repository.list_file_snapshots(state["db"], run.id)
+            for run in target_runs
+        }
+        final_refs = [build_inferred_repository_ref(run) for run in target_runs]
+        return {
+            "final_answer": build_file_snapshot_comparison_answer(
+                target_runs=target_runs,
+                file_snapshots_by_run=file_snapshots_by_run,
+            ),
+            "final_refs": final_refs,
             "repository_basis_changed": bool(final_refs),
         }
 
@@ -522,7 +585,32 @@ class AgentGraph:
         current_refs: list[InferredRepositoryRef],
         messages: list[ChatMessage],
     ) -> list[Any]:
-        """현재 고정 기준을 우선 쓰고, 없을 때만 질문에서 레포/브랜치를 찾는다."""
+        """질문이 특정 브랜치를 말하면 그 대상을 우선하고, 아니면 현재 기준을 쓴다."""
+
+        if has_explicit_target_hint(user_input):
+            current_candidate_runs = resolve_runs_from_refs(current_refs, latest_runs)
+            if current_candidate_runs:
+                target_runs = self.resolve_target_runs(
+                    user_input=user_input,
+                    latest_runs=current_candidate_runs,
+                    current_refs=[],
+                    messages=messages,
+                    prefer_planner=True,
+                    allow_repository_default=False,
+                )
+                if target_runs:
+                    return target_runs
+
+            target_runs = self.resolve_target_runs(
+                user_input=user_input,
+                latest_runs=latest_runs,
+                current_refs=[],
+                messages=messages,
+                prefer_planner=True,
+                allow_repository_default=False,
+            )
+            if target_runs:
+                return target_runs
 
         current_runs = resolve_runs_from_refs(current_refs, latest_runs)
         if current_runs:
@@ -612,6 +700,32 @@ class AgentGraph:
             return []
         return resolve_runs_from_refs(plan.inferred_repository_refs, latest_runs)
 
+    def resolve_path_focus_with_planner(
+        self,
+        user_input: str,
+        available_paths: list[str],
+        messages: list[ChatMessage],
+    ) -> str | None:
+        """오타가 섞인 폴더 표현은 LLM이 실제 SQL path 후보 안에서만 고르게 한다."""
+
+        if (
+            self.path_target_resolver is None
+            or not available_paths
+            or not has_path_focus_hint(user_input)
+        ):
+            return None
+
+        path_candidates = build_available_path_prefixes(available_paths)
+        if not path_candidates:
+            return None
+
+        plan = self.path_target_resolver.resolve_path_target(
+            user_input=user_input,
+            path_candidates=path_candidates,
+            messages=messages,
+        )
+        return plan.selected_path
+
     def generate_answer(self, state: AgentGraphState) -> AgentGraphState:
         """검색 근거가 있을 때만 LLM을 호출해 최종 자연어 답변을 만든다."""
 
@@ -674,6 +788,11 @@ def route_intent(state: AgentGraphState) -> AgentIntent:
 
 def route_resolved_rag_basis(state: AgentGraphState) -> str:
     if state.get("target_runs"):
+        if (
+            len(state.get("target_runs", [])) >= 2
+            and is_snapshot_comparison_question(state["turn"].user_input)
+        ):
+            return "compare"
         return "retrieve"
     return "clarify"
 
@@ -699,10 +818,14 @@ def correct_intent_with_explicit_markers(
 ) -> AgentIntent:
     """LLM intent가 명시적인 파일/브랜치 표현과 충돌하면 안전한 쪽으로 보정한다."""
 
-    if is_branch_list_question(user_input):
-        return INTENT_LIST_BRANCHES
+    if is_bare_target_selection(user_input):
+        return INTENT_CHANGE_BASIS
+    if is_basis_change_request(user_input):
+        return INTENT_CHANGE_BASIS
     if is_file_list_question(user_input):
         return INTENT_LIST_FILES
+    if is_branch_list_question(user_input):
+        return INTENT_LIST_BRANCHES
     if is_repository_list_question(user_input):
         return INTENT_LIST_REPOSITORIES
     return intent
@@ -725,3 +848,18 @@ def build_remove_planner_input(user_input: str) -> str:
         "남길 대상은 절대 고르지 마라. "
         f"사용자 요청: {user_input}"
     )
+
+
+def detect_bare_target_basis_mode(
+    current_refs: list[InferredRepositoryRef],
+) -> BasisMode:
+    """이미 기준이 있을 때 짧은 레포/브랜치 선택문은 기존 기준에 추가한다."""
+
+    return BASIS_MODE_ADD if current_refs else BASIS_MODE_REPLACE
+
+
+def has_explicit_target_hint(user_input: str) -> bool:
+    """내용 질문 안에 레포/브랜치 대상 단서가 있으면 현재 기준보다 질문을 우선한다."""
+
+    text = normalize_text(user_input)
+    return "/" in text or "\\" in text or "브랜치" in text or "레포" in text

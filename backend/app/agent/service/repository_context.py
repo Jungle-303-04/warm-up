@@ -16,6 +16,16 @@ REPOSITORY_ORDINAL_PATTERN = re.compile(r"(?<!\d)(\d+)\s*번\s*(?:레포|레포�
 BRANCH_ORDINAL_PATTERN = re.compile(r"(?<!\d)(\d+)\s*번\s*(?:브랜치)?")
 BARE_ORDINAL_PATTERN = re.compile(r"^\s*(\d+)\s*(?:번)?\s*$")
 BRANCH_LIST_REPOSITORY_ORDINAL_PATTERN = re.compile(r"^\s*(\d+)\s*(?:번)?\s*브랜치")
+PATH_SEPARATOR_PATTERN = re.compile(r"[\\/]+")
+PATH_TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9_.-]+(?:[/\\][a-zA-Z0-9_.-]+)+")
+KOREAN_PATH_SEGMENTS = {
+    "백엔드": "backend",
+    "프론트엔드": "frontend",
+    "프론트": "frontend",
+    "앱": "app",
+    "어스": "auth",
+    "인증": "auth",
+}
 
 
 def resolve_runs_from_text(
@@ -213,13 +223,21 @@ def build_file_list_answer(
     target_runs: list[Any],
     file_snapshots_by_run: dict[int, list[Any]],
     skipped_files_by_run: dict[int, list[Any]],
+    planned_focus: str | None = None,
 ) -> str:
     """확정된 run의 SQL 파일 스냅샷에서 파일/폴더 구조 질문에 답한다."""
 
     if not target_runs:
         return "어떤 레포지토리의 파일 구조를 볼지 찾지 못했습니다. 레포나 브랜치 기준을 먼저 정해 주세요."
 
-    focus = detect_path_focus(user_input)
+    all_paths = [
+        snapshot.path
+        for snapshots in file_snapshots_by_run.values()
+        for snapshot in snapshots
+        if snapshot.path
+    ]
+    focus = detect_path_focus(user_input, all_paths, planned_focus=planned_focus)
+    folder_only = is_folder_list_request(user_input)
     lines: list[str] = []
     for run in target_runs:
         snapshots = file_snapshots_by_run.get(run.id, [])
@@ -230,22 +248,105 @@ def build_file_list_answer(
 
         title = format_run_title(run)
         if focus:
-            lines.append(f"{title}에서 '{focus}'와 관련된 분석 파일입니다.")
+            target_label = "폴더" if folder_only else "분석 파일"
+            lines.append(f"{title}에서 '{focus}'와 관련된 {target_label}입니다.")
+        elif folder_only:
+            lines.append(f"{title}의 분석된 폴더 목록입니다.")
         else:
             lines.append(f"{title}의 분석된 파일 목록입니다.")
 
-        if not paths:
-            lines.append("- 조건에 맞는 분석 파일을 찾지 못했습니다.")
+        result_paths = build_folder_paths(paths, focus) if folder_only else sorted(paths)
+        if not result_paths:
+            target_label = "폴더" if folder_only else "분석 파일"
+            lines.append(f"- 조건에 맞는 {target_label}를 찾지 못했습니다.")
         else:
-            for path in sorted(paths)[:80]:
+            for path in result_paths[:80]:
                 lines.append(f"- {path}")
-            if len(paths) > 80:
-                lines.append(f"- ...외 {len(paths) - 80}개")
+            if len(result_paths) > 80:
+                lines.append(f"- ...외 {len(result_paths) - 80}개")
 
         if skipped_files and not focus:
             lines.append(f"- 참고: 미지원/제외 파일 {len(skipped_files)}개가 따로 기록되어 있습니다.")
 
     return "\n".join(lines)
+
+
+def is_snapshot_comparison_question(user_input: str) -> bool:
+    """두 개 이상의 선택 기준 사이의 코드 스냅샷 차이를 묻는 질문인지 본다."""
+
+    text = normalize_text(user_input)
+    return any(keyword in text for keyword in ("차이", "비교", "다른", "달라", "diff"))
+
+
+def build_file_snapshot_comparison_answer(
+    target_runs: list[Any],
+    file_snapshots_by_run: dict[int, list[Any]],
+) -> str:
+    """SQL 파일 스냅샷 기준으로 추가, 삭제, 내용 변경 파일을 비교한다."""
+
+    if len(target_runs) < 2:
+        return "비교하려면 최소 두 개의 레포지토리/브랜치 기준이 필요합니다."
+
+    base_run = target_runs[0]
+    lines = [
+        "SQL 파일 스냅샷 기준 차이입니다.",
+        "아직 코드 라인 diff가 아니라 파일 경로와 content_hash 기준의 MVP 비교입니다.",
+    ]
+    for compare_run in target_runs[1:]:
+        base_files = build_snapshot_map(file_snapshots_by_run.get(base_run.id, []))
+        compare_files = build_snapshot_map(file_snapshots_by_run.get(compare_run.id, []))
+        base_paths = set(base_files)
+        compare_paths = set(compare_files)
+
+        added_paths = sorted(compare_paths - base_paths)
+        removed_paths = sorted(base_paths - compare_paths)
+        changed_paths = sorted(
+            path
+            for path in base_paths & compare_paths
+            if getattr(base_files[path], "content_hash", None)
+            != getattr(compare_files[path], "content_hash", None)
+        )
+
+        lines.append("")
+        lines.append(f"기준 A: {format_run_title(base_run)}")
+        lines.append(f"기준 B: {format_run_title(compare_run)}")
+        lines.append(f"- B에만 있는 파일: {len(added_paths)}개")
+        lines.append(f"- A에만 있는 파일: {len(removed_paths)}개")
+        lines.append(f"- 경로는 같지만 내용 hash가 다른 파일: {len(changed_paths)}개")
+
+        append_limited_paths(lines, "B에만 있음", added_paths)
+        append_limited_paths(lines, "A에만 있음", removed_paths)
+        append_limited_paths(lines, "내용 변경", changed_paths)
+
+    return "\n".join(lines)
+
+
+def build_snapshot_map(snapshots: list[Any]) -> dict[str, Any]:
+    """파일 path를 key로 삼아 같은 경로의 snapshot을 빠르게 비교하게 한다."""
+
+    return {
+        snapshot.path: snapshot
+        for snapshot in snapshots
+        if getattr(snapshot, "path", None)
+    }
+
+
+def append_limited_paths(
+    lines: list[str],
+    title: str,
+    paths: list[str],
+    limit: int = 12,
+) -> None:
+    """비교 결과가 너무 길어지지 않도록 대표 경로만 답변에 붙인다."""
+
+    if not paths:
+        return
+
+    lines.append(f"{title}:")
+    for path in paths[:limit]:
+        lines.append(f"- {path}")
+    if len(paths) > limit:
+        lines.append(f"- ...외 {len(paths) - limit}개")
 
 
 def build_current_basis_answer(current_refs: list[InferredRepositoryRef]) -> str:
@@ -329,8 +430,19 @@ def format_run_title(run: Any) -> str:
     return f"{run.repository_full_name} · {branch} · 코드 버전 {format_commit(run.commit_sha)}"
 
 
-def detect_path_focus(user_input: str) -> str | None:
+def detect_path_focus(
+    user_input: str,
+    available_paths: list[str],
+    planned_focus: str | None = None,
+) -> str | None:
     """사용자가 특정 폴더를 말했으면 path 필터 키워드로 바꾼다."""
+
+    if planned_focus and path_focus_exists(planned_focus, available_paths):
+        return normalize_path(planned_focus)
+
+    explicit_path = detect_explicit_path_focus(user_input, available_paths)
+    if explicit_path:
+        return explicit_path
 
     text = normalize_text(user_input)
     if "도메인" in text:
@@ -344,10 +456,214 @@ def detect_path_focus(user_input: str) -> str | None:
     return None
 
 
+def is_folder_list_request(user_input: str) -> bool:
+    """사용자가 파일이 아니라 폴더/디렉토리 목록을 원한다고 말했는지 본다."""
+
+    text = normalize_text(user_input)
+    return any(keyword in text for keyword in ("폴더", "디렉토리", "directory"))
+
+
+def build_folder_paths(paths: list[str], focus: str | None = None) -> list[str]:
+    """저장된 파일 path 목록에서 실제 폴더 prefix만 추출한다."""
+
+    folders = set()
+    normalized_focus = normalize_path(focus) if focus else None
+    for path in paths:
+        segments = normalize_path(path).split("/")
+        for index in range(1, len(segments)):
+            folder = "/".join(segments[:index])
+            if normalized_focus and not path_matches_focus(folder, normalized_focus):
+                continue
+            folders.add(folder)
+    return sorted(folders)
+
+
 def path_matches_focus(path: str, focus: str) -> bool:
     """폴더명과 파일명 모두에서 focus 단어가 포함되는지 확인한다."""
 
-    return focus in normalize_text(path.replace("\\", "/"))
+    normalized_path = normalize_path(path)
+    normalized_focus = normalize_path(focus)
+    if "/" in normalized_focus:
+        return normalized_path == normalized_focus or normalized_path.startswith(
+            f"{normalized_focus}/"
+        )
+    return normalized_focus in normalized_path
+
+
+def detect_explicit_path_focus(
+    user_input: str,
+    available_paths: list[str],
+) -> str | None:
+    """사용자 입력에서 실제 저장된 path prefix와 가장 가까운 경로 표현을 찾는다."""
+
+    path_candidates = build_user_path_candidates(user_input, available_paths)
+    if not path_candidates:
+        return None
+
+    available_prefixes = build_available_path_prefixes(available_paths)
+    for candidate in path_candidates:
+        matched_prefix = find_best_path_prefix(candidate, available_prefixes)
+        if matched_prefix:
+            return matched_prefix
+    return None
+
+
+def build_user_path_candidates(
+    user_input: str,
+    available_paths: list[str],
+) -> list[str]:
+    """'백엔드/앱/어스', '백엔드에 앱에 어스' 같은 경로 후보를 normalize한다."""
+
+    raw_candidates = PATH_TOKEN_PATTERN.findall(user_input)
+    slash_candidate = build_korean_slash_path_candidate(user_input)
+    if slash_candidate:
+        raw_candidates.insert(0, slash_candidate)
+    raw_candidates.extend(
+        build_natural_language_path_candidates(user_input, available_paths)
+    )
+
+    candidates = []
+    for candidate in raw_candidates:
+        normalized = normalize_path(candidate)
+        if normalized and normalized not in candidates:
+            candidates.append(normalized)
+    return candidates
+
+
+def build_korean_slash_path_candidate(user_input: str) -> str | None:
+    """한글 segment가 섞인 slash path를 실제 path segment 후보로 바꾼다."""
+
+    if "/" not in user_input and "\\" not in user_input:
+        return None
+
+    raw_segments = [
+        segment.strip()
+        for segment in PATH_SEPARATOR_PATTERN.split(user_input)
+        if segment.strip()
+    ]
+    if len(raw_segments) < 2:
+        return None
+
+    normalized_segments = []
+    for segment in raw_segments:
+        token = normalize_path_segment(segment)
+        if token:
+            normalized_segments.append(token)
+
+    if len(normalized_segments) < 2:
+        return None
+    return "/".join(normalized_segments)
+
+
+def build_natural_language_path_candidates(
+    user_input: str,
+    available_paths: list[str],
+) -> list[str]:
+    """쉼표, 조사, 공백으로 이어 말한 폴더 나열을 path 후보로 복원한다."""
+
+    matched_segments = find_ordered_path_segments(
+        user_input,
+        build_available_path_segments(available_paths),
+    )
+    if len(matched_segments) < 2:
+        return []
+
+    candidates = ["/".join(matched_segments)]
+    for start_index in range(1, len(matched_segments) - 1):
+        candidates.append("/".join(matched_segments[start_index:]))
+    return candidates
+
+
+def find_ordered_path_segments(
+    user_input: str,
+    available_segments: set[str],
+) -> list[str]:
+    """사용자 문장에 등장한 실제/별칭 path segment를 등장 순서대로 수집한다."""
+
+    text = normalize_text(user_input)
+    ordered_segments: list[tuple[int, str]] = []
+
+    for korean, english in KOREAN_PATH_SEGMENTS.items():
+        start = text.find(korean)
+        if start != -1:
+            ordered_segments.append((start, english))
+
+    for match in re.finditer(r"[a-zA-Z0-9_.-]+", text):
+        token = match.group(0).lower()
+        if token in available_segments:
+            ordered_segments.append((match.start(), token))
+
+    return dedupe_ordered_segments(ordered_segments)
+
+
+def dedupe_ordered_segments(ordered_segments: list[tuple[int, str]]) -> list[str]:
+    """같은 segment가 반복 매칭되어도 처음 나온 순서만 유지한다."""
+
+    segments: list[str] = []
+    seen = set()
+    for _, segment in sorted(ordered_segments, key=lambda item: item[0]):
+        if segment in seen:
+            continue
+        segments.append(segment)
+        seen.add(segment)
+    return segments
+
+
+def build_available_path_segments(paths: list[str]) -> set[str]:
+    """저장된 path에 실제로 존재하는 폴더/파일 segment 후보를 만든다."""
+
+    segments = set()
+    for path in paths:
+        segments.update(segment for segment in normalize_path(path).split("/") if segment)
+    return segments
+
+
+def normalize_path_segment(segment: str) -> str | None:
+    """문장 일부에서 path segment로 쓸 수 있는 마지막 단어를 꺼낸다."""
+
+    text = normalize_text(segment)
+    for korean, english in KOREAN_PATH_SEGMENTS.items():
+        if korean in text:
+            return english
+
+    matches = re.findall(r"[a-zA-Z0-9_.-]+", text)
+    if matches:
+        return matches[-1].lower()
+    return None
+
+
+def build_available_path_prefixes(paths: list[str]) -> list[str]:
+    """저장된 파일 path에서 실제 존재하는 폴더 prefix 후보를 만든다."""
+
+    prefixes = set()
+    for path in paths:
+        segments = normalize_path(path).split("/")
+        for index in range(1, len(segments)):
+            prefixes.add("/".join(segments[:index]))
+    return sorted(prefixes, key=lambda value: (-len(value), value))
+
+
+def find_best_path_prefix(candidate: str, available_prefixes: list[str]) -> str | None:
+    """사용자가 말한 경로와 실제 prefix를 앞에서부터 맞춘다."""
+
+    for prefix in available_prefixes:
+        if prefix == candidate or prefix.startswith(f"{candidate}/"):
+            return candidate
+
+    candidate_tail = candidate.split("/")[-1]
+    for prefix in available_prefixes:
+        if prefix.endswith(f"/{candidate_tail}") or prefix == candidate_tail:
+            return prefix
+    return None
+
+
+def normalize_path(path: str) -> str:
+    return PATH_SEPARATOR_PATTERN.sub("/", path.strip().lower()).strip("/")
+
+
+def path_focus_exists(focus: str, available_paths: list[str]) -> bool:
+    normalized_focus = normalize_path(focus)
+    return any(path_matches_focus(path, normalized_focus) for path in available_paths)
 
 
 def find_repository_names_in_text(user_input: str, latest_runs: list[Any]) -> list[str]:

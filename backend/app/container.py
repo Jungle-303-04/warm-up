@@ -10,6 +10,7 @@ from app.agent.service.agent_graph import AgentGraph
 from app.agent.service.chat_service import AgentChatService
 from app.agent.service.graph_responder import GraphAgentResponder
 from app.agent.service.intent_resolver import AgentIntentResolver
+from app.agent.service.path_target_resolver import AgentPathTargetResolver
 from app.agent.service.repository_target_planner import AgentRepositoryTargetPlanner
 from app.external.http import HttpClient, UserAgentFilter
 from app.auth.service.auth_service import AuthService
@@ -182,6 +183,10 @@ class AppContainer(containers.DeclarativeContainer):
         AgentIntentResolver,
         text_generator=agent_text_generator,
     )
+    agent_path_target_resolver = providers.Singleton(
+        AgentPathTargetResolver,
+        text_generator=agent_text_generator,
+    )
     agent_graph = providers.Singleton(
         AgentGraph,
         rag_answer_service=rag_answer_service,
@@ -189,6 +194,7 @@ class AppContainer(containers.DeclarativeContainer):
         tool_calling_llm=agent_tool_calling_llm,
         repository_target_planner=agent_repository_target_planner,
         intent_resolver=agent_intent_resolver,
+        path_target_resolver=agent_path_target_resolver,
     )
     agent_responder = providers.Singleton(
         GraphAgentResponder,
