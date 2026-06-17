@@ -157,7 +157,7 @@ function Board() {
   const handleShareClick = async () => {
     try {
       await copyPageShareText();
-      showShareMessage("복사됐어요");
+      showShareMessage("좋은 폰트는 나눠야죠.");
     } catch {
       showShareMessage("복사하지 못했어요");
     }
