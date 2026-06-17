@@ -193,6 +193,16 @@ class ArtifactService:
         """
         candidates: list[ArtifactContext] = []
         for source in sources:
+            if artifact_type == "change_summary" and source.repo_commits:
+                candidates.append(
+                    ArtifactContext(
+                        source_id=source.id,
+                        source_title=source.title,
+                        text=_format_recent_commits(source),
+                        path="__recent_commits__.md",
+                        language="markdown",
+                    )
+                )
             if source.kind == "repo" and source.repo_snapshot:
                 for entry in source.repo_snapshot:
                     path = entry.get("path", "")
@@ -300,6 +310,8 @@ def _relevance_score(artifact_type: ArtifactType, ctx: ArtifactContext) -> int:
         if _has_any(path, ("model", "schema", "entity", "table", "orm", "migration")):
             score += 25
     elif artifact_type == "change_summary":
+        if path == "__recent_commits__.md":
+            score += 1000
         if is_code_file:
             score += 35
         if path.endswith(".sql"):
@@ -359,6 +371,17 @@ def _language_of(path: str) -> str | None:
     if lowered.endswith(_DOC_EXTS):
         return "markdown"
     return None
+
+
+def _format_recent_commits(source: SourceRecord, limit: int = 8) -> str:
+    lines = [f"# 최근 커밋: {source.title}"]
+    for commit in (source.repo_commits or [])[:limit]:
+        short_sha = str(commit.get("short_sha") or commit.get("sha") or "")[:12]
+        message = str(commit.get("message") or "(메시지 없음)").strip()
+        author = str(commit.get("author_name") or "unknown")
+        authored_at = str(commit.get("authored_at") or "date unknown")
+        lines.append(f"- `{short_sha}` {authored_at} {author}: {message}")
+    return "\n".join(lines)
 
 
 _TITLES: dict[ArtifactType, str] = {

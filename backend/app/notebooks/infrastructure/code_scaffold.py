@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from app.notebooks.domain.artifact_ports import ArtifactContext
 
 _PY_EXTS = (".py", ".pyi")
+_JS_EXTS = (".js", ".jsx", ".ts", ".tsx")
 # ORM 베이스로 자주 쓰이는 이름(상속 기반 모델 판별).
 _MODEL_BASE_HINTS = ("Base", "Model", "DeclarativeBase", "SQLModel")
 # 컬럼 정의 호출 이름.
@@ -93,9 +94,57 @@ def _python_classes(contexts: list[ArtifactContext]) -> list[ClassInfo]:
     return out
 
 
+_JS_CLASS_RE = re.compile(
+    r"\b(?:export\s+)?class\s+([A-Za-z_]\w*)(?:\s+extends\s+([A-Za-z_][\w.]*))?"
+    r"\s*\{(?P<body>.*?)\n\}",
+    re.DOTALL,
+)
+_JS_INTERFACE_RE = re.compile(
+    r"\b(?:export\s+)?(?:interface|type)\s+([A-Za-z_]\w*)[^{=]*[={]\s*(?P<body>.*?)\n\}",
+    re.DOTALL,
+)
+_JS_METHOD_RE = re.compile(r"^\s*(?:async\s+)?([A-Za-z_]\w*)\s*\(", re.MULTILINE)
+_JS_FIELD_RE = re.compile(r"^\s*(?:readonly\s+)?([A-Za-z_]\w*)\??\s*[:=]", re.MULTILINE)
+
+
+def extract_javascript_classes(text: str) -> list[ClassInfo]:
+    """TS/JS 소스에서 클래스/인터페이스 골격을 간단히 추출한다."""
+    classes: list[ClassInfo] = []
+    for match in _JS_CLASS_RE.finditer(text):
+        body = match.group("body")
+        info = ClassInfo(name=match.group(1))
+        if match.group(2):
+            info.bases.append(match.group(2).split(".")[-1])
+        info.methods.extend(
+            name
+            for name in _JS_METHOD_RE.findall(body)
+            if name not in {"if", "for", "while", "switch"}
+        )
+        info.attributes.extend(_JS_FIELD_RE.findall(body))
+        classes.append(info)
+
+    for match in _JS_INTERFACE_RE.finditer(text):
+        body = match.group("body")
+        fields = _JS_FIELD_RE.findall(body)
+        if fields:
+            classes.append(ClassInfo(name=match.group(1), attributes=fields))
+    return classes
+
+
+def _code_classes(contexts: list[ArtifactContext]) -> list[ClassInfo]:
+    out: list[ClassInfo] = []
+    for ctx in contexts:
+        path = (ctx.path or "").lower()
+        if path.endswith(_PY_EXTS):
+            out.extend(extract_python_classes(ctx.text))
+        elif path.endswith(_JS_EXTS):
+            out.extend(extract_javascript_classes(ctx.text))
+    return _merge_classes(out)
+
+
 def uml_facts_text(contexts: list[ArtifactContext]) -> str:
     """LLM 프롬프트에 주입할 클래스 사실 목록(없으면 빈 문자열)."""
-    classes = _python_classes(contexts)
+    classes = _code_classes(contexts)
     if not classes:
         return ""
     lines: list[str] = []
@@ -109,7 +158,7 @@ def uml_facts_text(contexts: list[ArtifactContext]) -> str:
 
 def build_uml_mermaid(contexts: list[ArtifactContext]) -> str | None:
     """추출한 클래스로 결정론 classDiagram을 만든다(클래스가 없으면 None)."""
-    classes = _python_classes(contexts)
+    classes = _code_classes(contexts)
     if not classes:
         return None
     names = {c.name for c in classes}
@@ -156,6 +205,10 @@ def _looks_like_model(node: ast.ClassDef) -> bool:
 
 def _fk_target(call: ast.Call) -> str | None:
     """Column(...) 호출 인자에서 ForeignKey("table.col") 의 대상 테이블을 찾는다."""
+    if _name_of(call.func) == "ForeignKey":
+        for fk_arg in call.args:
+            if isinstance(fk_arg, ast.Constant) and isinstance(fk_arg.value, str):
+                return fk_arg.value.split(".")[0]
     for arg in call.args:
         if isinstance(arg, ast.Call) and _name_of(arg.func) == "ForeignKey":
             for fk_arg in arg.args:
@@ -248,7 +301,7 @@ def _all_entities(contexts: list[ArtifactContext]) -> list[Entity]:
             out.extend(extract_models(ctx.text))
         elif path.endswith(".sql"):
             out.extend(extract_sql_tables(ctx.text))
-    return out
+    return _merge_entities(out)
 
 
 def erd_facts_text(contexts: list[ArtifactContext]) -> str:
@@ -298,6 +351,36 @@ def build_erd_mermaid(contexts: list[ArtifactContext]) -> str | None:
 def _dedupe(items: list[str]) -> list[str]:
     """순서를 유지하며 중복 제거."""
     return list(dict.fromkeys(items))
+
+
+def _merge_classes(classes: list[ClassInfo]) -> list[ClassInfo]:
+    merged: dict[str, ClassInfo] = {}
+    for item in classes:
+        if item.name not in merged:
+            merged[item.name] = ClassInfo(name=item.name)
+        target = merged[item.name]
+        target.bases.extend(item.bases)
+        target.methods.extend(item.methods)
+        target.attributes.extend(item.attributes)
+    for item in merged.values():
+        item.bases = _dedupe(item.bases)
+        item.methods = _dedupe(item.methods)
+        item.attributes = _dedupe(item.attributes)
+    return list(merged.values())
+
+
+def _merge_entities(entities: list[Entity]) -> list[Entity]:
+    merged: dict[str, Entity] = {}
+    for item in entities:
+        if item.name not in merged:
+            merged[item.name] = Entity(name=item.name)
+        target = merged[item.name]
+        target.columns.extend(item.columns)
+        target.relations.extend(item.relations)
+    for item in merged.values():
+        item.columns = _dedupe(item.columns)
+        item.relations = list(dict.fromkeys(item.relations))
+    return list(merged.values())
 
 
 def _safe_id(name: str) -> str:

@@ -122,6 +122,34 @@ def test_change_summary_context_selection_prefers_code_over_repo_docs() -> None:
     assert selected[0].path == "app/billing/service.py"
 
 
+def test_change_summary_context_selection_prefers_recent_commits() -> None:
+    contexts = [
+        ArtifactContext(
+            source_id="src-1",
+            source_title="repo",
+            text="- `abc123` 2026-06-18 woonyong: 최근 커밋",
+            path="__recent_commits__.md",
+            language="markdown",
+        ),
+        ArtifactContext(
+            source_id="src-1",
+            source_title="repo",
+            text="class BillingService:\n    def charge(self): ...\n",
+            path="app/billing/service.py",
+            language="python",
+        ),
+    ]
+
+    selected = _select_contexts(
+        contexts,
+        "change_summary",
+        max_total_chars=5000,
+        max_files=2,
+    )
+
+    assert selected[0].path == "__recent_commits__.md"
+
+
 def test_generate_uml_without_key_returns_skeleton() -> None:
     service, store = _service()
     nb_id = _notebook_with_repo(store)

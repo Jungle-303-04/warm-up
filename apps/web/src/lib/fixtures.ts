@@ -85,6 +85,7 @@ export interface StudioTile {
   hint: string;
   tint: StudioTint;
   beta?: boolean;
+  disabledReason?: string;
 }
 
 // 카드별 고유 색조 키. globals.css의 .studio-tint-* 클래스와 1:1.
@@ -93,7 +94,15 @@ export type StudioTint = "blue" | "violet" | "teal" | "amber" | "rose" | "indigo
 export const STUDIO_TILES: StudioTile[] = [
   { type: "uml", icon: "account_tree", label: "UML", typeLabel: "UML", hint: "클래스·시퀀스 구조", tint: "blue" },
   { type: "erd", icon: "schema", label: "ERD", typeLabel: "ERD", hint: "데이터 모델 관계", tint: "violet" },
-  { type: "dependency", icon: "hub", label: "의존성 그래프", typeLabel: "Graph", hint: "모듈 연결과 영향권", tint: "teal" },
+  {
+    type: "dependency",
+    icon: "hub",
+    label: "의존성 그래프",
+    typeLabel: "Graph",
+    hint: "모듈 연결과 영향권",
+    tint: "teal",
+    disabledReason: "정확한 모듈 그래프 평가 후 활성화 예정",
+  },
   { type: "change_summary", icon: "difference", label: "변경 요약", typeLabel: "Diff", hint: "커밋·파일 변화 압축", tint: "amber" },
 ];
 

@@ -16,6 +16,7 @@ export function StageTimeline({ progress }: { progress?: IndexProgress }) {
     progress.status === "failed"
       ? 1
       : Math.max(0, STAGES.findIndex((stage) => stage === progress.status));
+  const completed = progress.status === "done";
 
   return (
     <div
@@ -26,8 +27,8 @@ export function StageTimeline({ progress }: { progress?: IndexProgress }) {
     >
       <div className="grid grid-cols-3 gap-1">
         {STAGES.map((stage, index) => {
-          const complete = progress.status === "done" || index < activeIndex;
-          const active = progress.status !== "failed" && index === activeIndex;
+          const complete = completed || index < activeIndex;
+          const active = !completed && progress.status !== "failed" && index === activeIndex;
           const failed = progress.status === "failed" && index === activeIndex;
           return (
             <span
@@ -51,6 +52,7 @@ export function StageTimeline({ progress }: { progress?: IndexProgress }) {
             className={cn(
               "truncate",
               progress.status !== "failed" && index === activeIndex && "text-foreground/80",
+              completed && index === activeIndex && "text-emerald-600 dark:text-emerald-400",
               progress.status === "failed" && index === activeIndex && "text-amber-600 dark:text-amber-500",
             )}
           >

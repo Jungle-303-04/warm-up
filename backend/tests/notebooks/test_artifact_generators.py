@@ -5,6 +5,7 @@
 
 from app.notebooks.domain.artifact_ports import ArtifactContext, GenerationRequest
 from app.notebooks.infrastructure.artifact_generators import (
+    ChatOpenAIArtifactGenerator,
     DeterministicArtifactGenerator,
 )
 
@@ -238,6 +239,72 @@ def test_erd_from_orm_models_without_key() -> None:
     assert "}o--||" in content  # FK 관계
 
 
+def test_erd_sanitizes_sqlalchemy_vector_columns() -> None:
+    """SQLAlchemy 타입 힌트가 Mermaid ERD의 비문법 타입으로 새지 않아야 한다."""
+    gen = DeterministicArtifactGenerator()
+    src = (
+        "class NotebookChunkModel(Base):\n"
+        '    __tablename__ = "notebook_chunks"\n'
+        "    id: Mapped[str] = mapped_column(String, primary_key=True)\n"
+        "    source_id: Mapped[str] = mapped_column(ForeignKey('notebook_sources.id'))\n"
+        "    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536))\n"
+    )
+
+    content = gen.generate(GenerationRequest(type="erd", contexts=[_ctx("app/models.py", src)]))
+
+    assert content.startswith("erDiagram")
+    assert "list<" not in content
+    assert "embedding" in content
+    assert "notebook_chunks" in content
+
+
+def test_chat_openai_generator_prefers_deterministic_erd() -> None:
+    """LLM이 깨진 Mermaid를 반환해도 ERD는 정적 생성 결과를 사용한다."""
+
+    class BadModel:
+        def invoke(self, _prompt: str) -> str:
+            return "erDiagram\n    bad {\n        list<float> embedding\n    }\n"
+
+    gen = ChatOpenAIArtifactGenerator(BadModel())
+    src = (
+        "class User(Base):\n"
+        '    __tablename__ = "users"\n'
+        "    id = Column(Integer)\n"
+    )
+
+    content = gen.generate(GenerationRequest(type="erd", contexts=[_ctx("app/models.py", src)]))
+
+    assert "list<float>" not in content
+    assert "users" in content
+
+
+def test_uml_from_typescript_interfaces_without_key() -> None:
+    gen = DeterministicArtifactGenerator()
+    ctx = ArtifactContext(
+        source_id="s1",
+        source_title="repo",
+        path="apps/web/src/lib/types.ts",
+        language="typescript",
+        text=(
+            "export interface Source {\n"
+            "  id: string;\n"
+            "  title: string;\n"
+            "}\n"
+            "export class SourceStore {\n"
+            "  sources: Source[] = [];\n"
+            "  add(source: Source) {}\n"
+            "}\n"
+        ),
+    )
+
+    content = gen.generate(GenerationRequest(type="uml", contexts=[ctx]))
+
+    assert content.startswith("classDiagram")
+    assert "class Source" in content
+    assert "+title" in content
+    assert "class SourceStore" in content
+
+
 def test_uml_without_extractable_symbols_falls_back_to_skeleton() -> None:
     """추출할 클래스가 없으면 안내 골격으로 폴백한다."""
     gen = DeterministicArtifactGenerator()
@@ -246,3 +313,26 @@ def test_uml_without_extractable_symbols_falls_back_to_skeleton() -> None:
 
     assert content.startswith("classDiagram")
     assert "LLM 키가 필요합니다" in content
+
+
+def test_change_summary_prefers_recent_commits() -> None:
+    gen = DeterministicArtifactGenerator()
+    contexts = [
+        ArtifactContext(
+            source_id="s1",
+            source_title="repo",
+            path="__recent_commits__.md",
+            language="markdown",
+            text="# 최근 커밋\n- `abc123` 2026-06-18 woonyong: 색인 완료 표시 개선\n",
+        ),
+        _ctx(
+            "app/api/router.py",
+            "class ApiRouter:\n    def generate(self): ...\n",
+        ),
+    ]
+
+    content = gen.generate(GenerationRequest(type="change_summary", contexts=contexts))
+
+    assert "### 최근 커밋 기준" in content
+    assert "색인 완료 표시 개선" in content
+    assert "### 코드 기준 핵심" in content

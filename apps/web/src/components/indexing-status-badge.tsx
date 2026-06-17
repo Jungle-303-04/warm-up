@@ -36,7 +36,7 @@ export function IndexingStatusBadge({ progress }: { progress?: IndexProgress }) 
       title={progress.content_hash ? `content hash: ${progress.content_hash.slice(0, 12)}` : undefined}
     >
       <Icon
-        name={failed ? "refresh" : active ? "progress_activity" : "database"}
+        name={failed ? "refresh" : active ? "progress_activity" : "check_circle"}
         size={11}
         className={active ? "animate-spin" : ""}
       />

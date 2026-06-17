@@ -65,7 +65,7 @@ export function StudioPanel({
 
   // 기능 카드 클릭 → 백엔드에 다이어그램/요약 생성. 선택 소스만 범위로 전달.
   const create = (tile: StudioTile) => {
-    if (!canCreate || busy) return;
+    if (!canCreate || busy || tile.disabledReason) return;
     void generateArtifact(tile.type, [...selectedSourceIds]);
   };
 
@@ -105,16 +105,25 @@ export function StudioPanel({
           <div className="mt-2.5 grid grid-cols-2 gap-2">
             {STUDIO_TILES.map((t) => {
               const loading = generatingType === t.type;
+              const disabledReason = t.disabledReason;
+              const disabled = !canCreate || busy || Boolean(disabledReason);
               return (
                 <button
                    key={t.type}
                    type="button"
-                   disabled={!canCreate || busy}
+                   disabled={disabled}
                    onClick={() => create(t)}
-                   title={t.label}
-                   className="transition-all duration-200 ease-in-out group relative flex min-h-[104px] flex-col gap-2 rounded-xl border border-border bg-card p-3 text-left hover:-translate-y-0.5 hover:border-primary/35 hover:bg-surface-raised hover:shadow disabled:cursor-not-allowed disabled:opacity-55"
+                   title={disabledReason ?? t.label}
+                   className={cn(
+                     "transition-all duration-200 ease-in-out group relative flex min-h-[104px] flex-col gap-2 rounded-xl border border-border bg-card p-3 text-left hover:-translate-y-0.5 hover:border-primary/35 hover:bg-surface-raised hover:shadow disabled:cursor-not-allowed disabled:opacity-55",
+                     disabledReason && "border-dashed",
+                   )}
                 >
-                  {t.beta ? (
+                  {disabledReason ? (
+                    <span className="absolute right-2 top-2 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold tracking-normal text-muted-foreground">
+                      준비 중
+                    </span>
+                  ) : t.beta ? (
                     <span className="absolute right-2 top-2 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-normal text-muted-foreground">
                       베타
                     </span>
@@ -140,7 +149,7 @@ export function StudioPanel({
                       />
                     </span>
                     <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
-                      {loading ? "생성 중…" : t.hint}
+                      {loading ? "생성 중…" : disabledReason ?? t.hint}
                     </span>
                   </span>
                 </button>

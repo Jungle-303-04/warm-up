@@ -7,8 +7,8 @@
     flowchart로 생성한다(키 불필요).
   - uml/erd: AST/ORM/SQL에서 추출한 사실로 Mermaid를 생성하고, 추출 결과가 없을 때만
     안내 골격으로 폴백한다.
-  - change_summary: 저장된 코드 스냅샷의 클래스/함수/라우트/테이블/exports를 한국어
-    마크다운으로 요약한다.
+  - change_summary: 최근 커밋 메타데이터를 우선하고, 보조로 저장된 코드 스냅샷의
+    클래스/함수/라우트/테이블/exports를 한국어 마크다운으로 요약한다.
 - ChatOpenAIArtifactGenerator: llm_provider="openai"이고 키가 있을 때 LangChain
   ChatOpenAI로 타입별 system 프롬프트를 실행한다. LLM 호출/파싱 실패 시
   DeterministicArtifactGenerator로 안전하게 폴백한다(런타임 에러 0).
@@ -96,7 +96,8 @@ class ChatOpenAIArtifactGenerator(LlmArtifactGenerator):
     """LangChain ChatOpenAI 기반 생성기.
 
     타입별 system 프롬프트 + 컨텍스트로 Mermaid/마크다운만 출력하도록 유도한다.
-    dependency는 (키가 있어도) 결정론 그래프가 더 정확하므로 결정론 경로를 사용한다.
+    UML/ERD/dependency/change_summary는 코드 사실 기반 결정론 생성이 더 안전하므로
+    결정론 경로를 우선 사용한다.
     실패 시 결정론 폴백으로 전환한다(에러를 밖으로 던지지 않는다).
     """
 
@@ -105,8 +106,9 @@ class ChatOpenAIArtifactGenerator(LlmArtifactGenerator):
         self._fallback = DeterministicArtifactGenerator()
 
     def generate(self, request: GenerationRequest) -> str:
-        # dependency는 코드 사실 기반이라 결정론 생성이 더 신뢰도가 높다.
-        if request.type == "dependency":
+        # Mermaid/요약은 자유 생성보다 정적 사실 기반 출력이 더 안전하다.
+        # 특히 erDiagram은 LLM이 list<float> 같은 비문법 타입을 만들 수 있어 렌더 실패한다.
+        if request.type in {"dependency", "uml", "erd", "change_summary"}:
             return self._fallback.generate(request)
 
         try:
@@ -222,28 +224,47 @@ def _skeleton(artifact_type: ArtifactType) -> str:
     return f"%% {_NEED_KEY_NOTE}\n"
 
 
-# --- change_summary: 코드 facts 우선 마크다운 요약(결정론) ---
+# --- change_summary: 최근 커밋 + 코드 facts 우선 마크다운 요약(결정론) ---
 
 
 def build_change_summary_markdown(contexts: list[ArtifactContext]) -> str:
-    """저장된 소스 스냅샷을 코드 우선으로 요약한다."""
+    """최근 커밋 메타데이터를 우선하고, 저장된 소스 스냅샷을 코드 우선으로 요약한다."""
 
     if not contexts:
         return _skeleton("change_summary")
 
     code_contexts = [ctx for ctx in contexts if _is_code_context(ctx)]
     doc_contexts = [ctx for ctx in contexts if _is_doc_context(ctx)]
+    commit_contexts = [ctx for ctx in contexts if _is_commit_context(ctx)]
     primary_contexts = code_contexts or contexts
 
     lines = [
         "## 변경 요약",
         "",
-        "> 저장된 소스 스냅샷 기준으로 생성한 코드 우선 요약입니다.",
-        "",
-        "### 코드 기준 핵심",
+        (
+            "> 최근 커밋 메타데이터와 저장된 소스 스냅샷을 함께 사용한 코드 우선 요약입니다."
+            if commit_contexts
+            else "> 저장된 소스 스냅샷 기준으로 생성한 코드 우선 요약입니다."
+        ),
     ]
+    if commit_contexts:
+        lines.extend(["", "### 최근 커밋 기준"])
+        commit_lines = 0
+        for ctx in commit_contexts:
+            for line in _commit_summary_lines(ctx.text):
+                lines.append(f"- {line}")
+                commit_lines += 1
+        if commit_lines == 0:
+            lines.append("- 저장된 커밋 메타데이터에서 표시할 항목을 찾지 못했습니다.")
+
+    lines.extend(
+        [
+            "",
+            "### 코드 기준 핵심",
+        ]
+    )
     facts_added = 0
-    for ctx in primary_contexts[:10]:
+    for ctx in [ctx for ctx in primary_contexts if not _is_commit_context(ctx)][:10]:
         facts = _summarize_context(ctx)
         if not facts:
             continue
@@ -288,11 +309,26 @@ def _is_code_context(ctx: ArtifactContext) -> bool:
 
 def _is_doc_context(ctx: ArtifactContext) -> bool:
     path = ctx.path or ""
-    return is_repo_document_path(path) or not _is_code_context(ctx)
+    return not _is_commit_context(ctx) and (
+        is_repo_document_path(path) or not _is_code_context(ctx)
+    )
+
+
+def _is_commit_context(ctx: ArtifactContext) -> bool:
+    return (ctx.path or "") == "__recent_commits__.md"
 
 
 def _where(ctx: ArtifactContext) -> str:
     return ctx.path or ctx.source_title
+
+
+def _commit_summary_lines(text: str) -> list[str]:
+    lines: list[str] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith("- "):
+            lines.append(line[2:])
+    return lines[:8]
 
 
 def _summarize_context(ctx: ArtifactContext) -> list[str]:
