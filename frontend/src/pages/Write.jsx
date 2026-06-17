@@ -8,8 +8,16 @@ import { createWebFontStyle, hasWebFontUrl } from "../utils/webFont";
 
 const waitingMessages = [
   [
-    "같은 문장도 폰트에 따라 인상이 달라져요.",
-    "글의 인상을 살피는 중...",
+    "고딕체는 명확함을, 손글씨체는 친근함을 전달하는 경우가 많아요.",
+    "문장의 분위기를 분석하는 중...",
+  ],
+  [
+    "좋은 폰트는 내용을 꾸미기보다 돋보이게 해요.",
+    "어울리는 폰트를 탐색하는 중...",
+  ],
+  [
+    "굵기 하나만 달라도 분위기는 크게 바뀔 수 있어요.",
+    "폰트 특징을 분석하는 중...",
   ],
 ];
 
@@ -112,6 +120,20 @@ function TypingWaitingMessage({ lines }) {
   );
 }
 
+function shuffleWaitingMessages() {
+  const shuffledMessages = [...waitingMessages];
+
+  for (let index = shuffledMessages.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    const currentMessage = shuffledMessages[index];
+
+    shuffledMessages[index] = shuffledMessages[randomIndex];
+    shuffledMessages[randomIndex] = currentMessage;
+  }
+
+  return shuffledMessages;
+}
+
 function Write() {
   const navigate = useNavigate();
   const { postId } = useParams();
@@ -124,7 +146,9 @@ function Write() {
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
   const [postErrorMessage, setPostErrorMessage] = useState("");
   const [recommendation, setRecommendation] = useState(null);
-  const waitingMessage = waitingMessages[0];
+  const [waitingMessageIndex, setWaitingMessageIndex] = useState(0);
+  const [waitingMessageQueue, setWaitingMessageQueue] = useState(waitingMessages);
+  const waitingMessage = waitingMessageQueue[waitingMessageIndex] ?? waitingMessages[0];
   const isPreviewTab = activeTab === "preview";
   const hasRecommendation = isPreviewTab && recommendation;
   const defaultFontMessage =
@@ -191,6 +215,8 @@ function Write() {
 
     setPostErrorMessage("");
     setActiveTab("preview");
+    setWaitingMessageIndex(0);
+    setWaitingMessageQueue(shuffleWaitingMessages());
     setIsRecommending(true);
     setRecommendation(null);
 
@@ -206,6 +232,22 @@ function Write() {
       setIsRecommending(false);
     }
   };
+
+  useEffect(() => {
+    if (!isRecommending) {
+      return undefined;
+    }
+
+    const waitingMessageTimer = setInterval(() => {
+      setWaitingMessageIndex((currentIndex) => {
+        return (currentIndex + 1) % waitingMessageQueue.length;
+      });
+    }, 4200);
+
+    return () => {
+      clearInterval(waitingMessageTimer);
+    };
+  }, [isRecommending, waitingMessageQueue.length]);
 
   const handleSubmitPost = async () => {
     const trimmedTitle = title.trim();
