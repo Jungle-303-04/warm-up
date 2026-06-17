@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/prepare-standalone.mjs",
     "start": "next start",
+    "start:standalone": "node .next/standalone/apps/web/server.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
