@@ -8,6 +8,8 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlmodel import SQLModel, Session, select
 
 from database import engine
+from models.font import Font
+from models.post import Post
 from models.user import User
 
 router = APIRouter(prefix="/auth")
@@ -263,6 +265,52 @@ def refresh(request: Request, response: Response):
 def get_me(request: Request):
     user = get_current_user_from_access_token(request)
     return AuthResponse(user=build_user_response(user))
+
+
+@router.get("/me/board")
+def get_my_board(request: Request):
+    user = get_current_user_from_access_token(request)
+
+    with Session(engine) as session:
+        statement = (
+            select(Post)
+            .where(Post.user_id == user.id)
+            .order_by(Post.created_at.desc())
+        )
+        posts = session.exec(statement).all()
+
+        my_posts = []
+        used_font_map = {}
+
+        for post in posts:
+            font = session.get(Font, post.font_id)
+            font_name = font.name if font is not None else "Unknown"
+
+            post_summary = {
+                "id": post.id,
+                "title": post.title,
+                "font": {
+                    "id": post.font_id,
+                    "name": font_name,
+                },
+            }
+            my_posts.append(post_summary)
+
+            if font_name not in used_font_map:
+                used_font_map[font_name] = {
+                    "font_name": font_name,
+                    "posts": [],
+                }
+
+            used_font_map[font_name]["posts"].append({
+                "id": post.id,
+                "title": post.title,
+            })
+
+        return {
+            "posts": my_posts,
+            "used_fonts": list(used_font_map.values()),
+        }
 
 
 @router.post("/logout")

@@ -1,54 +1,74 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getMyBoard } from "../api/auth";
 import { ArchiveBoxIcon } from "../components/icons";
 
-const myPosts = [
-  {
-    fontName: "Zodiak",
-    id: 1,
-    title: "Boost your conversion rate",
-  },
-  {
-    fontName: "Zodiak",
-    id: 3,
-    title: "my board",
-  },
-  {
-    fontName: "Pretendard",
-    id: 8,
-    title: "읽기 쉬운 본문 조합",
-  },
-];
+function createMyPostItem(post) {
+  return {
+    fontName: post.font?.name ?? "Unknown",
+    id: post.id,
+    title: post.title,
+  };
+}
 
-const usedFonts = [
-  {
-    fontName: "Zodiak",
-    posts: [
-      {
-        id: 1,
-        title: "Boost your conversion rate",
-      },
-      {
-        id: 3,
-        title: "my board",
-      },
-    ],
-  },
-  {
-    fontName: "Pretendard",
-    posts: [
-      {
-        id: 8,
-        title: "읽기 쉬운 본문 조합",
-      },
-    ],
-  },
-];
+function createUsedFontItem(fontGroup) {
+  return {
+    fontName: fontGroup.font_name,
+    posts: fontGroup.posts ?? [],
+  };
+}
 
 function MyPage({ onLogout, user }) {
   const nickname = user?.nickname ?? "guest";
+  const [myPosts, setMyPosts] = useState([]);
+  const [usedFonts, setUsedFonts] = useState([]);
+  const [isLoadingMyBoard, setIsLoadingMyBoard] = useState(true);
+  const [myBoardErrorMessage, setMyBoardErrorMessage] = useState("");
   const [logoutMessage, setLogoutMessage] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const hasMyPosts = myPosts.length > 0;
+  const hasUsedFonts = usedFonts.length > 0;
+
+  useEffect(() => {
+    let shouldUpdateState = true;
+
+    const loadMyBoard = async () => {
+      setIsLoadingMyBoard(true);
+      setMyBoardErrorMessage("");
+
+      try {
+        const myBoardResponse = await getMyBoard();
+
+        if (!shouldUpdateState) {
+          return;
+        }
+
+        setMyPosts((myBoardResponse.posts ?? []).map(createMyPostItem));
+        setUsedFonts(
+          (myBoardResponse.used_fonts ?? []).map(createUsedFontItem),
+        );
+      } catch (error) {
+        if (shouldUpdateState) {
+          if (error.status === 401) {
+            await onLogout({ shouldRequestLogout: false });
+            return;
+          }
+
+          setMyBoardErrorMessage("정보를 불러오지 못했어요.");
+        }
+      } finally {
+        if (shouldUpdateState) {
+          setIsLoadingMyBoard(false);
+        }
+      }
+    };
+
+    loadMyBoard();
+
+    return () => {
+      shouldUpdateState = false;
+    };
+  }, [onLogout]);
 
   const handleLogoutClick = async () => {
     setLogoutMessage("");
@@ -99,17 +119,27 @@ function MyPage({ onLogout, user }) {
               </span>
             </summary>
             <ul className="thin-transparent-scrollbar max-h-[360px] overflow-y-auto border-t border-gray-200 px-4 py-3">
-              {myPosts.map((post) => (
-                <li key={post.id}>
-                  <Link
-                    className="flex items-center gap-2 py-1.5 text-sm text-black no-underline transition-colors hover:text-[#d4d4d4]"
-                    to={`/posts/${post.id}`}
-                  >
-                    <span className="h-1 w-1 shrink-0 rounded-full bg-[#d4d4d4]" />
-                    {post.title}
-                  </Link>
+              {isLoadingMyBoard ? (
+                <li className="py-1.5 text-sm text-[#d4d4d4]">
+                  게시물을 불러오는 중...
                 </li>
-              ))}
+              ) : hasMyPosts ? (
+                myPosts.map((post) => (
+                  <li key={post.id}>
+                    <Link
+                      className="flex items-center gap-2 py-1.5 text-sm text-black no-underline transition-colors hover:text-[#d4d4d4]"
+                      to={`/posts/${post.id}`}
+                    >
+                      <span className="h-1 w-1 shrink-0 rounded-full bg-[#d4d4d4]" />
+                      {post.title}
+                    </Link>
+                  </li>
+                ))
+              ) : (
+                <li className="py-1.5 text-sm text-[#d4d4d4]">
+                  아직 등록한 게시물이 없어요.
+                </li>
+              )}
             </ul>
           </details>
 
@@ -128,32 +158,45 @@ function MyPage({ onLogout, user }) {
               </span>
             </summary>
             <ul className="thin-transparent-scrollbar max-h-[540px] overflow-y-auto border-t border-gray-200 px-4 py-3">
-              {usedFonts.map((fontGroup) => (
-                <li className="py-1.5 text-sm text-black" key={fontGroup.fontName}>
-                  <p className="font-semibold">
-                    {fontGroup.fontName}
-                    <span className="ml-2 text-xs font-normal text-[#d4d4d4]">
-                      {fontGroup.posts.length}
-                    </span>
-                  </p>
-                  <ul className="mt-1">
-                    {fontGroup.posts.map((post) => (
-                      <li key={post.id}>
-                        <Link
-                          className="flex items-center gap-2 py-1 text-sm text-black no-underline transition-colors hover:text-[#d4d4d4]"
-                          to={`/posts/${post.id}`}
-                        >
-                          <span className="h-1 w-1 shrink-0 rounded-full bg-[#d4d4d4]" />
-                          {post.title}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+              {isLoadingMyBoard ? (
+                <li className="py-1.5 text-sm text-[#d4d4d4]">
+                  폰트 기록을 불러오는 중...
                 </li>
-              ))}
+              ) : hasUsedFonts ? (
+                usedFonts.map((fontGroup) => (
+                  <li className="py-1.5 text-sm text-black" key={fontGroup.fontName}>
+                    <p className="font-semibold">
+                      {fontGroup.fontName}
+                      <span className="ml-2 text-xs font-normal text-[#d4d4d4]">
+                        {fontGroup.posts.length}
+                      </span>
+                    </p>
+                    <ul className="mt-1">
+                      {fontGroup.posts.map((post) => (
+                        <li key={post.id}>
+                          <Link
+                            className="flex items-center gap-2 py-1 text-sm text-black no-underline transition-colors hover:text-[#d4d4d4]"
+                            to={`/posts/${post.id}`}
+                          >
+                            <span className="h-1 w-1 shrink-0 rounded-full bg-[#d4d4d4]" />
+                            {post.title}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))
+              ) : (
+                <li className="py-1.5 text-sm text-[#d4d4d4]">
+                  아직 사용한 폰트가 없어요.
+                </li>
+              )}
             </ul>
           </details>
         </div>
+        <p className="mt-2 min-h-5 text-center text-sm text-[#d4d4d4]">
+          {myBoardErrorMessage}
+        </p>
       </section>
     </main>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { getCurrentUser, logoutUser } from "./api/auth";
 import Header from "./components/Header";
@@ -43,11 +43,14 @@ function App() {
     setUser(authUser);
   };
 
-  const handleLogout = async () => {
-    await logoutUser();
+  const handleLogout = useCallback(async ({ shouldRequestLogout = true } = {}) => {
+    if (shouldRequestLogout) {
+      await logoutUser();
+    }
+
     setUser(null);
     navigate("/");
-  };
+  }, [navigate]);
 
   if (isCheckingAuth) {
     return (

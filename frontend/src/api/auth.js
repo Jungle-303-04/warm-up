@@ -61,8 +61,21 @@ export async function getCurrentUser() {
   try {
     return await requestAuth("/auth/me");
   } catch (error) {
-    if (error.status === 401 && error.message === "토큰이 만료되었습니다.") {
+    if (error.status === 401) {
       return refreshLogin();
+    }
+
+    throw error;
+  }
+}
+
+export async function getMyBoard() {
+  try {
+    return await requestAuth("/auth/me/board");
+  } catch (error) {
+    if (error.status === 401) {
+      await refreshLogin();
+      return requestAuth("/auth/me/board");
     }
 
     throw error;
