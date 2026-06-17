@@ -1,5 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  createComment,
+  deleteComment,
+  getComments,
+} from "../api/comments";
+import { deletePost, getPost } from "../api/posts";
 import FontInfoPopover from "../components/FontInfoPopover";
 import {
   ArrowLongLeftIcon,
@@ -7,52 +13,241 @@ import {
   XMarkIcon,
 } from "../components/icons";
 
-const postDetail = {
-  author: "font_maker",
-  comments: [
-    {
-      content:
-        "문장 분위기랑 폰트가 잘 맞아요. 제목용으로 쓰면 더 선명하게 보일 것 같아요.",
-      date: "2026.03.16",
-      id: 1,
-      nickname: "글꼴탐험가",
-      time: "10:24",
-    },
-  ],
-  content:
-    "Once upon a time, in a quiet village beside a silver forest, a small lantern learned how to glow. Every night it listened to the wind, gathered stories from the stars, and lit a narrow path for children who dreamed of finding a hidden garden beyond the hill. The garden was said to bloom only for those who carried kind words in their pockets and brave thoughts in their hearts.",
-  date: "Mar 16, 2026",
-  font: {
-    downloadUrl: "https://www.fontshare.com/fonts/zodiak",
-    license: "OFL",
-    name: "Zodiak",
-    notice: "브랜드 적용 전 라이선스 원문을 한 번 더 확인하세요.",
-    reason:
-      "입력한 문장은 짧지만 감정의 방향이 분명하고, 말의 끝에 힘이 남는 구조예요. 그래서 부드럽기보다는 인상이 또렷하게 남는 세리프 계열 폰트를 추천했어요.",
-    source: "Fontshare",
-    tags: ["영문", "세리프", "강조"],
-    usage: "인쇄, 웹사이트, 영상, BI/CI",
-  },
-  time: "10:24",
-  title: "Boost your conversion rate",
-};
+const fallbackFontReason =
+  "이 글에 어울리는 폰트 정보를 확인하고 있어요. 추천 이유는 AI 연결 후 더 자세히 보여줄 예정이에요.";
 
-function PostDetail() {
+function formatPostDate(createdAt) {
+  const date = new Date(createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return {
+      date: "",
+      dateTime: "",
+      time: "",
+    };
+  }
+
+  return {
+    date: new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date),
+    dateTime: date.toISOString(),
+    time: new Intl.DateTimeFormat("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date),
+  };
+}
+
+function formatCommentDate(createdAt) {
+  const date = new Date(createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return {
+      date: "",
+      dateTime: "",
+      time: "",
+    };
+  }
+
+  return {
+    date: new Intl.DateTimeFormat("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .format(date)
+      .replaceAll(". ", ".")
+      .replace(".", ""),
+    dateTime: date.toISOString(),
+    time: new Intl.DateTimeFormat("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date),
+  };
+}
+
+function getContentFontClass(fontName) {
+  if (fontName.toLowerCase() === "zodiak") {
+    return "font-['Zodiak'] font-extrabold italic";
+  }
+
+  return "font-['Pretendard'] font-normal";
+}
+
+function transformPostDetail(post) {
+  const formattedDate = formatPostDate(post.created_at);
+  const fontName = post.font?.name ?? "Unknown";
+
+  return {
+    author: post.user?.nickname ?? post.nickname ?? "작성자",
+    content: post.content,
+    date: formattedDate.date,
+    dateTime: formattedDate.dateTime,
+    font: {
+      downloadUrl: post.font?.download_url ?? post.font?.downloadUrl ?? "#",
+      license: post.font?.license ?? "",
+      name: fontName,
+      notice:
+        post.font?.notice ?? "브랜드 적용 전 라이선스 원문을 한 번 더 확인하세요.",
+      reason: post.font?.reason ?? post.reason ?? fallbackFontReason,
+      source: post.font?.source ?? "",
+      tags: post.font?.tags ?? [],
+      usage: post.font?.usage ?? "",
+    },
+    time: formattedDate.time,
+    title: post.title,
+    contentFontClass: getContentFontClass(fontName),
+  };
+}
+
+function transformComment(comment) {
+  const formattedDate = formatCommentDate(comment.created_at);
+
+  return {
+    content: comment.content,
+    date: formattedDate.date,
+    dateTime: formattedDate.dateTime,
+    id: comment.id,
+    nickname: comment.nickname,
+    time: formattedDate.time,
+  };
+}
+
+function PostDetail({ user }) {
   const navigate = useNavigate();
   const { postId } = useParams();
-  const [comments, setComments] = useState(postDetail.comments);
+  const [postDetail, setPostDetail] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [commentContent, setCommentContent] = useState("");
+  const [isLoadingPost, setIsLoadingPost] = useState(true);
+  const [postErrorMessage, setPostErrorMessage] = useState("");
+  const [commentErrorMessage, setCommentErrorMessage] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  const handleDeleteComment = (commentId) => {
-    setComments((currentComments) =>
-      currentComments.filter((comment) => comment.id !== commentId),
-    );
+  const handleCommentContentChange = (event) => {
+    setCommentContent(event.target.value);
+    setCommentErrorMessage("");
   };
 
-  const handleDeletePost = () => {
-    setIsDeleteDialogOpen(false);
-    navigate("/");
+  const handleCreateComment = async () => {
+    const trimmedContent = commentContent.trim();
+
+    if (!user) {
+      setCommentErrorMessage("로그인 후 댓글을 등록해주세요.");
+      return;
+    }
+
+    if (!trimmedContent) {
+      setCommentErrorMessage("댓글 내용을 입력해주세요.");
+      return;
+    }
+
+    setIsSubmittingComment(true);
+    setCommentErrorMessage("");
+
+    try {
+      const commentResponse = await createComment(postId, {
+        content: trimmedContent,
+        userId: user.id,
+      });
+      setComments((currentComments) => [
+        ...currentComments,
+        transformComment(commentResponse),
+      ]);
+      setCommentContent("");
+    } catch (error) {
+      setCommentErrorMessage(error.message);
+    } finally {
+      setIsSubmittingComment(false);
+    }
   };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await deleteComment(commentId);
+      setComments((currentComments) =>
+        currentComments.filter((comment) => comment.id !== commentId),
+      );
+    } catch (error) {
+      setCommentErrorMessage(error.message);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    setIsDeletingPost(true);
+
+    try {
+      await deletePost(postId);
+      setIsDeleteDialogOpen(false);
+      navigate("/");
+    } catch (error) {
+      setPostErrorMessage(error.message);
+      setIsDeleteDialogOpen(false);
+    } finally {
+      setIsDeletingPost(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([getPost(postId), getComments(postId)])
+      .then(([postResponse, commentResponse]) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setPostDetail(transformPostDetail(postResponse));
+        setComments(commentResponse.map((comment) => transformComment(comment)));
+      })
+      .catch((error) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setPostErrorMessage(error.message);
+      })
+      .finally(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setIsLoadingPost(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [postId]);
+
+  if (isLoadingPost) {
+    return (
+      <main className="p-6">
+        <section className="flex min-h-[520px] items-center justify-center text-center">
+          <p className="text-sm text-[#d4d4d4]">게시글을 불러오는 중이에요.</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (postErrorMessage || !postDetail) {
+    return (
+      <main className="p-6">
+        <section className="flex min-h-[520px] items-center justify-center text-center">
+          <p className="text-sm text-[#d4d4d4]">
+            {postErrorMessage || "게시글을 찾을 수 없습니다."}
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="p-6">
@@ -98,13 +293,15 @@ function PostDetail() {
         </div>
 
         <article className="mt-20">
-          <time className="text-xs text-[#d4d4d4]" dateTime="2026-03-16T10:24">
+          <time className="text-xs text-[#d4d4d4]" dateTime={postDetail.dateTime}>
             {postDetail.date} · {postDetail.time}
           </time>
           <h1 className="mt-4 text-xl font-bold leading-tight text-black">
             {postDetail.title}
           </h1>
-          <p className="mt-7 font-['Zodiak'] text-[28px] font-extrabold italic leading-snug text-black">
+          <p
+            className={`mt-7 ${postDetail.contentFontClass} text-[28px] leading-snug text-black`}
+          >
             {postDetail.content}
           </p>
 
@@ -141,18 +338,26 @@ function PostDetail() {
           <div className="mt-3 flex items-center gap-3">
             <textarea
               className="h-20 flex-1 resize-none rounded-md border border-gray-300 px-4 py-3 text-sm leading-relaxed outline-none transition-colors placeholder:text-sm placeholder:text-gray-300 focus:border-black"
+              onChange={handleCommentContentChange}
               placeholder="댓글을 입력하세요."
+              value={commentContent}
             />
             <button
-              className="cursor-pointer px-2 text-xs text-black transition-colors hover:text-[#d4d4d4]"
+              className="cursor-pointer px-2 text-xs text-black transition-colors hover:text-[#d4d4d4] disabled:cursor-not-allowed disabled:text-[#d4d4d4]"
+              disabled={isSubmittingComment}
+              onClick={handleCreateComment}
               type="button"
             >
-              등록
+              {isSubmittingComment ? "등록 중" : "등록"}
             </button>
           </div>
 
+          <p className="mt-2 min-h-5 text-right text-sm text-neutral-600">
+            {commentErrorMessage}
+          </p>
+
           {comments.length > 0 ? (
-            <ul className="mt-8 space-y-5">
+            <ul className="mt-6 space-y-5">
               {comments.map((comment) => (
                 <li
                   className="grid grid-cols-[120px_1fr_auto_auto] items-start gap-4 text-xs"
@@ -166,7 +371,7 @@ function PostDetail() {
                   </p>
                   <time
                     className="text-sm text-[#d4d4d4]"
-                    dateTime="2026-03-16T10:24"
+                    dateTime={comment.dateTime}
                   >
                     {comment.date} · {comment.time}
                   </time>
@@ -219,11 +424,12 @@ function PostDetail() {
                 취소
               </button>
               <button
-                className="cursor-pointer rounded-md border border-gray-300 px-4 py-1.5 text-sm text-black transition-colors hover:bg-black hover:text-white"
+                className="cursor-pointer rounded-md border border-gray-300 px-4 py-1.5 text-sm text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:text-[#d4d4d4] disabled:hover:bg-white disabled:hover:text-[#d4d4d4]"
+                disabled={isDeletingPost}
                 onClick={handleDeletePost}
                 type="button"
               >
-                삭제
+                {isDeletingPost ? "삭제 중" : "삭제"}
               </button>
             </div>
           </div>

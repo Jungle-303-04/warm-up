@@ -5,125 +5,54 @@ import {
   ShareIcon,
   XMarkIcon,
 } from "../components/icons";
-
-const posts = [
-  {
-    id: 1,
-    date: "Mar 16, 2026",
-    fontName: "Zodiak",
-    title: "Boost your conversion rate",
-    nickname: "Jisoo Kim",
-    previewText: "hello world",
-    previewFontClass: "font-['Zodiak'] font-extrabold italic",
-  },
-  {
-    id: 2,
-    date: "Mar 16, 2026",
-    fontName: "어그로체",
-    title: "Boost your conversion rate",
-    nickname: "Min Park",
-    previewText: "세상에 이런 폰트가 나오다니",
-    previewFontClass: "font-['Pretendard'] font-normal",
-  },
-  {
-    id: 3,
-    date: "Mar 16, 2026",
-    fontName: "Zodiak",
-    title: "my board",
-    nickname: "Yuna Lee",
-    previewText: "hello world",
-    previewFontClass: "font-['Zodiak'] font-extrabold italic",
-  },
-  {
-    id: 4,
-    date: "Mar 17, 2026",
-    fontName: "Pretendard",
-    title: "Simple notes for daily writing",
-    nickname: "font_maker",
-    previewText: "차분한 문장에는 담백한 폰트가 어울려요",
-    previewFontClass: "font-['Pretendard'] font-normal",
-  },
-  {
-    id: 5,
-    date: "Mar 17, 2026",
-    fontName: "Zodiak",
-    title: "A bright title for a small story",
-    nickname: "문장수집가",
-    previewText: "little story",
-    previewFontClass: "font-['Zodiak'] font-extrabold italic",
-  },
-  {
-    id: 6,
-    date: "Mar 18, 2026",
-    fontName: "어그로체",
-    title: "브랜드 문구 테스트",
-    nickname: "type_note",
-    previewText: "강한 첫인상을 남기는 문장",
-    previewFontClass: "font-['Pretendard'] font-normal",
-  },
-  {
-    id: 7,
-    date: "Mar 18, 2026",
-    fontName: "Zodiak",
-    title: "Elegant font pairing",
-    nickname: "Yuna Lee",
-    previewText: "soft elegance",
-    previewFontClass: "font-['Zodiak'] font-extrabold italic",
-  },
-  {
-    id: 8,
-    date: "Mar 19, 2026",
-    fontName: "Pretendard",
-    title: "읽기 쉬운 본문 조합",
-    nickname: "글꼴탐험가",
-    previewText: "본문은 읽는 흐름이 가장 중요해요",
-    previewFontClass: "font-['Pretendard'] font-normal",
-  },
-  {
-    id: 9,
-    date: "Mar 19, 2026",
-    fontName: "Zodiak",
-    title: "Serif mood board",
-    nickname: "Min Park",
-    previewText: "classic mood",
-    previewFontClass: "font-['Zodiak'] font-extrabold italic",
-  },
-  {
-    id: 10,
-    date: "Mar 20, 2026",
-    fontName: "Pretendard",
-    title: "검색 페이지 확인용",
-    nickname: "Jisoo Kim",
-    previewText: "검색 결과가 다음 페이지에도 이어져요",
-    previewFontClass: "font-['Pretendard'] font-normal",
-  },
-  {
-    id: 11,
-    date: "Mar 20, 2026",
-    fontName: "Zodiak",
-    title: "Long preview sample",
-    nickname: "type_note",
-    previewText: "forever and ever",
-    previewFontClass: "font-['Zodiak'] font-extrabold italic",
-  },
-  {
-    id: 12,
-    date: "Mar 21, 2026",
-    fontName: "어그로체",
-    title: "태그 필터 고민중",
-    nickname: "문장수집가",
-    previewText: "태그는 나중에 필터로 확장할 수 있어요",
-    previewFontClass: "font-['Pretendard'] font-normal",
-  },
-];
+import { getPosts } from "../api/posts";
 
 const postsPerPage = 9;
 const fallbackPageDescription =
   "글의 분위기를 분석해 어울리는 폰트를 적용하고, 기록해보세요.";
 
+function formatPostDate(createdAt) {
+  const date = new Date(createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function getPreviewFontClass(fontName) {
+  if (fontName.toLowerCase() === "zodiak") {
+    return "font-['Zodiak'] font-extrabold italic";
+  }
+
+  return "font-['Pretendard'] font-normal";
+}
+
+function transformPostToBoardPost(post) {
+  const fontName = post.font?.name ?? "Unknown";
+
+  return {
+    id: post.id,
+    date: formatPostDate(post.created_at),
+    fontName,
+    title: post.title,
+    nickname: post.user?.nickname ?? post.nickname ?? "작성자",
+    previewText: post.content,
+    previewFontClass: getPreviewFontClass(fontName),
+  };
+}
+
 function Board() {
+  const [posts, setPosts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [postsErrorMessage, setPostsErrorMessage] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const shareMessageTimerRef = useRef(null);
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -149,6 +78,9 @@ function Board() {
     { length: totalPages },
     (_, pageIndex) => pageIndex + 1,
   );
+  const emptyMessage = searchQuery
+    ? "검색 결과가 없어요."
+    : "아직 기록된 폰트 보드가 없어요.";
 
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
@@ -251,6 +183,41 @@ function Board() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    getPosts()
+      .then((postResponse) => {
+        if (!isMounted) {
+          return;
+        }
+
+        const boardPosts = postResponse.map((post) =>
+          transformPostToBoardPost(post),
+        );
+
+        setPosts(boardPosts);
+      })
+      .catch((error) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setPostsErrorMessage(error.message);
+      })
+      .finally(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setIsLoadingPosts(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <main className="p-6">
       <div className="flex justify-center pt-10">
@@ -277,7 +244,19 @@ function Board() {
         </label>
       </div>
 
-      {hasVisiblePosts ? (
+      {isLoadingPosts ? (
+        <section className="flex min-h-[360px] items-center justify-center text-center">
+          <p className="text-sm font-normal text-[#d4d4d4]">
+            게시글을 불러오는 중이에요.
+          </p>
+        </section>
+      ) : postsErrorMessage ? (
+        <section className="flex min-h-[360px] items-center justify-center text-center">
+          <p className="text-sm font-normal text-[#d4d4d4]">
+            {postsErrorMessage}
+          </p>
+        </section>
+      ) : hasVisiblePosts ? (
         <>
           <section className="mt-20 grid grid-cols-3 gap-x-6 gap-y-10">
             {visiblePosts.map((post) => (
@@ -375,7 +354,7 @@ function Board() {
       ) : (
         <section className="flex min-h-[360px] items-center justify-center text-center">
           <p className="text-sm font-normal text-[#d4d4d4]">
-            아직 기록된 폰트 보드가 없어요.
+            {emptyMessage}
             <br />
             첫 문장을 입력하고 어울리는 폰트를 찾아보세요.
           </p>

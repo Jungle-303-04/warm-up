@@ -73,7 +73,7 @@ function App() {
           }
           path="/mypage"
         />
-        <Route element={<PostDetail />} path="/posts/:postId" />
+        <Route element={<PostDetail user={user} />} path="/posts/:postId" />
         <Route
           element={user ? <Write /> : <Navigate replace to="/login" />}
           path="/posts/:postId/edit"
