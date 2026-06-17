@@ -1,4 +1,5 @@
 from app.agent.api.schema import (
+    AgentInferredRepositoryRefDTO,
     ChatMessageDTO,
     ChatSendMessageRequestDTO,
     ChatSendMessageResponseDTO,
@@ -6,8 +7,17 @@ from app.agent.api.schema import (
     ChatSessionDTO,
     ChatSessionDetailResponseDTO,
 )
-from app.agent.domain.chat import ASSISTANT_ROLE, USER_ROLE, ChatSession, ChatTurn, TurnQueue
+from app.agent.domain.chat import (
+    ASSISTANT_ROLE,
+    USER_ROLE,
+    AgentTurnResult,
+    ChatSession,
+    ChatTurn,
+    InferredRepositoryRef,
+    TurnQueue,
+)
 from app.agent.service.ports import AgentResponder, ChatStore
+from sqlalchemy.orm import Session
 
 
 class AgentChatService:
@@ -38,6 +48,7 @@ class AgentChatService:
 
     def send_message(
         self,
+        db: Session,
         session_id: str,
         request: ChatSendMessageRequestDTO,
     ) -> ChatSendMessageResponseDTO:
@@ -58,20 +69,30 @@ class AgentChatService:
                 user_input=user_message.content,
             )
         )
-        processed_turns = self.run_queue(session, queue)
+        processed_turns, turn_result = self.run_queue(db, session, queue)
 
         return ChatSendMessageResponseDTO(
             session=to_session_dto(session),
             messages=to_message_dtos(self.store.list_messages(session.id)),
             processed_turns=processed_turns,
+            inferred_repository_refs=to_inferred_repository_ref_dtos(
+                turn_result.inferred_repository_refs if turn_result else None
+            ),
         )
 
-    def run_queue(self, session: ChatSession, queue: TurnQueue) -> int:
+    def run_queue(
+        self,
+        db: Session,
+        session: ChatSession,
+        queue: TurnQueue,
+    ) -> tuple[int, AgentTurnResult | None]:
         """큐에 쌓인 turn을 순서대로 실행해 향후 다단계 에이전트 작업을 수용한다."""
 
         processed_turns = 0
+        last_turn_result: AgentTurnResult | None = None
         for turn in queue:
-            reply = self.responder.answer(
+            turn_result = self.responder.answer(
+                db=db,
                 session=session,
                 messages=self.store.list_messages(session.id),
                 turn=turn,
@@ -79,10 +100,11 @@ class AgentChatService:
             self.store.append_message(
                 session_id=session.id,
                 role=ASSISTANT_ROLE,
-                content=reply,
+                content=turn_result.content,
             )
             processed_turns += 1
-        return processed_turns
+            last_turn_result = turn_result
+        return processed_turns, last_turn_result
 
     def require_session(self, session_id: str) -> ChatSession:
         """존재하지 않는 채팅방에 메시지가 쌓이지 않도록 세션 존재를 보장한다."""
@@ -127,4 +149,23 @@ def to_message_dtos(messages: list) -> list[ChatMessageDTO]:
             created_at=message.created_at,
         )
         for message in messages
+    ]
+
+
+def to_inferred_repository_ref_dtos(
+    refs: list[InferredRepositoryRef] | None,
+) -> list[AgentInferredRepositoryRefDTO] | None:
+    """이번 turn에서 추론한 답변 대상이 없으면 JSON null로 내려준다."""
+
+    if not refs:
+        return None
+
+    return [
+        AgentInferredRepositoryRefDTO(
+            run_id=ref.run_id,
+            repository_full_name=ref.repository_full_name,
+            branch=ref.branch,
+            commit_sha=ref.commit_sha,
+        )
+        for ref in refs
     ]

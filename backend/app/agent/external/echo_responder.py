@@ -1,4 +1,5 @@
-from app.agent.domain.chat import ChatMessage, ChatSession, ChatTurn
+from app.agent.domain.chat import AgentTurnResult, ChatMessage, ChatSession, ChatTurn
+from sqlalchemy.orm import Session
 
 DEFAULT_AGENT_PREFIX = "Agent placeholder response"
 
@@ -8,10 +9,14 @@ class EchoAgentResponder:
 
     def answer(
         self,
+        db: Session,
         session: ChatSession,
         messages: list[ChatMessage],
         turn: ChatTurn,
-    ) -> str:
+    ) -> AgentTurnResult:
         """입력 내용이 응답까지 전달되는지 확인할 수 있게 그대로 되돌려준다."""
 
-        return f"{DEFAULT_AGENT_PREFIX}: {turn.user_input}"
+        return AgentTurnResult(
+            content=f"{DEFAULT_AGENT_PREFIX}: {turn.user_input}",
+            inferred_repository_refs=None,
+        )

@@ -3,9 +3,10 @@ from pathlib import Path
 from dependency_injector import containers, providers
 from dotenv import load_dotenv
 
-from app.agent.external.echo_responder import EchoAgentResponder
 from app.agent.external.memory_store import InMemoryChatStore
+from app.agent.service.agent_graph import AgentGraph
 from app.agent.service.chat_service import AgentChatService
+from app.agent.service.graph_responder import GraphAgentResponder
 from app.external.http import HttpClient, UserAgentFilter
 from app.auth.service.auth_service import AuthService
 from app.auth.domain.jwt_service import JwtService
@@ -181,9 +182,18 @@ class AppContainer(containers.DeclarativeContainer):
         sql_repository=rag_sql_repository,
     )
 
-    # Agent chat: 아직은 echo responder와 메모리 저장소로 최소 채팅 흐름만 만든다.
+    # Agent chat: 상위 agent graph가 RAG 답변 graph를 노드처럼 호출하는 구조다.
+    # TODO(agent): planner, MCP action, 사용자 승인 노드를 AgentGraph에 추가한다.
     agent_chat_store = providers.Singleton(InMemoryChatStore)
-    agent_responder = providers.Singleton(EchoAgentResponder)
+    agent_graph = providers.Singleton(
+        AgentGraph,
+        rag_answer_service=rag_answer_service,
+        sql_repository=rag_sql_repository,
+    )
+    agent_responder = providers.Singleton(
+        GraphAgentResponder,
+        agent_graph=agent_graph,
+    )
     agent_chat_service = providers.Singleton(
         AgentChatService,
         store=agent_chat_store,

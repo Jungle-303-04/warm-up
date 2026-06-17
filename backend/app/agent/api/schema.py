@@ -46,5 +46,13 @@ class ChatSessionDetailResponseDTO(BaseModel):
     messages: list[ChatMessageDTO]
 
 
+class AgentInferredRepositoryRefDTO(BaseModel):
+    run_id: int | None = None
+    repository_full_name: str
+    branch: str | None = None
+    commit_sha: str | None = None
+
+
 class ChatSendMessageResponseDTO(ChatSessionDetailResponseDTO):
     processed_turns: int
+    inferred_repository_refs: list[AgentInferredRepositoryRefDTO] | None = None

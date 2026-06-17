@@ -1,5 +1,6 @@
 from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.agent.api.schema import (
     ChatSendMessageRequestDTO,
@@ -9,6 +10,7 @@ from app.agent.api.schema import (
 )
 from app.agent.service.ports import AgentChatUseCase
 from app.container import AppContainer
+from app.db.session import get_session
 
 agent = APIRouter(prefix="/agent")
 
@@ -56,12 +58,13 @@ def get_chat_session(
 def send_chat_message(
     session_id: str,
     request: ChatSendMessageRequestDTO,
+    db: Session = Depends(get_session),
     chat_service: AgentChatUseCase = Depends(Provide[AppContainer.agent_chat_service]),
 ) -> ChatSendMessageResponseDTO:
     """사용자 입력 하나를 agent turn으로 처리하고 갱신된 메시지 목록을 반환한다."""
 
     try:
-        return chat_service.send_message(session_id, request)
+        return chat_service.send_message(db, session_id, request)
     except ValueError as exc:
         raise_chat_not_found(exc)
 

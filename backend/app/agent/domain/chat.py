@@ -37,6 +37,24 @@ class ChatTurn:
     user_input: str
 
 
+@dataclass(frozen=True)
+class InferredRepositoryRef:
+    """agent가 이번 turn에서 답변 기준으로 추론한 분석 run 정보."""
+
+    run_id: int | None
+    repository_full_name: str
+    branch: str | None
+    commit_sha: str | None
+
+
+@dataclass(frozen=True)
+class AgentTurnResult:
+    """프론트에 보여줄 답변과 이번 turn의 추론 결과를 함께 담는다."""
+
+    content: str
+    inferred_repository_refs: list[InferredRepositoryRef] | None = None
+
+
 class TurnQueue(Iterator[ChatTurn]):
     """채팅 입력을 순서대로 처리하고, 나중에 후속 작업을 계속 enqueue할 수 있게 한다."""
 

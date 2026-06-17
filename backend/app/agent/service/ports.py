@@ -1,12 +1,14 @@
 from typing import Protocol
 
+from sqlalchemy.orm import Session
+
 from app.agent.api.schema import (
     ChatSessionCreateRequestDTO,
     ChatSessionDetailResponseDTO,
     ChatSendMessageRequestDTO,
     ChatSendMessageResponseDTO,
 )
-from app.agent.domain.chat import ChatMessage, ChatSession, ChatTurn
+from app.agent.domain.chat import AgentTurnResult, ChatMessage, ChatSession, ChatTurn
 
 
 class ChatStore(Protocol):
@@ -31,10 +33,11 @@ class AgentResponder(Protocol):
 
     def answer(
         self,
+        db: Session,
         session: ChatSession,
         messages: list[ChatMessage],
         turn: ChatTurn,
-    ) -> str: ...
+    ) -> AgentTurnResult: ...
 
 
 class AgentChatUseCase(Protocol):
@@ -49,6 +52,7 @@ class AgentChatUseCase(Protocol):
 
     def send_message(
         self,
+        db: Session,
         session_id: str,
         request: ChatSendMessageRequestDTO,
     ) -> ChatSendMessageResponseDTO: ...
