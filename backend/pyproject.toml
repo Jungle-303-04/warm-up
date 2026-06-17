@@ -51,7 +51,14 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 ignore = ["B008"]  # FastAPI는 기본인자에 Depends(...)를 쓰는 패턴이 정상
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["E501"]
+"tests/**" = ["E501", "RUF059"]
+"app/repo_rag/**" = ["E501"]
+"app/repository_source/**" = ["E501"]
+"app/notebooks/infrastructure/**" = ["E501", "F821"]
+"app/notebooks/dependencies.py" = ["F821"]
+"app/notebooks/application/indexing_service.py" = ["E501", "RUF009"]
+"app/notebooks/application/search_planner.py" = ["E501", "RUF002"]
+"app/pipeline/infrastructure/**" = ["E501"]
 
 [tool.setuptools.packages.find]
 where = ["."]

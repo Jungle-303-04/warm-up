@@ -1,8 +1,8 @@
 import pytest
 
-from app.pipeline.api.schemas import ProposalStatus
-from app.proposals.domain.review import ReviewAction, decide
 from app.api.errors import DomainConflictError
+from app.pipeline.api.schemas import ProposalStatus
+from app.proposals.domain import ReviewAction, decide
 
 
 def test_approve_pending_becomes_approved() -> None:

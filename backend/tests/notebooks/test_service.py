@@ -3,9 +3,9 @@ from itertools import count
 
 import pytest
 
+from app.api.errors import DomainValidationError, EntityNotFoundError
 from app.notebooks.application.service import NotebookService, build_tree
 from app.notebooks.infrastructure.in_memory_store import InMemoryNotebookStore
-from app.api.errors import DomainValidationError, EntityNotFoundError
 
 FIXED_NOW = datetime(2026, 6, 15, 12, 0, tzinfo=UTC)
 

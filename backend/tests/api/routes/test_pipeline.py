@@ -5,6 +5,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.auth.dependencies import get_current_claims
+from app.auth.domain.records import SessionClaims
 from app.pipeline import (
     AGENT_PROPOSAL,
     APPROVAL,
@@ -14,8 +16,6 @@ from app.pipeline import (
     REPO_SYNC,
     ProposalStatus,
 )
-from app.auth.dependencies import get_current_claims
-from app.auth.domain.records import SessionClaims
 from app.pipeline.api.router import router as pipeline_router
 from app.repo_rag.api.router import router as repo_rag_router
 

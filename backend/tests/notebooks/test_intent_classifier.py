@@ -12,7 +12,6 @@ from app.notebooks.application.intent_classifier import (
     should_skip_rag,
 )
 
-
 # ===================================================================
 # classify_intent — CONVERSATIONAL
 # ===================================================================

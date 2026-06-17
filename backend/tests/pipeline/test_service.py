@@ -1,6 +1,6 @@
 from app.pipeline import IDS, ProposalStatus
-from app.pipeline.api.schemas import PipelineRequest, RepoFile
-from app.pipeline.application.service import PipelineService
+from app.pipeline.router import PipelineRequest, RepoFile
+from app.pipeline.service import PipelineService
 
 
 def test_run_orchestrates_all_minimum_pipeline_stages() -> None:

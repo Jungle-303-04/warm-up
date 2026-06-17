@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.auth.dependencies import get_current_claims
 from app.auth.domain.records import SessionClaims
+from app.config import Settings, get_settings
 from app.main import app
 from app.notebooks.dependencies import _in_memory_artifact_store as _artifact_store
 from app.notebooks.dependencies import _in_memory_chunk_store as _chunk_store
@@ -19,6 +20,11 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def _reset_store():
     app.dependency_overrides[get_current_claims] = lambda: SessionClaims(user_id=1, login="t")
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        openai_api_key="",
+        llm_provider="openai",
+        postgres_database_url=None,
+    )
     _store.cache_clear()
     _chunk_store.cache_clear()
     _artifact_store.cache_clear()

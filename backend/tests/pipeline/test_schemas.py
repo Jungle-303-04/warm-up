@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.pipeline.api.schemas import PipelineRequest, RepoFile
+from app.pipeline.router import PipelineRequest, RepoFile
 
 
 def test_pipeline_request_uses_default_sample_repo() -> None:

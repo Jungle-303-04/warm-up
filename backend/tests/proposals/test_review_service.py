@@ -2,10 +2,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.pipeline.api.schemas import PipelineRequest, ProposalStatus, RepoFile
-from app.proposals.application.service import ProposalReviewService
-from app.proposals.infrastructure.in_memory_store import InMemoryProposalStore
 from app.api.errors import DomainConflictError, EntityNotFoundError
+from app.pipeline.api.schemas import PipelineRequest, ProposalStatus, RepoFile
+from app.proposals.service import ProposalReviewService
+from app.proposals.stores import InMemoryProposalStore
 
 FIXED_NOW = datetime(2026, 6, 15, 12, 0, tzinfo=UTC)
 

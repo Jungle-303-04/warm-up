@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 import pytest
 
 from app.pipeline.api.schemas import ProposalStatus, ProposalType
-from app.proposals.domain.records import ProposalRecord
+from app.proposals.domain import ProposalRecord
 
 POSTGRES_DATABASE_URL = os.getenv("POSTGRES_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -23,8 +23,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def _store():
-    from app.proposals.infrastructure.models import Base
-    from app.proposals.infrastructure.sql_store import SqlProposalStore
+    from app.proposals.stores import Base, SqlProposalStore
     from app.repo_rag.infrastructure.db import create_db_engine, create_session_factory
 
     assert POSTGRES_DATABASE_URL is not None
@@ -62,8 +61,9 @@ def test_add_get_update_and_filter() -> None:
     assert any(item.id == "proposal:sql:1" for item in approved)
 
 
-def test_get_missing_raises_key_error() -> None:
+def test_get_missing_raises_entity_not_found() -> None:
     store = _store()
+    from app.api.errors import EntityNotFoundError
 
-    with pytest.raises(KeyError):
+    with pytest.raises(EntityNotFoundError):
         store.get("proposal:sql:missing")

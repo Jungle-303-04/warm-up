@@ -22,3 +22,5 @@ __pycache__/
 *.db
 
 .pnpm-store/
+
+backend/data/git_cache/

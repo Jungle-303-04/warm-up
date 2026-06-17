@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 from itertools import count
 from typing import Any
 
-
 from app.notebooks.application.chat_service import ChatService
 from app.notebooks.application.indexing_service import IndexingService
 from app.notebooks.application.service import NotebookService
@@ -153,7 +152,7 @@ def _build_repo_notebook():
 
 
 def test_chat_file_paths_filters_repo_chunks_but_keeps_non_repo() -> None:
-    chat, notebook, _repo, md = _build_repo_notebook()
+    chat, notebook, _repo, _md = _build_repo_notebook()
 
     # session.py만 범위에 포함. invoice.py(repo)는 제외되어야 하고,
     # file_path가 None인 md 본문 청크는 항상 통과해야 한다.

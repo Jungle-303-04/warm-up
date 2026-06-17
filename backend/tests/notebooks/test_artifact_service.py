@@ -10,6 +10,7 @@ from itertools import count
 
 import pytest
 
+from app.api.errors import EntityNotFoundError
 from app.notebooks.application.artifact_service import ArtifactService
 from app.notebooks.domain.records import SourceRecord
 from app.notebooks.infrastructure.artifact_generators import (
@@ -17,7 +18,6 @@ from app.notebooks.infrastructure.artifact_generators import (
 )
 from app.notebooks.infrastructure.in_memory_artifact_store import InMemoryArtifactStore
 from app.notebooks.infrastructure.in_memory_store import InMemoryNotebookStore
-from app.api.errors import EntityNotFoundError
 
 FIXED_NOW = datetime(2026, 6, 17, 12, 0, tzinfo=UTC)
 
@@ -114,7 +114,7 @@ def test_generate_erd_without_key_returns_skeleton() -> None:
     assert record.content.startswith("erDiagram")
 
 
-def test_generate_unknown_notebook_raises_keyerror() -> None:
+def test_generate_unknown_notebook_raises_entity_not_found() -> None:
     service, _ = _service()
     with pytest.raises(EntityNotFoundError):
         service.generate("missing", type="dependency")

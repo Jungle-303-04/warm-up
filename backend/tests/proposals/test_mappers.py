@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 
 from app.pipeline.api.schemas import ProposalStatus, ProposalType
-from app.proposals.domain.records import ProposalRecord
-from app.proposals.infrastructure.mappers import to_model, to_record
+from app.proposals.domain import ProposalRecord
+from app.proposals.stores import to_model, to_record
 
 
 def test_record_model_roundtrip_preserves_fields() -> None:
