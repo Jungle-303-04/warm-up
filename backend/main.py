@@ -11,10 +11,12 @@ from models.recommend import (RecommendRequest, RecommendResponse)
 from datetime import datetime, timezone
 from agent.recommend_agent import run_recommend_agent
 from routers.comments import router as comments_router
+from routers.auth import router as auth_router
 
 app = FastAPI()
 
 app.include_router(comments_router)
+app.include_router(auth_router)
 
 app.add_middleware(
     CORSMiddleware,
