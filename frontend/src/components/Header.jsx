@@ -6,9 +6,18 @@ function Header({ onAccountClick, user }) {
   const accountLabel = user?.nickname ?? "로그인";
   const isLoginPage = location.pathname === "/login";
   const isSignupPage = location.pathname === "/signup";
+  const isMyPage = location.pathname === "/mypage";
   const isPostPage = location.pathname.startsWith("/posts/");
   const isPostEditPage = location.pathname.endsWith("/edit");
   const postPageLabel = isPostEditPage ? "글수정" : "글보기";
+  const defaultNavItems = [
+    { label: "Board", path: "/" },
+    {
+      isActive: isPostPage || location.pathname === "/write",
+      label: isPostPage ? postPageLabel : "글쓰기",
+      path: isPostPage ? location.pathname : user ? "/write" : "/login",
+    },
+  ];
   const navItems =
     isLoginPage || isSignupPage
       ? [
@@ -18,14 +27,16 @@ function Header({ onAccountClick, user }) {
             path: location.pathname,
           },
         ]
-      : [
-          { label: "Board", path: "/" },
-          {
-            isActive: isPostPage || location.pathname === "/write",
-            label: isPostPage ? postPageLabel : "글쓰기",
-            path: isPostPage ? location.pathname : user ? "/write" : "/login",
-          },
-        ];
+      : isMyPage
+        ? [
+            ...defaultNavItems,
+            {
+              isActive: true,
+              label: "내정보",
+              path: "/mypage",
+            },
+          ]
+        : defaultNavItems;
 
   return (
     <header className="relative rounded-t-md bg-white px-6 py-5 shadow-[0_4px_4px_-4px_rgba(15,23,42,0.14)]">
